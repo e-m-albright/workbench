@@ -1,0 +1,5 @@
+[
+  "typescript-lsp@claude-plugins-official",
+  "rust-analyzer-lsp@claude-plugins-official",
+  "commit-commands@claude-plugins-official"
+]

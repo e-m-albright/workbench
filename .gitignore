@@ -1,0 +1,21 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Private and generated agent state
+auth.json
+credentials.json
+memory/
+memories/
+sessions/
+state/
+logs/
+
+# Local working artifacts
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+artifacts/
+tmp/
