@@ -1,13 +1,18 @@
 # Codex statusline. Codex is declarative, not command-rendered, so this is the
-# shared compact ordering: current directory, git, context, 5h/7d limits, Fast
-# mode, then model.
+# shared compact ordering: directory, git state, PR, task progress, context,
+# 5h/7d limits, Fast mode, then model. Optional items self-hide when absent.
+# Item ids verified against codex-cli 0.144.4 (no git-worktree/dirty item yet).
 theme = "Sublime Snazzy"
 notifications = ["agent-turn-complete", "approval-requested"]
 notification_method = "auto"
 notification_condition = "unfocused"
+status_line_use_colors = true
 status_line = [
   "current-dir",
   "git-branch",
+  "branch-changes",
+  "pull-request-number",
+  "task-progress",
   "context-used",
   "five-hour-limit",
   "weekly-limit",

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code's compact shared statusline:
 #
-#   claude <cwd> (<branch> [wt:name] [!n] [+n] [*n] [?n] [⇡n] [⇣n]) · ctx: n% · 5h: n% used · 7d: n% used · <model>
+#   claude <cwd> (<branch> [wt:name] [!n] [+n] [*n] [?n] [⇡n] [⇣n]) [#PR state] · ctx: n% · 5h: n% (resets ..) · 7d: n% (resets ..) · <model>
 #
 # Reads Claude's statusline JSON payload on stdin. Set NO_COLOR=1 to disable
 # ANSI colors. Schema: https://code.claude.com/docs/en/statusline.md
@@ -69,21 +69,15 @@ count_git_porcelain() {
 }
 
 git_segment() {
-    local cwd="$1"
+    local cwd="$1" worktree_name="$2"
     [[ -z "$cwd" ]] && return 0
     cd "$cwd" 2>/dev/null || return 0
     git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
 
-    local branch git_dir common_dir top_level worktree_name counts staged unstaged untracked conflicts ahead=0 behind=0 upstream_counts parts=()
+    local branch counts staged unstaged untracked conflicts ahead=0 behind=0 upstream_counts parts=()
     branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || printf 'detached')
-    git_dir=$(git rev-parse --path-format=absolute --git-dir 2>/dev/null || true)
-    common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
-    top_level=$(git rev-parse --show-toplevel 2>/dev/null || true)
-    if [[ -n "$git_dir" && -n "$common_dir" && "$git_dir" != "$common_dir" && -n "$top_level" ]]; then
-        worktree_name=$(basename "$top_level")
-    fi
 
-    counts=$(git status --porcelain 2>/dev/null | count_git_porcelain)
+    counts=$(git --no-optional-locks status --porcelain 2>/dev/null | count_git_porcelain)
     read -r staged unstaged untracked conflicts <<< "$counts"
     upstream_counts=$(git rev-list --left-right --count 'HEAD...@{u}' 2>/dev/null || true)
     if [[ -n "$upstream_counts" ]]; then

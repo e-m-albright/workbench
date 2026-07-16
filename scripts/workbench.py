@@ -31,6 +31,40 @@ CODEX_APPENDIX = """\
 RETIRED_SUBAGENTS = {"docs-scribe", "legacy-modernizer"}
 RETIRED_SKILLS = {"agentic-e2e-debugging", "converge"}
 VENDORS = ("claude", "codex", "all")
+
+# Sandbox policy deployed to (and drift-checked against) ~/.claude/settings.json.
+# Single source so `sync` (the writer) and `check` (the verifier) never diverge.
+#
+# The catastrophe guards — rm -rf, disk erase, git reset --hard, --no-verify, …
+# — live in permissions.json plus the guard hooks and are independent of this
+# block. This layer is *containment*: it caps writes and secret reads on the
+# default sandboxed path. Two deliberate escape valves keep containment from
+# breaking safe work:
+#   - filesystem.allowWrite re-opens regenerable tool caches (uv, pip, …) so the
+#     Python check gate runs in-sandbox instead of failing on ~/.cache.
+#   - excludedCommands runs network git *entirely* outside the sandbox so SSH
+#     auth (git push/fetch/pull) works. Those commands still pass through the
+#     permission rules and guard hooks, so a force-push or reset --hard is still
+#     blocked — only the filesystem/network containment is lifted for them.
+# allowUnsandboxedCommands stays False on purpose: no blanket silent escape.
+CLAUDE_SANDBOX = {
+    "enabled": True,
+    "failIfUnavailable": True,
+    "allowUnsandboxedCommands": False,
+    "filesystem": {
+        "allowWrite": ["~/.cache"],
+        "denyRead": [
+            "~/.ssh", "~/.gnupg", "~/.aws", "~/.config/gcloud",
+            "~/Library/Keychains",
+        ],
+        "denyWrite": [
+            "~/.ssh", "~/.gnupg", "~/.aws", "~/.config/gcloud",
+            "~/Library/Keychains",
+        ],
+    },
+    "excludedCommands": ["git push", "git fetch", "git pull"],
+}
+
 WORKBENCH_BANNER = """\
 ██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗██████╗ ███████╗███╗   ██╗ ██████╗██╗  ██╗
 ██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝██╔══██╗██╔════╝████╗  ██║██╔════╝██║  ██║
@@ -350,27 +384,7 @@ def sync_claude(
     settings["voiceEnabled"] = True
     settings["preferredNotifChannel"] = "auto"
     settings["defaultMode"] = "auto"
-    settings["sandbox"] = {
-        "enabled": True,
-        "failIfUnavailable": True,
-        "allowUnsandboxedCommands": False,
-        "filesystem": {
-            "denyRead": [
-                "~/.ssh",
-                "~/.gnupg",
-                "~/.aws",
-                "~/.config/gcloud",
-                "~/Library/Keychains",
-            ],
-            "denyWrite": [
-                "~/.ssh",
-                "~/.gnupg",
-                "~/.aws",
-                "~/.config/gcloud",
-                "~/Library/Keychains",
-            ],
-        },
-    }
+    settings["sandbox"] = CLAUDE_SANDBOX
     write_json(settings_path, settings)
 
     claude_root = home / ".claude.json"
@@ -701,21 +715,7 @@ def check(
                 "voiceEnabled": True,
                 "preferredNotifChannel": "auto",
                 "defaultMode": "auto",
-                "sandbox": {
-                    "enabled": True,
-                    "failIfUnavailable": True,
-                    "allowUnsandboxedCommands": False,
-                    "filesystem": {
-                        "denyRead": [
-                            "~/.ssh", "~/.gnupg", "~/.aws", "~/.config/gcloud",
-                            "~/Library/Keychains",
-                        ],
-                        "denyWrite": [
-                            "~/.ssh", "~/.gnupg", "~/.aws", "~/.config/gcloud",
-                            "~/Library/Keychains",
-                        ],
-                    },
-                },
+                "sandbox": CLAUDE_SANDBOX,
             }
             findings.extend(
                 _managed_value_errors(settings, managed_settings, "Claude settings")
