@@ -40,10 +40,40 @@ WORKBENCH_BANNER = """\
  ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝
 """
 RUBY_STOPS = ((255, 184, 194), (230, 57, 86), (165, 9, 47), (101, 0, 24))
+COMMAND_HELP = {
+    "sync": (
+        "workbench sync [claude|codex|all] [OPTIONS]",
+        "Deploy canonical Workbench configuration to one or both vendors.",
+        [
+            ("target", "claude, codex, or all (default: all)"),
+            ("--no-skills", "skip shared-skill installation"),
+            ("--no-plugins", "skip declared-plugin installation"),
+        ],
+    ),
+    "check": (
+        "workbench check [claude|codex|all]",
+        "Compare live configuration directly with canonical Workbench sources.",
+        [("target", "claude, codex, or all (default: all)")],
+    ),
+    "lint": (
+        "workbench lint",
+        "Validate skills, local links, JSON, TOML, and shell syntax.",
+        [("no arguments", "validates canonical repository sources")],
+    ),
+}
 
 
 class WorkbenchError(RuntimeError):
     """A source or deployed configuration cannot be handled safely."""
+
+
+class CliUsageError(RuntimeError):
+    """An argparse usage failure that should use the visual renderer."""
+
+
+class VisualArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        raise CliUsageError(message)
 
 
 def load_json(path: Path, default: Any = None) -> Any:
@@ -976,28 +1006,63 @@ def _command_rows(parser: argparse.ArgumentParser) -> list[tuple[str, str]]:
     return rows
 
 
-def print_help(parser: argparse.ArgumentParser) -> None:
-    """Render the branded front door in the same visual grammar as Dotfiles."""
+def _error_panel(message: str) -> str:
     width = max(72, shutil.get_terminal_size((80, 24)).columns)
-    print(gradient_banner())
-    print()
-    print(_styled(" Usage: ", "1") + "workbench [OPTIONS] COMMAND [ARGS]...")
-    print()
-    print(" Portable agent intelligence: deploy and verify Claude Code and Codex configuration.")
-    print(" The shorter `wb` launcher is equivalent to `workbench`.")
-    print()
-    print(_panel("Options", [("--help", "Show this message and exit.")], width))
+    return _panel("Error", [("×", message)], width)
+
+
+def print_help(
+    parser: argparse.ArgumentParser, *, stream=None, error: str | None = None
+) -> None:
+    """Render the branded front door in the same visual grammar as Dotfiles."""
+    stream = stream or sys.stdout
+    width = max(72, shutil.get_terminal_size((80, 24)).columns)
+    print(gradient_banner(), file=stream)
+    print(file=stream)
+    if error:
+        print(_error_panel(error), file=stream)
+    print(
+        _styled(" Usage: ", "1") + "workbench [OPTIONS] COMMAND [ARGS]...",
+        file=stream,
+    )
+    print(file=stream)
+    print(
+        " Portable agent intelligence: deploy and verify Claude Code and Codex configuration.",
+        file=stream,
+    )
+    print(" The shorter `wb` launcher is equivalent to `workbench`.", file=stream)
+    print(file=stream)
+    print(
+        _panel("Options", [("--help", "Show this message and exit.")], width),
+        file=stream,
+    )
     print(
         _panel(
             "Configuration — deploy and validate agent state",
             _command_rows(parser),
             width,
-        )
+        ),
+        file=stream,
     )
 
 
+def print_command_help(
+    command: str, *, stream=None, error: str | None = None
+) -> None:
+    stream = stream or sys.stdout
+    width = max(72, shutil.get_terminal_size((80, 24)).columns)
+    usage, description, rows = COMMAND_HELP[command]
+    if error:
+        print(_error_panel(error), file=stream)
+    print(_styled(" Usage: ", "1") + usage, file=stream)
+    print(file=stream)
+    print(f" {description}", file=stream)
+    print(file=stream)
+    print(_panel("Arguments and options", rows, width), file=stream)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = VisualArgumentParser(
         prog="workbench",
         description=(
             "Deploy and verify the personal Claude Code and Codex intelligence layer.\n"
@@ -1055,7 +1120,22 @@ def main(argv: list[str] | None = None) -> int:
     if not raw_argv or raw_argv in (["-h"], ["--help"]):
         print_help(parser)
         return 0
-    args = parser.parse_args(raw_argv)
+    requested_command = next(
+        (value for value in raw_argv if value in COMMAND_HELP), None
+    )
+    if requested_command and any(value in {"-h", "--help"} for value in raw_argv):
+        print_command_help(requested_command)
+        return 0
+    try:
+        args = parser.parse_args(raw_argv)
+    except CliUsageError as exc:
+        if requested_command:
+            print_command_help(
+                requested_command, stream=sys.stderr, error=str(exc)
+            )
+        else:
+            print_help(parser, stream=sys.stderr, error=str(exc))
+        return 2
     home = Path(os.environ.get("WORKBENCH_HOME", Path.home()))
 
     try:
@@ -1080,7 +1160,9 @@ def main(argv: list[str] | None = None) -> int:
         print("OK workbench synchronized")
         return 0
     except (WorkbenchError, OSError, subprocess.CalledProcessError) as exc:
-        print(f"ERROR {exc}", file=sys.stderr)
+        print(_error_panel(str(exc)), file=sys.stderr)
+        if args.command in COMMAND_HELP:
+            print_command_help(args.command, stream=sys.stderr)
         return 1
 
 

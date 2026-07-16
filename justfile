@@ -36,5 +36,5 @@ drift *args:
 [default]
 help:
     #!/usr/bin/env bash
-    export JUST_LIST_HEADING=$'\e[1;34m workbench CLI\e[0m — dev tasks (cwd: repository root)\n'
+    export JUST_LIST_HEADING=$'\e[1;38;2;230;57;86m workbench CLI\e[0m · dev tasks (cwd: repository root)\n'
     exec just --justfile "{{justfile()}}" --list --unsorted

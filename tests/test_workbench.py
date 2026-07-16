@@ -128,9 +128,57 @@ class WorkbenchTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("{claude,codex,all}", result.stdout)
+        self.assertIn("claude|codex|all", result.stdout)
         self.assertIn("--no-skills", result.stdout)
         self.assertIn("--no-plugins", result.stdout)
+
+    def test_every_command_has_contextual_visual_help(self) -> None:
+        expectations = {
+            "sync": "--no-plugins",
+            "check": "default: all",
+            "lint": "shell syntax",
+        }
+        for command, expected in expectations.items():
+            with self.subTest(command=command):
+                result = subprocess.run(
+                    [str(wb.ROOT / "bin/workbench"), command, "--help"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(f"workbench {command}", result.stdout)
+                self.assertIn("Arguments and options", result.stdout)
+                self.assertIn(expected, result.stdout)
+                self.assertNotIn("usage: workbench", result.stderr)
+
+    def test_invalid_target_has_visual_contextual_error(self) -> None:
+        result = subprocess.run(
+            [str(wb.ROOT / "bin/workbench"), "sync", "other"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("╭─ Error", result.stderr)
+        self.assertIn("invalid choice", result.stderr)
+        self.assertIn("workbench sync [claude|codex|all]", result.stderr)
+        self.assertNotIn("usage: workbench", result.stderr)
+
+    def test_unknown_command_has_visual_registry_error(self) -> None:
+        result = subprocess.run(
+            [str(wb.ROOT / "bin/workbench"), "other"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("╭─ Error", result.stderr)
+        self.assertIn("invalid choice", result.stderr)
+        self.assertIn("Configuration", result.stderr)
+        self.assertNotIn("usage: workbench", result.stderr)
 
     @patch.object(wb.subprocess, "run")
     @patch.object(wb.shutil, "which", return_value="/usr/bin/npx")
