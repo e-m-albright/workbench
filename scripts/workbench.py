@@ -28,6 +28,22 @@ CODEX_APPENDIX = """\
 - Follow the same verification, testing, and minimal-change conventions as Claude Code.
 """
 RETIRED_SUBAGENTS = {"docs-scribe", "legacy-modernizer"}
+RETIRED_SKILLS = {"agentic-e2e-debugging", "converge"}
+VENDORS = ("claude", "codex", "all")
+COMMAND_TREE = """\
+command tree:
+  workbench (wb)
+  ├── sync [claude|codex|all]    deploy canonical configuration
+  │   ├── --no-skills            skip shared-skill installation
+  │   └── --no-plugins           skip declared-plugin installation
+  ├── check [claude|codex|all]   report managed drift and external additions
+  └── lint                       validate canonical repository sources
+
+examples:
+  workbench sync all
+  wb check codex
+  workbench sync claude --no-plugins
+"""
 
 
 class WorkbenchError(RuntimeError):
@@ -190,16 +206,19 @@ def _install_runtime_files(home: Path) -> Path:
     return data
 
 
-def _sync_skills(vendor: str) -> None:
+def _sync_skills(vendor: str, home: Path) -> None:
     skill_names = sorted(
         path.parent.name for path in (AGENTS / "skills").glob("*/SKILL.md")
     )
     if not shutil.which("npx"):
         raise WorkbenchError("npx is required to deploy skills")
-    if skill_names:
+    env = {**os.environ, "HOME": str(home)}
+    removals = sorted(set(skill_names) | RETIRED_SKILLS)
+    if removals:
         subprocess.run(
-            ["npx", "skills", "remove", *skill_names, "-a", vendor, "-g", "-y"],
+            ["npx", "skills", "remove", *removals, "-a", vendor, "-g", "-y"],
             check=False,
+            env=env,
         )
     subprocess.run(
         [
@@ -216,7 +235,18 @@ def _sync_skills(vendor: str) -> None:
             "--copy",
         ],
         check=True,
+        env=env,
     )
+    skill_roots = [home / ".agents/skills"]
+    if vendor == "claude-code":
+        skill_roots.append(home / ".claude/skills")
+    for root in skill_roots:
+        for name in RETIRED_SKILLS:
+            retired = root / name
+            if retired.is_symlink() or retired.is_file():
+                retired.unlink()
+            elif retired.exists():
+                shutil.rmtree(retired)
 
 
 def _subagent_fields(path: Path) -> tuple[str, str, str]:
@@ -328,7 +358,7 @@ def sync_claude(
     _sync_claude_desktop(home)
     _sync_subagents("claude", claude_home / "agents")
     if deploy_skills:
-        _sync_skills("claude-code")
+        _sync_skills("claude-code", home)
     if deploy_plugins:
         _sync_plugins("claude")
 
@@ -467,7 +497,7 @@ def sync_codex(
     copy_file(AGENTS / "codex/hooks.json", codex_home / "hooks.json")
     _sync_subagents("codex", codex_home / "agents")
     if deploy_skills:
-        _sync_skills("codex")
+        _sync_skills("codex", home)
     if deploy_plugins:
         _sync_plugins("codex")
 
@@ -557,7 +587,10 @@ def _check_skills(
                     findings,
                 )
     for name in deployed.keys() - canonical.keys():
-        external.append(f"EXTERNAL {vendor} skill: {name}")
+        if name in RETIRED_SKILLS:
+            findings.append(f"DRIFT retired {vendor} skill still present: {name}")
+        else:
+            external.append(f"EXTERNAL {vendor} skill: {name}")
 
 
 def _check_subagents(
@@ -833,7 +866,7 @@ def lint() -> int:
         )
         if result.returncode:
             errors.append(result.stderr.strip())
-    errors.extend(_markdown_link_errors(AGENTS))
+    errors.extend(_markdown_link_errors(ROOT))
     for error in errors:
         print(f"ERROR {error}")
     if errors:
@@ -850,19 +883,67 @@ def _vendors(raw: str) -> tuple[str, ...]:
     return (raw,)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    sub = parser.add_subparsers(dest="command", required=True)
-    sync = sub.add_parser("sync", help="deploy managed configuration")
-    sync.add_argument("vendor", nargs="?", default="all")
-    sync.add_argument("--no-skills", action="store_true")
-    sync.add_argument("--no-plugins", action="store_true")
-    check_parser = sub.add_parser(
-        "check", help="report managed drift and external additions"
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="workbench",
+        description=(
+            "Deploy and verify the personal Claude Code and Codex intelligence layer.\n"
+            "The shorter `wb` launcher is equivalent to `workbench`."
+        ),
+        epilog=COMMAND_TREE,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    check_parser.add_argument("vendor", nargs="?", default="all")
-    sub.add_parser("lint", help="validate workbench sources")
+    sub = parser.add_subparsers(dest="command", metavar="COMMAND")
+    sync = sub.add_parser(
+        "sync",
+        help="deploy canonical configuration",
+        description="Deploy Workbench-managed configuration to one or both vendors.",
+    )
+    sync.add_argument(
+        "vendor",
+        nargs="?",
+        choices=VENDORS,
+        default="all",
+        help="vendor to reconcile (default: all)",
+    )
+    sync.add_argument(
+        "--no-skills",
+        action="store_true",
+        help="skip shared-skill installation",
+    )
+    sync.add_argument(
+        "--no-plugins",
+        action="store_true",
+        help="skip declared-plugin installation",
+    )
+    check_parser = sub.add_parser(
+        "check",
+        help="report managed drift and external additions",
+        description=(
+            "Compare live vendor configuration directly with canonical Workbench sources."
+        ),
+    )
+    check_parser.add_argument(
+        "vendor",
+        nargs="?",
+        choices=VENDORS,
+        default="all",
+        help="vendor to inspect (default: all)",
+    )
+    sub.add_parser(
+        "lint",
+        help="validate canonical repository sources",
+        description="Validate skills, local links, JSON, TOML, and shell syntax.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        return 0
     home = Path(os.environ.get("WORKBENCH_HOME", Path.home()))
 
     try:

@@ -9,7 +9,7 @@ description: The domain/ontology lens of the code-health portfolio — make the 
 
 The **conceptual lens**: does the code speak the language of the domain? Structure can be clean and modules deep while the codebase still models the wrong concepts or names them after an external API. This lens aligns the code's vocabulary and boundaries with the domain — the backbone everything else hangs on, since names drive module boundaries.
 
-It is *informed by and updates* the project's domain model. The full method (ubiquitous language → bounded contexts → package-by-feature → screaming architecture, plus the dependency-hierarchy enforcement) lives in [ONTOLOGY-AND-HIERARCHY.md](../../converge/references/ONTOLOGY-AND-HIERARCHY.md) — read it; this skill is the conversational lens that applies it.
+It is *informed by and updates* the project's domain model. Apply ubiquitous language, bounded contexts, package-by-feature, screaming architecture, and explicit dependency direction as one coherent method.
 
 ## When to reach for it
 
@@ -25,7 +25,7 @@ Names feel off, the same word means different things in different places, API/DB
    - **Framework-screaming layout** — top-level dirs naming the stack, not the domain; feature pieces scattered across layer folders.
 3. **Propose renames and boundary moves** in the ubiquitous language. A deepened module is named for the concept it owns.
 4. **Update the glossary inline.** Naming a concept not in `CONTEXT.md`? Add it using the [domain glossary format](../../planning/references/domain-format.md). Sharpening a fuzzy term? Fix it there. The glossary is the durable artifact that makes the alignment stick.
-5. **Ratchet structural wins into contracts.** Once a bounded context is cleanly separated, encode the layering/forbidden-import rule (import-linter / dependency-cruiser / ArchUnit) so it can't re-tangle — see ONTOLOGY-AND-HIERARCHY.md.
+5. **Ratchet structural wins into contracts.** Once a bounded context is cleanly separated, encode the layering or forbidden-import rule with the project's native dependency checker so it cannot silently re-tangle.
 
 ## Antagonists
 
@@ -35,4 +35,4 @@ Names feel off, the same word means different things in different places, API/DB
 When an alignment move contradicts a recorded ADR, surface it for reopening rather than re-litigating silently.
 
 ## Sources
-- Evans, *Domain-Driven Design* (ubiquitous language, bounded contexts); Fowler, *BoundedContext*; Martin, *Screaming Architecture*; package-by-feature literature. Method detail and dependency-hierarchy enforcement in [ONTOLOGY-AND-HIERARCHY.md](../../converge/references/ONTOLOGY-AND-HIERARCHY.md).
+- Evans, *Domain-Driven Design* (ubiquitous language, bounded contexts); Fowler, *BoundedContext*; Martin, *Screaming Architecture*; package-by-feature literature.

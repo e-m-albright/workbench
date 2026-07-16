@@ -1,13 +1,13 @@
 ---
 name: form-tidy
-description: The safe-execution lens of the code-health portfolio — apply named, behavior-preserving refactorings from the Fowler/Beck catalog (extract function, inline, guard clauses, replace conditional with polymorphism or lookup, decompose conditional, slide statements) in small two-hats steps, verified by tests, routed through deterministic codemods where possible. Use when the user says "tidy this", "clean up this function", "extract a method", "flatten these conditionals", "apply a refactoring", "this is messy", "guard clauses", or wants a known transform done safely. SKIP for whole-repo measured convergence (converge), conceptual design conversations (form-deepen), or bug-finding (/review).
+description: The safe-execution lens of the code-health portfolio — apply named, behavior-preserving refactorings from the Fowler/Beck catalog (extract function, inline, guard clauses, replace conditional with polymorphism or lookup, decompose conditional, slide statements) in small two-hats steps, verified by tests, routed through deterministic codemods where possible. Use when the user says "tidy this", "clean up this function", "extract a method", "flatten these conditionals", "apply a refactoring", "this is messy", "guard clauses", or wants a known transform done safely. SKIP for conceptual design conversations (form-deepen) or bug-finding (/review).
 ---
 
 # Tidy
 
 > **Canon** — enacts Principle 5 (*Simplicity is the goal*) via named, behavior-preserving transforms. See [health/README.md](../../../../health/README.md).
 
-The **mechanical, behavior-preserving execution lens** (Fowler's *Refactoring*, Beck's *Tidy First?*). Where `form-deepen` decides *what* design to pursue and `converge` *measures and ratchets* a whole repo, `form-tidy` is how you safely make a specific structural change *now*: pick a named transform, apply it in tiny steps, keep the tests green, commit it separately.
+The **mechanical, behavior-preserving execution lens** (Fowler's *Refactoring*, Beck's *Tidy First?*). Where `form-deepen` decides *what* design to pursue, `form-tidy` is how you safely make a specific structural change *now*: pick a named transform, apply it in tiny steps, keep the tests green, commit it separately.
 
 It's the most schedulable lens because the transforms are deterministic and behavior-preserving — but it's also the easiest to over-apply, so it carries explicit antagonist guards.
 
@@ -21,7 +21,7 @@ Every edit is *either* a structure change *or* a behavior change, never both. Ti
 
 ## Process
 
-1. **Name the smell and the transform.** Don't free-form. Map the smell to a catalog entry — the common ones, with the selection heuristic from [DE-SLOP.md](../../converge/references/DE-SLOP.md):
+1. **Name the smell and the transform.** Don't free-form. Map the smell to a catalog entry:
    - deep nesting with early exits → **Replace Nested Conditional with Guard Clauses**
    - dispatch on a value/key → **Replace Conditional with Lookup/Table**
    - dispatch on a type/variant → **Replace Conditional with Polymorphism**
@@ -35,7 +35,7 @@ Every edit is *either* a structure change *or* a behavior change, never both. Ti
 
 ## Tidy first?
 
-Tidy *before* a feature only when it makes that feature quicker, smaller, or safer to add — "make the change easy, then make the easy change." Over-tidying with no impending change is procrastination (Beck). If you're tidying for its own sake at repo scale, that's the `converge` loop's job, with a ratchet to make it converge.
+Tidy *before* a feature only when it makes that feature quicker, smaller, or safer to add — "make the change easy, then make the easy change." Over-tidying with no impending change is procrastination (Beck). Repository-wide cleanup needs an explicit scope and project-owned verification gate.
 
 ## Antagonists (decide, don't let the last edit win)
 
@@ -46,4 +46,4 @@ Tidy *before* a feature only when it makes that feature quicker, smaller, or saf
 When a tidy would reverse a decision recorded in the ADR log, stop and surface it rather than flip-flopping.
 
 ## Sources
-- Fowler, *Refactoring* 2e (the catalog, small steps, separate commits); Beck, *Tidy First?* (two hats, tidy-first economics). Transform selection heuristic shared with [DE-SLOP.md](../../converge/references/DE-SLOP.md).
+- Fowler, *Refactoring* 2e (the catalog, small steps, separate commits); Beck, *Tidy First?* (two hats, tidy-first economics).

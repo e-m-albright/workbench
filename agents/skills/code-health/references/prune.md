@@ -9,7 +9,7 @@ description: The minimalism/deletion lens of the code-health portfolio — impro
 
 The **deletion lens** — worse-is-better, YAGNI, "the best code is no code." Every other lens can add (abstraction, types, comments, structure); this one only asks **what can be removed without losing behavior the system actually needs?** It's the counterweight that keeps the portfolio from accreting, and it's grounded by the GitClear finding that AI assistants overwhelmingly *add* and rarely consolidate.
 
-It is codebase-scoped and deletion-first — distinct from the built-in `/simplify` (which cleans the current diff) and from `form-tidy` (which restructures). Prune's success metric is honest and visible: **net lines and surface area go down**, achieved by real removal, never by compressing or laundering (no comment-stripping — that's gaming, see [METRICS.md](../../converge/references/METRICS.md)).
+It is codebase-scoped and deletion-first — distinct from the built-in `/simplify` (which cleans the current diff) and from `form-tidy` (which restructures). Prune's success metric is honest and visible: **net lines and surface area go down**, achieved by real removal, never by compressing, comment-stripping, or type laundering.
 
 ## When to reach for it
 
@@ -37,4 +37,4 @@ The code is bloated: defensive checks the types make impossible, abstractions wi
 A deletion that reverses a recorded "keep this for reason X" ADR must be surfaced, not silently re-done.
 
 ## Sources
-- Gall's Law / worse-is-better (Gabriel); YAGNI (Beck/XP); "best code is no code" (Welsh); Tigerstyle and Carmack-style simplification; Metz, *The Wrong Abstraction*; Dodds, *AHA Programming*. LOC-as-honest-proxy and anti-gaming in [METRICS.md](../../converge/references/METRICS.md).
+- Gall's Law / worse-is-better (Gabriel); YAGNI (Beck/XP); "best code is no code" (Welsh); Tigerstyle and Carmack-style simplification; Metz, *The Wrong Abstraction*; Dodds, *AHA Programming*.

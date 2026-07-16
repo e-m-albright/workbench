@@ -1,6 +1,6 @@
 ---
 name: form-purify
-description: The testability/effect-isolation lens of the code-health portfolio — extract a pure core and push side effects to the edges (functional core / imperative shell, ports & adapters), and model types so illegal states are unrepresentable (parse don't validate). Use when the user says "make this testable", "extract a pure core", "functional core imperative shell", "parse don't validate", "make illegal states unrepresentable", "tame the side effects", "ports and adapters / hexagonal", or "this can only be tested end-to-end". SKIP for whole-repo measured convergence (converge), bug-finding (/review), or pure deletion (form-prune).
+description: The testability/effect-isolation lens of the code-health portfolio — extract a pure core and push side effects to the edges (functional core / imperative shell, ports & adapters), and model types so illegal states are unrepresentable (parse don't validate). Use when the user says "make this testable", "extract a pure core", "functional core imperative shell", "parse don't validate", "make illegal states unrepresentable", "tame the side effects", "ports and adapters / hexagonal", or "this can only be tested end-to-end". SKIP for bug-finding (/review) or pure deletion (form-prune).
 ---
 
 # Purify
@@ -9,7 +9,7 @@ description: The testability/effect-isolation lens of the code-health portfolio 
 
 The **effect-isolation lens**. Logic tangled with I/O can only be tested end-to-end and is hard to reason about. This lens separates the **pure core** (deterministic computation, trivially testable) from the **imperative shell** (the thin layer that does I/O), and uses the type system to make whole classes of error impossible. It's the design school behind "humble object," hexagonal architecture, and type-driven design.
 
-It shares the dependency-categorization and seam mechanics in [DEEPENING.md](../../converge/references/DEEPENING.md) — read it for how to test across each kind of dependency; this skill is the lens that drives toward a pure core.
+Classify dependencies by what makes them hard to control: in-process logic, owned I/O, third-party adapters, time, randomness, or remote state. Drive each toward a narrow seam around a pure core.
 
 ## When to reach for it
 
@@ -31,4 +31,4 @@ A function mixes a database/network/filesystem call with the decision logic; tes
 - **vs `form-deepen`:** strongly aligned — a pure core *is* a deep module. Use `form-deepen`'s vocabulary for the interface.
 
 ## Sources
-- Bernhardt, *Functional Core, Imperative Shell*; Cockburn, *Hexagonal Architecture* (ports & adapters); Wlaschin, *Parse, Don't Validate* / *Domain Modeling Made Functional* (make illegal states unrepresentable); Ousterhout, *define errors out of existence*; "humble object" (Feathers). Dependency/seam testing detail in [DEEPENING.md](../../converge/references/DEEPENING.md).
+- Bernhardt, *Functional Core, Imperative Shell*; Cockburn, *Hexagonal Architecture* (ports & adapters); Wlaschin, *Parse, Don't Validate* / *Domain Modeling Made Functional* (make illegal states unrepresentable); Ousterhout, *define errors out of existence*; "humble object" (Feathers).

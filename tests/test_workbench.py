@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 MODULE_PATH = Path(__file__).parents[1] / "scripts/workbench.py"
 SPEC = importlib.util.spec_from_file_location("workbench_cli", MODULE_PATH)
@@ -80,7 +81,72 @@ class WorkbenchTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("OK 19 skills", result.stdout)
+            self.assertIn("OK 17 skills", result.stdout)
+
+    def test_bare_launcher_prints_complete_command_tree(self) -> None:
+        result = subprocess.run(
+            [str(wb.ROOT / "bin/workbench")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("command tree:", result.stdout)
+        self.assertIn("sync [claude|codex|all]", result.stdout)
+        self.assertIn("check [claude|codex|all]", result.stdout)
+        self.assertIn("wb check codex", result.stdout)
+
+    def test_sync_help_explains_targets_and_optional_installers(self) -> None:
+        result = subprocess.run(
+            [str(wb.ROOT / "bin/workbench"), "sync", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("{claude,codex,all}", result.stdout)
+        self.assertIn("--no-skills", result.stdout)
+        self.assertIn("--no-plugins", result.stdout)
+
+    @patch.object(wb.subprocess, "run")
+    @patch.object(wb.shutil, "which", return_value="/usr/bin/npx")
+    def test_skill_sync_removes_retired_skills_before_installing(
+        self, _which, run
+    ) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            for name in wb.RETIRED_SKILLS:
+                retired = home / ".agents/skills" / name
+                retired.mkdir(parents=True)
+                (retired / "SKILL.md").write_text("retired")
+
+            wb._sync_skills("codex", home)
+
+            for name in wb.RETIRED_SKILLS:
+                self.assertFalse((home / ".agents/skills" / name).exists())
+
+        remove_command = run.call_args_list[0].args[0]
+        self.assertEqual(remove_command[:3], ["npx", "skills", "remove"])
+        self.assertIn("agentic-e2e-debugging", remove_command)
+        self.assertIn("converge", remove_command)
+
+    def test_check_treats_retired_deployed_skill_as_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            skill_root = Path(raw)
+            retired = skill_root / "converge"
+            retired.mkdir()
+            (retired / "SKILL.md").write_text("retired")
+            findings: list[str] = []
+            external: list[str] = []
+
+            wb._check_skills(skill_root, "codex", findings, external)
+
+            self.assertIn(
+                "DRIFT retired codex skill still present: converge", findings
+            )
+            self.assertNotIn("EXTERNAL codex skill: converge", external)
 
     def test_skill_descriptions_fit_context_budget(self) -> None:
         descriptions = []
@@ -110,8 +176,8 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertIn("missing.md", errors[0])
 
-    def test_canonical_agent_markdown_links_resolve(self) -> None:
-        self.assertEqual(wb._markdown_link_errors(wb.AGENTS), [])
+    def test_repository_markdown_links_resolve(self) -> None:
+        self.assertEqual(wb._markdown_link_errors(wb.ROOT), [])
 
     def test_sync_claude_preserves_unmanaged_settings(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -222,6 +288,20 @@ class WorkbenchTests(unittest.TestCase):
 
             self.assertEqual(
                 wb.check(home, ("claude",), verify_plugins=False), 1
+            )
+
+    def test_temporary_home_sync_and_check_all_vendors(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            wb.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            for root in (home / ".claude/skills", home / ".agents/skills"):
+                for source in wb.AGENTS.glob("skills/*"):
+                    if source.is_dir():
+                        wb.shutil.copytree(source, root / source.name)
+
+            self.assertEqual(
+                wb.check(home, ("claude", "codex"), verify_plugins=False), 0
             )
 
     def test_codex_rule_merge_preserves_safe_additions_and_drops_bypasses(self) -> None:

@@ -1,69 +1,273 @@
 # Workbench
 
-Workbench is the version-controlled intelligence layer for its owner's development
-environment. It carries agent behavior, engineering judgment, project-health
-tools, and reusable automation building blocks between repositories.
+The portable intelligence and engineering-guidance layer for my development
+environment.
 
-It is personal and opinionated. It supports one workflow rather than unknown
-users or arbitrary machines. It must remain safe to publish: credentials,
-personal records, conversations, generated memory, and private automation state
-belong outside this repository.
+Workbench is where I version the behavior I want Claude Code and Codex to share:
+agent rules, skills, specialist agents, prompts, MCP declarations, safety policy,
+engineering doctrine, and reusable project-health tools. It turns those canonical
+sources into each vendor's native configuration and verifies the live result.
 
-## Scope
+This is a personal, opinionated repository. It optimizes one workflow rather
+than trying to become a general agent platform.
 
-- `agents/` - canonical configuration for Claude Code and Codex, shared skills,
-  prompts, subagents, MCP definitions, hooks, and permissions.
-- `playbook/` - engineering principles and researched technology preferences.
-- `health/` - deterministic project checks, ratchets, and advisory AI review
-  rubrics.
-- `automations/` - reusable, context-free automation adapters and experiments.
-- `docs/decisions/` - durable rejected-tool and architectural decisions.
+## What It Does
 
-The host layer remains in `~/code/public/dotfiles`. Private context and
-instantiated personal automations remain in the `notes` repository.
+Workbench gives me one place to answer four questions:
 
-## Supported Agents
-
-Claude Code and Codex are first-class. Other harnesses remain evaluation
-candidates until their recurring value justifies integration work.
-
-## Commands
+1. **How should my coding agents behave?** Shared rules, safety boundaries,
+   reusable skills, and specialist-agent instructions live under `agents/`.
+2. **How do those instructions reach each vendor?** `workbench sync` translates
+   and deploys the canonical sources into Claude Code and Codex configuration.
+3. **Has live configuration drifted?** `workbench check` compares the deployed
+   files and installed plugins directly with the repository.
+4. **What engineering judgment should carry between projects?** The playbook,
+   health kit, and review prompts preserve reusable decisions without coupling
+   them to a particular codebase.
 
 ```text
-workbench sync [claude|codex|all]   reconcile managed agent configuration
-workbench check [claude|codex|all]  report managed drift and external additions
-workbench lint                       validate skills, JSON, TOML, and shell syntax
+                    canonical sources
+              agents/   playbook/   health/
+                           │
+                  workbench sync all
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+         Claude Code                 Codex
+     rules, settings, hooks     rules, TOML, hooks
+     skills, agents, plugins    skills, agents, plugins
+              │                         │
+              └────────────┬────────────┘
+                           │
+                 workbench check all
+                    live drift report
 ```
 
-`sync` preserves unmanaged vendor settings, translates shared subagents into
-each vendor's native format, installs declared plugins, and keeps one backup
-before changing a live config file. Pass `--no-skills` or `--no-plugins` for a
-configuration-only reconciliation.
+The repository is both the source material and the deployment contract. It does
+not store a snapshot of the machine and compare against that stale observation.
 
-Plugin IDs are version-controlled in `agents/<vendor>/plugins.json`. Installing
-a plugin is reproducible; OAuth grants and account sessions remain interactive
-vendor state and are never stored in this repository.
-Dotfiles links `bin/workbench` into `~/.local/bin` during fresh-Mac setup.
+## Ownership Boundaries
 
-## Safety Boundary
+| Concern | Owner |
+| --- | --- |
+| Agent rules, skills, prompts, subagents, MCP declarations, hooks, and permissions | **Workbench** |
+| Engineering doctrine, stack guidance, review rubrics, and portable health tooling | **Workbench** |
+| Fresh-Mac setup, packages, shell, Git, terminal, editor, and macOS configuration | [`dotfiles`](https://github.com/e-m-albright/dotfiles) |
+| Project architecture, domain rules, tests, and project-specific infrastructure policy | The individual project |
+| Private notes, CRM data, conversations, personal automation instances, and generated operational state | Private `notes` repository |
+| OAuth grants, account sessions, credentials, and vendor-generated memory | Live vendor state, never Git |
 
-Workbench keeps ordinary agent work inside the active repository. Vendor
-sandboxes provide the filesystem boundary; concise permission rules and two
-PreToolUse hooks deny sensitive-file edits, recursive force-deletion,
-destructive Git operations, and disk erasure. Database and infrastructure
-policy belongs to the projects that own those resources.
+Dotfiles installs Workbench and links `workbench` plus its short alias `wb` into
+`~/.local/bin`; Workbench then configures the supported agents. Individual
+projects remain authoritative for their own `AGENTS.md`, architecture, domain
+vocabulary, and safety policy.
 
-For an independent fact-check, give another model the read-only
+## Capabilities
+
+### Agent configuration
+
+- One shared instruction file for Claude Code and Codex, with a small Codex
+  appendix where the vendors genuinely differ.
+- Reusable skills installed into both vendors.
+- Shared Markdown specialist agents translated into native Codex TOML agents.
+- Vendor-native hooks, permission rules, sandbox defaults, and status lines.
+- Declarative plugin installation for both vendors.
+- A shared MCP registry that preserves intentional external additions and
+  removes explicitly retired integrations.
+
+### Engineering guidance
+
+- `playbook/` records durable engineering principles, stack preferences, and
+  researched technology guidance.
+- `health/` provides deterministic project checks, adoption contracts, and
+  advisory review rubrics.
+- `agents/prompts/` contains reusable prompts that do not warrant an always-on
+  skill.
+- `docs/decisions/tombstones.md` prevents rejected tools and approaches from
+  being casually rediscovered and reintroduced.
+
+## Install
+
+On a fresh Mac, the normal entry point is the dotfiles installer:
+
+```bash
+mkdir -p ~/code/public
+git clone https://github.com/e-m-albright/dotfiles.git ~/code/public/dotfiles
+~/code/public/dotfiles/install.sh
+```
+
+Dotfiles clones this repository, installs the `workbench` and `wb` launchers in
+`~/.local/bin`, runs `workbench sync all`, and requires `workbench check all` to
+pass.
+
+For a standalone checkout:
+
+```bash
+git clone https://github.com/e-m-albright/workbench.git ~/code/public/workbench
+cd ~/code/public/workbench
+./bin/workbench --help
+just check
+```
+
+Requirements are deliberately small: Python 3.11+, Bash, and the installed
+Claude/Codex CLIs. Skill deployment also uses `npx skills`.
+
+## Daily Workflows
+
+### Reconcile everything
+
+```bash
+workbench sync all
+workbench check all
+```
+
+`sync` preserves unmanaged vendor settings, writes only Workbench-owned values,
+and keeps one `.bak` file before replacing live configuration. By default it
+also reconciles skills and declared plugins.
+
+Use narrower targets while developing or diagnosing one integration:
+
+```bash
+workbench sync claude
+workbench check claude
+
+workbench sync codex
+workbench check codex
+```
+
+Skip the slower external installers when only configuration files need repair:
+
+```bash
+workbench sync all --no-skills --no-plugins
+```
+
+### Validate repository sources
+
+```bash
+just check       # unit tests plus source validation
+just test        # deterministic unit tests only
+just lint        # skills, links, JSON, TOML, and shell syntax
+```
+
+`lint` validates canonical source material. `check` is the local development
+gate. `workbench check` is different: it inspects deployed live configuration.
+
+### Understand an unexpected live item
+
+```bash
+workbench check all
+```
+
+Output distinguishes two states:
+
+- `DRIFT` means a Workbench-managed value is missing or differs, so the command
+  exits non-zero.
+- `EXTERNAL` means a valid unmanaged addition remains in the live vendor config.
+  It is reported for visibility but does not fail the check.
+
+## Command Tree
+
+Run `workbench`, `wb`, or either launcher's `--help` flag for the complete tree:
+
+```text
+workbench
+├── sync [claude|codex|all]    deploy canonical configuration
+│   ├── --no-skills            skip shared-skill installation
+│   └── --no-plugins           skip declared-plugin installation
+├── check [claude|codex|all]   report managed drift and external additions
+└── lint                       validate canonical repository sources
+```
+
+Run `just` for the repository-development command list. The CLI manages live
+agent configuration; Just recipes develop and validate this repository.
+
+## What `sync` Manages
+
+| Surface | Claude Code / Desktop | Codex |
+| --- | --- | --- |
+| Global instructions | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
+| Vendor configuration | `~/.claude/settings.json`, `~/.claude.json` | `~/.codex/config.toml` |
+| Desktop configuration | Claude Desktop MCPs and managed preferences | ChatGPT connector plugins through the Codex plugin CLI |
+| Command policy | Claude permissions and sandbox settings | `~/.codex/rules/default.rules` |
+| Hooks | Claude settings plus shared runtime scripts | `~/.codex/hooks.json` plus shared runtime scripts |
+| Specialist agents | `~/.claude/agents/*.md` | `~/.codex/agents/*.toml` |
+| Skills | Claude global skill directory | `~/.agents/skills` |
+| Plugins | IDs from `agents/claude/plugins.json` | IDs from `agents/codex/plugins.json` |
+| MCP servers | Shared registry plus preserved external servers | Shared registry plus preserved external servers |
+
+Plugin IDs are version-controlled and installation is reproducible. OAuth
+consent and account sessions remain interactive vendor state; Workbench cannot
+and should not commit them.
+
+## Repository Tour
+
+```text
+agents/
+├── shared/              cross-vendor rules, hooks, and MCP registry
+├── claude/              Claude settings fragments and plugin declarations
+├── codex/               Codex rules, hooks, status line, and plugins
+├── skills/              reusable on-demand workflows
+├── subagents/           shared specialist-agent source documents
+└── prompts/             reusable prompts below the skill threshold
+
+playbook/                engineering doctrine, stack guidance, and research
+health/                  portable deterministic checks and review rubrics
+docs/decisions/          durable architectural decisions and tombstones
+scripts/workbench.py     dependency-free deployment and verification CLI
+tests/                   deterministic CLI, sync, drift, and safety tests
+bin/workbench            relocatable shell launcher
+```
+
+## Extending Workbench
+
+Choose the smallest durable surface that fits the need:
+
+1. Update `agents/shared/rules.md` only for behavior that should always apply to
+   both coding agents.
+2. Add or revise a skill for a recurring workflow that should load on demand.
+3. Add a prompt when reusable wording is useful but executable workflow or
+   automatic triggering is not.
+4. Add an MCP or plugin declaration only when the integration has recurring
+   value and a clear owner.
+5. Put project-specific guidance in that project's `AGENTS.md`, not here.
+6. Put private workflow instances and generated state in the private repository
+   that owns their context.
+
+After changing managed configuration:
+
+```bash
+just check
+workbench sync all
+workbench check all
+```
+
+When removing a supported capability, record why it was retired and what would
+justify revisiting it in `docs/decisions/tombstones.md`.
+
+## Safety and Publishing Boundary
+
+Workbench is public. It must never contain credentials, personal records,
+conversations, generated memory, or private operational state.
+
+Vendor sandboxes provide the filesystem boundary. Workbench adds concise
+permission rules and PreToolUse hooks that deny sensitive-file edits, recursive
+force-deletion, destructive Git operations, and disk erasure. Database and
+infrastructure policy remains the responsibility of the project that owns those
+resources.
+
+For an independent read-only fact-check, use the
 [`adversarial audit prompt`](docs/security/adversarial-audit-prompt.md).
 
 Completion and approval notifications use each vendor's native notification
-channel. Workbench does not install a notification script or background service.
+channel. Workbench installs no notification daemon or background service.
 
 ## Design Rules
 
 1. Prefer declarative files and small scripts over a framework.
-2. Add executable behavior only for a repeated workflow.
+2. Add executable behavior only for an evidenced recurring workflow.
 3. Keep deterministic checks separate from stochastic assessments.
-4. Treat generated agent state as private and disposable.
-5. Preserve rejected decisions as tombstones instead of repeatedly evaluating
+4. Preserve unmanaged vendor configuration unless it violates an explicit
+   retirement or safety rule.
+5. Treat generated agent state as private and disposable.
+6. Preserve rejected decisions as tombstones instead of repeatedly evaluating
    the same tools.

@@ -52,7 +52,7 @@ For each finding, show the **before → after** and name what it buys (which dim
 
 ### 4. Graduate the systemic ones
 
-A wince that recurs across the repo isn't a local fix — it's a missing rule. Per the repo's deterministic-spine doctrine: if the ugliness is grep-able (raw `echo` where `print_utils` exists, `dict[str, Any]` at a boundary, chained `&&` in a recipe), propose it as a `just lint-*` gate or a ratchet family so taste becomes a floor that can't regress. If it's irreducibly semantic, it stays a finding for the next aesthetic pass. *Taste, made durable* — the same bridge `converge` uses.
+A wince that recurs across the repo isn't a local fix — it's a missing rule. Per the repo's deterministic-spine doctrine: if the ugliness is grep-able (raw `echo` where `print_utils` exists, `dict[str, Any]` at a boundary, chained `&&` in a recipe), propose it as a `just lint-*` gate or a ratchet family so taste becomes a floor that can't regress. If it's irreducibly semantic, it stays a finding for the next aesthetic pass.
 
 ## What elegance looks like (the register)
 
@@ -74,5 +74,4 @@ Each is behavior-preserving, each *removes* something, each makes the next reade
 
 ## See also
 - [code-health](../SKILL.md) — the router; reach for it if unsure which lens fits.
-- [converge](../../converge/SKILL.md) — the measured engine; run it first to remove slop/duplication, then code-style for the elegance a metric can't see.
 - [health/README.md](../../../../health/README.md) — the doctrine the aesthetic serves; cite IDs in findings so a taste call is anchored, not asserted.

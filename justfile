@@ -1,28 +1,40 @@
-# Show available commands
-@default:
-    just --list --unsorted --list-heading $'\e[1;34m Available Commands:\e[0m\n'
+# Workbench development and deployment tasks. Run `just` for grouped help.
 
-# --- Quality ---
+# ── Quality ───────────────────────────────────────────────────────────────────
 
-# Validate workbench sources
+# Validate skills, local links, JSON, TOML, and shell syntax.
+[group('quality')]
 lint:
     ./bin/workbench lint
 
-# Run deterministic tests and source validation
+# Run the complete deterministic development gate.
+[group('quality')]
 check: test lint
 
-# --- Testing ---
+# ── Testing ───────────────────────────────────────────────────────────────────
 
-# Run deterministic unit tests
+# Run deterministic unit tests with verbose output.
+[group('testing')]
 test:
     python3 -m unittest discover -s tests -v
 
-# --- Deployment ---
+# ── Deployment ────────────────────────────────────────────────────────────────
 
-# Deploy canonical configuration to Claude Code and Codex
+# Deploy canonical configuration. Example: `just sync codex --no-plugins`.
+[group('deployment')]
 sync *args:
     ./bin/workbench sync {{args}}
 
-# Compare deployed configuration with canonical sources
+# Compare live configuration with canonical sources. Example: `just drift claude`.
+[group('deployment')]
 drift *args:
     ./bin/workbench check {{args}}
+
+# ── Help (default) ────────────────────────────────────────────────────────────
+
+# Show grouped Workbench development and deployment commands.
+[default]
+help:
+    #!/usr/bin/env bash
+    export JUST_LIST_HEADING=$'\e[1;34m Workbench\e[0m — portable agent intelligence and engineering guidance\n'
+    exec just --justfile "{{justfile()}}" --list --unsorted

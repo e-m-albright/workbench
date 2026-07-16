@@ -23,7 +23,6 @@ State this to the user when they ask for "unimpeachable" code: the book guarante
 | Symptom / request | Lens | Axis |
 |---|---|---|
 | "this area's design feels wrong", coupled, shallow modules, conversational | **[deepen](references/deepen.md)** | taste · divergent |
-| whole-repo, measured, ratchet down, reduce LOC, converge over passes | **converge** | measured · convergent |
 | "clean up this function", extract, flatten conditionals, a known transform | **[tidy](references/tidy.md)** | mechanical · convergent |
 | "hard to follow", naming, comments, newcomer/agent comprehension | **[clarify](references/clarify.md)** | taste · readability |
 | "make this elegant/beautiful/artful", best code possible, the wince test | **[style](references/style.md)** | taste · aesthetic |
@@ -33,7 +32,7 @@ State this to the user when they ask for "unimpeachable" code: the book guarante
 
 For a **single area**, route to one lens. For a **full pass**, sequence them (next section).
 
-## The convergent sequence (full pass)
+## Full-pass sequence
 
 Lenses have a natural order that minimizes rework:
 
@@ -43,7 +42,7 @@ Lenses have a natural order that minimizes rework:
 4. **tidy** — execute the mechanical transforms safely.
 5. **clarify** — readability and navigation pass.
 6. **style** — the capstone elegance pass, once the code is correct, clear, and structured. Aesthetic only; never a substitute for the structural lenses above it.
-7. **converge** — measure, ratchet the gains into CI contracts, and re-grade. This is what makes the pass *stick* and *converge* rather than re-rot.
+7. **ratchet** — encode objective wins in the project's native deterministic gates when a stable signal exists.
 8. **Tier B** — `review`, `systematic-debugging`, and optional security or performance subagents for the pillars refactoring cannot reach.
 
 Don't run all seven blindly — let the Tier-A routing table and the scorecard pick where effort actually pays (churn × complexity hotspots).
@@ -65,5 +64,4 @@ Generative, structural refactoring on a weekly cron, auto-merged, is an anti-pat
 The review prompts under `health/reviews/` are available on demand. Automation is optional; deterministic project gates remain the default guardrail.
 
 ## See also
-- The measured engine and its references (metrics, ratchet, de-slop catalog, ontology, deepening vocab): [converge](../converge/SKILL.md).
 - Shared guidance: [playbook/engineering-philosophy.md](../../../playbook/engineering-philosophy.md) (12 principles), [playbook/knowledge/engineering-gates.md](../../../playbook/knowledge/engineering-gates.md) (ratchet mechanics), and [health/README.md](../../../health/README.md) (the adoption boundary).
