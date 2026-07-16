@@ -271,7 +271,8 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(actual["defaultMode"], "auto")
             self.assertNotIn("defaultMode", actual["permissions"])
             self.assertTrue(actual["sandbox"]["enabled"])
-            self.assertFalse(actual["sandbox"]["allowUnsandboxedCommands"])
+            self.assertTrue(actual["sandbox"]["allowUnsandboxedCommands"])
+            self.assertIn("git push *", actual["sandbox"]["excludedCommands"])
             self.assertTrue((home / ".claude.json.bak").exists() is False)
 
     def test_plugin_inventory_parses_each_vendor_shape_with_enabled_state(

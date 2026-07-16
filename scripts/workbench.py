@@ -42,15 +42,20 @@ VENDORS = ("claude", "codex", "all")
 # breaking safe work:
 #   - filesystem.allowWrite re-opens regenerable tool caches (uv, pip, …) so the
 #     Python check gate runs in-sandbox instead of failing on ~/.cache.
-#   - excludedCommands runs network git *entirely* outside the sandbox so SSH
-#     auth (git push/fetch/pull) works. Those commands still pass through the
-#     permission rules and guard hooks, so a force-push or reset --hard is still
-#     blocked — only the filesystem/network containment is lifted for them.
-# allowUnsandboxedCommands stays False on purpose: no blanket silent escape.
+#   - excludedCommands runs network git and gh *entirely* outside the sandbox
+#     (SSH auth and Go-TLS both break inside Seatbelt). Patterns are whole-command
+#     globs — "git push" alone matches only a bare command, so each verb needs a
+#     "<verb> *" form to catch real invocations like `git push origin main`.
+#     These still pass through the permission rules and guard hooks, so a
+#     force-push or reset --hard stays blocked; only containment is lifted.
+#   - allowUnsandboxedCommands is True so the long tail of sandbox-incompatible
+#     commands (other network tools) retries outside via the escape hatch,
+#     gated by the auto-mode classifier — restoring autonomy without a blanket
+#     bypass. The catastrophe guards above still apply to every retry.
 CLAUDE_SANDBOX = {
     "enabled": True,
     "failIfUnavailable": True,
-    "allowUnsandboxedCommands": False,
+    "allowUnsandboxedCommands": True,
     "filesystem": {
         "allowWrite": ["~/.cache"],
         "denyRead": [
@@ -62,7 +67,12 @@ CLAUDE_SANDBOX = {
             "~/Library/Keychains",
         ],
     },
-    "excludedCommands": ["git push", "git fetch", "git pull"],
+    "excludedCommands": [
+        "git push", "git push *",
+        "git fetch", "git fetch *",
+        "git pull", "git pull *",
+        "gh", "gh *",
+    ],
 }
 
 WORKBENCH_BANNER = """\
