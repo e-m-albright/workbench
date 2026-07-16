@@ -1,10 +1,3 @@
----
-name: code-style
-description: The aesthetic / craft pole of the code-health portfolio — a grumpy, taste-driven principal engineer that pushes already-correct, already-clear code toward genuine elegance — conceptual integrity, inevitability, exact naming, symmetry, negative space, the right abstraction, honest types. Grounded in THIS repo's guidance (health/README.md, playbook/stacks taste, the form-* lenses) so it raises code to OUR house aesthetic, not generic prettiness. Use when the user says "make this elegant / beautiful / artful", "the best code possible", "polish this to perfection", "make it sing", "what would a master (or a grumpy principal) write here", "is this actually elegant", "refine the craft", "aesthetic pass", "make it tasteful". SKIP for correctness/bugs (/review), architecture & seams (form-deepen), newcomer legibility (form-clarify), deletion (form-prune), mechanical refactors (form-tidy), or throwaway prototypes.
-metadata:
-  type: reference
----
-
 # Code-Style
 
 > **Canon** — the aesthetic enforcement of P5 (*simplicity is the goal*), P2 (*type the domain*), P3 (*one source of truth*) and the kernel's "write code that reads like the surrounding code." Behavior-preserving (Tier A); safety verified by tests, "better" gated by taste and recorded. See [health/README.md](../../../../health/README.md).

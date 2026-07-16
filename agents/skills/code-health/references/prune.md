@@ -1,8 +1,3 @@
----
-name: form-prune
-description: The minimalism/deletion lens of the code-health portfolio — improve a codebase by removing rather than adding. Hunts dead code, speculative abstraction, unused flags/config, premature generality, redundant layers, and features nobody uses, then deletes them safely. The one lens with an honest hard metric — net LOC and feature count go down. Use when the user says "what can we delete", "this is over-engineered", "YAGNI", "remove dead code", "make it smaller", "simplify by removing", "trim this", or "prune". SKIP for diff-scoped quality cleanup (/simplify), bug-finding (/review), or adding structure (form-deepen/form-align).
----
-
 # Prune
 
 > **Canon** — enacts Principle 6 (*Dead code is dead weight*) and Principle 5 (*Simplicity is the goal*). See [health/README.md](../../../../health/README.md).

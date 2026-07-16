@@ -16,7 +16,7 @@ Audit a project's dependencies for security vulnerabilities, outdated versions, 
 |------|-------|---------------|
 | `deno.lock` | Deno | `deno audit`, `deno outdated` |
 | `package-lock.json` / `yarn.lock` / `pnpm-lock.yaml` | Node | `npm audit`, `npx depcheck` |
-| `bun.lock` / `bun.lockb` | Legacy Bun project | `bun audit` if the project still provides Bun, otherwise OSV-Scanner |
+| `bun.lock` / `bun.lockb` | Bun | `bun audit` if Bun is installed, otherwise OSV-Scanner |
 | `go.sum` | Go | `govulncheck ./...`, `go list -m -u all` |
 | `Cargo.lock` | Rust | `cargo audit`, `cargo outdated` |
 | `uv.lock` / `requirements.txt` | Python | `pip-audit`, `uv pip list --outdated` |

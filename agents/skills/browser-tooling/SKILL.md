@@ -16,7 +16,7 @@ AI Agent  →  control layer (agent-browser / pinchtab)  →  CDP  →  Chrome
 - **agent-browser** (Vercel Labs) — agent-native browser *CLI*. Compact text/a11y representations, `agent-browser open … / click @e2 / fill @e3 "…"`. Token-efficient, fast, shells out — **no MCP context tax.**
 - **pinchtab** — agent-oriented control *server*: a persistent, logged-in, watchable browser over a lightweight HTTP API + accessibility snapshots. Best when a human watches/intervenes on an authed site.
 
-**The stack we run (your endorsement): Playwright + agent-browser for ~90% of work; pinchtab on standby for human-in-the-loop authed sessions.** Chrome DevTools is **not** an explicitly-supported standing tool, and there are **no browser MCP servers loaded** — the CLI layer gives the same agent-native control (a11y snapshots, persistent session) without paying a per-session context tax.
+**The default stack: Playwright + agent-browser for ~90% of work; pinchtab on standby for human-in-the-loop authed sessions.** Chrome DevTools is **not** an explicitly-supported standing tool, and there are **no browser MCP servers loaded** — the CLI layer gives the same agent-native control (a11y snapshots, persistent session) without paying a per-session context tax.
 
 ## Decision tree
 
@@ -29,7 +29,7 @@ AI Agent  →  control layer (agent-browser / pinchtab)  →  CDP  →  Chrome
 - Reach for it only when agent-browser's headless model isn't enough — i.e. you need a persistent, visible, authenticated browser.
 
 **"Catch this regression forever" / deterministic scrape / production workflow** → **Playwright tests**
-- Free per run. Write tests in the project's `web/tests/e2e/`. Use Daily fake-media flags for WebRTC.
+- Free per run. Write tests in the project's E2E test directory (e.g. `web/tests/e2e/`). For WebRTC apps, use Chromium's fake-media flags (see below).
 - After root-causing a bug with the CLI, write a Playwright test so it can never silently regress.
 
 **"Long agentic flow across 20 screens where selectors rot"** → **Stagehand** (per-project)
@@ -59,7 +59,7 @@ An MCP server taxes every session's context with its tool schemas whether or not
 1. Reproduce/poke with `agent-browser` (or pinchtab if you need to watch a logged-in session).
 2. Once root-caused, write a Playwright test so it's protected forever.
 
-**WebRTC / Daily.co:** Playwright tests — `--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream`, `--use-file-for-fake-audio-capture=path.wav`, `--use-file-for-fake-video-capture=path.y4m`.
+**WebRTC (example config, e.g. Daily.co projects):** Playwright tests with Chromium fake-media flags — `--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream`, `--use-file-for-fake-audio-capture=path.wav`, `--use-file-for-fake-video-capture=path.y4m`.
 
 ## See also
 

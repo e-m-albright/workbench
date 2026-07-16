@@ -5,7 +5,7 @@ metadata:
   source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/systematic-debugging/SKILL.md
   source_commit: 733d312884b3878a9a9cff693c5886943753a741
   ported_at: 2026-05-07
-  adaptations: Renamed from upstream `systematic-debugging` to `systematic-debugging` for explicit portable skill naming. Project glossary and ADR references remain intact.
+  adaptations: Project glossary and ADR references remain intact.
 ---
 
 # Systematic Debugging

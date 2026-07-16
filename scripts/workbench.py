@@ -85,9 +85,12 @@ COMMAND_HELP = {
         ],
     ),
     "check": (
-        "workbench check [claude|codex|all]",
+        "workbench check [claude|codex|all] [OPTIONS]",
         "Compare live configuration directly with canonical Workbench sources.",
-        [("target", "claude, codex, or all (default: all)")],
+        [
+            ("target", "claude, codex, or all (default: all)"),
+            ("--no-plugins", "skip declared-plugin verification"),
+        ],
     ),
     "lint": (
         "workbench lint",
@@ -207,7 +210,13 @@ def _string_array(path: Path) -> list[str]:
     return raw
 
 
-def _installed_plugin_ids(vendor: str, output: str) -> set[str]:
+def _installed_plugins(vendor: str, output: str) -> dict[str, bool]:
+    """Map installed plugin id -> enabled state from vendor CLI JSON output.
+
+    Both vendor CLIs expose an ``enabled`` boolean per installed plugin
+    (verified against claude and codex 0.144.4 `plugin list --json`), so
+    verification can require declared plugins to be installed AND enabled.
+    """
     try:
         parsed = json.loads(output)
     except json.JSONDecodeError as exc:
@@ -216,35 +225,50 @@ def _installed_plugin_ids(vendor: str, output: str) -> set[str]:
         if not isinstance(parsed, list):
             raise WorkbenchError("Claude plugin inventory must be an array")
         return {
-            item["id"]
+            item["id"]: bool(item.get("enabled", True))
             for item in parsed
             if isinstance(item, dict) and isinstance(item.get("id"), str)
         }
     if not isinstance(parsed, dict) or not isinstance(parsed.get("installed"), list):
         raise WorkbenchError("Codex plugin inventory must contain installed plugins")
     return {
-        item["pluginId"]
+        item["pluginId"]: bool(item.get("enabled", True))
         for item in parsed["installed"]
         if isinstance(item, dict) and isinstance(item.get("pluginId"), str)
     }
 
 
-def _sync_plugins(vendor: str) -> None:
+def _list_plugins(vendor: str, home: Path) -> dict[str, bool]:
+    executable = "claude" if vendor == "claude" else "codex"
+    env = {**os.environ, "HOME": str(home)}
+    result = subprocess.run(
+        [executable, "plugin", "list", "--json"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode:
+        raise WorkbenchError(
+            f"{executable} plugin list failed: {result.stderr.strip()}"
+        )
+    return _installed_plugins(vendor, result.stdout)
+
+
+def _sync_plugins(vendor: str, home: Path) -> None:
     source = AGENTS / vendor / "plugins.json"
     desired = _string_array(source)
     executable = "claude" if vendor == "claude" else "codex"
     if not shutil.which(executable):
         raise WorkbenchError(f"{executable} is required to deploy {vendor} plugins")
-    list_command = [executable, "plugin", "list", "--json"]
-    result = subprocess.run(list_command, check=True, capture_output=True, text=True)
-    installed = _installed_plugin_ids(vendor, result.stdout)
+    env = {**os.environ, "HOME": str(home)}
+    installed = _list_plugins(vendor, home)
     for plugin in desired:
         if plugin in installed:
             continue
         command = [executable, "plugin", "install", plugin, "--scope", "user"]
         if vendor == "codex":
             command = [executable, "plugin", "add", plugin, "--json"]
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, env=env)
 
 
 def _install_runtime_files(home: Path) -> Path:
@@ -309,7 +333,7 @@ def _sync_skills(vendor: str, home: Path) -> None:
                 shutil.rmtree(retired)
 
 
-def _subagent_fields(path: Path) -> tuple[str, str, str]:
+def _subagent_fields(path: Path) -> tuple[str, str, str, list[str] | None]:
     content = path.read_text()
     parts = content.split("---", 2)
     if len(parts) != 3 or parts[0].strip():
@@ -321,19 +345,38 @@ def _subagent_fields(path: Path) -> tuple[str, str, str]:
     )
     if not name or not description or not body:
         raise WorkbenchError(f"incomplete subagent: {path}")
-    return name.group(1).strip(), description.group(1).strip(), body
+    tools_match = re.search(r"^tools:\s*([^\n]+)$", frontmatter, re.MULTILINE)
+    tools = (
+        [tool.strip() for tool in tools_match.group(1).split(",") if tool.strip()]
+        if tools_match
+        else None
+    )
+    return name.group(1).strip(), description.group(1).strip(), body, tools
+
+
+# Claude write-capable tools whose absence from a `tools:` restriction marks
+# a subagent as read-only for Codex rendering purposes.
+_WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 
 def _render_codex_subagent(path: Path) -> str:
-    name, description, instructions = _subagent_fields(path)
-    return "\n".join(
-        (
-            f"name = {json.dumps(name)}",
-            f"description = {json.dumps(description)}",
-            f"developer_instructions = {json.dumps(instructions)}",
-            "",
-        )
-    )
+    name, description, instructions, tools = _subagent_fields(path)
+    lines = [
+        f"name = {json.dumps(name)}",
+        f"description = {json.dumps(description)}",
+    ]
+    # Codex agent TOML has no per-tool allowlist equivalent to Claude's
+    # `tools:` frontmatter, but its subagent schema does accept `sandbox_mode`
+    # with "read-only" | "workspace-write" (verified against the codex
+    # 0.144.4 binary: the subagent frontmatter parser enumerates
+    # model_reasoning_effort, sandbox_mode, developer_instructions). Render
+    # read-only sandboxing when the source restricts tools to a
+    # non-writing set.
+    if tools is not None and not (_WRITE_TOOLS & set(tools)):
+        lines.append('sandbox_mode = "read-only"')
+    lines.append(f"developer_instructions = {json.dumps(instructions)}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _sync_subagents(vendor: str, destination: Path) -> None:
@@ -356,6 +399,33 @@ def _sync_subagents(vendor: str, destination: Path) -> None:
             )
 
 
+def managed_claude_settings(data: Path) -> dict[str, Any]:
+    """Workbench-managed keys of ~/.claude/settings.json.
+
+    Single source for `sync` (the writer) and `check` (the verifier) so the
+    two commands can never diverge on what "managed" means.
+    """
+    plugins = _string_array(AGENTS / "claude/plugins.json")
+    return {
+        "enabledPlugins": {name: True for name in plugins},
+        "permissions": _settings(AGENTS / "claude/permissions.json"),
+        "hooks": _settings(AGENTS / "shared/hooks.json").get("hooks", {}),
+        "statusLine": {
+            "type": "command",
+            "command": str(data / "claude/statusline.sh"),
+        },
+        "voiceEnabled": True,
+        "preferredNotifChannel": "auto",
+        "defaultMode": "auto",
+        "sandbox": CLAUDE_SANDBOX,
+    }
+
+
+def expected_codex_rules_md() -> str:
+    """Canonical ~/.codex/AGENTS.md content, shared by sync and check."""
+    return (AGENTS / "shared/rules.md").read_text().rstrip() + CODEX_APPENDIX
+
+
 def sync_claude(
     home: Path, *, deploy_skills: bool, deploy_plugins: bool = False
 ) -> None:
@@ -365,26 +435,14 @@ def sync_claude(
 
     settings_path = claude_home / "settings.json"
     settings = _settings(settings_path)
-    plugins = _string_array(AGENTS / "claude/plugins.json")
-    settings["enabledPlugins"] = {name: True for name in plugins}
+    managed = managed_claude_settings(data)
 
-    permissions = _settings(AGENTS / "claude/permissions.json")
     existing_permissions = settings.get("permissions", {})
     if not isinstance(existing_permissions, dict):
         existing_permissions = {}
     existing_permissions.pop("defaultMode", None)
-    settings["permissions"] = {**existing_permissions, **permissions}
-
-    hooks = _settings(AGENTS / "claude/hooks.json").get("hooks", {})
-    settings["hooks"] = hooks
-    settings["statusLine"] = {
-        "type": "command",
-        "command": str(data / "claude/statusline.sh"),
-    }
-    settings["voiceEnabled"] = True
-    settings["preferredNotifChannel"] = "auto"
-    settings["defaultMode"] = "auto"
-    settings["sandbox"] = CLAUDE_SANDBOX
+    settings.update(managed)
+    settings["permissions"] = {**existing_permissions, **managed["permissions"]}
     write_json(settings_path, settings)
 
     claude_root = home / ".claude.json"
@@ -400,7 +458,7 @@ def sync_claude(
     if deploy_skills:
         _sync_skills("claude-code", home)
     if deploy_plugins:
-        _sync_plugins("claude")
+        _sync_plugins("claude", home)
 
 
 def _desktop_mcp() -> dict[str, dict[str, object]]:
@@ -445,6 +503,8 @@ def _toml_value(value: object) -> str:
         return str(value).lower()
     if isinstance(value, str):
         return json.dumps(value)
+    if isinstance(value, (int, float)):
+        return str(value)
     if isinstance(value, list):
         return "[" + ", ".join(_toml_value(item) for item in value) + "]"
     if isinstance(value, dict):
@@ -455,7 +515,7 @@ def _toml_value(value: object) -> str:
             )
             + "}"
         )
-    return str(value)
+    raise WorkbenchError(f"unsupported TOML value type: {type(value).__name__}")
 
 
 def _render_mcp(servers: Mapping[str, object]) -> str:
@@ -469,6 +529,12 @@ def _render_mcp(servers: Mapping[str, object]) -> str:
 
 
 def _drop_tables(text: str, prefixes: tuple[str, ...]) -> str:
+    # Ceiling: line-based, not TOML-aware. A multi-line string whose body
+    # contains a line that looks like a table header will be mis-parsed;
+    # the round-trip tomllib guard in merge_codex_config catches the
+    # corruption and aborts instead of writing it. Upgrade path: rewrite on
+    # top of a real TOML parser/emitter (e.g. tomlkit) that preserves
+    # comments and formatting.
     result: list[str] = []
     dropping = False
     for line in text.splitlines(keepends=True):
@@ -523,8 +589,7 @@ def sync_codex(
 ) -> None:
     _install_runtime_files(home)
     codex_home = home / ".codex"
-    rules = (AGENTS / "shared/rules.md").read_text().rstrip() + CODEX_APPENDIX
-    write_text(codex_home / "AGENTS.md", rules)
+    write_text(codex_home / "AGENTS.md", expected_codex_rules_md())
 
     live_rules = codex_home / "rules/default.rules"
     source_rules = AGENTS / "codex/default.rules"
@@ -534,19 +599,24 @@ def sync_codex(
     config = codex_home / "config.toml"
     existing = config.read_text() if config.exists() else ""
     write_text(config, merge_codex_config(existing))
-    copy_file(AGENTS / "codex/hooks.json", codex_home / "hooks.json")
+    copy_file(AGENTS / "shared/hooks.json", codex_home / "hooks.json")
     _sync_subagents("codex", codex_home / "agents")
     if deploy_skills:
         _sync_skills("codex", home)
     if deploy_plugins:
-        _sync_plugins("codex")
+        _sync_plugins("codex", home)
 
 
 def merge_codex_rules(canonical: str, live: str) -> str:
-    """Preserve local approvals without retaining known policy bypasses."""
+    """Preserve local approvals without retaining known policy bypasses.
+
+    Codex appends interactively approved rules wherever the cursor lands, so
+    unknown prefix_rule lines are harvested from the whole live file — not
+    just the locally-approved section — deduped against the canonical rules,
+    and re-homed under the marker.
+    """
     canonical_lines = set(canonical.splitlines())
     marker = "# --- Locally approved additions ---"
-    local_section = live.split(marker, 1)[1] if marker in live else ""
     unsafe_fragments = (
         '"--no-verify"',
         '["git", "reset", "--hard"]',
@@ -555,13 +625,15 @@ def merge_codex_rules(canonical: str, live: str) -> str:
         '["rm", "-rf"]',
         '["rm", "-fr"]',
     )
-    additions = [
-        line
-        for line in local_section.splitlines()
-        if line.startswith("prefix_rule(")
-        and line not in canonical_lines
-        and not any(fragment in line for fragment in unsafe_fragments)
-    ]
+    additions: list[str] = []
+    for line in live.splitlines():
+        if (
+            line.startswith("prefix_rule(")
+            and line not in canonical_lines
+            and line not in additions
+            and not any(fragment in line for fragment in unsafe_fragments)
+        ):
+            additions.append(line)
     result = canonical.rstrip()
     if additions:
         result += f"\n\n{marker}\n" + "\n".join(additions)
@@ -647,26 +719,42 @@ def _check_subagents(
     if destination.exists():
         suffix = ".md" if vendor == "claude" else ".toml"
         for deployed in destination.glob(f"*{suffix}"):
-            if deployed.name not in expected:
+            if deployed.name in expected:
+                continue
+            if deployed.stem in RETIRED_SUBAGENTS:
+                findings.append(
+                    f"DRIFT retired {vendor} subagent still present: {deployed.stem}"
+                )
+            else:
                 external.append(f"EXTERNAL {vendor} subagent: {deployed.stem}")
         if vendor == "codex":
             for stale in destination.glob("*.md*"):
                 findings.append(f"DRIFT codex non-native subagent: {stale.name}")
 
 
-def _plugin_inventory(vendor: str, home: Path) -> set[str]:
+def _plugin_inventory(vendor: str, home: Path) -> dict[str, bool] | None:
+    """Installed plugin id -> enabled state, or None when the CLI is absent."""
     executable = "claude" if vendor == "claude" else "codex"
     if not shutil.which(executable):
-        raise WorkbenchError(f"{executable} is required to verify {vendor} plugins")
-    env = {**os.environ, "HOME": str(home)}
-    result = subprocess.run(
-        [executable, "plugin", "list", "--json"],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    return _installed_plugin_ids(vendor, result.stdout)
+        return None
+    return _list_plugins(vendor, home)
+
+
+def _check_plugins(
+    vendor: str, home: Path, findings: list[str], external: list[str]
+) -> None:
+    declared = _string_array(AGENTS / vendor / "plugins.json")
+    inventory = _plugin_inventory(vendor, home)
+    if inventory is None:
+        external.append(f"NOTE {vendor} plugins unverified (CLI not found)")
+        return
+    for plugin in declared:
+        if plugin not in inventory:
+            findings.append(f"DRIFT {vendor} plugin missing: {plugin}")
+        elif not inventory[plugin]:
+            findings.append(f"DRIFT {vendor} plugin disabled: {plugin}")
+    for plugin in sorted(set(inventory) - set(declared)):
+        external.append(f"EXTERNAL {vendor} plugin: {plugin}")
 
 
 def check(
@@ -701,32 +789,17 @@ def check(
                 "Claude statusline",
                 findings,
             )
-            settings_path = home / ".claude/settings.json"
-            settings = _settings(settings_path) if settings_path.exists() else {}
-            plugins = _string_array(AGENTS / "claude/plugins.json")
-            managed_settings = {
-                "enabledPlugins": {name: True for name in plugins},
-                "permissions": _settings(AGENTS / "claude/permissions.json"),
-                "hooks": _settings(AGENTS / "claude/hooks.json").get("hooks", {}),
-                "statusLine": {
-                    "type": "command",
-                    "command": str(data / "claude/statusline.sh"),
-                },
-                "voiceEnabled": True,
-                "preferredNotifChannel": "auto",
-                "defaultMode": "auto",
-                "sandbox": CLAUDE_SANDBOX,
-            }
+            settings = _settings(home / ".claude/settings.json")
             findings.extend(
-                _managed_value_errors(settings, managed_settings, "Claude settings")
+                _managed_value_errors(
+                    settings, managed_claude_settings(data), "Claude settings"
+                )
             )
-            mcp_path = home / ".claude.json"
-            mcp = _settings(mcp_path).get("mcpServers", {}) if mcp_path.exists() else {}
-            desktop_path = (
+            mcp = _settings(home / ".claude.json").get("mcpServers", {})
+            desktop = _settings(
                 home
                 / "Library/Application Support/Claude/claude_desktop_config.json"
             )
-            desktop = _settings(desktop_path) if desktop_path.exists() else {}
             findings.extend(
                 _managed_value_errors(
                     desktop.get("mcpServers") if isinstance(desktop, dict) else None,
@@ -749,10 +822,12 @@ def check(
                 "claude", home / ".claude/agents", findings, external
             )
         else:
-            expected = (
-                AGENTS / "shared/rules.md"
-            ).read_text().rstrip() + CODEX_APPENDIX
-            _compare_text(expected, home / ".codex/AGENTS.md", "Codex rules", findings)
+            _compare_text(
+                expected_codex_rules_md(),
+                home / ".codex/AGENTS.md",
+                "Codex rules",
+                findings,
+            )
             skill_root = home / ".agents/skills"
             config_path = home / ".codex/config.toml"
             parsed = (
@@ -769,7 +844,7 @@ def check(
             else:
                 findings.append(f"DRIFT Codex config: missing {config_path}")
             _compare(
-                AGENTS / "codex/hooks.json",
+                AGENTS / "shared/hooks.json",
                 home / ".codex/hooks.json",
                 "Codex hooks",
                 findings,
@@ -799,9 +874,7 @@ def check(
 
         _check_skills(skill_root, vendor, findings, external)
         if verify_plugins:
-            installed_plugins = _plugin_inventory(vendor, home)
-            for plugin in set(_string_array(AGENTS / vendor / "plugins.json")) - installed_plugins:
-                findings.append(f"DRIFT {vendor} plugin missing: {plugin}")
+            _check_plugins(vendor, home, findings, external)
 
     for message in findings:
         print(message)
@@ -851,6 +924,43 @@ def lint() -> int:
         tomllib.loads((AGENTS / "codex/statusline.toml").read_text())
     except tomllib.TOMLDecodeError as exc:
         errors.append(f"invalid Codex statusline TOML: {exc}")
+
+    for entry in sorted((AGENTS / "skills").iterdir()):
+        if entry.is_dir() and not (entry / "SKILL.md").exists():
+            errors.append(
+                f"skill directory without SKILL.md: {entry.relative_to(ROOT)}"
+            )
+
+    # A reference file carrying SKILL.md frontmatter keys is demoted-skill
+    # debris: the skill body moved under references/ but kept its metadata.
+    debris_keys = ("name", "description", "disable-model-invocation", "allowed-tools")
+    for reference in sorted((AGENTS / "skills").glob("*/references/*.md")):
+        text = reference.read_text()
+        if not text.startswith("---"):
+            continue
+        parts = text.split("---", 2)
+        if len(parts) != 3:
+            continue
+        for key in debris_keys:
+            if re.search(rf"^{key}:", parts[1], re.MULTILINE):
+                errors.append(
+                    "demoted-skill frontmatter in reference file: "
+                    f"{reference.relative_to(ROOT)} ({key}:)"
+                )
+                break
+
+    rule_pattern = re.compile(
+        r'prefix_rule\(pattern=\["[^"]+"(?:,\s*"[^"]+")*\], decision="[a-z_-]+"\)'
+    )
+    rules_path = AGENTS / "codex/default.rules"
+    for number, line in enumerate(rules_path.read_text().splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not rule_pattern.fullmatch(stripped):
+            errors.append(
+                f"invalid Codex rule syntax: {rules_path.relative_to(ROOT)}:{number}"
+            )
 
     names: set[str] = set()
     for skill in sorted((AGENTS / "skills").glob("*/SKILL.md")):
@@ -1106,6 +1216,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="all",
         help="vendor to inspect (default: all)",
     )
+    check_parser.add_argument(
+        "--no-plugins",
+        action="store_true",
+        help="skip declared-plugin verification",
+    )
     sub.add_parser(
         "lint",
         help="validate canonical repository sources",
@@ -1143,7 +1258,7 @@ def main(argv: list[str] | None = None) -> int:
             return lint()
         vendors = _vendors(args.vendor)
         if args.command == "check":
-            return check(home, vendors)
+            return check(home, vendors, verify_plugins=not args.no_plugins)
         for vendor in vendors:
             if vendor == "claude":
                 sync_claude(

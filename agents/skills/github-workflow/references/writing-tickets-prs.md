@@ -15,7 +15,7 @@
 - **Risk & scope**: What could break. What was explicitly left out and why.
 - **Test plan**: How to verify — manual steps, automated tests, or both.
 - **Links**: Related ticket IDs, ADRs, or incidents.
-- Keep descriptions audit-friendly — Drata compliance may depend on PR history.
+- Keep descriptions audit-friendly — if the org uses a compliance platform (e.g. Drata), its audits may depend on PR history.
 
 ## Commits
 

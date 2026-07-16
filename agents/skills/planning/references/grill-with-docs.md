@@ -1,12 +1,4 @@
----
-name: grill-with-docs
-description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions, or says "grill me", "grill this", "challenge this plan", "interview me about X", "stress-test this design".
-metadata:
-  source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/grill-with-docs/SKILL.md
-  source_commit: 733d312884b3878a9a9cff693c5886943753a741
-  ported_at: 2026-05-07
-  adaptations: Moved CONTEXT-FORMAT.md and ADR-FORMAT.md into references/ (Anthropic spec convention). Updated description with literal phrase triggers. Body otherwise verbatim.
----
+# Grill With Docs
 
 <what-to-do>
 
@@ -30,7 +22,7 @@ Most repos have a single context:
 
 ```
 /
-├── CONTEXT.md
+├── DOMAIN.md
 ├── docs/
 │   └── adr/
 │       ├── 0001-event-sourced-orders.md
@@ -38,31 +30,31 @@ Most repos have a single context:
 └── src/
 ```
 
-If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
+If a `DOMAIN-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
 
 ```
 /
-├── CONTEXT-MAP.md
+├── DOMAIN-MAP.md
 ├── docs/
 │   └── adr/                          ← system-wide decisions
 ├── src/
 │   ├── ordering/
-│   │   ├── CONTEXT.md
+│   │   ├── DOMAIN.md
 │   │   └── docs/adr/                 ← context-specific decisions
 │   └── billing/
-│       ├── CONTEXT.md
+│       ├── DOMAIN.md
 │       └── docs/adr/
 ```
 
-Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
+Create files lazily — only when you have something to write. If no `DOMAIN.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
 
-If the domain is tiny (a handful of terms, fits in ~30 lines, single context), a `## Domain Language` section in `AGENTS.md` is fine — don't spin up a separate file as ceremony. Graduate to a standalone `CONTEXT.md` once the glossary exceeds ~30 lines or a second bounded context appears, leaving a pointer behind in `AGENTS.md`.
+If the domain is tiny (a handful of terms, fits in ~30 lines, single context), a `## Domain Language` section in `AGENTS.md` is fine — don't spin up a separate file as ceremony. Graduate to a standalone `DOMAIN.md` once the glossary exceeds ~30 lines or a second bounded context appears, leaving a pointer behind in `AGENTS.md`.
 
 ## During the session
 
 ### Challenge against the glossary
 
-When the user uses a term that conflicts with the existing language in `CONTEXT.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+When the user uses a term that conflicts with the existing language in `DOMAIN.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
 
 ### Sharpen fuzzy language
 
@@ -76,11 +68,11 @@ When domain relationships are being discussed, stress-test them with specific sc
 
 When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
-### Update CONTEXT.md inline
+### Update DOMAIN.md inline
 
-When a term is resolved, update `CONTEXT.md` right there. Don't batch these up — capture them as they happen, following the repository's established format.
+When a term is resolved, update `DOMAIN.md` right there. Don't batch these up — capture them as they happen, following the repository's established format.
 
-Don't couple `CONTEXT.md` to implementation details. Only include terms that are meaningful to domain experts.
+Don't couple `DOMAIN.md` to implementation details. Only include terms that are meaningful to domain experts.
 
 ### Offer ADRs sparingly
 

@@ -1,10 +1,3 @@
----
-name: collaborative-ideation
-description: This repo owner's opinionated sparring criteria for evaluating ideas — steel-man-then-stress-test, mandatory alternatives, evidence hierarchy, the software-engineering lens (simplicity over ceremony, fundamentals over frameworks), and a named anti-pattern list. Use when you want THIS take while exploring an idea, weighing approaches, or asking for an opinion — "what do you think of this idea", "poke holes in this", "stress-test this", "steel-man then attack this", "am I overbuilding", "is this a solution in search of a problem", "talk me out of this", "play devil's advocate". Complements brainstorming (which scopes a feature toward a spec); reach for this when you want adversarial critique and a recommendation, not requirements-gathering.
-metadata:
-  source: Promoted from the retired .ai/rules/process/brainstorming.mdc; this skill is now the canonical home for that content.
----
-
 # Brainstorming & Advisory
 
 Apply when the user is exploring ideas, evaluating approaches, making decisions, or asking for opinions. This is intellectual sparring, not validation. The point is to make the idea better or kill it — not to make the user feel good.

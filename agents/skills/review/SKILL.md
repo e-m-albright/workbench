@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review a diff, branch, or PR for correctness, security, data integrity, operations, and maintainability. Use for pre-merge review, "is this safe to ship", "what could break", or grading a change.
+description: Read-only pre-merge review of a diff, branch, or PR — findings-first bug hunt plus a graded health report card. Use for "review this", "is this safe to ship", "what could break", or grading a change. Reports only; applies fixes only when the user asks afterward.
 allowed-tools: Read Grep Glob Bash(git:*) Bash(gh:*) Bash(rg:*) Bash(wc:*) Agent
 metadata:
   source: Merged from premerge-review (fix-first bug hunt) and code-quality-audit (graded health rubric). Criteria live in references/bug-hunt-criteria.md and references/health-rubric.md.
@@ -10,10 +10,10 @@ metadata:
 
 Two complementary lenses on the same change, run together before it merges:
 
-1. **Bug hunt** — find defects about to land (correctness, security, data integrity, ops), then classify each finding fix-first: auto-fix the mechanical, flag the judgment calls.
+1. **Bug hunt** — find defects about to land (correctness, security, data integrity, ops), each classified so the caller knows what is mechanical and what is a judgment call.
 2. **Health report card** — grade module health against the universal engineering rubric (letter grades + domain observations).
 
-Fan the audit threads out in parallel, synthesize, then report both the fixed/flagged findings and the graded report card.
+This skill is read-only: it produces the findings and the report card. It never edits code. When the user asks to address the findings afterward, that is a separate, explicit step.
 
 ## When to Use
 
@@ -24,7 +24,8 @@ Fan the audit threads out in parallel, synthesize, then report both the fixed/fl
 
 **When NOT to use:**
 - **`systematic-debugging`** — when something is *already* broken and you need the root cause. This skill reviews changes that (as far as anyone knows) work.
-- **Security-only audit** — when you want a dedicated, exhaustive security pass, use the `security-auditor` subagent if the active harness supports isolated agents. This skill covers high-frequency security misses inline.
+- **`security-review`** — when you want a dedicated, exhaustive security pass. This skill covers high-frequency security misses inline; the security skill (or the `security-auditor` subagent, where isolated agents exist) owns the deep audit.
+- **`code-health`** — for structural grading and cleanup of existing code outside a pending change; this skill is scoped to a diff/branch/PR about to merge.
 
 ## Workflow
 
@@ -57,12 +58,13 @@ present. Then inspect language, framework, and directory-specific instructions
 that the repository actually owns. If the project has a code-health manifesto
 or equivalent, prefer it because projects own their philosophy.
 
-### 4. Fan out the audit threads (parallelize)
+### 4. Walk the audit lenses
 
-Dispatch these independent threads through the active harness's native subagent
-mechanism when available; otherwise walk them sequentially. Each thread gets
-the scope, surface, and criteria. Use isolated agents only when the user or
-active project policy permits delegation.
+Default to one focused sequential pass through the lenses below — most changes
+do not need parallel machinery. Fan the lenses out as isolated read-only
+subagent threads only when the scope is genuinely large (many files, mixed
+surfaces) *and* the active harness and project policy permit delegation. Each
+lens gets the scope, surface, and criteria.
 
 | # | Thread | Lens | Criteria |
 |---|--------|------|----------|
@@ -79,24 +81,24 @@ Each thread returns its findings (bug-hunt) or its graded criteria (report card)
 
 Collect all threads. De-duplicate overlapping findings (a missing null guard may surface in both T1 and T5 — report it once, in the bug hunt, and let it cost the rubric grade). Reconcile severities. Compute the report-card grades and weighted overall.
 
-### 6. Classify the bug-hunt findings fix-first
+### 6. Classify the bug-hunt findings
 
-Every T1–T4 finding gets classified before reporting:
+Every T1–T4 finding gets classified before reporting. Nothing is applied —
+the classification tells the caller what a follow-up "apply the fixes" request
+would touch without discussion versus what needs a decision:
 
-| Classification | Action | Criteria |
-|---------------|--------|----------|
-| **AUTO-FIX** | Fix silently | A senior engineer would apply without discussion. Mechanical, unambiguous. |
-| **ASK** | Report and recommend | Reasonable engineers could disagree. Trade-offs, architecture, judgment. |
+| Classification | Meaning |
+|---------------|---------|
+| **QUICK FIX** | A senior engineer would apply without discussion. Mechanical, unambiguous: unused imports/variables, dead code, import ordering, naming inconsistencies with surrounding code, missing error context in logs, obvious null guards at boundaries, deprecated API with a drop-in replacement. |
+| **JUDGMENT** | Reasonable engineers could disagree. Trade-offs, architecture, security-sensitive changes, API surface, dependencies, test strategy. |
 
-**AUTO-FIX** (just fix it): unused imports/variables, dead code, import ordering, formatting/naming inconsistencies with surrounding code, missing error context in log statements, obvious null guards at system boundaries, a deprecated API with a drop-in replacement.
+**Default to JUDGMENT when uncertain.** For the full table and worked examples, see [bug-hunt-criteria.md](references/bug-hunt-criteria.md).
 
-**ASK** (report, don't touch): architectural changes (new abstractions, data flow), security-sensitive changes (auth, validation, secrets), API surface changes (new endpoints, changed contracts), dependency additions/removals, test strategy decisions.
+### 7. Report
 
-**Default to ASK when uncertain.** Never make a judgment-call change silently. For the full table and worked examples, see [bug-hunt-criteria.md](references/bug-hunt-criteria.md).
-
-### 7. Apply AUTO-FIX items, then report
-
-Report in the format below.
+Report in the format below. Do not edit any file. If the user then asks to
+address the findings, apply QUICK FIX items directly and confirm each
+JUDGMENT item before touching it.
 
 ## Output Format
 
@@ -106,12 +108,10 @@ Report in the format below.
 ## Summary
 [1-2 sentences: what the change does + overall read. Verdict: safe to merge / fix top items first / not yet.]
 
-## Auto-Fixed
-- [mechanical fixes already applied, with file:line]
-
 ## Findings (bug hunt)
 ### [SEVERITY] Finding title
 **Category**: Correctness | Security | Data Integrity | Ops | Performance
+**Classification**: QUICK FIX | JUDGMENT
 **Location**: file:line
 **Recommendation**: [specific action]
 **Why**: [brief rationale]

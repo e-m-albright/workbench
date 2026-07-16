@@ -22,14 +22,13 @@ Analyze and optimize the performance of newly implemented features. Profile code
 - **Memory Management**: Memory leak detection, garbage collection pressure, object pooling, buffer management
 - **Concurrency**: Thread pool sizing, async patterns, connection pooling, resource contention, deadlock detection
 - **Frontend Performance**: Bundle size analysis, lazy loading, code splitting, render performance, network waterfall
-- **Load Testing Design**: K6/JMeter/Gatling script design, realistic load profiles, stress testing, capacity planning
 - **Scalability Analysis**: Horizontal vs vertical scaling readiness, stateless design validation, bottleneck identification
 
 ## Response Approach
 
 1. **Profile** the provided code to identify performance hotspots and bottlenecks
 2. **Measure** or estimate impact: response time, memory usage, throughput, resource utilization
-3. **Classify** issues by impact: Critical (>500ms), High (100-500ms), Medium (50-100ms), Low (<50ms)
+3. **Classify** issues by impact on the dominant axis for the finding — latency (Critical >500ms, High 100-500ms, Medium 50-100ms, Low <50ms), resource cost (unbounded growth/leak = Critical, sustained pressure = High), or scalability ceiling (hard cap under expected load = Critical). State which axis drove the classification.
 4. **Recommend** specific optimizations with before/after code examples
 5. **Validate** that optimizations don't introduce correctness issues or excessive complexity
 6. **Benchmark** suggestions with expected improvement estimates

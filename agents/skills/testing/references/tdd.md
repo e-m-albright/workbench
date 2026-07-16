@@ -1,13 +1,3 @@
----
-name: test-driven-development
-description: Vertical-slice red-green-refactor TDD with Ousterhout deep-modules discipline — one test → one implementation → repeat, never write all tests first. Use when user wants to TDD a feature or bug fix; says "test-driven development", "red-green-refactor", "vertical slice", "tracer bullet", "deep modules", "TDD this"; or asks to design testable interfaces.
-metadata:
-  source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/tdd/SKILL.md
-  source_commit: 733d312884b3878a9a9cff693c5886943753a741
-  ported_at: 2026-05-07
-  adaptations: Renamed from upstream `tdd` to `test-driven-development` for explicit portable skill naming. Refs (`tests.md`, `mocking.md`, `deep-modules.md`, `interface-design.md`, `refactoring.md`) moved into `references/` per Anthropic spec. Description rewritten with literal-phrase triggers.
----
-
 # Vertical-Slice TDD
 
 ## Philosophy
@@ -93,11 +83,11 @@ Rules:
 
 ### 4. Refactor
 
-After all tests pass, look for [refactor candidates](refactoring.md):
+After all tests pass, look for refactor candidates:
 
-- [ ] Extract duplication
-- [ ] Deepen modules (move complexity behind simple interfaces)
-- [ ] Apply SOLID principles where natural
+- [ ] Extract duplication (long methods → private helpers; keep tests on the public interface)
+- [ ] Deepen modules (move complexity behind simple interfaces; combine or deepen shallow ones)
+- [ ] Apply SOLID principles where natural (feature envy → move logic to where data lives; primitive obsession → value objects)
 - [ ] Consider what new code reveals about existing code
 - [ ] Run tests after each refactor step
 

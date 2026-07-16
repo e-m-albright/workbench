@@ -1,13 +1,3 @@
----
-name: form-deepen
-description: The taste-driven, conversational pole of the code-health portfolio — surface architectural friction and propose deepening opportunities that turn shallow modules into deep ones, then grill the design with the user. No metrics, no ratchet; pure judgment about depth, locality, and leverage. Use when the user wants to "deepen modules", "de-slop this module", "this feels coupled", "find the seams", "make this more testable / AI-navigable", "improve the design here", or wants to think through one area's architecture conversationally. SKIP for LOC ratchets, static grading, or pre-merge diff review.
-metadata:
-  source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/improve-codebase-architecture/SKILL.md
-  source_commit: 733d312884b3878a9a9cff693c5886943753a741
-  ported_at: 2026-05-07
-  adaptations: Faithful replication of the upstream conversational deepening skill, kept deliberately minimal as the taste/divergent pole of the code-health skill portfolio. Shared architectural vocabulary is defined inline.
----
-
 # Deepen
 
 > **Canon** — enacts Principle 5 (*Simplicity is the goal — small files are a proxy*): deep modules over shallow. See [health/README.md](../../../../health/README.md).
@@ -41,7 +31,7 @@ This skill is _informed_ by the project's domain model. The domain language give
 
 ### 1. Explore
 
-Read the project's domain glossary and any ADRs in the area you're touching first. The glossary may be a standalone `CONTEXT.md`/`CONTEXT-MAP.md`, or — for a small domain — a `## Domain Language` section inside `AGENTS.md`. Check both. (When you add a term and the inline section outgrows ~30 lines or a second bounded context appears, graduate it to a standalone `CONTEXT.md` and leave a pointer in `AGENTS.md`.)
+Read the project's domain glossary and any ADRs in the area you're touching first. The glossary may be a standalone `DOMAIN.md`/`DOMAIN-MAP.md`, or — for a small domain — a `## Domain Language` section inside `AGENTS.md`. Check both. (When you add a term and the inline section outgrows ~30 lines or a second bounded context appears, graduate it to a standalone `DOMAIN.md` and leave a pointer in `AGENTS.md`.)
 
 Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics — explore organically and note where you experience friction:
 
@@ -62,7 +52,7 @@ Present a numbered list of deepening opportunities. For each candidate:
 - **Solution** — plain English description of what would change
 - **Benefits** — explained in terms of locality and leverage, and also in how tests would improve
 
-**Use CONTEXT.md vocabulary for the domain and this skill's glossary for the architecture.** If `CONTEXT.md` defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
+**Use DOMAIN.md vocabulary for the domain and this skill's glossary for the architecture.** If `DOMAIN.md` defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
 
 **ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly (e.g. _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
 
@@ -74,8 +64,8 @@ Once the user picks a candidate, drop into a grilling conversation. Walk the des
 
 Side effects happen inline as decisions crystallize:
 
-- **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term using the [domain glossary format](../../planning/references/domain-format.md). Create the file lazily if it doesn't exist.
-- **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
+- **Naming a deepened module after a concept not in `DOMAIN.md`?** Add the term using the [domain glossary format](../../planning/references/domain-format.md). Create the file lazily if it doesn't exist.
+- **Sharpening a fuzzy term during the conversation?** Update `DOMAIN.md` right there.
 - **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing — skip ephemeral reasons ("not worth it right now") and self-evident ones. See the [ADR format](../../planning/references/adr-format.md). This ADR is also how the *taste* decision becomes durable — it stops the measured engine (or a future pass) re-proposing what you deliberately rejected.
 - **Want to explore alternative interfaces for the deepened module?** Compare the smallest caller contract that preserves invariants, error modes, and testability; prototype competing shapes before committing when the choice is consequential.
 

@@ -31,9 +31,8 @@ Current local versions at the time of this prompt:
 Inspect at minimum:
 - ~/code/public/workbench/README.md
 - ~/code/public/workbench/agents/claude/permissions.json
-- ~/code/public/workbench/agents/claude/hooks.json
+- ~/code/public/workbench/agents/shared/hooks.json
 - ~/code/public/workbench/agents/codex/default.rules
-- ~/code/public/workbench/agents/codex/hooks.json
 - ~/code/public/workbench/agents/codex/statusline.toml
 - ~/code/public/workbench/agents/shared/hooks/
 - ~/code/public/workbench/scripts/workbench.py

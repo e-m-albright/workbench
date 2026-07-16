@@ -18,7 +18,7 @@ Analyze error traces, stack traces, logs, and monitoring data to build a complet
 - Error signature analysis: exception types, message patterns, frequency, first occurrence
 - Stack trace deep dive: failure location, call chain, involved components
 - Reproduction step identification: minimal test cases, environment requirements
-- Observability correlation: Sentry/DataDog error groups, distributed traces, APM metrics
+- Observability correlation: logs, traces, and monitoring exports available on disk or pasted by the user (this agent has no network/APM access — ask for exports when platform data is needed)
 - User impact assessment: affected segments, error rates, business metrics
 - Timeline analysis: deployment correlation, configuration change detection
 - Related symptom identification: cascading failures, upstream/downstream impacts

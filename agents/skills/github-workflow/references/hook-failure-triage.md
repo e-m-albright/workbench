@@ -1,8 +1,3 @@
----
-name: hook-failure-triage
-description: Triage a failing pre-commit/pre-push hook (lefthook, husky, pre-commit) before retrying — preflight all gates upfront, name the failing recipe before fixing, and verify HEAD's tree after an amend or rebase. Use when a `git commit` or `git push` fails inside a hook, when the user says "the pre-commit hook failed", "my push is being rejected", "lefthook/husky failed", "why won't this commit", or before pushing a commit that was amended or rebased through hook rejections.
----
-
 # Hook Failure Triage
 
 When a `git commit` or `git push` fails inside a hook (lefthook, husky, pre-commit, etc.), the most expensive mistake is retrying blindly. The median recovery cost of a hook failure runs ~20-30 tool calls; most of that is spent re-running the wrong thing because the agent misread which sibling check failed.
@@ -45,7 +40,7 @@ If `origin/<branch>` is not an ancestor of HEAD and you didn't intend to rewrite
 ## Anti-patterns
 
 - Re-staging and re-committing without identifying the recipe.
-- "Fixing" a file owned by a parallel agent because its lint warning was the loudest line in the output (see `multi-agent.mdc`).
+- "Fixing" a file owned by a parallel agent because its lint warning was the loudest line in the output.
 - Bypassing with `--no-verify`. The hooks are intentional; the work is reading them correctly.
 - Discovering gates one at a time after each push failure instead of running preflight once upfront.
 - Trusting `git commit --amend` output without `git show HEAD:path | grep ...` verifying the tree.
@@ -53,7 +48,6 @@ If `origin/<branch>` is not an ancestor of HEAD and you didn't intend to rewrite
 
 ## Cross-references
 
-- `multi-agent.mdc` — etiquette when failures span agent-owned files
 - Project-specific hook config (`lefthook.yml`, `.husky/`, `.pre-commit-config.yaml`) — the recipe names live there
 
 _Promoted from `.ai/rules/process/hook-failure-triage.mdc` (was an always-on rule; now an on-demand skill)._

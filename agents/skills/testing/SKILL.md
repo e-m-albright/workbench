@@ -7,64 +7,21 @@ description: Design and implement tests, including vertical-slice TDD, test tier
 
 For ordinary coverage and test selection, use this file. When the user explicitly asks for test-driven development or the change benefits from a vertical red-green-refactor loop, read [tdd.md](references/tdd.md) and load its supporting references only as needed.
 
-## Cost-Aware Test Taxonomy
+## Detect conventions first
 
-| Tier | Placement | Cost | Examples |
-|------|-----------|------|----------|
-| Free | Hooks + CI | $0 | Unit, contract, schema validation |
-| Cheap | CI-blocking on push | ~$0.10 | Compliance, snapshot, cached API calls |
-| Expensive | Release-gate / manual | ~$7+ | LLM-as-judge evals, quality/taste |
-| Very Expensive | Manual only, never CI | $1+ per run | Full model-backed agent tests |
+Before writing any test, read the project's existing tests: framework, runner command, fixture patterns, naming, placement. Match them. A test that follows house conventions is worth more than a "better" test that introduces a second style.
 
-Free tests must be deterministic, fast, and make no external calls.
-Cheap tests may call external APIs with mocked or cached responses.
-Expensive and very expensive tests require explicit invocation.
+For pytest projects, [python-pytest.md](references/python-pytest.md) has the marker convention, cost tiers, and directory layout.
 
-## Pytest Marker Convention
+## What to write
 
-| Marker | Meaning |
-|--------|---------|
-| `@pytest.mark.unit` | Deterministic, no external calls, <100ms |
-| `@pytest.mark.integration` | Real dependencies (DB, API, filesystem) |
-| `@pytest.mark.slow` | Exclude from default and hook runs |
-| `@pytest.mark.model` | LLM-backed, manual only, costs money |
-| `@pytest.mark.compliance` | Regulatory or contract tests |
+- **Cheapest test that exercises the real contract.** Prefer the lowest-cost tier (unit over integration over end-to-end) that still hits the actual behavior — not a mock of it.
+- **Regression coverage at the right seam.** Every bug fix gets a test that failed before the fix, placed at the seam where the bug lived, not wherever is easiest to mock.
 
-Default test runs should exclude `slow` and `model`:
+## What to run
 
-```ini
-# pyproject.toml
-[tool.pytest.ini_options]
-addopts = "-m 'not slow and not model'"
-```
-
-## Test Placement
-
-```
-tests/
-  unit/          # Colocated or mirror of src structure
-  integration/   # Real dependencies, network, DB
-  quality/       # LLM-as-judge evals, taste tests
-  model/         # Full model-backed tests (gitignore results)
-```
-
-Add `tests/model/results/` to `.gitignore` — results contain LLM output and are non-deterministic.
-
-## Affectedness-Based Selection
-
-For monorepos, map changed paths to test scopes instead of running everything:
-
-1. Detect changed files from the diff.
-2. Map each path to its owning scope (package, service, module).
-3. Run only tests for affected scopes.
-4. If core/shared code changed, run the full suite.
-
-```
-# Conceptual mapping
-src/auth/**     → tests/unit/auth/ + tests/integration/auth/
-src/core/**     → tests/  (core change = run all)
-src/billing/**  → tests/unit/billing/ + tests/integration/billing/
-```
+- Run the tests affected by the change: map changed paths to their owning scope (package, service, module) and run that scope's tests.
+- Widen to the full suite when core/shared code changed — a core change can break any consumer.
 
 ## Principles
 

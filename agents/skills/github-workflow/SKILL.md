@@ -16,13 +16,13 @@ Load one mode at a time. Ordinary `gh` operations do not need the specialized re
 ## Pull Requests
 
 - Use `gh pr create` for PRs. Keep titles concise and descriptions audit-friendly (intent, risk, verification).
-- Don't skip required CI checks or approval gates — Drata compliance may depend on them.
+- Don't skip required CI checks or approval gates — if the org uses a compliance platform (e.g. Drata), its audits may depend on them.
 - Avoid force-pushing to `main`/`master` without explicit instruction; it rewrites shared history others may have built on.
 
 ## Issues & Incidents
 
-- Reference Linear or GitHub Issues by ID when closing or linking work.
-- Be aware of Rootly incident tracking — confirm before auto-closing issues that may be tied to an active incident.
+- Reference the org's issue tracker (GitHub Issues, or e.g. Linear if the org uses it) by ID when closing or linking work.
+- If the org uses an incident tracker (e.g. Rootly), confirm before auto-closing issues that may be tied to an active incident.
 
 ## Code Review
 
@@ -36,7 +36,7 @@ Load one mode at a time. Ordinary `gh` operations do not need the specialized re
 
 ## Secrets & Config
 
-- Use Doppler or GitHub Actions secrets for sensitive values — hardcoding them in workflow files leaks them into history and logs.
+- Use GitHub Actions secrets (or the org's secrets manager, e.g. Doppler, if it uses one) for sensitive values — hardcoding them in workflow files leaks them into history and logs.
 - For org-level secrets, check existing patterns before proposing new secret names.
 
 _Promoted from `.ai/rules/process/github-workflow.mdc` (was an always-on rule; now an on-demand skill)._

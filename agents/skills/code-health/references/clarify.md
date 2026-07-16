@@ -1,8 +1,3 @@
----
-name: form-clarify
-description: The readability/interpretability lens of the code-health portfolio — make code understandable to a newcomer (and navigable by an agent), treating readability as its own dimension distinct from structure. Improves identifier quality, comment-code coherence, comments that explain the why, flow flatness, and structural indexes. Use when the user says "make this readable", "this is hard to follow", "improve naming", "is this interpretable / legible", "document the why", "make it newcomer-friendly", or "optimize for agent/LLM navigability". SKIP for behavior changes, bug-finding (/review), or pure deletion (form-prune).
----
-
 # Clarify
 
 > **Canon** — serves readability as a first-class dimension (graded by the review rubric); the why-comment rule of the kernel. See [health/README.md](../../../../health/README.md).

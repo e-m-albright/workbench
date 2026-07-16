@@ -2,9 +2,9 @@
 set -euo pipefail
 
 SOURCE="${BASH_SOURCE[0]}"
-if [[ -L "$SOURCE" ]]; then
+while [[ -L "$SOURCE" ]]; do
     TARGET="$(readlink "$SOURCE")"
     [[ "$TARGET" == /* ]] && SOURCE="$TARGET" || SOURCE="$(dirname "$SOURCE")/$TARGET"
-fi
+done
 ROOT="$(cd "$(dirname "$SOURCE")/.." && pwd)"
 exec python3 "$ROOT/scripts/workbench.py" "$@"

@@ -1,8 +1,3 @@
----
-name: pr-greenlight-cycle
-description: Use when iterating on a PR to get CI green and ready to merge. Enforces "verify locally first" discipline so you stop burning CI minutes (and cache cycles) discovering problems that local commands would have caught in seconds. Triggers on "get this PR merged", "monitor PR", "fix the failing checks", "why is CI red", or any iterative push-and-watch loop on an open PR.
----
-
 # PR Greenlight Cycle
 
 You are about to iterate on an open PR until CI is green. Most of the waste in this loop comes from one mistake: pushing first and asking CI what's broken, instead of running the same gate locally in 30 seconds.

@@ -11,25 +11,26 @@ metadata:
 
 ## What it does
 
-Runs a **skeptical principal-engineer assessment** of a scope (a repo, a subsystem, a diff) using an independent model — by default **Claude Fable 5** (`claude-fable-5`), the strongest public model, deliberately a *different* model than the one doing the work. Read-only. Output is four ranked sections (code health · risk/correctness · feature completeness · add/alter/cut with FOR/AGAINST/verdict), plus "3 things first" and the single biggest risk.
+Runs a **skeptical principal-engineer assessment** of a scope (a repo, a subsystem, a diff) using an independent model — the script defaults to the vendor's strongest alias, overridable via `ASSESSOR_MODEL` or `--model`; pick one *different* from the model doing the work. Read-only. Output is four ranked sections (code health · risk/correctness · feature completeness · add/alter/cut with FOR/AGAINST/verdict), plus "3 things first" and the single biggest risk.
 
 ## How to run it
 
 ```
 agents/skills/adversarial-assessor/scripts/assess.sh [focus text...]
 agents/skills/adversarial-assessor/scripts/assess.sh --scope src/payments  the payments subsystem
-agents/skills/adversarial-assessor/scripts/assess.sh --model claude-opus-4-8  # cheaper assessor
-just assess <focus>                                    # convenience wrapper (this repo)
+ASSESSOR_MODEL=<model-id> agents/skills/adversarial-assessor/scripts/assess.sh   # override the assessor
 ```
 
-It writes a timestamped report to `docs/health/assessments/` and prints the path. It calls a **paid model** (Fable 5 is $10/$50 per Mtok) under a budget cap, so it is opt-in and scoped, not a gate. Needs the `claude` CLI on PATH.
+Run `scripts/assess.sh` as a black box — do not read the source or reimplement it; it exists to be called directly rather than ingested into your context window.
+
+It writes a timestamped report (header names the resolved model) to `docs/health/assessments/` and prints the path. It calls a **paid model** under a budget cap, so it is opt-in and scoped, not a gate. Needs the `claude` CLI on PATH.
 
 ## The discipline (this is the load-bearing part)
 
 1. **Findings are claims to verify, not gospel.** Apply the same skepticism to the assessor that it applies to the code. Before acting on any finding, check it against the actual source — confirm the bug reproduces, the bypass works, the coupling is real. In this repo's first run, the guard bypass was real and got fixed test-first; other findings were fair-but-deferred or wrong. Sort them yourself.
-2. **Use a *different* model than the one being assessed.** The point is independence. Assessing Claude's work with Claude-default defeats it; Fable 5 (or Codex, or another vendor) is the move.
+2. **Use a *different* model than the one being assessed.** The point is independence. Assessing a model's work with the same model defeats it; set `ASSESSOR_MODEL` to a different model (or another vendor's CLI).
 3. **Rank by leverage and irreversibility.** A verified safety/security/data bug outranks a style nit, always. Fix the irreversible-risk findings first.
-4. **Record what you did with each finding** — fixed / deferred-with-reason / dismissed-as-wrong — in `docs/health/<scope>/findings.md`, so the next pass converges instead of re-litigating.
+4. **Record what you did with each finding** — fixed / deferred-with-reason / dismissed-as-wrong — in `docs/decisions/`, so the next pass converges instead of re-litigating.
 
 ## When NOT to reach for it
 
@@ -38,4 +39,4 @@ It writes a timestamped report to `docs/health/assessments/` and prints the path
 - Generating *new* ideas collaboratively → use the ideation mode in `planning`. This skill attacks existing work; it does not brainstorm.
 
 ## See also
-- `docs/health/` — where findings ledgers and prior assessments live.
+- `docs/decisions/` — where finding dispositions and durable decisions live; prior assessment reports sit under `docs/health/assessments/`.

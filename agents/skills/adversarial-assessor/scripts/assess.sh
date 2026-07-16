@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # assess.sh — run an independent, adversarial code-health/design assessment.
 #
-# Routes the work past a DIFFERENT model (default: Claude Fable 5) acting as a
+# Routes the work past a DIFFERENT model (default: the vendor's strongest alias,
+# override with ASSESSOR_MODEL or --model) acting as a
 # skeptical principal engineer, read-only, whose job is to find what the author
 # and their default agent are blind to. This is the structural counter to model
 # sycophancy: a fresh-context critic with no stake in the work, not a prompt
@@ -22,7 +23,7 @@
 
 set -eo pipefail
 
-MODEL="claude-fable-5"
+MODEL="${ASSESSOR_MODEL:-opus}"
 SCOPE=""
 OUT=""
 BUDGET="2.00"
@@ -68,7 +69,7 @@ file paths and line numbers. NO flattery, no praise padding, no hedging.
 
 Read for context first (read-only — do NOT edit anything): the repo's top-level
 docs (README, AGENTS.md, engineering philosophy), any
-docs/health/ ledger or prior assessment, then sample widely across the scope by
+docs/decisions/ notes or prior assessment, then sample widely across the scope by
 churn and risk. Verify each claim against the actual source before reporting it.
 
 Deliver four ranked sections, concrete and skeptical:

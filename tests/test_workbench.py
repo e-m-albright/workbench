@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import subprocess
 import tempfile
@@ -71,17 +73,19 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(path.read_text(), "new")
             self.assertEqual(path.with_name("config.json.bak").read_text(), "old")
 
-    def test_launcher_resolves_global_symlink(self) -> None:
+    def test_launcher_resolves_chained_symlinks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             link = Path(raw) / "workbench"
             link.symlink_to(wb.ROOT / "bin/workbench")
+            chained = Path(raw) / "wb"
+            chained.symlink_to(link)
 
             result = subprocess.run(
-                [str(link), "lint"], capture_output=True, text=True, check=False
+                [str(chained), "lint"], capture_output=True, text=True, check=False
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("OK 17 skills", result.stdout)
+            self.assertRegex(result.stdout, r"OK \d+ skills")
 
     def test_bare_launcher_renders_branded_complete_command_tree(self) -> None:
         result = subprocess.run(
@@ -270,17 +274,57 @@ class WorkbenchTests(unittest.TestCase):
             self.assertFalse(actual["sandbox"]["allowUnsandboxedCommands"])
             self.assertTrue((home / ".claude.json.bak").exists() is False)
 
-    def test_plugin_inventory_parses_each_vendor_shape(self) -> None:
-        claude = json.dumps([{"id": "example@market", "enabled": True}])
+    def test_plugin_inventory_parses_each_vendor_shape_with_enabled_state(
+        self,
+    ) -> None:
+        claude = json.dumps(
+            [
+                {"id": "example@market", "enabled": True},
+                {"id": "dormant@market", "enabled": False},
+            ]
+        )
         codex = json.dumps(
             {"installed": [{"pluginId": "example@market", "enabled": True}]}
         )
 
         self.assertEqual(
-            wb._installed_plugin_ids("claude", claude), {"example@market"}
+            wb._installed_plugins("claude", claude),
+            {"example@market": True, "dormant@market": False},
         )
         self.assertEqual(
-            wb._installed_plugin_ids("codex", codex), {"example@market"}
+            wb._installed_plugins("codex", codex), {"example@market": True}
+        )
+
+    @patch.object(wb, "_plugin_inventory")
+    def test_check_plugins_requires_enabled_and_reports_external(
+        self, inventory
+    ) -> None:
+        declared = wb._string_array(wb.AGENTS / "claude/plugins.json")
+        inventory.return_value = {
+            **{plugin: True for plugin in declared},
+            declared[0]: False,
+            "extra@market": True,
+        }
+        findings: list[str] = []
+        external: list[str] = []
+
+        wb._check_plugins("claude", Path("/nonexistent"), findings, external)
+
+        self.assertEqual(
+            findings, [f"DRIFT claude plugin disabled: {declared[0]}"]
+        )
+        self.assertEqual(external, ["EXTERNAL claude plugin: extra@market"])
+
+    @patch.object(wb.shutil, "which", return_value=None)
+    def test_check_plugins_degrades_when_cli_is_missing(self, _which) -> None:
+        findings: list[str] = []
+        external: list[str] = []
+
+        wb._check_plugins("claude", Path("/nonexistent"), findings, external)
+
+        self.assertEqual(findings, [])
+        self.assertEqual(
+            external, ["NOTE claude plugins unverified (CLI not found)"]
         )
 
     def test_codex_connector_plugins_are_declared(self) -> None:
@@ -390,15 +434,16 @@ class WorkbenchTests(unittest.TestCase):
         self.assertNotIn("--no-verify", merged)
         self.assertNotIn('["rm", "-rf"]', merged)
 
-    def test_codex_rule_merge_does_not_resurrect_removed_canonical_rules(self) -> None:
-        removed = 'prefix_rule(pattern=["old", "tool"], decision="allow")'
+    def test_codex_rule_merge_preserves_approvals_outside_marker_section(self) -> None:
+        canonical = 'prefix_rule(pattern=["git", "status"], decision="allow")\n'
+        approval = 'prefix_rule(pattern=["cargo", "check"], decision="allow")'
+        live = f"{approval}\n{canonical}{approval}\n"
 
-        merged = wb.merge_codex_rules(
-            'prefix_rule(pattern=["git", "status"], decision="allow")\n',
-            removed + "\n",
-        )
+        merged = wb.merge_codex_rules(canonical, live)
 
-        self.assertNotIn(removed, merged)
+        self.assertIn("# --- Locally approved additions ---", merged)
+        self.assertEqual(merged.count(approval), 1)
+        self.assertLess(merged.index(canonical.strip()), merged.index(approval))
 
     def test_codex_merge_preserves_other_sections_and_external_mcp(self) -> None:
         source = """\
@@ -465,6 +510,102 @@ js_repl = false
     def test_codex_merge_rejects_malformed_toml(self) -> None:
         with self.assertRaises(wb.WorkbenchError):
             wb.merge_codex_config("[")
+
+    def test_codex_merge_is_idempotent(self) -> None:
+        fixtures = [
+            "",
+            'model = "example"\n\n[mcp_servers.external]\ncommand = "tool"\n',
+            'sandbox_mode = "read-only"\napproval_policy = "untrusted"\n',
+            "[tui]\ntheme = \"old\"\n\n[tui.model_availability_nux]\n'gpt-5.5' = 4\n",
+        ]
+        for source in fixtures:
+            with self.subTest(source=source):
+                once = wb.merge_codex_config(source)
+
+                self.assertEqual(wb.merge_codex_config(once), once)
+
+    def test_drop_tables_is_line_based_but_guard_rejects_corruption(self) -> None:
+        # Documents the known ceiling: _drop_tables cannot tell a real [tui]
+        # header from one inside a multi-line string, so it truncates the
+        # string mid-value. The round-trip guard turns that corruption into
+        # a WorkbenchError instead of writing broken TOML.
+        adversarial = 'description = """\n[tui]\ntheme = "fake"\n"""\n'
+
+        truncated = wb._drop_tables(adversarial, ("[tui",))
+
+        self.assertEqual(truncated, 'description = """')
+        with self.assertRaises(wb.WorkbenchError):
+            wb.merge_codex_config(adversarial)
+
+    def test_toml_value_rejects_unsupported_scalar_types(self) -> None:
+        self.assertEqual(wb._toml_value(4), "4")
+        with self.assertRaises(wb.WorkbenchError):
+            wb._toml_value(None)
+
+    def test_check_reports_codex_drift_for_tombstoned_mcp(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            for source in wb.AGENTS.glob("skills/*"):
+                if source.is_dir() and (source / "SKILL.md").exists():
+                    wb.shutil.copytree(
+                        source, home / ".agents/skills" / source.name
+                    )
+            config = home / ".codex/config.toml"
+            config.write_text(
+                config.read_text()
+                + '\n[mcp_servers.context7]\ncommand = "retired"\n'
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                exit_code = wb.check(home, ("codex",), verify_plugins=False)
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn(
+                "DRIFT codex tombstoned MCP still present: context7",
+                output.getvalue(),
+            )
+
+    def test_check_subagents_flags_retired_leftovers_as_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            destination = Path(raw)
+            (destination / "docs-scribe.toml").write_text('name = "docs-scribe"\n')
+            findings: list[str] = []
+            external: list[str] = []
+
+            wb._check_subagents("codex", destination, findings, external)
+
+            self.assertIn(
+                "DRIFT retired codex subagent still present: docs-scribe", findings
+            )
+            self.assertNotIn("EXTERNAL codex subagent: docs-scribe", external)
+
+    def test_codex_subagents_render_read_only_sandbox_for_non_writing_tools(
+        self,
+    ) -> None:
+        template = (
+            "---\nname: example\ndescription: Example subagent.\n{tools}---\n\nBody.\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            restricted_path = Path(raw) / "restricted.md"
+            restricted_path.write_text(
+                template.format(tools="tools: Read, Grep, Glob, Bash\n")
+            )
+            writer_path = Path(raw) / "writer.md"
+            writer_path.write_text(template.format(tools="tools: Read, Edit\n"))
+            unrestricted_path = Path(raw) / "unrestricted.md"
+            unrestricted_path.write_text(template.format(tools=""))
+
+            restricted = wb.tomllib.loads(wb._render_codex_subagent(restricted_path))
+            writer = wb.tomllib.loads(wb._render_codex_subagent(writer_path))
+            unrestricted = wb.tomllib.loads(
+                wb._render_codex_subagent(unrestricted_path)
+            )
+
+        self.assertEqual(restricted["sandbox_mode"], "read-only")
+        self.assertNotIn("sandbox_mode", writer)
+        self.assertNotIn("sandbox_mode", unrestricted)
 
     def test_destructive_guard_allows_benign_command(self) -> None:
         result = self.run_hook(

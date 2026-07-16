@@ -6,14 +6,14 @@ Conventions for authoring subagents in `agents/subagents/` (canonical). Subagent
 
 **Required:**
 - `name` — must equal filename (without `.md`). `[a-z0-9-]` only.
-- `description` — what the agent does + when to use it. Includes literal `Use when …` trigger clause per the same convention as skills (see `skill-format.md`).
+- `description` — what the agent does + when to use it. Includes a literal `Use when …` (or `Use for …`) trigger clause per the same convention as skills (see `skill-format.md`).
 
 **Optional:**
 - `tools` — **comma-separated** list (different from skills' space-separated `allowed-tools`). Restricts what the subagent can call. Use for read-only review/audit agents.
 - `model` — `opus`, `sonnet`, `haiku`, or `inherit`. Default to `sonnet` for most agents; `opus` for high-stakes review or architecture work; `haiku` for narrow deterministic tasks.
 - `color` — UI color in some hosts (cyan, blue, etc.). Optional, mostly aesthetic.
 
-**Source attribution (under any custom block — agents don't have a spec'd `metadata` field):** put attribution in a `## Sources` footer at end of body and a row in `docs/skills-sources.md`. Do NOT invent a custom top-level frontmatter field — it can break harnesses that strict-parse YAML.
+**Source attribution:** put attribution in a `## Sources` footer at end of body. Do NOT invent a custom top-level frontmatter field — agents don't have a spec'd `metadata` field, and it can break harnesses that strict-parse YAML.
 
 ## Description format
 
@@ -74,15 +74,13 @@ If the agent is ported / adapted from upstream, add at end of body:
 - Adapted from [wshobson/agents/.../agent-name.md](URL_at_pinned_commit) (ported YYYY-MM-DD, MIT). <One-line summary of changes.>
 ```
 
-And add a row to `docs/skills-sources.md` (Agents section).
-
 ## Canonical + deploy layout
 
 New subagents follow the same source-of-truth convention as skills:
 
 - Canonical file: `agents/subagents/<name>.md` (single file, no per-agent mirrors in the repo).
-- Deployed by `workbench sync` (a small `cp` loop) into each agent's worker dir:
-  `~/.claude/agents/`, `~/.codex/agents/`, `~/.pi/agent/agents/`.
+- Deployed by `workbench sync` (a small `cp` loop) into each harness's agent dir:
+  `~/.claude/agents/` and `~/.codex/agents/`.
 
 Edit the canonical file, then re-run `workbench sync` to redeploy to every agent.
 

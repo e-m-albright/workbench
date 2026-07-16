@@ -1,8 +1,3 @@
----
-name: session-recovery
-description: Reconstruct in-flight work after a crash, power outage, reboot, or accidental terminal close. Identifies which Claude Code sessions were active, classifies each as merged / open / orphaned, maps them to feature branches and worktrees, and produces concrete `claude --resume` commands plus a cleanup punch list. Use when the user asks to "recover sessions", "what was I working on", "resume after a crash", or after they mention losing tabs/terminals.
----
-
 # Session Recovery
 
 Reconstruct what was in flight from on-disk artifacts. Trust evidence over memory.
@@ -23,6 +18,7 @@ Sessions and worktrees decay independently. Always cross-check at least two sour
    - `<encoded-cwd>` is the cwd with `/` → `-` and a trailing `--` for hidden dirs (so `/Users/alice/repo/.worktrees/foo` → `-Users-alice-repo--worktrees-foo`).
    - The JSONL contains the full conversation. Each line is one event with a `cwd`, `sessionId`, `gitBranch`, `slug`, `timestamp`, and either a user message or assistant content.
    - **A session is resumable from any cwd** via `claude --resume <session-id>` — the worktree being gone does not delete the conversation history.
+1b. **Codex session logs** — `~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<uuid>.jsonl` (date-partitioned, not cwd-partitioned; grep the JSONL for the repo path). Resume via `codex resume <session-id>` or `codex resume --last`.
 2. **Git reflog** — `git reflog --date=iso` on the main repo. Authoritative record of merges, rebases, resets, and `pull --ff-only` operations near the crash.
 3. **Git branches + `git branch --contains <sha>`** — proves whether a chat's commits actually landed on `main` vs sit on a feature branch.
 4. **`git worktree list`** — shows which worktrees still physically exist. Cross-reference with session cwds.
@@ -125,6 +121,7 @@ For each row, give a copy-paste command:
 ```bash
 # Resume a specific conversation (works even if the original cwd is gone):
 claude --resume <session-id>
+codex resume <session-id>      # Codex sessions; `codex resume --last` for the most recent
 
 # Continue most-recent in a worktree:
 cd <worktree-path> && claude --continue

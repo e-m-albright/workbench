@@ -6,7 +6,7 @@ Conventions for authoring and maintaining skills in `agents/skills/`. Aligns wit
 
 **Required:**
 - `name` — must equal parent directory name. `[a-z0-9-]` only. No leading/trailing/consecutive hyphens. Max 64 chars.
-- `description` — what the skill does + when to use it. Workbench caps this at 280 characters. Always include a `Use when …` clause with literal user phrases (see below).
+- `description` — what the skill does + when to use it. Workbench caps this at 280 characters. Always include a `Use when …` or `Use for …` clause with literal user phrases (see below).
 
 **Optional (Anthropic spec):**
 - `license` — license name or reference to a bundled `LICENSE.txt`.
@@ -24,7 +24,7 @@ Conventions for authoring and maintaining skills in `agents/skills/`. Aligns wit
 
 ## Description format
 
-Two-clause: `<what it does>. Use when <triggers>.`
+Two-clause: `<what it does>. Use when <triggers>.` (or `Use for <triggers>.` — either wording satisfies the convention).
 
 Triggers should be concrete, comma-separated:
 - Literal phrases users say (`"open a PR"`, `"is my env healthy?"`, `"audit this"`).
@@ -33,7 +33,7 @@ Triggers should be concrete, comma-separated:
 
 For skills at risk of false-firing on adjacent topics, add explicit `SKIP:` or `Do NOT trigger when …` clauses (Anthropic's `claude-api` description is the canonical example).
 
-`disable-model-invocation: true` skills should still include the `Use when` clause — it disambiguates explicit invocation, even if it doesn't drive auto-triggering.
+`disable-model-invocation: true` skills should still include the trigger clause — it disambiguates explicit invocation, even if it doesn't drive auto-triggering.
 
 ## Body conventions
 
@@ -81,7 +81,7 @@ Skills ported or substantially adapted from upstream MUST include attribution:
    - Adapted from [mattpocock/skills/engineering/systematic-debugging](https://github.com/mattpocock/skills/blob/733d312/skills/engineering/systematic-debugging/SKILL.md) (ported 2026-05-07).
    ```
 
-3. **Central registry** at `docs/skills-sources.md` — single source of truth for cross-skill review. Add a row when porting; refresh when re-reviewing upstream.
+Provenance lives in each skill's frontmatter and body — there is no central registry to maintain.
 
 ## Why source attribution matters
 

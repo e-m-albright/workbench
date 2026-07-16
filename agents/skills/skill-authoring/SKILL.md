@@ -1,6 +1,6 @@
 ---
-name: skill-creator
-description: Create or improve agent skills with reliable triggers and progressive disclosure. Use for "make this a skill", skill refactors, metadata compression, trigger problems, or SKILL.md authoring.
+name: skill-authoring
+description: Author or refactor portable Workbench skills and subagents — reliable triggers, progressive disclosure, spec compliance. Use for "make this a skill", skill refactors, trigger problems, SKILL.md or subagent authoring in this repo.
 metadata:
   source_url: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
   source_commit: d211d437443a7b2496a3dad9575e7dddd724c585
@@ -8,7 +8,7 @@ metadata:
   adaptations: Streamlined from 485 lines to ~230. Stripped sections requiring Anthropic's eval-runner infrastructure (run_loop.py, aggregate_benchmark.py, eval-viewer/, blind-comparison agents, packaging). Stripped Claude.ai/Cowork-specific sections. Kept the meta-knowledge (anatomy, progressive disclosure, writing patterns, style). Added pointers to our `workbench lint` validator and `skill-format.md`.
 ---
 
-# Skill Creator
+# Skill Authoring
 
 Create new skills and improve existing ones. The high-level loop:
 
@@ -23,7 +23,6 @@ Your job is to figure out where the user is in the loop and meet them there. The
 This skill is the meta-skill. It complements:
 - **[Skill format](references/skill-format.md)** — the convention spec for this repo (frontmatter, body, source attribution, tool restrictions). [Agent format](references/agent-format.md) covers subagents.
 - **`workbench lint`** — the validator. Run it after every edit to confirm spec compliance.
-- **`docs/skills-sources.md`** — the source-attribution registry. Add a row when porting from upstream.
 
 ## Creating a skill
 
@@ -39,7 +38,7 @@ Confirm with the user:
 
 ### Step 2 — Write the SKILL.md
 
-Use the canonical layout from `skill-format.mdc` (full conventions: [Skill format](references/skill-format.md); for authoring subagents instead, see [Agent format](references/agent-format.md)):
+Use the canonical layout (full conventions: [Skill format](references/skill-format.md); for authoring subagents instead, see [Agent format](references/agent-format.md)):
 
 ```
 skill-name/
@@ -113,53 +112,7 @@ Always run scripts with `--help` first. Look for `--help` to surface options bef
 
 ## Testing
 
-### Test cases
-
-After drafting, write 2-3 realistic test prompts — what a real user would actually say. Save to `evals/evals.json` if you want structured tests:
-
-```json
-{
-  "skill_name": "example-skill",
-  "evals": [
-    {
-      "id": 1,
-      "prompt": "ok so my boss just sent me this xlsx file (its in my downloads, called something like 'Q4 sales final FINAL v2.xlsx') and she wants me to add a column for profit margin. Revenue in C, costs in D",
-      "expected_output": "Spreadsheet with new column showing profit margin %",
-      "files": [],
-      "expectations": ["Output is a .xlsx file", "Includes new column with profit margin formula"]
-    }
-  ]
-}
-```
-
-See [references/schemas.md](references/schemas.md) for the full schema (used by Anthropic's eval runner; we don't currently run it but the schema is the data contract for any future eval system we add).
-
-**Bad test prompts:** "Format this data." "Extract text from PDF." Too abstract — won't reliably trigger or test anything.
-
-**Good test prompts:** Concrete, specific, with file paths, column names, casual tone, real backstory. See the example above.
-
-### Trigger queries
-
-To validate the description triggers correctly without false positives, write 8-10 should-trigger prompts and 8-10 should-not-trigger near-misses. Save as JSON:
-
-```json
-[
-  {"query": "the user prompt", "should_trigger": true},
-  {"query": "another prompt", "should_trigger": false}
-]
-```
-
-Negative cases must be **near-misses** — share keywords with the skill but actually need something else. Obvious irrelevance (e.g. "write a fibonacci function" for a PDF skill) tests nothing.
-
-### Manual validation
-
-If you don't have an eval runner, just do it manually:
-1. Spawn a subagent with the skill loaded; give it a test prompt.
-2. Spawn another subagent **without** the skill; same prompt.
-3. Compare outputs.
-4. Read both transcripts — note where the skill helped, where it confused the agent, where rote instructions made the agent waste time.
-
-Alternatively, just describe each test case to yourself and see what Claude with the skill produces vs. what Claude without the skill produces. Less rigorous; works fine for low-stakes iteration.
+After drafting, write 2-3 realistic test prompts and validate the triggers. Read [testing.md](references/testing.md) for test-case format, trigger-query design, and manual validation without an eval runner.
 
 ## Improving the skill
 
@@ -173,7 +126,7 @@ Alternatively, just describe each test case to yourself and see what Claude with
 
 4. **Look for repeated work.** If 3 test runs all produced similar helper scripts, bundle that script in `scripts/`. Write it once; tell the skill to call it.
 
-5. **Validate after every edit.** Run `workbench lint` to confirm the skill stays spec-compliant (frontmatter, "Use when" trigger, body length, caps count).
+5. **Validate after every edit.** Run `workbench lint` to confirm the skill stays spec-compliant (frontmatter, trigger clause, body length, caps count).
 
 ### The iteration loop
 
@@ -196,7 +149,7 @@ Implication: trigger eval queries should be **substantive enough that Claude wou
 
 ## Source attribution (when porting)
 
-If you're adapting an upstream skill, add `metadata.source_*` to the frontmatter, a `## Sources` footer at end of body, and a row in `docs/skills-sources.md`. See `skill-format.mdc` § Source attribution for the convention.
+If you're adapting an upstream skill, add `metadata.source_*` to the frontmatter and a `## Sources` footer at end of body — provenance lives in each skill, not a central registry. See [skill-format.md](references/skill-format.md) § Source attribution for the convention.
 
 ## Sources
 - Adapted from [anthropics/skills/skill-creator](https://github.com/anthropics/skills/blob/d211d43/skills/skill-creator/SKILL.md) (ported 2026-05-07, Apache-2.0). Streamlined to ~230 lines; stripped Anthropic's eval-runner infrastructure and Claude.ai/Cowork sections; pointed at our `workbench lint` validator and `skill-format.md`.

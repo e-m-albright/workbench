@@ -1,8 +1,3 @@
----
-name: workflow-closeout-learning
-description: Run an end-of-workflow closeout that audits testing coverage, extracts reusable learnings, and generates a clean new-chat bootstrap prompt. Use when the user asks to wrap up long work, formalize learnings, reduce context baggage, or start a fresh chat with strong context.
----
-
 # Workflow Closeout Learning
 
 Use this skill at the end of long workflows to capture value before context is lost.
@@ -110,4 +105,4 @@ Use this structure in closeout responses:
 - Separate facts from assumptions.
 - If data is missing, propose the fastest path to collect it.
 - Keep outputs operational, avoid abstract summaries.
-- Pair with `session-closeout` discipline from `multi-agent.mdc` — close out the worktree verdict at the same time you produce the bootstrap.
+- If the work happened in a worktree, close out its verdict (merge, PR, or remove) at the same time you produce the bootstrap.

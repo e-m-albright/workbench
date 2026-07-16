@@ -1,8 +1,3 @@
----
-name: form-tidy
-description: The safe-execution lens of the code-health portfolio — apply named, behavior-preserving refactorings from the Fowler/Beck catalog (extract function, inline, guard clauses, replace conditional with polymorphism or lookup, decompose conditional, slide statements) in small two-hats steps, verified by tests, routed through deterministic codemods where possible. Use when the user says "tidy this", "clean up this function", "extract a method", "flatten these conditionals", "apply a refactoring", "this is messy", "guard clauses", or wants a known transform done safely. SKIP for conceptual design conversations (form-deepen) or bug-finding (/review).
----
-
 # Tidy
 
 > **Canon** — enacts Principle 5 (*Simplicity is the goal*) via named, behavior-preserving transforms. See [health/README.md](../../../../health/README.md).

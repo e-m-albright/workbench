@@ -1,9 +1,3 @@
----
-name: git-worktree-manager
-description: Create, list, and clean up git worktrees with smart naming and branch conventions. Use when user invokes /git-worktree-manager, says "new worktree", "spin up a worktree", "clean up worktrees", "list worktrees", "prune worktrees"; or wants isolated workspaces for parallel feature work / dispatched agents.
-disable-model-invocation: true
----
-
 # Git Worktree Manager
 
 Manage git worktrees for isolated feature work.
@@ -16,6 +10,8 @@ Manage git worktrees for isolated feature work.
 # Pick a descriptive name — the skill creates the worktree + branch
 WORKTREE_NAME="$1"  # e.g., "auth-refactor"
 REPO_ROOT=$(git rev-parse --show-toplevel)
+# Use the vendor worktree dir, e.g. .claude/worktrees/ under Claude Code
+# (Codex has no equivalent — fall back to a gitignored .worktrees/):
 WORKTREE_DIR="$REPO_ROOT/.claude/worktrees/$WORKTREE_NAME"
 
 git worktree add -b "worktree-$WORKTREE_NAME" "$WORKTREE_DIR" main
@@ -54,7 +50,7 @@ git worktree prune
 ## Workflow
 
 1. Ask what the user wants: create, list, or clean
-2. For create: ask for a name, create worktree under `.claude/worktrees/`
+2. For create: ask for a name, create worktree under the vendor worktree dir (see above)
 3. For list: show all worktrees with status
 4. For clean: identify stale worktrees, confirm before removing
 5. After cleanup, prune dead references and delete merged branches

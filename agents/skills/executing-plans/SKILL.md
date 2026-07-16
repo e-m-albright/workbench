@@ -7,7 +7,7 @@ metadata:
 
 # Executing Plans
 
-Use this when a plan already exists and the task is to implement it, not redesign it.
+Use this when a plan already exists and the task is to implement it, not redesign it. For refactor license, over-engineering guards, and multi-pass cadence, read [execution-discipline.md](../planning/references/execution-discipline.md).
 
 ## Before touching code
 

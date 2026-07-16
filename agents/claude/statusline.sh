@@ -100,25 +100,57 @@ git_segment() {
     printf '%s%s%s' "${DIM}(" "${parts[*]}" ")${R}"
 }
 
+# Compact time-until-reset for a rate-limit window, e.g. (resets 1h) / (resets 3d).
+eta() {
+    local resets_at="$1" now remaining
+    [[ -z "$resets_at" ]] && return 0
+    now=$(date +%s)
+    remaining=$(( resets_at - now ))
+    (( remaining <= 0 )) && return 0
+    if   (( remaining >= 172800 )); then printf ' (resets %dd)' $(( remaining / 86400 ))
+    elif (( remaining >= 3600 ));   then printf ' (resets %dh)' $(( remaining / 3600 ))
+    else printf ' (resets %dm)' $(( remaining / 60 ))
+    fi
+}
+
+pr_segment() {
+    local number="$1" state="$2" color glyph
+    [[ -z "$number" ]] && return 0
+    case "$state" in
+        approved)          color="$SAGE"   glyph='✓' ;;
+        changes_requested) color="$DANGER" glyph='✗' ;;
+        draft)             color="$DIM"    glyph='◌' ;;
+        *)                 color="$NOTE"   glyph='○' ;;
+    esac
+    printf '%s#%s%s%s' "$color" "$number" "$glyph" "$R"
+}
+
 model=$(j '.model.display_name')
 cwd=$(j '.workspace.current_dir')
+worktree=$(j '.workspace.git_worktree')
 ctx_pct=$(j '.context_window.used_percentage')
 five_used=$(j '.rate_limits.five_hour.used_percentage')
+five_reset=$(j '.rate_limits.five_hour.resets_at')
 seven_used=$(j '.rate_limits.seven_day.used_percentage')
+seven_reset=$(j '.rate_limits.seven_day.resets_at')
+pr_number=$(j '.pr.number')
+pr_state=$(j '.pr.review_state')
 
 sep="${DIM} · ${R}"
 out="${NOTE}claude${R} ${DIM}$(short_path "${cwd:-?}")${R}"
-git_text=$(git_segment "$cwd")
+git_text=$(git_segment "$cwd" "$worktree")
 [[ -n "$git_text" ]] && out="${out} ${git_text}"
+pr_text=$(pr_segment "$pr_number" "$pr_state")
+[[ -n "$pr_text" ]] && out="${out} ${pr_text}"
 
 if [[ -n "$ctx_pct" ]]; then
     out="${out}${sep}$(ramp "$ctx_pct")ctx: $(printf '%.0f%%' "$ctx_pct")${R}"
 fi
 if [[ -n "$five_used" ]]; then
-    out="${out}${sep}$(ramp "$five_used")5h: $(printf '%.0f%%' "$five_used") used${R}"
+    out="${out}${sep}$(ramp "$five_used")5h: $(printf '%.0f%%' "$five_used")$(eta "$five_reset")${R}"
 fi
 if [[ -n "$seven_used" ]]; then
-    out="${out}${sep}$(ramp "$seven_used")7d: $(printf '%.0f%%' "$seven_used") used${R}"
+    out="${out}${sep}$(ramp "$seven_used")7d: $(printf '%.0f%%' "$seven_used")$(eta "$seven_reset")${R}"
 fi
 if [[ -n "$model" ]]; then
     out="${out}${sep}${DIM}${model}${R}"

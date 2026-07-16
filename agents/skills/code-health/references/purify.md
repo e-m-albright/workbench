@@ -1,8 +1,3 @@
----
-name: form-purify
-description: The testability/effect-isolation lens of the code-health portfolio — extract a pure core and push side effects to the edges (functional core / imperative shell, ports & adapters), and model types so illegal states are unrepresentable (parse don't validate). Use when the user says "make this testable", "extract a pure core", "functional core imperative shell", "parse don't validate", "make illegal states unrepresentable", "tame the side effects", "ports and adapters / hexagonal", or "this can only be tested end-to-end". SKIP for bug-finding (/review) or pure deletion (form-prune).
----
-
 # Purify
 
 > **Canon** — enacts Principle 4 (*Boundaries are contracts*) and Principle 11 (*Tests verify behavior, not implementation*). See [health/README.md](../../../../health/README.md).
