@@ -36,5 +36,5 @@ drift *args:
 [default]
 help:
     #!/usr/bin/env bash
-    export JUST_LIST_HEADING=$'\e[1;34m Workbench\e[0m — portable agent intelligence and engineering guidance\n'
+    export JUST_LIST_HEADING=$'\e[1;34m workbench CLI\e[0m — dev tasks (cwd: repository root)\n'
     exec just --justfile "{{justfile()}}" --list --unsorted

@@ -83,7 +83,7 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("OK 17 skills", result.stdout)
 
-    def test_bare_launcher_prints_complete_command_tree(self) -> None:
+    def test_bare_launcher_renders_branded_complete_command_tree(self) -> None:
         result = subprocess.run(
             [str(wb.ROOT / "bin/workbench")],
             capture_output=True,
@@ -92,10 +92,25 @@ class WorkbenchTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("command tree:", result.stdout)
+        self.assertIn("██╗    ██╗", result.stdout)
+        self.assertIn("Usage: workbench [OPTIONS] COMMAND [ARGS]...", result.stdout)
+        self.assertIn("Options", result.stdout)
+        self.assertIn("Configuration — deploy and validate agent state", result.stdout)
         self.assertIn("sync [claude|codex|all]", result.stdout)
         self.assertIn("check [claude|codex|all]", result.stdout)
-        self.assertIn("wb check codex", result.stdout)
+        self.assertIn("--no-skills", result.stdout)
+
+    def test_bare_just_uses_dotfiles_heading_convention(self) -> None:
+        result = subprocess.run(
+            ["just"], cwd=wb.ROOT, capture_output=True, text=True, check=False
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("workbench CLI", result.stdout)
+        self.assertIn("dev tasks (cwd: repository root)", result.stdout)
+        self.assertIn("[quality]", result.stdout)
+        self.assertIn("[testing]", result.stdout)
+        self.assertIn("[deployment]", result.stdout)
 
     def test_sync_help_explains_targets_and_optional_installers(self) -> None:
         result = subprocess.run(

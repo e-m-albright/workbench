@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import tomllib
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -30,19 +31,13 @@ CODEX_APPENDIX = """\
 RETIRED_SUBAGENTS = {"docs-scribe", "legacy-modernizer"}
 RETIRED_SKILLS = {"agentic-e2e-debugging", "converge"}
 VENDORS = ("claude", "codex", "all")
-COMMAND_TREE = """\
-command tree:
-  workbench (wb)
-  ├── sync [claude|codex|all]    deploy canonical configuration
-  │   ├── --no-skills            skip shared-skill installation
-  │   └── --no-plugins           skip declared-plugin installation
-  ├── check [claude|codex|all]   report managed drift and external additions
-  └── lint                       validate canonical repository sources
-
-examples:
-  workbench sync all
-  wb check codex
-  workbench sync claude --no-plugins
+WORKBENCH_BANNER = """\
+██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗██████╗ ███████╗███╗   ██╗ ██████╗██╗  ██╗
+██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝██╔══██╗██╔════╝████╗  ██║██╔════╝██║  ██║
+██║ █╗ ██║██║   ██║██████╔╝█████╔╝ ██████╔╝█████╗  ██╔██╗ ██║██║     ███████║
+██║███╗██║██║   ██║██╔══██╗██╔═██╗ ██╔══██╗██╔══╝  ██║╚██╗██║██║     ██╔══██║
+╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗██████╔╝███████╗██║ ╚████║╚██████╗██║  ██║
+ ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝
 """
 
 
@@ -883,6 +878,89 @@ def _vendors(raw: str) -> tuple[str, ...]:
     return (raw,)
 
 
+def _styled(value: str, code: str) -> str:
+    if not sys.stdout.isatty() or os.environ.get("NO_COLOR") is not None:
+        return value
+    return f"\033[{code}m{value}\033[0m"
+
+
+def _panel(title: str, rows: list[tuple[str, str]], width: int) -> str:
+    """Render the same rounded, two-column help panel used by Dotfiles."""
+    inner_width = width - 2
+    content_width = inner_width - 2
+    left_width = min(max(len(left) for left, _ in rows), content_width // 2)
+    right_width = content_width - left_width - 2
+    title_bar = f"─ {title} "
+    lines = [f"╭{title_bar}{'─' * (inner_width - len(title_bar))}╮"]
+    for left, description in rows:
+        wrapped = textwrap.wrap(description, width=right_width) or [""]
+        for index, chunk in enumerate(wrapped):
+            raw_left = left if index == 0 else ""
+            padded_left = f"{raw_left:<{left_width}}"
+            padded_chunk = f"{chunk:<{right_width}}"
+            if raw_left.startswith("  "):
+                padded_left = _styled(padded_left, "2")
+                padded_chunk = _styled(padded_chunk, "2")
+            elif raw_left:
+                padded_left = _styled(padded_left, "1;36")
+            lines.append(f"│ {padded_left}  {padded_chunk} │")
+    lines.append(f"╰{'─' * inner_width}╯")
+    return "\n".join(lines)
+
+
+def _command_rows(parser: argparse.ArgumentParser) -> list[tuple[str, str]]:
+    subparsers = next(
+        action
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
+    )
+    descriptions = {
+        action.dest: action.help for action in subparsers._choices_actions
+    }
+    rows: list[tuple[str, str]] = []
+    for name, command_parser in subparsers.choices.items():
+        label = name
+        positionals = [
+            action
+            for action in command_parser._actions
+            if not action.option_strings and action.choices
+        ]
+        if positionals:
+            choices = "|".join(str(choice) for choice in positionals[0].choices)
+            label += f" [{choices}]"
+        rows.append((label, descriptions[name]))
+
+        options = [
+            action
+            for action in command_parser._actions
+            if action.option_strings and action.dest != "help"
+        ]
+        for index, action in enumerate(options):
+            branch = "└" if index == len(options) - 1 else "├"
+            rows.append((f"  {branch} {action.option_strings[0]}", action.help))
+    return rows
+
+
+def print_help(parser: argparse.ArgumentParser) -> None:
+    """Render the branded front door in the same visual grammar as Dotfiles."""
+    width = max(72, shutil.get_terminal_size((80, 24)).columns)
+    print(_styled(WORKBENCH_BANNER.rstrip(), "1;36"))
+    print()
+    print(_styled(" Usage: ", "1") + "workbench [OPTIONS] COMMAND [ARGS]...")
+    print()
+    print(" Portable agent intelligence: deploy and verify Claude Code and Codex configuration.")
+    print(" The shorter `wb` launcher is equivalent to `workbench`.")
+    print()
+    print(_panel("Options", [("--help", "Show this message and exit.")], width))
+    print(
+        _panel(
+            "Configuration — deploy and validate agent state",
+            _command_rows(parser),
+            width,
+        )
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="workbench",
@@ -890,8 +968,6 @@ def build_parser() -> argparse.ArgumentParser:
             "Deploy and verify the personal Claude Code and Codex intelligence layer.\n"
             "The shorter `wb` launcher is equivalent to `workbench`."
         ),
-        epilog=COMMAND_TREE,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
     sync = sub.add_parser(
@@ -940,10 +1016,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
-    if args.command is None:
-        parser.print_help()
+    raw_argv = sys.argv[1:] if argv is None else argv
+    if not raw_argv or raw_argv in (["-h"], ["--help"]):
+        print_help(parser)
         return 0
+    args = parser.parse_args(raw_argv)
     home = Path(os.environ.get("WORKBENCH_HOME", Path.home()))
 
     try:
