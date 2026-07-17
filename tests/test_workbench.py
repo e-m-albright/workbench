@@ -498,6 +498,7 @@ other = true
         self.assertIn("external", parsed["mcp_servers"])
         self.assertNotIn("context7", parsed["mcp_servers"])
         self.assertEqual(parsed["tui"]["theme"], "Sublime Snazzy")
+        self.assertEqual(parsed["tui"]["terminal_title"], ["spinner", "project"])
         self.assertTrue(parsed["tui"]["other"])
 
     def test_codex_merge_preserves_explicit_safety_policy(self) -> None:
