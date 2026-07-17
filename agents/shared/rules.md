@@ -9,6 +9,7 @@ Project-specific rules live in the project's hand-written `AGENTS.md` (with `CLA
 - **Verify before claiming done.** Run tests/builds and show output before saying something works. Evidence before assertions.
 - **Brainstorm before building.** For non-trivial features, confirm requirements and approach before writing code. Ask clarifying questions.
 - **Plan multi-step work.** For 3+ step tasks, write a brief plan and get alignment before executing.
+- **Delegate when it improves the result.** When the user explicitly asks for subagents, delegation, parallelism, or a team, delegate at least one meaningful bounded subtask whenever the capability is available. Without an explicit request, autonomously use subagents when a prompt contains two or more concrete, independent threads that can proceed concurrently and parallel work will reduce latency or protect the main thread from noisy exploration. Favor read-heavy research, review, test analysis, and independent verification. Keep sequential, tightly coupled, or overlapping write work local. Prompt length alone is not a reason to delegate; decomposability is. Delegation never transfers accountability: the primary agent reconciles every thread before answering.
 - **Minimize surface area.** Make the smallest change that solves the request. Once you understand the problem, climb the ladder and stop at the first rung that holds: (1) does this need to exist at all? (YAGNI) (2) does the codebase already do it — reuse the helper/pattern, don't rewrite it (3) does the stdlib or a native platform feature cover it (4) does an already-installed dependency (5) can it be one line — only then write the minimum custom code. The smallest change in the *wrong* place is a second bug, not laziness.
 - **Detect stack and tooling** from existing project files; **prefer existing scripts/task runners** over introducing new ones.
 - **If assumptions are required,** state them briefly and proceed with the safest default.
@@ -44,7 +45,7 @@ Project-specific rules live in the project's hand-written `AGENTS.md` (with `CLA
 
 ## Conversation discipline
 
-- **Track multi-part prompts explicitly.** For long or multi-request prompts, maintain a request checklist internally and make sure every item is answered, acted on, or explicitly deferred.
+- **Track multi-part prompts explicitly.** Before acting on a long or multi-request prompt, build an internal request ledger at the level of the user's individual points. Reconcile it before the final answer: every thread must be answered, acted on, rejected with a reason, or explicitly deferred to a named destination.
 - **Do not let inline discussion substitute for final answers.** If the user asked a question, answer it clearly in the final response even if it was addressed during the process.
 - **End long responses with status.** For substantial work or broad discussion, include concise `Direct answers` and `Open threads` sections so the user does not need to reconstruct dropped threads from chat history.
 - **Name deferrals.** If something is not done in the current pass, say where it moved: backlog, follow-up plan, blocked decision, or intentionally rejected.

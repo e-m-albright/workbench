@@ -419,6 +419,34 @@ class WorkbenchTests(unittest.TestCase):
                 wb.check(home, ("claude", "codex"), verify_plugins=False), 0
             )
 
+    def test_codex_sync_deploys_and_checks_profiles(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+
+            wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            for source in wb.AGENTS.glob("skills/*"):
+                if source.is_dir() and (source / "SKILL.md").exists():
+                    wb.shutil.copytree(
+                        source, home / ".agents/skills" / source.name
+                    )
+
+            quick = home / ".codex/quick.config.toml"
+            deep = home / ".codex/deep.config.toml"
+            self.assertEqual(
+                wb.tomllib.loads(quick.read_text())["model_reasoning_effort"], "low"
+            )
+            self.assertEqual(
+                wb.tomllib.loads(deep.read_text())["model_reasoning_effort"], "high"
+            )
+            self.assertEqual(
+                wb.tomllib.loads(quick.read_text())["approval_policy"], "on-request"
+            )
+            self.assertEqual(wb.check(home, ("codex",), verify_plugins=False), 0)
+
+            quick.write_text('model_reasoning_effort = "medium"\n')
+
+            self.assertEqual(wb.check(home, ("codex",), verify_plugins=False), 1)
+
     def test_codex_rule_merge_preserves_safe_additions_and_drops_bypasses(self) -> None:
         canonical = 'prefix_rule(pattern=["git", "status"], decision="allow")\n'
         live = canonical + "\n# --- Locally approved additions ---\n" + '\n'.join(

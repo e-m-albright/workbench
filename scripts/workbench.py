@@ -609,6 +609,8 @@ def sync_codex(
     config = codex_home / "config.toml"
     existing = config.read_text() if config.exists() else ""
     write_text(config, merge_codex_config(existing))
+    for profile in sorted((AGENTS / "codex/profiles").glob("*.toml")):
+        copy_file(profile, codex_home / f"{profile.stem}.config.toml")
     copy_file(AGENTS / "shared/hooks.json", codex_home / "hooks.json")
     _sync_subagents("codex", codex_home / "agents")
     if deploy_skills:
@@ -853,6 +855,13 @@ def check(
                 )
             else:
                 findings.append(f"DRIFT Codex config: missing {config_path}")
+            for profile in sorted((AGENTS / "codex/profiles").glob("*.toml")):
+                _compare(
+                    profile,
+                    home / ".codex" / f"{profile.stem}.config.toml",
+                    f"Codex profile {profile.stem}",
+                    findings,
+                )
             _compare(
                 AGENTS / "shared/hooks.json",
                 home / ".codex/hooks.json",
