@@ -31,13 +31,35 @@ CODEX_APPENDIX = """\
 # Vercel's skills deploy CLI, pinned so `sync` never executes whatever npm
 # happens to serve as latest. Bump deliberately: `npm view skills version`.
 SKILLS_CLI = "skills@1.5.19"
-RETIRED_SUBAGENTS = {"docs-scribe", "legacy-modernizer"}
-RETIRED_SKILLS = {"agentic-e2e-debugging", "converge"}
+# Retired capabilities: name -> why. Each mapping is both the enforcement list
+# (sync removes, drift flags) and the record of the decision — the single
+# source for anything code can turn off. Tool/approach rejections with no code
+# switch stay in docs/decisions/tombstones.md.
+RETIRED_SUBAGENTS = {
+    "docs-scribe": (
+        "ordinary documentation updates gain too little from an isolated"
+        " context beyond project rules and the project-files skill"
+    ),
+    "legacy-modernizer": (
+        "planning, execution, testing, and dependency skills already cover"
+        " incremental modernization without another overlapping trigger"
+    ),
+}
+RETIRED_SKILLS = {
+    "agentic-e2e-debugging": (
+        "its browser/service/commit workflow overlapped systematic-debugging"
+        " plus browser-tooling and assumed authority that does not generalize"
+    ),
+    "converge": (
+        "its metric engine, language packs, and prescriptive loop overlapped"
+        " the code-health lenses and project-owned gates"
+    ),
+}
 VENDORS = ("claude", "codex")
 VENDOR_CHOICES = (*VENDORS, "all")
 
 # Sandbox policy deployed to (and drift-checked against) ~/.claude/settings.json.
-# Single source so `sync` (the writer) and `check` (the verifier) never diverge.
+# Single source so `sync` (the writer) and `drift` (the verifier) never diverge.
 #
 # The catastrophe guards — rm -rf, disk erase, git reset --hard, --no-verify, …
 # — live in permissions.json plus the guard hooks and are independent of this
@@ -266,7 +288,7 @@ def _sync_plugins(vendor: str, home: Path) -> None:
 
 
 def _canonical_hooks() -> dict[str, Path]:
-    """Hook name -> source path, shared by sync (writer) and check (verifier)."""
+    """Hook name -> source path, shared by sync (writer) and drift (verifier)."""
     return {
         hook.name: hook for hook in sorted((AGENTS / "shared/hooks").glob("*.sh"))
     }
@@ -302,7 +324,7 @@ def _sync_skills(vendor: str, home: Path) -> None:
     agent_id = "claude-code" if vendor == "claude" else vendor
     # Remove the full current set too (not just retirements) so a renamed or
     # relocated skill can't leave a stale copy behind from a prior deploy.
-    removals = sorted(set(skill_names) | RETIRED_SKILLS)
+    removals = sorted(set(skill_names) | set(RETIRED_SKILLS))
     if removals:
         subprocess.run(
             ["npx", SKILLS_CLI, "remove", *removals, "-a", agent_id, "-g", "-y"],
@@ -410,7 +432,7 @@ def _sync_subagents(vendor: str, destination: Path) -> None:
 def managed_claude_settings(data: Path) -> dict[str, Any]:
     """Workbench-managed keys of ~/.claude/settings.json.
 
-    Single source for `sync` (the writer) and `check` (the verifier) so the
+    Single source for `sync` (the writer) and `drift` (the verifier) so the
     two commands can never diverge on what "managed" means.
     """
     plugins = _string_array(AGENTS / "claude/plugins.json")
@@ -430,7 +452,7 @@ def managed_claude_settings(data: Path) -> dict[str, Any]:
 
 
 def expected_codex_rules_md() -> str:
-    """Canonical ~/.codex/AGENTS.md content, shared by sync and check."""
+    """Canonical ~/.codex/AGENTS.md content, shared by sync and drift."""
     return (AGENTS / "shared/rules.md").read_text().rstrip() + CODEX_APPENDIX
 
 
@@ -860,7 +882,7 @@ def _check_codex(
     return parsed.get("mcp_servers", {})
 
 
-def check(
+def drift(
     home: Path, vendors: Iterable[str], *, verify_plugins: bool = True
 ) -> int:
     findings: list[str] = []
@@ -1253,21 +1275,21 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="skip declared-plugin installation",
     )
-    check_parser = sub.add_parser(
-        "check",
+    drift_parser = sub.add_parser(
+        "drift",
         help="report managed drift and external additions",
         description=(
             "Compare live vendor configuration directly with canonical Workbench sources."
         ),
     )
-    check_parser.add_argument(
+    drift_parser.add_argument(
         "vendor",
         nargs="?",
         choices=VENDOR_CHOICES,
         default="all",
         help="vendor to inspect (default: all)",
     )
-    check_parser.add_argument(
+    drift_parser.add_argument(
         "--no-plugins",
         action="store_true",
         help="skip declared-plugin verification",
@@ -1309,8 +1331,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "lint":
             return lint()
         vendors = _vendors(args.vendor)
-        if args.command == "check":
-            return check(home, vendors, verify_plugins=not args.no_plugins)
+        if args.command == "drift":
+            return drift(home, vendors, verify_plugins=not args.no_plugins)
         for vendor in vendors:
             if vendor == "claude":
                 sync_claude(

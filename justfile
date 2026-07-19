@@ -28,7 +28,7 @@ sync *args:
 # Compare live configuration with canonical sources. Example: `just drift claude`.
 [group('deployment')]
 drift *args:
-    ./bin/workbench check {{args}}
+    ./bin/workbench drift {{args}}
 
 # ── Help (default) ────────────────────────────────────────────────────────────
 

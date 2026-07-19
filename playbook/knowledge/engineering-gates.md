@@ -97,7 +97,7 @@ Full detail: [../stacks/security.md](../stacks/security.md).
 
 ## 11. Agent configuration: one source, translated, drift-checked
 
-§6 generalized from cross-language *code* to cross-target *config/policy*. Author shared rules, hooks, skills, and MCP definitions once, then let `workbench sync` translate them for Claude and Codex. `workbench check` compares that desired state with the live machine and reports both managed drift and external additions. Do not hand-maintain equivalent policy in each vendor's private directory.
+§6 generalized from cross-language *code* to cross-target *config/policy*. Author shared rules, hooks, skills, and MCP definitions once, then let `workbench sync` translate them for Claude and Codex. `workbench drift` compares that desired state with the live machine and reports both managed drift and external additions. Do not hand-maintain equivalent policy in each vendor's private directory.
 
 ## 12. Reproducible, hermetic builds
 

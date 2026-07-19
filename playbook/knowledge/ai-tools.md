@@ -33,7 +33,7 @@ The expected connector split is:
 - ChatGPT/Codex: official plugins for Gmail, Google Calendar, and Granola.
 - Claude Code/Desktop: managed MCP declarations where no equivalent managed
   plugin is part of the selected workflow.
-- External local MCPs remain explicit and are reported by `workbench check`
+- External local MCPs remain explicit and are reported by `workbench drift`
   rather than silently deleted.
 
 ## Editor and terminal

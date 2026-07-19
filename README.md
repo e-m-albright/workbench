@@ -19,7 +19,7 @@ Workbench gives me one place to answer four questions:
    reusable skills, and specialist-agent instructions live under `agents/`.
 2. **How do those instructions reach each vendor?** `workbench sync` translates
    and deploys the canonical sources into Claude Code and Codex configuration.
-3. **Has live configuration drifted?** `workbench check` compares the deployed
+3. **Has live configuration drifted?** `workbench drift` compares the deployed
    files and installed plugins directly with the repository.
 4. **What engineering judgment should carry between projects?** The playbook,
    health kit, and review prompts preserve reusable decisions without coupling
@@ -39,7 +39,7 @@ Workbench gives me one place to answer four questions:
               │                         │
               └────────────┬────────────┘
                            │
-                 workbench check all
+                 workbench drift all
                     live drift report
 ```
 
@@ -97,7 +97,7 @@ git clone https://github.com/e-m-albright/dotfiles.git ~/code/public/dotfiles
 ```
 
 Dotfiles clones this repository, installs the `workbench` and `wb` launchers in
-`~/.local/bin`, runs `workbench sync all`, and requires `workbench check all` to
+`~/.local/bin`, runs `workbench sync all`, and requires `workbench drift all` to
 pass.
 
 For a standalone checkout:
@@ -118,7 +118,7 @@ Claude/Codex CLIs. Skill deployment also uses `npx skills`.
 
 ```bash
 workbench sync all
-workbench check all
+workbench drift all
 ```
 
 `sync` preserves unmanaged vendor settings, writes only Workbench-owned values,
@@ -129,10 +129,10 @@ Use narrower targets while developing or diagnosing one integration:
 
 ```bash
 workbench sync claude
-workbench check claude
+workbench drift claude
 
 workbench sync codex
-workbench check codex
+workbench drift codex
 ```
 
 Skip the slower external installers when only configuration files need repair:
@@ -149,13 +149,10 @@ just test        # deterministic unit tests only
 just lint        # skills, links, JSON, TOML, and shell syntax
 ```
 
-`lint` validates canonical source material. `check` is the local development
-gate. `workbench check` is different: it inspects deployed live configuration.
-
 ### Understand an unexpected live item
 
 ```bash
-workbench check all
+workbench drift all
 ```
 
 Output distinguishes two states:
@@ -163,7 +160,7 @@ Output distinguishes two states:
 - `DRIFT` means a Workbench-managed value is missing or differs, so the command
   exits non-zero.
 - `EXTERNAL` means a valid unmanaged addition remains in the live vendor config.
-  It is reported for visibility but does not fail the check.
+  It is reported for visibility but does not fail the command.
 
 ## Command Tree
 
@@ -174,7 +171,7 @@ workbench
 ├── sync [claude|codex|all]    deploy canonical configuration
 │   ├── --no-skills            skip shared-skill installation
 │   └── --no-plugins           skip declared-plugin installation
-├── check [claude|codex|all]   report managed drift and external additions
+├── drift [claude|codex|all]   report managed drift and external additions
 └── lint                       validate canonical repository sources
 ```
 
@@ -238,11 +235,13 @@ After changing managed configuration:
 ```bash
 just check
 workbench sync all
-workbench check all
+workbench drift all
 ```
 
-When removing a supported capability, record why it was retired and what would
-justify revisiting it in `docs/decisions/tombstones.md`.
+When removing a supported capability, record the reason where its off-switch
+lives: the `RETIRED_*` mappings in `scripts/workbench.py`, `_*_disabled`
+entries in the MCP registry, or `docs/decisions/tombstones.md` for decisions
+with no code enforcement.
 
 ## Safety and Publishing Boundary
 

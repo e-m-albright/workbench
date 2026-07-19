@@ -107,7 +107,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn("Options", result.stdout)
         self.assertIn("Configuration — deploy, verify, and validate", result.stdout)
         self.assertIn("sync [claude|codex|all]", result.stdout)
-        self.assertIn("check [claude|codex|all]", result.stdout)
+        self.assertIn("drift [claude|codex|all]", result.stdout)
         self.assertIn("--no-skills", result.stdout)
 
     def test_banner_uses_ruby_truecolor_gradient_on_terminals(self) -> None:
@@ -145,7 +145,7 @@ class WorkbenchTests(unittest.TestCase):
     def test_every_command_has_contextual_visual_help(self) -> None:
         expectations = {
             "sync": "--no-plugins",
-            "check": "default: all",
+            "drift": "default: all",
             "lint": "shell syntax",
         }
         for command, expected in expectations.items():
@@ -396,7 +396,7 @@ class WorkbenchTests(unittest.TestCase):
             self.deploy_skills(home, ".claude/skills")
 
             self.assertEqual(
-                wb.check(home, ("claude",), verify_plugins=False), 0
+                wb.drift(home, ("claude",), verify_plugins=False), 0
             )
 
             (home / ".claude/hooks.json").write_text("{}\n")
@@ -405,7 +405,7 @@ class WorkbenchTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                wb.check(home, ("claude",), verify_plugins=False), 1
+                wb.drift(home, ("claude",), verify_plugins=False), 1
             )
 
     def test_temporary_home_sync_and_check_all_vendors(self) -> None:
@@ -416,7 +416,7 @@ class WorkbenchTests(unittest.TestCase):
             self.deploy_skills(home, ".claude/skills", ".agents/skills")
 
             self.assertEqual(
-                wb.check(home, ("claude", "codex"), verify_plugins=False), 0
+                wb.drift(home, ("claude", "codex"), verify_plugins=False), 0
             )
 
     def test_codex_sync_deploys_and_checks_profiles(self) -> None:
@@ -437,11 +437,11 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(
                 wb.tomllib.loads(quick.read_text())["approval_policy"], "on-request"
             )
-            self.assertEqual(wb.check(home, ("codex",), verify_plugins=False), 0)
+            self.assertEqual(wb.drift(home, ("codex",), verify_plugins=False), 0)
 
             quick.write_text('model_reasoning_effort = "medium"\n')
 
-            self.assertEqual(wb.check(home, ("codex",), verify_plugins=False), 1)
+            self.assertEqual(wb.drift(home, ("codex",), verify_plugins=False), 1)
 
     def test_codex_rule_merge_preserves_safe_additions_and_drops_bypasses(self) -> None:
         canonical = 'prefix_rule(pattern=["git", "status"], decision="allow")\n'
@@ -581,7 +581,7 @@ js_repl = false
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                exit_code = wb.check(home, ("codex",), verify_plugins=False)
+                exit_code = wb.drift(home, ("codex",), verify_plugins=False)
 
             self.assertEqual(exit_code, 1)
             self.assertIn(

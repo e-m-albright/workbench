@@ -19,7 +19,9 @@ The adjacent repositories own different state:
 - Never commit secrets, credentials, personal records, conversations, or agent
   memory.
 - Claude Code and Codex are the only first-class coding-agent integrations.
-- Keep rejected tools and approaches in `docs/decisions/tombstones.md`.
+- Keep rejected tools and approaches in `docs/decisions/tombstones.md`. When
+  code enforces a retirement, the reason lives with the enforcement instead
+  (`RETIRED_*` in `scripts/workbench.py`, `_*_disabled` in the MCP registry).
 - Prefer native vendor configuration and small scripts. Do not create a platform
   where a file copy or documented command is sufficient.
 - Deterministic health checks may gate changes. Stochastic assessments are
