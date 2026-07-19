@@ -1,26 +1,26 @@
 from __future__ import annotations
 
 import contextlib
-import importlib.util
 import io
 import json
+import re
+import shutil
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-MODULE_PATH = Path(__file__).parents[1] / "scripts/workbench.py"
-SPEC = importlib.util.spec_from_file_location("workbench_cli", MODULE_PATH)
-assert SPEC and SPEC.loader
-wb = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(wb)
+from workbench import codex, core, mcp, render, sync
+from workbench import drift as drift_mod
+from workbench import lint as lint_mod
 
 
 class WorkbenchTests(unittest.TestCase):
     def run_hook(self, name: str, payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            ["bash", str(wb.AGENTS / "shared/hooks" / name)],
+            ["bash", str(core.AGENTS / "shared/hooks" / name)],
             input=json.dumps(payload),
             text=True,
             capture_output=True,
@@ -29,12 +29,12 @@ class WorkbenchTests(unittest.TestCase):
 
     def deploy_skills(self, home: Path, *roots: str) -> None:
         for root in roots:
-            for source in wb.AGENTS.glob("skills/*"):
+            for source in core.AGENTS.glob("skills/*"):
                 if source.is_dir() and (source / "SKILL.md").exists():
-                    wb.shutil.copytree(source, home / root / source.name)
+                    shutil.copytree(source, home / root / source.name)
 
     def test_merge_mcp_preserves_external_and_removes_tombstones(self) -> None:
-        merged = wb.merge_mcp(
+        merged = mcp.merge_mcp(
             {
                 "external": {"command": "example"},
                 "context7": {"command": "retired"},
@@ -48,7 +48,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(merged["granola"]["url"], "https://mcp.granola.ai/mcp")
 
     def test_merge_mcp_prunes_managed_server_removed_from_target(self) -> None:
-        merged = wb.merge_mcp(
+        merged = mcp.merge_mcp(
             {
                 "granola": {"url": "https://mcp.granola.ai/mcp"},
                 "computer-use": {"command": "app-owned"},
@@ -64,8 +64,8 @@ class WorkbenchTests(unittest.TestCase):
             path = Path(raw) / "settings.json"
             path.write_text("{")
 
-            with self.assertRaises(wb.WorkbenchError):
-                wb.load_json(path, {})
+            with self.assertRaises(core.WorkbenchError):
+                core.load_json(path, {})
 
             self.assertEqual(path.read_text(), "{")
 
@@ -74,7 +74,7 @@ class WorkbenchTests(unittest.TestCase):
             path = Path(raw) / "config.json"
             path.write_text("old")
 
-            self.assertTrue(wb.write_text(path, "new"))
+            self.assertTrue(core.write_text(path, "new"))
 
             self.assertEqual(path.read_text(), "new")
             self.assertEqual(path.with_name("config.json.bak").read_text(), "old")
@@ -82,7 +82,7 @@ class WorkbenchTests(unittest.TestCase):
     def test_launcher_resolves_chained_symlinks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             link = Path(raw) / "workbench"
-            link.symlink_to(wb.ROOT / "bin/workbench")
+            link.symlink_to(core.ROOT / "bin/workbench")
             chained = Path(raw) / "wb"
             chained.symlink_to(link)
 
@@ -95,7 +95,7 @@ class WorkbenchTests(unittest.TestCase):
 
     def test_bare_launcher_renders_branded_complete_command_tree(self) -> None:
         result = subprocess.run(
-            [str(wb.ROOT / "bin/workbench")],
+            [str(core.ROOT / "bin/workbench")],
             capture_output=True,
             text=True,
             check=False,
@@ -111,7 +111,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn("--no-skills", result.stdout)
 
     def test_banner_uses_ruby_truecolor_gradient_on_terminals(self) -> None:
-        rendered = wb.gradient_banner(color=True)
+        rendered = render.gradient_banner(color=True)
 
         self.assertIn("\033[38;2;255;184;194m", rendered)
         self.assertIn("\033[38;2;101;0;24m", rendered)
@@ -119,7 +119,7 @@ class WorkbenchTests(unittest.TestCase):
 
     def test_bare_just_uses_dotfiles_heading_convention(self) -> None:
         result = subprocess.run(
-            ["just"], cwd=wb.ROOT, capture_output=True, text=True, check=False
+            ["just"], cwd=core.ROOT, capture_output=True, text=True, check=False
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -131,7 +131,7 @@ class WorkbenchTests(unittest.TestCase):
 
     def test_sync_help_explains_targets_and_optional_installers(self) -> None:
         result = subprocess.run(
-            [str(wb.ROOT / "bin/workbench"), "sync", "--help"],
+            [str(core.ROOT / "bin/workbench"), "sync", "--help"],
             capture_output=True,
             text=True,
             check=False,
@@ -151,7 +151,7 @@ class WorkbenchTests(unittest.TestCase):
         for command, expected in expectations.items():
             with self.subTest(command=command):
                 result = subprocess.run(
-                    [str(wb.ROOT / "bin/workbench"), command, "--help"],
+                    [str(core.ROOT / "bin/workbench"), command, "--help"],
                     capture_output=True,
                     text=True,
                     check=False,
@@ -164,7 +164,7 @@ class WorkbenchTests(unittest.TestCase):
 
     def test_invalid_target_has_visual_contextual_error(self) -> None:
         result = subprocess.run(
-            [str(wb.ROOT / "bin/workbench"), "sync", "other"],
+            [str(core.ROOT / "bin/workbench"), "sync", "other"],
             capture_output=True,
             text=True,
             check=False,
@@ -172,13 +172,13 @@ class WorkbenchTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("╭─ Error", result.stderr)
-        self.assertIn("invalid choice", result.stderr)
+        self.assertIn("is not one of 'claude', 'codex',", result.stderr)
         self.assertIn("workbench sync [claude|codex|all]", result.stderr)
         self.assertNotIn("usage: workbench", result.stderr)
 
     def test_unknown_command_has_visual_registry_error(self) -> None:
         result = subprocess.run(
-            [str(wb.ROOT / "bin/workbench"), "other"],
+            [str(core.ROOT / "bin/workbench"), "other"],
             capture_output=True,
             text=True,
             check=False,
@@ -186,29 +186,27 @@ class WorkbenchTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("╭─ Error", result.stderr)
-        self.assertIn("invalid choice", result.stderr)
+        self.assertIn("No such command 'other'", result.stderr)
         self.assertIn("Configuration", result.stderr)
         self.assertNotIn("usage: workbench", result.stderr)
 
-    @patch.object(wb.subprocess, "run")
-    @patch.object(wb.shutil, "which", return_value="/usr/bin/npx")
-    def test_skill_sync_removes_retired_skills_before_installing(
-        self, _which, run
-    ) -> None:
+    @patch.object(subprocess, "run")
+    @patch.object(shutil, "which", return_value="/usr/bin/npx")
+    def test_skill_sync_removes_retired_skills_before_installing(self, _which, run) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
-            for name in wb.RETIRED_SKILLS:
+            for name in core.RETIRED_SKILLS:
                 retired = home / ".agents/skills" / name
                 retired.mkdir(parents=True)
                 (retired / "SKILL.md").write_text("retired")
 
-            wb._sync_skills("codex", home)
+            sync._sync_skills("codex", home)
 
-            for name in wb.RETIRED_SKILLS:
+            for name in core.RETIRED_SKILLS:
                 self.assertFalse((home / ".agents/skills" / name).exists())
 
         remove_command = run.call_args_list[0].args[0]
-        self.assertEqual(remove_command[:3], ["npx", wb.SKILLS_CLI, "remove"])
+        self.assertEqual(remove_command[:3], ["npx", core.SKILLS_CLI, "remove"])
         self.assertIn("agentic-e2e-debugging", remove_command)
         self.assertIn("converge", remove_command)
 
@@ -221,19 +219,15 @@ class WorkbenchTests(unittest.TestCase):
             findings: list[str] = []
             external: list[str] = []
 
-            wb._check_skills(skill_root, "codex", findings, external)
+            drift_mod._check_skills(skill_root, "codex", findings, external)
 
-            self.assertIn(
-                "DRIFT retired codex skill still present: converge", findings
-            )
+            self.assertIn("DRIFT retired codex skill still present: converge", findings)
             self.assertNotIn("EXTERNAL codex skill: converge", external)
 
     def test_skill_descriptions_fit_context_budget(self) -> None:
         descriptions = []
-        for skill in wb.AGENTS.glob("skills/*/SKILL.md"):
-            match = wb.re.search(
-                r"^description:\s*([^\n]+)$", skill.read_text(), wb.re.MULTILINE
-            )
+        for skill in core.AGENTS.glob("skills/*/SKILL.md"):
+            match = re.search(r"^description:\s*([^\n]+)$", skill.read_text(), re.MULTILINE)
             self.assertIsNotNone(match, skill)
             assert match
             raw = match.group(1).strip()
@@ -251,24 +245,22 @@ class WorkbenchTests(unittest.TestCase):
                 "[ok](ok.md)\n[missing](missing.md)\n```md\n[example](fake.md)\n```\n"
             )
 
-            errors = wb._markdown_link_errors(root)
+            errors = lint_mod._markdown_link_errors(root)
 
             self.assertEqual(len(errors), 1)
             self.assertIn("missing.md", errors[0])
 
     def test_repository_markdown_links_resolve(self) -> None:
-        self.assertEqual(wb._markdown_link_errors(wb.ROOT), [])
+        self.assertEqual(lint_mod._markdown_link_errors(core.ROOT), [])
 
     def test_sync_claude_preserves_unmanaged_settings(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
             settings = home / ".claude/settings.json"
             settings.parent.mkdir(parents=True)
-            settings.write_text(
-                json.dumps({"custom": 7, "permissions": {"custom": True}})
-            )
+            settings.write_text(json.dumps({"custom": 7, "permissions": {"custom": True}}))
 
-            wb.sync_claude(home, deploy_skills=False)
+            sync.sync_claude(home, deploy_skills=False)
 
             actual = json.loads(settings.read_text())
             self.assertEqual(actual["custom"], 7)
@@ -290,52 +282,42 @@ class WorkbenchTests(unittest.TestCase):
                 {"id": "dormant@market", "enabled": False},
             ]
         )
-        codex = json.dumps(
-            {"installed": [{"pluginId": "example@market", "enabled": True}]}
-        )
+        codex = json.dumps({"installed": [{"pluginId": "example@market", "enabled": True}]})
 
         self.assertEqual(
-            wb._installed_plugins("claude", claude),
+            core._installed_plugins("claude", claude),
             {"example@market": True, "dormant@market": False},
         )
-        self.assertEqual(
-            wb._installed_plugins("codex", codex), {"example@market": True}
-        )
+        self.assertEqual(core._installed_plugins("codex", codex), {"example@market": True})
 
-    @patch.object(wb, "_plugin_inventory")
-    def test_check_plugins_requires_enabled_and_reports_external(
-        self, inventory
-    ) -> None:
-        declared = wb._string_array(wb.AGENTS / "claude/plugins.json")
+    @patch.object(drift_mod, "_plugin_inventory")
+    def test_check_plugins_requires_enabled_and_reports_external(self, inventory) -> None:
+        declared = core._string_array(core.AGENTS / "claude/plugins.json")
         inventory.return_value = {
-            **{plugin: True for plugin in declared},
+            **dict.fromkeys(declared, True),
             declared[0]: False,
             "extra@market": True,
         }
         findings: list[str] = []
         external: list[str] = []
 
-        wb._check_plugins("claude", Path("/nonexistent"), findings, external)
+        drift_mod._check_plugins("claude", Path("/nonexistent"), findings, external)
 
-        self.assertEqual(
-            findings, [f"DRIFT claude plugin disabled: {declared[0]}"]
-        )
+        self.assertEqual(findings, [f"DRIFT claude plugin disabled: {declared[0]}"])
         self.assertEqual(external, ["EXTERNAL claude plugin: extra@market"])
 
-    @patch.object(wb.shutil, "which", return_value=None)
+    @patch.object(shutil, "which", return_value=None)
     def test_check_plugins_degrades_when_cli_is_missing(self, _which) -> None:
         findings: list[str] = []
         external: list[str] = []
 
-        wb._check_plugins("claude", Path("/nonexistent"), findings, external)
+        drift_mod._check_plugins("claude", Path("/nonexistent"), findings, external)
 
         self.assertEqual(findings, [])
-        self.assertEqual(
-            external, ["NOTE claude plugins unverified (CLI not found)"]
-        )
+        self.assertEqual(external, ["NOTE claude plugins unverified (CLI not found)"])
 
     def test_codex_connector_plugins_are_declared(self) -> None:
-        plugins = wb._string_array(wb.AGENTS / "codex/plugins.json")
+        plugins = core._string_array(core.AGENTS / "codex/plugins.json")
 
         self.assertEqual(
             plugins,
@@ -345,29 +327,29 @@ class WorkbenchTests(unittest.TestCase):
                 "granola@openai-curated",
             ],
         )
-        self.assertNotIn("granola", wb.active_mcp("codex"))
+        self.assertNotIn("granola", mcp.active_mcp("codex"))
 
     def test_sync_removes_retired_workbench_hooks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
-            hook_dir = home / wb.DATA_REL / "hooks"
+            hook_dir = home / core.DATA_REL / "hooks"
             hook_dir.mkdir(parents=True)
             retired = hook_dir / "notify.sh"
             retired.write_text("#!/bin/sh\n")
             backup = hook_dir / "notify.sh.bak"
             backup.write_text("#!/bin/sh\n")
 
-            wb.sync_claude(home, deploy_skills=False)
+            sync.sync_claude(home, deploy_skills=False)
 
             self.assertFalse(retired.exists())
             self.assertFalse(backup.exists())
             self.assertTrue((hook_dir / "guard-destructive-shell.sh").exists())
 
     def test_codex_subagents_render_as_native_toml(self) -> None:
-        source = wb.AGENTS / "subagents/code-reviewer.md"
+        source = core.AGENTS / "subagents/code-reviewer.md"
 
-        rendered = wb._render_codex_subagent(source)
-        parsed = wb.tomllib.loads(rendered)
+        rendered = codex._render_codex_subagent(source)
+        parsed = tomllib.loads(rendered)
 
         self.assertEqual(parsed["name"], "code-reviewer")
         self.assertIn("correctness", parsed["description"])
@@ -380,80 +362,78 @@ class WorkbenchTests(unittest.TestCase):
             (destination / "code-reviewer.md").write_text("stale")
             (destination / "docs-scribe.md").write_text("retired")
 
-            wb._sync_subagents("codex", destination)
+            sync._sync_subagents("codex", destination)
 
             self.assertFalse(list(destination.glob("*.md*")))
             self.assertFalse((destination / "docs-scribe.toml").exists())
-            parsed = wb.tomllib.loads(
-                (destination / "code-reviewer.toml").read_text()
-            )
+            parsed = tomllib.loads((destination / "code-reviewer.toml").read_text())
             self.assertEqual(parsed["name"], "code-reviewer")
 
     def test_check_detects_managed_file_content_drift(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
-            wb.sync_claude(home, deploy_skills=False)
+            sync.sync_claude(home, deploy_skills=False)
             self.deploy_skills(home, ".claude/skills")
 
-            self.assertEqual(
-                wb.drift(home, ("claude",), verify_plugins=False), 0
-            )
+            self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 0)
 
             (home / ".claude/hooks.json").write_text("{}\n")
-            (home / ".claude/settings.json").write_text(
-                json.dumps({"voiceEnabled": False})
-            )
+            (home / ".claude/settings.json").write_text(json.dumps({"voiceEnabled": False}))
 
-            self.assertEqual(
-                wb.drift(home, ("claude",), verify_plugins=False), 1
-            )
+            self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 1)
+
+    def test_drift_ignores_sync_backup_of_current_hook(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_claude(home, deploy_skills=False)
+            self.deploy_skills(home, ".claude/skills")
+            backup = home / core.DATA_REL / "hooks/guard-destructive-shell.sh.bak"
+            backup.write_text("#!/bin/sh\n")
+
+            self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 0)
 
     def test_temporary_home_sync_and_check_all_vendors(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
-            wb.sync_claude(home, deploy_skills=False, deploy_plugins=False)
-            wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
             self.deploy_skills(home, ".claude/skills", ".agents/skills")
 
-            self.assertEqual(
-                wb.drift(home, ("claude", "codex"), verify_plugins=False), 0
-            )
+            self.assertEqual(drift_mod.drift(home, ("claude", "codex"), verify_plugins=False), 0)
 
     def test_codex_sync_deploys_and_checks_profiles(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
 
-            wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
             self.deploy_skills(home, ".agents/skills")
 
             quick = home / ".codex/quick.config.toml"
             deep = home / ".codex/deep.config.toml"
-            self.assertEqual(
-                wb.tomllib.loads(quick.read_text())["model_reasoning_effort"], "low"
-            )
-            self.assertEqual(
-                wb.tomllib.loads(deep.read_text())["model_reasoning_effort"], "high"
-            )
-            self.assertEqual(
-                wb.tomllib.loads(quick.read_text())["approval_policy"], "on-request"
-            )
-            self.assertEqual(wb.drift(home, ("codex",), verify_plugins=False), 0)
+            self.assertEqual(tomllib.loads(quick.read_text())["model_reasoning_effort"], "low")
+            self.assertEqual(tomllib.loads(deep.read_text())["model_reasoning_effort"], "high")
+            self.assertEqual(tomllib.loads(quick.read_text())["approval_policy"], "on-request")
+            self.assertEqual(drift_mod.drift(home, ("codex",), verify_plugins=False), 0)
 
             quick.write_text('model_reasoning_effort = "medium"\n')
 
-            self.assertEqual(wb.drift(home, ("codex",), verify_plugins=False), 1)
+            self.assertEqual(drift_mod.drift(home, ("codex",), verify_plugins=False), 1)
 
     def test_codex_rule_merge_preserves_safe_additions_and_drops_bypasses(self) -> None:
         canonical = 'prefix_rule(pattern=["git", "status"], decision="allow")\n'
-        live = canonical + "\n# --- Locally approved additions ---\n" + '\n'.join(
-            [
-                'prefix_rule(pattern=["gh", "pr", "view"], decision="allow")',
-                'prefix_rule(pattern=["git", "commit", "--no-verify"], decision="allow")',
-                'prefix_rule(pattern=["rm", "-rf"], decision="allow")',
-            ]
+        live = (
+            canonical
+            + "\n# --- Locally approved additions ---\n"
+            + "\n".join(
+                [
+                    'prefix_rule(pattern=["gh", "pr", "view"], decision="allow")',
+                    'prefix_rule(pattern=["git", "commit", "--no-verify"], decision="allow")',
+                    'prefix_rule(pattern=["rm", "-rf"], decision="allow")',
+                ]
+            )
         )
 
-        merged = wb.merge_codex_rules(canonical, live)
+        merged = codex.merge_codex_rules(canonical, live)
 
         self.assertIn('["gh", "pr", "view"]', merged)
         self.assertNotIn("--no-verify", merged)
@@ -464,7 +444,7 @@ class WorkbenchTests(unittest.TestCase):
         approval = 'prefix_rule(pattern=["cargo", "check"], decision="allow")'
         live = f"{approval}\n{canonical}{approval}\n"
 
-        merged = wb.merge_codex_rules(canonical, live)
+        merged = codex.merge_codex_rules(canonical, live)
 
         self.assertIn("# --- Locally approved additions ---", merged)
         self.assertEqual(merged.count(approval), 1)
@@ -485,8 +465,8 @@ theme = "old"
 other = true
 """
 
-        merged = wb.merge_codex_config(source)
-        parsed = wb.tomllib.loads(merged)
+        merged = codex.merge_codex_config(source)
+        parsed = tomllib.loads(merged)
 
         self.assertEqual(parsed["model"], "example")
         self.assertEqual(parsed["sandbox_mode"], "workspace-write")
@@ -498,10 +478,10 @@ other = true
         self.assertTrue(parsed["tui"]["other"])
 
     def test_codex_merge_preserves_explicit_safety_policy(self) -> None:
-        merged = wb.merge_codex_config(
+        merged = codex.merge_codex_config(
             'sandbox_mode = "read-only"\napproval_policy = "untrusted"\n'
         )
-        parsed = wb.tomllib.loads(merged)
+        parsed = tomllib.loads(merged)
 
         self.assertEqual(parsed["sandbox_mode"], "read-only")
         self.assertEqual(parsed["approval_policy"], "untrusted")
@@ -526,7 +506,7 @@ TOKEN = "preserved"
 js_repl = false
 """
 
-        parsed = wb.tomllib.loads(wb.merge_codex_config(source))
+        parsed = tomllib.loads(codex.merge_codex_config(source))
 
         self.assertEqual(parsed["tui"]["theme"], "Sublime Snazzy")
         self.assertEqual(parsed["tui"]["model_availability_nux"], {"gpt-5.5": 4})
@@ -534,8 +514,8 @@ js_repl = false
         self.assertFalse(parsed["features"]["js_repl"])
 
     def test_codex_merge_rejects_malformed_toml(self) -> None:
-        with self.assertRaises(wb.WorkbenchError):
-            wb.merge_codex_config("[")
+        with self.assertRaises(core.WorkbenchError):
+            codex.merge_codex_config("[")
 
     def test_codex_merge_is_idempotent(self) -> None:
         fixtures = [
@@ -546,9 +526,9 @@ js_repl = false
         ]
         for source in fixtures:
             with self.subTest(source=source):
-                once = wb.merge_codex_config(source)
+                once = codex.merge_codex_config(source)
 
-                self.assertEqual(wb.merge_codex_config(once), once)
+                self.assertEqual(codex.merge_codex_config(once), once)
 
     def test_drop_tables_is_line_based_but_guard_rejects_corruption(self) -> None:
         # Documents the known ceiling: _drop_tables cannot tell a real [tui]
@@ -557,31 +537,30 @@ js_repl = false
         # a WorkbenchError instead of writing broken TOML.
         adversarial = 'description = """\n[tui]\ntheme = "fake"\n"""\n'
 
-        truncated = wb._drop_tables(adversarial, ("[tui",))
+        truncated = codex._drop_tables(adversarial, ("[tui",))
 
         self.assertEqual(truncated, 'description = """')
-        with self.assertRaises(wb.WorkbenchError):
-            wb.merge_codex_config(adversarial)
+        with self.assertRaises(core.WorkbenchError):
+            codex.merge_codex_config(adversarial)
 
     def test_toml_value_rejects_unsupported_scalar_types(self) -> None:
-        self.assertEqual(wb._toml_value(4), "4")
-        with self.assertRaises(wb.WorkbenchError):
-            wb._toml_value(None)
+        self.assertEqual(codex._toml_value(4), "4")
+        with self.assertRaises(core.WorkbenchError):
+            codex._toml_value(None)
 
     def test_check_reports_codex_drift_for_tombstoned_mcp(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
-            wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
             self.deploy_skills(home, ".agents/skills")
             config = home / ".codex/config.toml"
             config.write_text(
-                config.read_text()
-                + '\n[mcp_servers.context7]\ncommand = "retired"\n'
+                config.read_text() + '\n[mcp_servers.context7]\ncommand = "retired"\n'
             )
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                exit_code = wb.drift(home, ("codex",), verify_plugins=False)
+                exit_code = drift_mod.drift(home, ("codex",), verify_plugins=False)
 
             self.assertEqual(exit_code, 1)
             self.assertIn(
@@ -596,34 +575,26 @@ js_repl = false
             findings: list[str] = []
             external: list[str] = []
 
-            wb._check_subagents("codex", destination, findings, external)
+            drift_mod._check_subagents("codex", destination, findings, external)
 
-            self.assertIn(
-                "DRIFT retired codex subagent still present: docs-scribe", findings
-            )
+            self.assertIn("DRIFT retired codex subagent still present: docs-scribe", findings)
             self.assertNotIn("EXTERNAL codex subagent: docs-scribe", external)
 
     def test_codex_subagents_render_read_only_sandbox_for_non_writing_tools(
         self,
     ) -> None:
-        template = (
-            "---\nname: example\ndescription: Example subagent.\n{tools}---\n\nBody.\n"
-        )
+        template = "---\nname: example\ndescription: Example subagent.\n{tools}---\n\nBody.\n"
         with tempfile.TemporaryDirectory() as raw:
             restricted_path = Path(raw) / "restricted.md"
-            restricted_path.write_text(
-                template.format(tools="tools: Read, Grep, Glob, Bash\n")
-            )
+            restricted_path.write_text(template.format(tools="tools: Read, Grep, Glob, Bash\n"))
             writer_path = Path(raw) / "writer.md"
             writer_path.write_text(template.format(tools="tools: Read, Edit\n"))
             unrestricted_path = Path(raw) / "unrestricted.md"
             unrestricted_path.write_text(template.format(tools=""))
 
-            restricted = wb.tomllib.loads(wb._render_codex_subagent(restricted_path))
-            writer = wb.tomllib.loads(wb._render_codex_subagent(writer_path))
-            unrestricted = wb.tomllib.loads(
-                wb._render_codex_subagent(unrestricted_path)
-            )
+            restricted = tomllib.loads(codex._render_codex_subagent(restricted_path))
+            writer = tomllib.loads(codex._render_codex_subagent(writer_path))
+            unrestricted = tomllib.loads(codex._render_codex_subagent(unrestricted_path))
 
         self.assertEqual(restricted["sandbox_mode"], "read-only")
         self.assertNotIn("sandbox_mode", writer)

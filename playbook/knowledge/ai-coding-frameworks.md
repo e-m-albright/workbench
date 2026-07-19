@@ -7,7 +7,7 @@ A retrospective on the design of this workbench. The original version of this fi
 - **Native skills, on demand.** Discipline lives in `agents/skills/*/SKILL.md` files loaded when a task matches, not in always-on instructions. Iron laws worth keeping (TDD, root-cause debugging, verify-before-done) are kept; the ceremony around them is not. Skills stay vendor-neutral so the same files serve Claude Code and Codex.
 - **Native status fields.** Harness-provided status/config surfaces are used as-is rather than wrapped.
 - **One-level subagents.** Specialists (reviewer, security auditor, debugger) are dispatched one level deep for isolated context. No agent hierarchies, no swarm coordination.
-- **Deterministic sync/check reconciliation.** `scripts/workbench.py` deploys canonical files to each harness and verifies the deployed state matches. Drift is detected mechanically, not by convention.
+- **Deterministic sync/check reconciliation.** the `workbench` CLI (`src/workbench/`) deploys canonical files to each harness and verifies the deployed state matches. Drift is detected mechanically, not by convention.
 
 ## Deliberate non-goals
 

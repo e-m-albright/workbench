@@ -11,7 +11,7 @@
 #
 # This is a friction layer, not a security boundary: regex matching on the raw
 # command string cannot classify every shell phrasing. The OS sandbox (the
-# `sandbox` block deployed by scripts/workbench.py) is the hard boundary.
+# `sandbox` block deployed by the workbench CLI) is the hard boundary.
 
 set -euo pipefail
 

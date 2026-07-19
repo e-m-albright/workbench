@@ -128,8 +128,9 @@ cd ~/code/public/workbench
 just check
 ```
 
-Requirements are deliberately small: Python 3.11+, Bash, and the installed
-Claude/Codex CLIs. Skill deployment also uses `npx skills`.
+Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
+provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
+and the installed Claude/Codex CLIs. Skill deployment also uses `npx skills`.
 
 ## Daily Workflows
 
@@ -163,7 +164,7 @@ workbench sync all --no-skills --no-plugins
 ### Validate repository sources
 
 ```bash
-just check       # unit tests plus source validation
+just check       # format, lint, types, tests, and source validation
 just test        # deterministic unit tests only
 just lint        # skills, links, JSON, TOML, and shell syntax
 ```
@@ -215,9 +216,10 @@ agents/
 playbook/                engineering doctrine, stack guidance, and research
 health/                  portable deterministic checks and review rubrics
 docs/decisions/          durable architectural decisions and tombstones
-scripts/workbench.py     dependency-free deployment and verification CLI
+src/workbench/           Typer + Rich deployment and verification CLI
+pyproject.toml           uv-managed project (Typer, Rich; pytest/Ruff/Pyright dev gate)
 tests/                   deterministic CLI, sync, drift, and guard-hook tests
-bin/workbench            relocatable shell launcher
+bin/workbench            relocatable shell launcher (execs via uv)
 ```
 
 ## Extending Workbench
@@ -244,7 +246,7 @@ workbench drift all
 ```
 
 When removing a supported capability, record the reason where its off-switch
-lives: the `RETIRED_*` mappings in `scripts/workbench.py`, `_*_disabled`
+lives: the `RETIRED_*` mappings in `src/workbench/core.py`, `_*_disabled`
 entries in the MCP registry, or `docs/decisions/tombstones.md` for decisions
 with no code enforcement.
 

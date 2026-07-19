@@ -7,4 +7,9 @@ while [[ -L "$SOURCE" ]]; do
     [[ "$TARGET" == /* ]] && SOURCE="$TARGET" || SOURCE="$(dirname "$SOURCE")/$TARGET"
 done
 ROOT="$(cd "$(dirname "$SOURCE")/.." && pwd)"
-exec python3 "$ROOT/scripts/workbench.py" "$@"
+
+if ! command -v uv >/dev/null 2>&1; then
+    echo "workbench: uv is required (install via dotfiles or 'brew install uv')" >&2
+    exit 1
+fi
+exec uv run --quiet --project "$ROOT" workbench "$@"

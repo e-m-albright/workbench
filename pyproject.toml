@@ -1,0 +1,60 @@
+[project]
+name = "workbench"
+version = "0.1.0"
+description = "Deploy and verify the personal Claude Code and Codex workbench"
+requires-python = ">=3.13"
+dependencies = [
+    "typer>=0.15",
+    "rich>=13.9",
+]
+
+[project.scripts]
+workbench = "workbench.cli:entry"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.9",
+    "pyright>=1.1.390",
+    "pip-audit>=2.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/workbench"]
+
+[tool.ruff]
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "PTH", "TID", "PT"]
+# Keep unused-import as a *lint* (the gate still flags genuinely-dead imports),
+# but never let `ruff check --fix` auto-delete an import the instant it's added,
+# before its first use. Stops the mid-edit churn.
+unfixable = ["F401"]
+# The error panel's "×" glyph is intentional brand grammar, not a typo'd "x".
+allowed-confusables = ["×"]
+
+[tool.ruff.lint.per-file-ignores]
+# The suite predates the Typer migration and stays unittest-style; pytest runs
+# it natively, so PT's pytest-idiom rewrites would be churn without coverage gain.
+"tests/*" = ["PT"]
+
+[tool.pyright]
+include = ["src"]
+# Basic, not strict: the sync/drift merge logic is deliberately JSON-shaped
+# (dict[str, object] flows preserved verbatim from the stdlib-only script), and
+# the test contract exercises cross-module private helpers. Strict's
+# reportUnknown*/reportPrivateUsage would force a rewrite, not a refactor.
+# Tests are exempt entirely (ruff + pytest cover them), as in the dotfiles CLI.
+typeCheckingMode = "basic"
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

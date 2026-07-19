@@ -6,7 +6,7 @@ evaluation. Reconsider one only when its stated trigger becomes true.
 
 This file covers only decisions with no code off-switch. Retirements that code
 enforces live with their enforcement: `RETIRED_SUBAGENTS` / `RETIRED_SKILLS` in
-`scripts/workbench.py` and the `_*_disabled` entries in
+`src/workbench/core.py` and the `_*_disabled` entries in
 `agents/shared/mcp-servers.json`, each carrying its own reason.
 
 | Capability | Status | Reason | Revisit when |

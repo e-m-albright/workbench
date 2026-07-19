@@ -35,7 +35,7 @@ Inspect at minimum:
 - ~/code/public/workbench/agents/codex/default.rules
 - ~/code/public/workbench/agents/codex/statusline.toml
 - ~/code/public/workbench/agents/shared/hooks/
-- ~/code/public/workbench/scripts/workbench.py
+- ~/code/public/workbench/src/workbench/
 - ~/code/public/workbench/tests/test_workbench.py
 - ~/code/public/dotfiles/install.sh
 
