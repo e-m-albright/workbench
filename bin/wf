@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# wf — launch a from-zero workflow skill in a fresh Claude session.
+#
+# Only workflow starters are listed: skills that make sense from an empty
+# prompt in a repo. Context-dependent skills (planning, prototype, testing,
+# executing-plans, adversarial-assessor, ...) are deliberately absent — start
+# those inside a conversation that already has the context they need.
+set -euo pipefail
+
+STARTERS=(
+    review
+    code-health
+    security-review
+    dep-audit
+    release
+    workspace-health-audit
+    github-workflow
+    agents-md
+)
+
+if [[ $# -eq 0 || "${1:-}" == "-l" || "${1:-}" == "--list" ]]; then
+    echo "usage: wf <skill> [scope...]"
+    echo "workflow starters:"
+    printf '  %s\n' "${STARTERS[@]}"
+    exit 0
+fi
+
+skill="$1"
+shift
+if [[ " ${STARTERS[*]} " != *" $skill "* ]]; then
+    echo "wf: '$skill' is not a from-zero workflow starter (wf --list)" >&2
+    exit 2
+fi
+
+prompt="Run the $skill skill."
+if [[ $# -gt 0 ]]; then
+    prompt="Run the $skill skill. Requested scope: $*."
+fi
+exec claude "$prompt"
