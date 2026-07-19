@@ -11,6 +11,25 @@ sources into each vendor's native configuration and verifies the live result.
 This is a personal, opinionated repository. It optimizes one workflow rather
 than trying to become a general agent platform.
 
+## Position in the Stack
+
+Workbench is the middle layer of a three-repository capability stack, described
+canonically in [`STACK.md`](STACK.md):
+
+```text
+dotfiles   host foundation and machine capabilities
+    ↓
+workbench  reusable agent intelligence and engineering standards
+    ↓
+notes      private knowledge and operating layer
+```
+
+[`dotfiles`](https://github.com/e-m-albright/dotfiles) provisions the host and
+installs Workbench; a private knowledge-and-operations layer applies both public
+layers to personal workflows through their CLI contracts. Each layer stands
+alone — integration is composition and provisioning order, never
+cross-repository Python imports.
+
 ## What It Does
 
 Workbench gives me one place to answer four questions:
@@ -155,12 +174,9 @@ just lint        # skills, links, JSON, TOML, and shell syntax
 workbench drift all
 ```
 
-Output distinguishes two states:
-
-- `DRIFT` means a Workbench-managed value is missing or differs, so the command
-  exits non-zero.
-- `EXTERNAL` means a valid unmanaged addition remains in the live vendor config.
-  It is reported for visibility but does not fail the command.
+`DRIFT` (managed value missing or different, non-zero exit) is distinguished
+from `EXTERNAL` (valid unmanaged addition, reported but passing). Details in
+[`docs/managed-surfaces.md`](docs/managed-surfaces.md).
 
 ## Command Tree
 
@@ -180,21 +196,10 @@ agent configuration; Just recipes develop and validate this repository.
 
 ## What `sync` Manages
 
-| Surface | Claude Code / Desktop | Codex |
-| --- | --- | --- |
-| Global instructions | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
-| Vendor configuration | `~/.claude/settings.json`, `~/.claude.json` | `~/.codex/config.toml` |
-| Desktop configuration | Claude Desktop MCPs and managed preferences | ChatGPT connector plugins through the Codex plugin CLI |
-| Command policy | Claude permissions and sandbox settings | `~/.codex/rules/default.rules` |
-| Hooks | Claude settings plus shared runtime scripts | `~/.codex/hooks.json` plus shared runtime scripts |
-| Specialist agents | `~/.claude/agents/*.md` | `~/.codex/agents/*.toml` |
-| Skills | Claude global skill directory | `~/.agents/skills` |
-| Plugins | IDs from `agents/claude/plugins.json` | IDs from `agents/codex/plugins.json` |
-| MCP servers | Shared registry plus preserved external servers | Shared registry plus preserved external servers |
-
-Plugin IDs are version-controlled and installation is reproducible. OAuth
-consent and account sessions remain interactive vendor state; Workbench cannot
-and should not commit them.
+`sync` deploys global instructions, vendor configuration, command policy,
+hooks, specialist agents, skills, plugins, and MCP servers into Claude Code and
+Codex. The per-vendor file map and drift semantics live in
+[`docs/managed-surfaces.md`](docs/managed-surfaces.md).
 
 ## Repository Tour
 
@@ -270,3 +275,11 @@ channel. Workbench installs no notification daemon or background service.
 5. Treat generated agent state as private and disposable.
 6. Preserve rejected decisions as tombstones instead of repeatedly evaluating
    the same tools.
+
+## Reuse
+
+Workbench is fork-and-adapt material, not a framework or a package to depend
+on. If you want something similar, take the shapes that fit your workflow — the
+canonical-source-to-sync/drift model, the skills layout, the health kit — and
+replace the opinions with your own. See [`STACK.md`](STACK.md) for how it
+composes with the neighboring repositories.
