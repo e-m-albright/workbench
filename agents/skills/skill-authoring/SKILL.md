@@ -139,6 +139,18 @@ After drafting, write 2-3 realistic test prompts and validate the triggers. Read
    - Feedback is consistently empty.
    - You're not making meaningful progress.
 
+## Failure modes to prune
+
+A skill exists to wrangle **predictability** — the agent taking the same *process* every run, not producing the same *output*. Every line either serves that or is weight. Names to hunt on each edit:
+
+- **No-op** — a line the model already obeys by default, so you spend context to say nothing. The test: *does this line change behavior versus the default?* "Be thorough" when the agent is already thorough-ish is a no-op; the fix is a stronger word, not more words. This is the sharpest tool here — run it over every line, including the ones you just added.
+- **Negation** — steering by prohibition backfires; *"don't think of an elephant"* names the elephant. State the target behavior positively so the banned one is never spoken. Keep a bare prohibition only as a hard guardrail you can't phrase positively, and pair it with what to do instead.
+- **Sediment** — stale layers that accrete because adding feels safe and removing feels risky; the default fate of any skill without a pruning pass. Re-read the whole skill on each edit, not just your diff.
+
+Duplication and sprawl are these same failures seen from the token side — the cure is the progressive disclosure this skill already teaches.
+
+And measure that it earns its keep: a skill exists to cut time in the verify/review loop. If you can't point to it reducing fix-cycles or manual rework, it's Sediment with a name — cut it, don't keep it on faith.
+
 ## How skill triggering works
 
 Skills appear in Claude's `available_skills` list with their name + description. Claude decides whether to consult a skill based on the description.

@@ -58,7 +58,7 @@ Apply the relevant section based on detected surface(s).
 
 ## T6 — Structural Anti-Pattern Scan
 
-Drive the flexible domain observations with this checklist. Not every item applies to every change — focus on what the diff touches.
+Drive the flexible domain observations with this checklist. Not every item applies to every change — focus on what the diff touches. Spend judgment where machines can't: skip any item a formatter or linter already enforces in this repo — re-flagging it here is wasted attention.
 
 ### Quick Scan
 

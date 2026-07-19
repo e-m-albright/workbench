@@ -14,6 +14,7 @@ Apply these criteria during brainstorming, planning, and spec review — before 
 - **Pressure-test an idea:** read [ideation.md](references/ideation.md), then surface the strongest alternative and the load-bearing uncertainty.
 - **Scope a decision:** use the criteria in this file.
 - **Write an implementation plan:** read [writing-plans.md](references/writing-plans.md) after the scope is settled.
+- **Synthesize a plan from the conversation:** if the discussion already contains the decisions, skip the interview and go straight to [writing-plans.md](references/writing-plans.md) — re-grilling settled points wastes the user's time.
 - **Grill the user about a plan** ("grill me", "stress-test this design", "interview me about X"): read [grill-with-docs.md](references/grill-with-docs.md).
 - **Carry the plan's discipline into implementation:** read [execution-discipline.md](references/execution-discipline.md).
 

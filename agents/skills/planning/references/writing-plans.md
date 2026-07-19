@@ -12,7 +12,7 @@ Write a concise plan that can be executed by this agent or a fresh session:
 2. **Non-goals** — what this pass will not do.
 3. **Files likely touched** — paths or path patterns, with purpose.
 4. **Steps** — small, ordered tasks. Each task should be independently verifiable when possible.
-5. **Tests / verification** — exact commands or affected test areas.
+5. **Tests / verification** — exact commands or affected test areas. Name the seam each test attaches to; if none exists yet, building that seam is the first step.
 6. **Risks / rollback** — only the risks that could change execution.
 7. **Open questions** — blockers that need user input before code.
 
@@ -22,6 +22,7 @@ Write a concise plan that can be executed by this agent or a fresh session:
 - Prefer vertical slices over horizontal layers.
 - Do not write a plan so detailed it becomes stale before execution.
 - Include refactor license only where it supports the stated goal.
+- For a refactor that would break many call sites at once, use **parallel change**: add the new form (expand), migrate call sites in batches, then delete the old form (contract) — each step keeps the build green, so the work lands incrementally instead of as one big-bang merge.
 - If the plan has 3+ steps, ask for alignment before executing unless the user already said to proceed.
 
 ## Handoff quality

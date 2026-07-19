@@ -46,6 +46,7 @@ Pause for user review when:
 
 Before claiming done:
 
+- Run the broadest relevant verification once (full suite / typecheck for the touched surface). The per-task checks were narrow by design; this is the widest pass before you call it done.
 - Show verification commands and results.
 - List remaining skipped/deferred tasks, if any.
 - Call out docs/readme changes needed for user-facing behavior.

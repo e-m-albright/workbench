@@ -153,6 +153,7 @@ def managed_claude_settings(data: Path) -> dict[str, Any]:
         "voiceEnabled": True,
         "preferredNotifChannel": "auto",
         "defaultMode": "auto",
+        "autoMemoryEnabled": False,
         "sandbox": CLAUDE_SANDBOX,
     }
 

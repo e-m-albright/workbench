@@ -6,6 +6,12 @@
 
 ---
 
+## Positioning: which market we sell to
+
+The market is splitting in two. **Vibe coding** uses AI to raise the floor for non-engineers — speed at the cost of the quality bar. **Agentic engineering** uses AI to accelerate professionals *without* dropping that bar. We sell the second. Against AI-slop shops, our differentiator is not raw output speed — it is retained understanding and an enforced quality bar (see `playbook/engineering-philosophy.md` § "Do not outsource understanding"). The buying story is not "we ship faster," but "we ship code you can still reason about in six months." Frame discovery and pricing around the cost of the *other* kind — rework, incidents, unmaintainable output — not around hours saved.
+
+---
+
 ## The Three Rules
 
 1. **Talk about their life, not your idea** — The moment you pitch, they switch to "polite mode." Keep the conversation about their reality.
