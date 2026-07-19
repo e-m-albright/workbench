@@ -208,7 +208,7 @@ class WorkbenchTests(unittest.TestCase):
                 self.assertFalse((home / ".agents/skills" / name).exists())
 
         remove_command = run.call_args_list[0].args[0]
-        self.assertEqual(remove_command[:3], ["npx", "skills", "remove"])
+        self.assertEqual(remove_command[:3], ["npx", wb.SKILLS_CLI, "remove"])
         self.assertIn("agentic-e2e-debugging", remove_command)
         self.assertIn("converge", remove_command)
 

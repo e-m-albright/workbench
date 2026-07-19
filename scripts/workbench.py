@@ -28,6 +28,9 @@ CODEX_APPENDIX = """\
 - When CODEX.md exists at a project root, it is a symlink to AGENTS.md.
 - Follow the same verification, testing, and minimal-change conventions as Claude Code.
 """
+# Vercel's skills deploy CLI, pinned so `sync` never executes whatever npm
+# happens to serve as latest. Bump deliberately: `npm view skills version`.
+SKILLS_CLI = "skills@1.5.19"
 RETIRED_SUBAGENTS = {"docs-scribe", "legacy-modernizer"}
 RETIRED_SKILLS = {"agentic-e2e-debugging", "converge"}
 VENDORS = ("claude", "codex")
@@ -302,14 +305,14 @@ def _sync_skills(vendor: str, home: Path) -> None:
     removals = sorted(set(skill_names) | RETIRED_SKILLS)
     if removals:
         subprocess.run(
-            ["npx", "skills", "remove", *removals, "-a", agent_id, "-g", "-y"],
+            ["npx", SKILLS_CLI, "remove", *removals, "-a", agent_id, "-g", "-y"],
             check=False,
             env=env,
         )
     subprocess.run(
         [
             "npx",
-            "skills",
+            SKILLS_CLI,
             "add",
             str(AGENTS / "skills"),
             "-s",
