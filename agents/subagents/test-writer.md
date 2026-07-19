@@ -1,6 +1,7 @@
 ---
 name: test-writer
 description: Write or update tests TDD-style for a change — failing test first, then the assertion shape that locks behavior down. Use when user says "write tests for this", "add coverage", "TDD this", "lock this behavior"; after implementing logic that lacks tests; or when a bug fix needs a regression test. Complements the `debugger` agent (which finds the cause) by producing the test that proves the fix and prevents recurrence.
+tools: Read, Grep, Glob, Bash, Write, Edit
 model: sonnet
 ---
 

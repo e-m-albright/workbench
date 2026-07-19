@@ -17,6 +17,8 @@ prefix_rule(pattern=["deno", "add"], decision="allow")
 prefix_rule(pattern=["git", "add"], decision="allow")
 prefix_rule(pattern=["git", "commit", "-m"], decision="allow")
 prefix_rule(pattern=["git", "commit", "--amend"], decision="allow")
+# Any-branch push is intentional (feature branches); force-push is blocked by
+# the destructive-shell guard, so this only skips approval for plain pushes.
 prefix_rule(pattern=["git", "push", "origin"], decision="allow")
 prefix_rule(pattern=["git", "fetch", "origin"], decision="allow")
 prefix_rule(pattern=["git", "switch"], decision="allow")

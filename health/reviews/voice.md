@@ -1,8 +1,12 @@
-# Audit: Voice — sycophancy, hedging, overconfidence, LLM cadence
+---
+name: audit-voice
+description: Advisory prose-tone audit — sycophancy, hedging, overconfidence, and LLM cadence in docs, PR bodies, and comments.
+---
 
-The **stochastic half** of the voice article. A wordlist (`just lint-prose`) catches
-banned phrases deterministically; this catches what a wordlist cannot — *tone*. Run
-on a docs/PR-body/comment diff, on demand or nightly. **Advisory, never blocking**:
+# Voice Audit: Sycophancy, Hedging, Overconfidence, LLM Cadence
+
+The **stochastic half** of the voice article: this catches what a wordlist cannot
+— *tone*. Run on a docs/PR-body/comment diff, on demand or nightly. **Advisory, never blocking**:
 tone is a judgment call, so it informs a human, it doesn't fail a build.
 
 ## Scope

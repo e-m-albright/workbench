@@ -6,6 +6,7 @@
 # Reads Claude's statusline JSON payload on stdin. Set NO_COLOR=1 to disable
 # ANSI colors. Schema: https://code.claude.com/docs/en/statusline.md
 
+# No -e: the statusline must render even when a probe (git, jq) fails.
 set -uo pipefail
 
 input="$(cat)"
@@ -20,19 +21,17 @@ if [[ -z "${NO_COLOR:-}" ]]; then
     NOTE=$'\033[38;2;128;166;173m'
     WARN=$'\033[38;2;217;145;61m'
     DANGER=$'\033[38;2;217;120;77m'
-    AMBER_HOT=$'\033[38;2;217;120;77m'
-    AMBER=$'\033[38;2;217;145;61m'
     GOLD=$'\033[38;2;211;177;95m'
     SAGE=$'\033[38;2;143;168;121m'
 else
-    R='' DIM='' NOTE='' WARN='' DANGER='' AMBER_HOT='' AMBER='' GOLD='' SAGE=''
+    R='' DIM='' NOTE='' WARN='' DANGER='' GOLD='' SAGE=''
 fi
 
 ramp() {
     local pct_int
     pct_int=$(printf '%.0f' "${1:-0}")
-    if   (( pct_int >= 90 )); then printf '%s' "$AMBER_HOT"
-    elif (( pct_int >= 75 )); then printf '%s' "$AMBER"
+    if   (( pct_int >= 90 )); then printf '%s' "$DANGER"
+    elif (( pct_int >= 75 )); then printf '%s' "$WARN"
     elif (( pct_int >= 55 )); then printf '%s' "$GOLD"
     else printf '%s' "$SAGE"
     fi

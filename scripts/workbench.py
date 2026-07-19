@@ -30,7 +30,8 @@ CODEX_APPENDIX = """\
 """
 RETIRED_SUBAGENTS = {"docs-scribe", "legacy-modernizer"}
 RETIRED_SKILLS = {"agentic-e2e-debugging", "converge"}
-VENDORS = ("claude", "codex", "all")
+VENDORS = ("claude", "codex")
+VENDOR_CHOICES = (*VENDORS, "all")
 
 # Sandbox policy deployed to (and drift-checked against) ~/.claude/settings.json.
 # Single source so `sync` (the writer) and `check` (the verifier) never diverge.
@@ -84,30 +85,6 @@ WORKBENCH_BANNER = """\
  ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝
 """
 RUBY_STOPS = ((255, 184, 194), (230, 57, 86), (165, 9, 47), (101, 0, 24))
-COMMAND_HELP = {
-    "sync": (
-        "workbench sync [claude|codex|all] [OPTIONS]",
-        "Deploy canonical Workbench configuration to one or both vendors.",
-        [
-            ("target", "claude, codex, or all (default: all)"),
-            ("--no-skills", "skip shared-skill installation"),
-            ("--no-plugins", "skip declared-plugin installation"),
-        ],
-    ),
-    "check": (
-        "workbench check [claude|codex|all] [OPTIONS]",
-        "Compare live configuration directly with canonical Workbench sources.",
-        [
-            ("target", "claude, codex, or all (default: all)"),
-            ("--no-plugins", "skip declared-plugin verification"),
-        ],
-    ),
-    "lint": (
-        "workbench lint",
-        "Validate skills, local links, JSON, TOML, and shell syntax.",
-        [("no arguments", "validates canonical repository sources")],
-    ),
-}
 
 
 class WorkbenchError(RuntimeError):
@@ -168,18 +145,22 @@ def _registry() -> dict[str, object]:
     return raw
 
 
-def retired_mcp_names() -> set[str]:
+def retired_mcp_names(registry: Mapping[str, object] | None = None) -> set[str]:
     names: set[str] = set()
-    for key in _registry():
+    for key in registry if registry is not None else _registry():
         match = re.fullmatch(r"_(.+)_disabled", key)
         if match:
             names.add(match.group(1))
     return names
 
 
-def active_mcp(target: str) -> dict[str, dict[str, object]]:
+def active_mcp(
+    target: str, registry: Mapping[str, object] | None = None
+) -> dict[str, dict[str, object]]:
+    if registry is None:
+        registry = _registry()
     servers: dict[str, dict[str, object]] = {}
-    for name, value in _registry().items():
+    for name, value in registry.items():
         if name.startswith("$") or not isinstance(value, dict):
             continue
         targets = value.get("targets", [])
@@ -191,11 +172,12 @@ def active_mcp(target: str) -> dict[str, dict[str, object]]:
 
 
 def merge_mcp(existing: Mapping[str, object], target: str) -> dict[str, object]:
-    retired = retired_mcp_names()
-    desired = active_mcp(target)
+    registry = _registry()
+    retired = retired_mcp_names(registry)
+    desired = active_mcp(target, registry)
     managed = {
         name
-        for name, value in _registry().items()
+        for name, value in registry.items()
         if not name.startswith("$") and isinstance(value, dict)
     }
     kept = {
@@ -248,50 +230,55 @@ def _installed_plugins(vendor: str, output: str) -> dict[str, bool]:
     }
 
 
+def _home_env(home: Path) -> dict[str, str]:
+    return {**os.environ, "HOME": str(home)}
+
+
 def _list_plugins(vendor: str, home: Path) -> dict[str, bool]:
-    executable = "claude" if vendor == "claude" else "codex"
-    env = {**os.environ, "HOME": str(home)}
     result = subprocess.run(
-        [executable, "plugin", "list", "--json"],
+        [vendor, "plugin", "list", "--json"],
         capture_output=True,
         text=True,
-        env=env,
+        env=_home_env(home),
     )
     if result.returncode:
         raise WorkbenchError(
-            f"{executable} plugin list failed: {result.stderr.strip()}"
+            f"{vendor} plugin list failed: {result.stderr.strip()}"
         )
     return _installed_plugins(vendor, result.stdout)
 
 
 def _sync_plugins(vendor: str, home: Path) -> None:
-    source = AGENTS / vendor / "plugins.json"
-    desired = _string_array(source)
-    executable = "claude" if vendor == "claude" else "codex"
-    if not shutil.which(executable):
-        raise WorkbenchError(f"{executable} is required to deploy {vendor} plugins")
-    env = {**os.environ, "HOME": str(home)}
+    desired = _string_array(AGENTS / vendor / "plugins.json")
+    if not shutil.which(vendor):
+        raise WorkbenchError(f"{vendor} is required to deploy {vendor} plugins")
     installed = _list_plugins(vendor, home)
     for plugin in desired:
         if plugin in installed:
             continue
-        command = [executable, "plugin", "install", plugin, "--scope", "user"]
+        command = [vendor, "plugin", "install", plugin, "--scope", "user"]
         if vendor == "codex":
-            command = [executable, "plugin", "add", plugin, "--json"]
-        subprocess.run(command, check=True, env=env)
+            command = [vendor, "plugin", "add", plugin, "--json"]
+        subprocess.run(command, check=True, env=_home_env(home))
+
+
+def _canonical_hooks() -> dict[str, Path]:
+    """Hook name -> source path, shared by sync (writer) and check (verifier)."""
+    return {
+        hook.name: hook for hook in sorted((AGENTS / "shared/hooks").glob("*.sh"))
+    }
 
 
 def _install_runtime_files(home: Path) -> Path:
     data = home / DATA_REL
-    hook_sources = sorted((AGENTS / "shared/hooks").glob("*.sh"))
+    hooks = _canonical_hooks()
     hook_dir = data / "hooks"
-    canonical_hooks = {hook.name for hook in hook_sources}
     if hook_dir.exists():
         for deployed in hook_dir.iterdir():
-            if deployed.is_file() and deployed.name not in canonical_hooks:
+            if deployed.is_file() and deployed.name not in hooks:
                 deployed.unlink()
-    for hook in hook_sources:
-        copy_file(hook, data / "hooks" / hook.name, executable=True)
+    for name, hook in hooks.items():
+        copy_file(hook, hook_dir / name, executable=True)
     copy_file(
         AGENTS / "claude/statusline.sh",
         data / "claude/statusline.sh",
@@ -306,11 +293,16 @@ def _sync_skills(vendor: str, home: Path) -> None:
     )
     if not shutil.which("npx"):
         raise WorkbenchError("npx is required to deploy skills")
-    env = {**os.environ, "HOME": str(home)}
+    env = _home_env(home)
+    # The npx skills CLI names the claude agent "claude-code"; that external id
+    # stays at this subprocess boundary — everything else speaks "claude".
+    agent_id = "claude-code" if vendor == "claude" else vendor
+    # Remove the full current set too (not just retirements) so a renamed or
+    # relocated skill can't leave a stale copy behind from a prior deploy.
     removals = sorted(set(skill_names) | RETIRED_SKILLS)
     if removals:
         subprocess.run(
-            ["npx", "skills", "remove", *removals, "-a", vendor, "-g", "-y"],
+            ["npx", "skills", "remove", *removals, "-a", agent_id, "-g", "-y"],
             check=False,
             env=env,
         )
@@ -323,7 +315,7 @@ def _sync_skills(vendor: str, home: Path) -> None:
             "-s",
             "*",
             "-a",
-            vendor,
+            agent_id,
             "-g",
             "-y",
             "--copy",
@@ -332,7 +324,7 @@ def _sync_skills(vendor: str, home: Path) -> None:
         env=env,
     )
     skill_roots = [home / ".agents/skills"]
-    if vendor == "claude-code":
+    if vendor == "claude":
         skill_roots.append(home / ".claude/skills")
     for root in skill_roots:
         for name in RETIRED_SKILLS:
@@ -343,25 +335,28 @@ def _sync_skills(vendor: str, home: Path) -> None:
                 shutil.rmtree(retired)
 
 
+def _frontmatter_field(text: str, key: str) -> str | None:
+    match = re.search(rf"^{key}:\s*([^\n]+)$", text, re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
 def _subagent_fields(path: Path) -> tuple[str, str, str, list[str] | None]:
     content = path.read_text()
     parts = content.split("---", 2)
     if len(parts) != 3 or parts[0].strip():
         raise WorkbenchError(f"invalid subagent frontmatter: {path}")
     frontmatter, body = parts[1], parts[2].strip()
-    name = re.search(r"^name:\s*([^\n]+)$", frontmatter, re.MULTILINE)
-    description = re.search(
-        r"^description:\s*([^\n]+)$", frontmatter, re.MULTILINE
-    )
+    name = _frontmatter_field(frontmatter, "name")
+    description = _frontmatter_field(frontmatter, "description")
     if not name or not description or not body:
         raise WorkbenchError(f"incomplete subagent: {path}")
-    tools_match = re.search(r"^tools:\s*([^\n]+)$", frontmatter, re.MULTILINE)
+    raw_tools = _frontmatter_field(frontmatter, "tools")
     tools = (
-        [tool.strip() for tool in tools_match.group(1).split(",") if tool.strip()]
-        if tools_match
+        [tool.strip() for tool in raw_tools.split(",") if tool.strip()]
+        if raw_tools is not None
         else None
     )
-    return name.group(1).strip(), description.group(1).strip(), body, tools
+    return name, description, body, tools
 
 
 # Claude write-capable tools whose absence from a `tools:` restriction marks
@@ -450,6 +445,8 @@ def sync_claude(
     existing_permissions = settings.get("permissions", {})
     if not isinstance(existing_permissions, dict):
         existing_permissions = {}
+    # Legacy-location cleanup: defaultMode now lives at the settings top level;
+    # a stale nested copy would shadow the managed value.
     existing_permissions.pop("defaultMode", None)
     settings.update(managed)
     settings["permissions"] = {**existing_permissions, **managed["permissions"]}
@@ -466,7 +463,7 @@ def sync_claude(
     _sync_claude_desktop(home)
     _sync_subagents("claude", claude_home / "agents")
     if deploy_skills:
-        _sync_skills("claude-code", home)
+        _sync_skills("claude", home)
     if deploy_plugins:
         _sync_plugins("claude", home)
 
@@ -556,7 +553,7 @@ def _drop_tables(text: str, prefixes: tuple[str, ...]) -> str:
     return "".join(result).rstrip()
 
 
-def merge_codex_config(text: str, target: str = "codex") -> str:
+def merge_codex_config(text: str) -> str:
     try:
         parsed = tomllib.loads(text)
     except tomllib.TOMLDecodeError as exc:
@@ -565,7 +562,7 @@ def merge_codex_config(text: str, target: str = "codex") -> str:
     existing = parsed.get("mcp_servers", {})
     if not isinstance(existing, dict):
         existing = {}
-    servers = merge_mcp(existing, target)
+    servers = merge_mcp(existing, "codex")
     cleaned = _drop_tables(text, ("[mcp_servers", "[tui"))
     status = tomllib.loads((AGENTS / "codex/statusline.toml").read_text())
     existing_tui = parsed.get("tui", {})
@@ -746,8 +743,7 @@ def _check_subagents(
 
 def _plugin_inventory(vendor: str, home: Path) -> dict[str, bool] | None:
     """Installed plugin id -> enabled state, or None when the CLI is absent."""
-    executable = "claude" if vendor == "claude" else "codex"
-    if not shutil.which(executable):
+    if not shutil.which(vendor):
         return None
     return _list_plugins(vendor, home)
 
@@ -769,115 +765,120 @@ def _check_plugins(
         external.append(f"EXTERNAL {vendor} plugin: {plugin}")
 
 
+def _check_claude(
+    home: Path, data: Path, findings: list[str], external: list[str]
+) -> object:
+    """Verify Claude-managed state; returns the live MCP mapping."""
+    _compare(
+        AGENTS / "shared/rules.md",
+        home / ".claude/CLAUDE.md",
+        "Claude rules",
+        findings,
+    )
+    _compare(
+        AGENTS / "claude/statusline.sh",
+        data / "claude/statusline.sh",
+        "Claude statusline",
+        findings,
+    )
+    settings = _settings(home / ".claude/settings.json")
+    findings.extend(
+        _managed_value_errors(
+            settings, managed_claude_settings(data), "Claude settings"
+        )
+    )
+    desktop = _settings(
+        home / "Library/Application Support/Claude/claude_desktop_config.json"
+    )
+    findings.extend(
+        _managed_value_errors(
+            desktop.get("mcpServers"), _desktop_mcp(), "Claude Desktop MCP"
+        )
+    )
+    desktop_defaults = _settings(
+        AGENTS / "claude/desktop-preferences.json"
+    ).get("preferences", {})
+    live_preferences = desktop.get("preferences", {})
+    if not isinstance(desktop_defaults, dict) or not isinstance(
+        live_preferences, dict
+    ):
+        findings.append("DRIFT Claude Desktop preferences is not an object")
+    else:
+        for key in desktop_defaults.keys() - live_preferences.keys():
+            findings.append(f"DRIFT Claude Desktop preference missing: {key}")
+    _check_subagents("claude", home / ".claude/agents", findings, external)
+    return _settings(home / ".claude.json").get("mcpServers", {})
+
+
+def _check_codex(
+    home: Path, findings: list[str], external: list[str]
+) -> object:
+    """Verify Codex-managed state; returns the live MCP mapping."""
+    _compare_text(
+        expected_codex_rules_md(),
+        home / ".codex/AGENTS.md",
+        "Codex rules",
+        findings,
+    )
+    config_path = home / ".codex/config.toml"
+    parsed = tomllib.loads(config_path.read_text()) if config_path.exists() else {}
+    if config_path.exists():
+        _compare_text(
+            merge_codex_config(config_path.read_text()),
+            config_path,
+            "Codex config",
+            findings,
+        )
+    else:
+        findings.append(f"DRIFT Codex config: missing {config_path}")
+    for profile in sorted((AGENTS / "codex/profiles").glob("*.toml")):
+        _compare(
+            profile,
+            home / ".codex" / f"{profile.stem}.config.toml",
+            f"Codex profile {profile.stem}",
+            findings,
+        )
+    _compare(
+        AGENTS / "shared/hooks.json",
+        home / ".codex/hooks.json",
+        "Codex hooks",
+        findings,
+    )
+    source_rules = (AGENTS / "codex/default.rules").read_text()
+    rules_path = home / ".codex/rules/default.rules"
+    live_rules = rules_path.read_text() if rules_path.exists() else ""
+    _compare_text(
+        merge_codex_rules(source_rules, live_rules),
+        rules_path,
+        "Codex command rules",
+        findings,
+    )
+    _check_subagents("codex", home / ".codex/agents", findings, external)
+    return parsed.get("mcp_servers", {})
+
+
 def check(
     home: Path, vendors: Iterable[str], *, verify_plugins: bool = True
 ) -> int:
     findings: list[str] = []
     external: list[str] = []
     data = home / DATA_REL
-    for hook in sorted((AGENTS / "shared/hooks").glob("*.sh")):
-        _compare(hook, data / "hooks" / hook.name, f"hook {hook.name}", findings)
-    canonical_hook_names = {
-        path.name for path in (AGENTS / "shared/hooks").glob("*.sh")
-    }
+    hooks = _canonical_hooks()
+    for name, hook in hooks.items():
+        _compare(hook, data / "hooks" / name, f"hook {name}", findings)
     hook_root = data / "hooks"
     if hook_root.exists():
         for deployed in hook_root.iterdir():
-            if deployed.is_file() and deployed.name not in canonical_hook_names:
+            if deployed.is_file() and deployed.name not in hooks:
                 findings.append(f"DRIFT retired runtime hook still present: {deployed.name}")
 
     for vendor in vendors:
         if vendor == "claude":
-            _compare(
-                AGENTS / "shared/rules.md",
-                home / ".claude/CLAUDE.md",
-                "Claude rules",
-                findings,
-            )
+            mcp = _check_claude(home, data, findings, external)
             skill_root = home / ".claude/skills"
-            _compare(
-                AGENTS / "claude/statusline.sh",
-                data / "claude/statusline.sh",
-                "Claude statusline",
-                findings,
-            )
-            settings = _settings(home / ".claude/settings.json")
-            findings.extend(
-                _managed_value_errors(
-                    settings, managed_claude_settings(data), "Claude settings"
-                )
-            )
-            mcp = _settings(home / ".claude.json").get("mcpServers", {})
-            desktop = _settings(
-                home
-                / "Library/Application Support/Claude/claude_desktop_config.json"
-            )
-            findings.extend(
-                _managed_value_errors(
-                    desktop.get("mcpServers") if isinstance(desktop, dict) else None,
-                    _desktop_mcp(),
-                    "Claude Desktop MCP",
-                )
-            )
-            desktop_defaults = _settings(
-                AGENTS / "claude/desktop-preferences.json"
-            ).get("preferences", {})
-            live_preferences = desktop.get("preferences", {})
-            if not isinstance(desktop_defaults, dict) or not isinstance(
-                live_preferences, dict
-            ):
-                findings.append("DRIFT Claude Desktop preferences is not an object")
-            else:
-                for key in desktop_defaults.keys() - live_preferences.keys():
-                    findings.append(f"DRIFT Claude Desktop preference missing: {key}")
-            _check_subagents(
-                "claude", home / ".claude/agents", findings, external
-            )
         else:
-            _compare_text(
-                expected_codex_rules_md(),
-                home / ".codex/AGENTS.md",
-                "Codex rules",
-                findings,
-            )
+            mcp = _check_codex(home, findings, external)
             skill_root = home / ".agents/skills"
-            config_path = home / ".codex/config.toml"
-            parsed = (
-                tomllib.loads(config_path.read_text()) if config_path.exists() else {}
-            )
-            mcp = parsed.get("mcp_servers", {})
-            if config_path.exists():
-                _compare_text(
-                    merge_codex_config(config_path.read_text()),
-                    config_path,
-                    "Codex config",
-                    findings,
-                )
-            else:
-                findings.append(f"DRIFT Codex config: missing {config_path}")
-            for profile in sorted((AGENTS / "codex/profiles").glob("*.toml")):
-                _compare(
-                    profile,
-                    home / ".codex" / f"{profile.stem}.config.toml",
-                    f"Codex profile {profile.stem}",
-                    findings,
-                )
-            _compare(
-                AGENTS / "shared/hooks.json",
-                home / ".codex/hooks.json",
-                "Codex hooks",
-                findings,
-            )
-            source_rules = (AGENTS / "codex/default.rules").read_text()
-            rules_path = home / ".codex/rules/default.rules"
-            live_rules = rules_path.read_text() if rules_path.exists() else ""
-            _compare_text(
-                merge_codex_rules(source_rules, live_rules),
-                rules_path,
-                "Codex command rules",
-                findings,
-            )
-            _check_subagents("codex", home / ".codex/agents", findings, external)
 
         if not isinstance(mcp, dict):
             findings.append(f"DRIFT {vendor} MCP configuration is not an object")
@@ -887,7 +888,7 @@ def check(
             if mcp.get(name) != value:
                 findings.append(f"DRIFT {vendor} MCP {name}")
         for name in retired_mcp_names() & set(mcp):
-            findings.append(f"DRIFT {vendor} tombstoned MCP still present: {name}")
+            findings.append(f"DRIFT retired {vendor} MCP still present: {name}")
         for name in set(mcp) - set(expected_mcp):
             external.append(f"EXTERNAL {vendor} MCP: {name}")
 
@@ -984,23 +985,19 @@ def lint() -> int:
     names: set[str] = set()
     for skill in sorted((AGENTS / "skills").glob("*/SKILL.md")):
         content = skill.read_text()
-        match = re.search(r"^name:\s*([^\n]+)$", content, re.MULTILINE)
-        if not match:
+        name = _frontmatter_field(content, "name")
+        if not name:
             errors.append(f"missing skill name: {skill.relative_to(ROOT)}")
             continue
-        name = match.group(1).strip()
         if name != skill.parent.name:
             errors.append(f"skill name/path mismatch: {skill.parent.name} != {name}")
         if name in names:
             errors.append(f"duplicate skill name: {name}")
         names.add(name)
-        description = re.search(
-            r"^description:\s*([^\n]+)$", content, re.MULTILINE
-        )
-        if not description:
+        raw_description = _frontmatter_field(content, "description")
+        if not raw_description:
             errors.append(f"missing skill description: {skill.relative_to(ROOT)}")
             continue
-        raw_description = description.group(1).strip()
         if ": " in raw_description and not (
             raw_description.startswith('"') and raw_description.endswith('"')
         ):
@@ -1032,8 +1029,8 @@ def lint() -> int:
 
 def _vendors(raw: str) -> tuple[str, ...]:
     if raw == "all":
-        return ("claude", "codex")
-    if raw not in {"claude", "codex"}:
+        return VENDORS
+    if raw not in VENDORS:
         raise WorkbenchError(f"unsupported vendor: {raw}")
     return (raw,)
 
@@ -1102,12 +1099,24 @@ def _panel(title: str, rows: list[tuple[str, str]], width: int) -> str:
     return "\n".join(lines)
 
 
-def _command_rows(parser: argparse.ArgumentParser) -> list[tuple[str, str]]:
-    subparsers = next(
+def _help_width() -> int:
+    return max(72, shutil.get_terminal_size((80, 24)).columns)
+
+
+def _subcommands(parser: argparse.ArgumentParser) -> argparse._SubParsersAction:
+    # Accepted tradeoff: the help renderer introspects argparse internals
+    # (_actions, _SubParsersAction) so the parser stays the single source of
+    # command metadata. Confined to this helper and the two renderers below;
+    # covered by the CLI help tests.
+    return next(
         action
         for action in parser._actions
         if isinstance(action, argparse._SubParsersAction)
     )
+
+
+def _command_rows(parser: argparse.ArgumentParser) -> list[tuple[str, str]]:
+    subparsers = _subcommands(parser)
     descriptions = {
         action.dest: action.help for action in subparsers._choices_actions
     }
@@ -1136,8 +1145,7 @@ def _command_rows(parser: argparse.ArgumentParser) -> list[tuple[str, str]]:
 
 
 def _error_panel(message: str) -> str:
-    width = max(72, shutil.get_terminal_size((80, 24)).columns)
-    return _panel("Error", [("×", message)], width)
+    return _panel("Error", [("×", message)], _help_width())
 
 
 def print_help(
@@ -1145,7 +1153,7 @@ def print_help(
 ) -> None:
     """Render the branded front door in the same visual grammar as Dotfiles."""
     stream = stream or sys.stdout
-    width = max(72, shutil.get_terminal_size((80, 24)).columns)
+    width = _help_width()
     print(gradient_banner(), file=stream)
     print(file=stream)
     if error:
@@ -1167,7 +1175,7 @@ def print_help(
     )
     print(
         _panel(
-            "Configuration — deploy and validate agent state",
+            "Configuration — deploy, verify, and validate",
             _command_rows(parser),
             width,
         ),
@@ -1176,47 +1184,68 @@ def print_help(
 
 
 def print_command_help(
-    command: str, *, stream=None, error: str | None = None
+    parser: argparse.ArgumentParser,
+    command: str,
+    *,
+    stream=None,
+    error: str | None = None,
 ) -> None:
     stream = stream or sys.stdout
-    width = max(72, shutil.get_terminal_size((80, 24)).columns)
-    usage, description, rows = COMMAND_HELP[command]
+    sub = _subcommands(parser).choices[command]
+    positionals = [
+        action
+        for action in sub._actions
+        if not action.option_strings and action.choices
+    ]
+    options = [
+        action
+        for action in sub._actions
+        if action.option_strings and action.dest != "help"
+    ]
+    usage = f"workbench {command}"
+    if positionals:
+        usage += " [" + "|".join(str(c) for c in positionals[0].choices) + "]"
+    if options:
+        usage += " [OPTIONS]"
+    rows = [(action.dest, action.help or "") for action in positionals]
+    rows += [(action.option_strings[0], action.help or "") for action in options]
+    rows = rows or [("no arguments", "")]
     if error:
         print(_error_panel(error), file=stream)
     print(_styled(" Usage: ", "1") + usage, file=stream)
     print(file=stream)
-    print(f" {description}", file=stream)
+    print(f" {sub.description}", file=stream)
     print(file=stream)
-    print(_panel("Arguments and options", rows, width), file=stream)
+    print(_panel("Arguments and options", rows, _help_width()), file=stream)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = VisualArgumentParser(
         prog="workbench",
         description=(
-            "Deploy and verify the personal Claude Code and Codex intelligence layer.\n"
+            "Portable agent intelligence: deploy and verify Claude Code and Codex configuration.\n"
             "The shorter `wb` launcher is equivalent to `workbench`."
         ),
     )
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
-    sync = sub.add_parser(
+    sync_parser = sub.add_parser(
         "sync",
         help="deploy canonical configuration",
         description="Deploy Workbench-managed configuration to one or both vendors.",
     )
-    sync.add_argument(
+    sync_parser.add_argument(
         "vendor",
         nargs="?",
-        choices=VENDORS,
+        choices=VENDOR_CHOICES,
         default="all",
         help="vendor to reconcile (default: all)",
     )
-    sync.add_argument(
+    sync_parser.add_argument(
         "--no-skills",
         action="store_true",
         help="skip shared-skill installation",
     )
-    sync.add_argument(
+    sync_parser.add_argument(
         "--no-plugins",
         action="store_true",
         help="skip declared-plugin installation",
@@ -1231,7 +1260,7 @@ def build_parser() -> argparse.ArgumentParser:
     check_parser.add_argument(
         "vendor",
         nargs="?",
-        choices=VENDORS,
+        choices=VENDOR_CHOICES,
         default="all",
         help="vendor to inspect (default: all)",
     )
@@ -1254,18 +1283,19 @@ def main(argv: list[str] | None = None) -> int:
     if not raw_argv or raw_argv in (["-h"], ["--help"]):
         print_help(parser)
         return 0
+    commands = _subcommands(parser).choices
     requested_command = next(
-        (value for value in raw_argv if value in COMMAND_HELP), None
+        (value for value in raw_argv if value in commands), None
     )
     if requested_command and any(value in {"-h", "--help"} for value in raw_argv):
-        print_command_help(requested_command)
+        print_command_help(parser, requested_command)
         return 0
     try:
         args = parser.parse_args(raw_argv)
     except CliUsageError as exc:
         if requested_command:
             print_command_help(
-                requested_command, stream=sys.stderr, error=str(exc)
+                parser, requested_command, stream=sys.stderr, error=str(exc)
             )
         else:
             print_help(parser, stream=sys.stderr, error=str(exc))
@@ -1295,8 +1325,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     except (WorkbenchError, OSError, subprocess.CalledProcessError) as exc:
         print(_error_panel(str(exc)), file=sys.stderr)
-        if args.command in COMMAND_HELP:
-            print_command_help(args.command, stream=sys.stderr)
+        if args.command in commands:
+            print_command_help(parser, args.command, stream=sys.stderr)
         return 1
 
 

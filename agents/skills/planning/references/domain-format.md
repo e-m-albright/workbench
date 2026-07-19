@@ -2,7 +2,7 @@
 
 ## Structure
 
-```md
+```markdown
 # {Context Name}
 
 {One or two sentence description of what this context is and why it exists.}
@@ -52,7 +52,7 @@ _Avoid_: Client, buyer, account
 
 **Multiple contexts:** A `DOMAIN-MAP.md` at the repo root lists the contexts, where they live, and how they relate to each other:
 
-```md
+```markdown
 # Context Map
 
 ## Contexts

@@ -102,6 +102,6 @@ When we adopt Matt Pocock's bucketing pattern, skills will move under:
 - `agents/skills/in-progress/<name>/` — drafts, never in plugin manifest
 - `agents/skills/deprecated/<name>/` — retired, never in plugin manifest
 
-Currently flat under `agents/skills/`. Migration deferred until enough skills exist for the structure to earn its cost. See historical skills-research notes (Phase 5; was under `docs/specs/`, now scrubbed).
+Currently flat under `agents/skills/`. Migration deferred until enough skills exist for the structure to earn its cost.
 
 _Promoted from `.ai/rules/process/skill-format.mdc` into this skill's references._

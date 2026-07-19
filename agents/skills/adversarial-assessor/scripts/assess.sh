@@ -17,11 +17,11 @@
 #   assess.sh                                  # broad repo assessment
 #   assess.sh security of the agent hooks      # focused assessment
 #   assess.sh --scope src/payments  the payments subsystem
-#   assess.sh --model claude-opus-4-8 ...      # cheaper assessor
+#   assess.sh --model sonnet ...               # cheaper assessor
 #
 # Requires the `claude` CLI on PATH (the assessor is invoked via `claude -p`).
 
-set -eo pipefail
+set -euo pipefail
 
 MODEL="${ASSESSOR_MODEL:-opus}"
 SCOPE=""
@@ -41,14 +41,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 if ! command -v claude >/dev/null 2>&1; then
-    echo "assess: the 'claude' CLI is not on PATH (the assessor runs via 'claude -p')." >&2
+    printf "assess: the 'claude' CLI is not on PATH (the assessor runs via 'claude -p').\n" >&2
     exit 1
 fi
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 SCOPE="${SCOPE:-$repo_root}"
 OUT="${OUT:-$repo_root/docs/health/assessments}"
-focus_text="${focus[*]}"
+focus_text="${focus[*]:-}"
 [[ -z "$focus_text" ]] && focus_text="overall code health, design, and feature completeness"
 
 slug=$(printf '%s' "$focus_text" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' | cut -c1-40)
@@ -90,8 +90,8 @@ Deliver four ranked sections, concrete and skeptical:
 End with the 3 things you would do FIRST and the single biggest risk. Be concise
 but information-dense. No filler."
 
-echo "assess: running $MODEL over $SCOPE (focus: $focus_text)…" >&2
-echo "assess: budget cap \$$BUDGET; this calls a paid model and may take a few minutes." >&2
+printf 'assess: running %s over %s (focus: %s)…\n' "$MODEL" "$SCOPE" "$focus_text" >&2
+printf 'assess: budget cap $%s; this calls a paid model and may take a few minutes.\n' "$BUDGET" >&2
 
 {
     printf '# Adversarial Assessment — %s\n\n' "$focus_text"
@@ -111,5 +111,5 @@ echo "assess: budget cap \$$BUDGET; this calls a paid model and may take a few m
         -- "$prompt"
 } >"$report"
 
-echo "assess: report written → $report" >&2
-echo "$report"
+printf 'assess: report written → %s\n' "$report" >&2
+printf '%s\n' "$report"

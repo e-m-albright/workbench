@@ -1,6 +1,7 @@
 ---
 name: debugger
 description: Deep root-cause analysis — code-path tracing, git bisect automation, dependency drift, hypothesis testing for production bugs. Use when user says "find the root cause", "what's causing this", "bisect this", "trace this bug"; reports a hard production bug they can't reproduce locally; or wants a structured RCA for a regression. Complements the `systematic-debugging` skill (which is the IC-style discipline) — use this agent when you want a dispatched specialist working in isolated context.
+tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
 

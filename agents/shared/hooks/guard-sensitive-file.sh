@@ -6,17 +6,24 @@
 #
 # Deployed verbatim to every hook-capable vendor so the safety contract is uniform.
 
-set -eo pipefail
+set -euo pipefail
+
+if ! command -v jq >/dev/null 2>&1; then
+    printf 'BLOCK: jq is required by the workbench sensitive-file guard and is not on PATH.\n' >&2
+    exit 2
+fi
 
 INPUT=$(cat 2>/dev/null || true)
 FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .filePath // .file_path // empty' 2>/dev/null || true)
 [[ -z "$FILE" ]] && exit 0
 
-# Match on the basename so a bare `.env` (no leading dir) is caught — the old
-# */.env globs required a slash and silently allowed `.env` and `.env.local`,
-# the most common secret files. Templates (.env.example) and *.pub public keys
-# are explicitly allowed. Vector contract: cli .../test_guard_hooks.py.
-base=${FILE##*/}
+# Match on the lowercased basename so a bare `.env` (no leading dir) is caught
+# — the old */.env globs required a slash and silently allowed `.env` and
+# `.env.local`, the most common secret files — and so case variants (`.ENV`,
+# `secrets.JSON`) can't dodge the guard on case-insensitive filesystems.
+# Templates (.env.example) and *.pub public keys are explicitly allowed.
+# Vector contract: tests/test_workbench.py (guard hook tests).
+base=$(printf '%s' "${FILE##*/}" | tr '[:upper:]' '[:lower:]')
 deny=""
 case "$base" in
     .env.example | .env.sample | .env.template | .env.dist | *.pub) ;; # safe templates / public keys

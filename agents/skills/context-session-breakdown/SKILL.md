@@ -33,7 +33,7 @@ Avoid noisy inventories. The goal is a usable snapshot, not a full repo audit.
 
 ## Standard output template
 
-```md
+```markdown
 ## Context snapshot
 
 ### Goal
@@ -60,7 +60,7 @@ Avoid noisy inventories. The goal is a usable snapshot, not a full repo audit.
 
 When the user asks for a prompt to continue in a new chat, add:
 
-```md
+```markdown
 ## Bootstrap prompt
 
 You are working in <repo/path>. The current goal is <goal>.

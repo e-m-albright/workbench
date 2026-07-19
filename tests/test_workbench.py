@@ -27,6 +27,12 @@ class WorkbenchTests(unittest.TestCase):
             check=False,
         )
 
+    def deploy_skills(self, home: Path, *roots: str) -> None:
+        for root in roots:
+            for source in wb.AGENTS.glob("skills/*"):
+                if source.is_dir() and (source / "SKILL.md").exists():
+                    wb.shutil.copytree(source, home / root / source.name)
+
     def test_merge_mcp_preserves_external_and_removes_tombstones(self) -> None:
         merged = wb.merge_mcp(
             {
@@ -99,7 +105,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn("██╗    ██╗", result.stdout)
         self.assertIn("Usage: workbench [OPTIONS] COMMAND [ARGS]...", result.stdout)
         self.assertIn("Options", result.stdout)
-        self.assertIn("Configuration — deploy and validate agent state", result.stdout)
+        self.assertIn("Configuration — deploy, verify, and validate", result.stdout)
         self.assertIn("sync [claude|codex|all]", result.stdout)
         self.assertIn("check [claude|codex|all]", result.stdout)
         self.assertIn("--no-skills", result.stdout)
@@ -387,10 +393,7 @@ class WorkbenchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
             wb.sync_claude(home, deploy_skills=False)
-            skill_root = home / ".claude/skills"
-            for source in wb.AGENTS.glob("skills/*"):
-                if source.is_dir():
-                    wb.shutil.copytree(source, skill_root / source.name)
+            self.deploy_skills(home, ".claude/skills")
 
             self.assertEqual(
                 wb.check(home, ("claude",), verify_plugins=False), 0
@@ -410,10 +413,7 @@ class WorkbenchTests(unittest.TestCase):
             home = Path(raw)
             wb.sync_claude(home, deploy_skills=False, deploy_plugins=False)
             wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
-            for root in (home / ".claude/skills", home / ".agents/skills"):
-                for source in wb.AGENTS.glob("skills/*"):
-                    if source.is_dir():
-                        wb.shutil.copytree(source, root / source.name)
+            self.deploy_skills(home, ".claude/skills", ".agents/skills")
 
             self.assertEqual(
                 wb.check(home, ("claude", "codex"), verify_plugins=False), 0
@@ -424,11 +424,7 @@ class WorkbenchTests(unittest.TestCase):
             home = Path(raw)
 
             wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
-            for source in wb.AGENTS.glob("skills/*"):
-                if source.is_dir() and (source / "SKILL.md").exists():
-                    wb.shutil.copytree(
-                        source, home / ".agents/skills" / source.name
-                    )
+            self.deploy_skills(home, ".agents/skills")
 
             quick = home / ".codex/quick.config.toml"
             deep = home / ".codex/deep.config.toml"
@@ -576,11 +572,7 @@ js_repl = false
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
             wb.sync_codex(home, deploy_skills=False, deploy_plugins=False)
-            for source in wb.AGENTS.glob("skills/*"):
-                if source.is_dir() and (source / "SKILL.md").exists():
-                    wb.shutil.copytree(
-                        source, home / ".agents/skills" / source.name
-                    )
+            self.deploy_skills(home, ".agents/skills")
             config = home / ".codex/config.toml"
             config.write_text(
                 config.read_text()
@@ -593,7 +585,7 @@ js_repl = false
 
             self.assertEqual(exit_code, 1)
             self.assertIn(
-                "DRIFT codex tombstoned MCP still present: context7",
+                "DRIFT retired codex MCP still present: context7",
                 output.getvalue(),
             )
 
@@ -669,6 +661,37 @@ js_repl = false
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("--no-verify", result.stderr)
+
+    def test_destructive_guard_blocks_alias_escape_and_eval(self) -> None:
+        for command in (r"\rm -rf build", 'x="rm -rf build"; eval $x'):
+            with self.subTest(command=command):
+                result = self.run_hook(
+                    "guard-destructive-shell.sh",
+                    {"tool_input": {"command": command}},
+                )
+
+                self.assertEqual(result.returncode, 2, result.stderr)
+
+    def test_sensitive_guard_blocks_secret_files_case_insensitively(self) -> None:
+        for path in (".env", ".ENV", "conf/secrets.JSON", "id_ed25519", "api.KEY"):
+            with self.subTest(path=path):
+                result = self.run_hook(
+                    "guard-sensitive-file.sh",
+                    {"tool_input": {"file_path": path}},
+                )
+
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("sensitive file", result.stderr)
+
+    def test_sensitive_guard_allows_templates_and_ordinary_files(self) -> None:
+        for path in (".env.example", "keys.pub", "src/main.py"):
+            with self.subTest(path=path):
+                result = self.run_hook(
+                    "guard-sensitive-file.sh",
+                    {"tool_input": {"file_path": path}},
+                )
+
+                self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":

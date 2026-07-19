@@ -33,7 +33,7 @@ deno x -A npm:playwright test
 
 **WebRTC / Daily.co setup** — Daily's "headless robot" pattern uses Chromium launch flags:
 
-```ts
+```typescript
 // playwright.config.ts
 use: {
   launchOptions: {
@@ -112,7 +112,7 @@ Note: Playwright-the-*framework* (Tier 1 tests) is a different layer than Playwr
 npm install @browserbasehq/stagehand
 ```
 
-```ts
+```typescript
 import { Stagehand } from '@browserbasehq/stagehand';
 
 const stagehand = new Stagehand({ env: 'LOCAL' });

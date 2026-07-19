@@ -1,6 +1,6 @@
-# Code-Style
+# Style
 
-> **Canon** — the aesthetic enforcement of P5 (*simplicity is the goal*), P2 (*type the domain*), P3 (*one source of truth*) and the kernel's "write code that reads like the surrounding code." Behavior-preserving (Tier A); safety verified by tests, "better" gated by taste and recorded. See [health/README.md](../../../../health/README.md).
+> **Canon** — the aesthetic enforcement of Principle 5 (*Simplicity is the goal*), Principle 2 (*Type the domain, not the plumbing*), Principle 3 (*One source of truth per concept*) and the kernel's "write code that reads like the surrounding code." Behavior-preserving (Tier A); safety verified by tests, "better" gated by taste and recorded. See [health/README.md](../../../../health/README.md).
 
 The **aesthetic pole** of the portfolio. The other form lenses make code *correct* (Tier B), *deep* (form-deepen), *legible to a newcomer* (form-clarify), *minimal* (form-prune), *testable* (form-purify), *tidy* (form-tidy). This one does the last thing, the thing none of them name: it makes code **elegant** — the work of a senior, grumpy, aesthetically uncompromising principal who reads your already-passing, already-clear code and is still not satisfied.
 

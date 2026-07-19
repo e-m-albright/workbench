@@ -39,7 +39,7 @@ Rules of thumb:
 
 ## 4. Set up the symlinks
 
-```sh
+```bash
 ln -sf AGENTS.md CLAUDE.md
 ln -sf AGENTS.md GEMINI.md
 ```

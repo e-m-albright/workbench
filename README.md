@@ -214,7 +214,7 @@ playbook/                engineering doctrine, stack guidance, and research
 health/                  portable deterministic checks and review rubrics
 docs/decisions/          durable architectural decisions and tombstones
 scripts/workbench.py     dependency-free deployment and verification CLI
-tests/                   deterministic CLI, sync, drift, and safety tests
+tests/                   deterministic CLI, sync, drift, and guard-hook tests
 bin/workbench            relocatable shell launcher
 ```
 
