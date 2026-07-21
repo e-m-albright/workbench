@@ -16,6 +16,8 @@ Snapshot of what the pi harness can do, what third parties have built on it, and
 | Session stats (tokens, cache, cost, ctx, model+effort, git) | **Have it** - our footer covers all of these |
 | Generation speed (tok/s) | **Done** 2026-07-21 (footer, per-turn output/elapsed) |
 | Auto-compact indicator | **Done** 2026-07-21 (static "(auto)"; extension API can't read the toggle) |
+| Fast-mode status | **Done** 2026-07-21 when the active model/session exposes it; red `fast ON`, dim `fast off` |
+| Branded startup mark | **Done** 2026-07-21 - compact orange π header; orange intentionally blends Dotfiles topaz + Workbench ruby |
 | Multi-session browser tabs | Gap - TUI is one session per terminal; tmux covers most of this |
 | Remote access (open-to-network + PIN) | Gap - the standout feature; phone access to running agents |
 | Agent-done desktop notifications | Gap - useful for long autonomous runs |

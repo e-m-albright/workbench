@@ -213,8 +213,10 @@ function authSegment(ctx: ExtensionContext, quotaState: QuotaState): string {
 	}
 }
 
-function costSegment(totalCost: number): string {
-	if (!totalCost) return "";
+function costSegment(ctx: ExtensionContext, totalCost: number): string {
+	// Subscription/local responses still carry hypothetical API-price metadata.
+	// Only surface dollars when this session is actually billed per token.
+	if (authClass(ctx) !== "paid" || !totalCost) return "";
 	return color("#d3b15f", `$${totalCost.toFixed(3)}`);
 }
 
@@ -242,6 +244,36 @@ function modelSegment(ctx: ExtensionContext): string {
 		case "paid":
 			return statusColor("danger", label);
 	}
+}
+
+type FastModeState = "on" | "off" | undefined;
+
+function fastModeState(ctx: ExtensionContext): FastModeState {
+	let state: FastModeState;
+	for (const entry of ctx.sessionManager.getEntries()) {
+		if ((entry as { type: string }).type !== "fast_mode_change") continue;
+		const change = entry as unknown as Record<string, unknown>;
+		const enabled = change.enabled ?? change.fastMode;
+		if (typeof enabled === "boolean") state = enabled ? "on" : "off";
+	}
+	if (state) return state;
+
+	const model = ctx.model as unknown as Record<string, unknown> | undefined;
+	if (!model) return undefined;
+	const direct = model.fastMode ?? model.fast;
+	if (typeof direct === "boolean") return direct ? "on" : "off";
+
+	const tier = model.serviceTier;
+	if (tier === "priority") return "on";
+	if (tier === "default" && model.supportsFastMode === true) return "off";
+	if (model.supportsFastMode === true) return "off";
+	return undefined;
+}
+
+function fastModeSegment(ctx: ExtensionContext): string {
+	const state = fastModeState(ctx);
+	if (!state) return "";
+	return state === "on" ? statusColor("danger", "fast ON") : dim("fast off");
 }
 
 function parsePositiveNumber(value: string | undefined): number | undefined {
@@ -334,7 +366,7 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 
 	if (lastSpeed !== undefined) groups.push(dim(`${lastSpeed.toFixed(0)} tok/s`));
 
-	const cost = costSegment(totalCost);
+	const cost = costSegment(ctx, totalCost);
 	if (cost) groups.push(cost);
 	groups.push(authSegment(ctx, quotaState));
 
@@ -345,8 +377,12 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 		leftWidth = visibleWidth(left);
 	}
 
+	const rightParts = [modelSegment(ctx)];
 	const thinking = thinkingSegment(ctx);
-	const right = thinking ? `${modelSegment(ctx)}${dim(" \u00b7 ")}${thinking}` : modelSegment(ctx);
+	if (thinking) rightParts.push(thinking);
+	const fastMode = fastModeSegment(ctx);
+	if (fastMode) rightParts.push(fastMode);
+	const right = rightParts.join(dim(" \u00b7 "));
 	const rightWidth = visibleWidth(right);
 	let statsLine: string;
 	if (leftWidth + 2 + rightWidth <= width) {

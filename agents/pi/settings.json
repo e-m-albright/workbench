@@ -1,13 +1,14 @@
 {
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5",
+  "defaultModel": "gpt-5.6-sol",
   "defaultThinkingLevel": "medium",
-  "shellCommandPrefix": "shopt -s expand_aliases\neval \"$(grep '^alias ' $HOME/dotfiles/shell/.zshrc)\"",
+  "shellCommandPrefix": "shopt -s expand_aliases\neval \"$(grep '^alias ' $HOME/code/public/dotfiles/shell/.zshrc)\"",
   "defaultPreset": "dev",
   "safeGit": {
-    "promptLevel": "medium",
+    "promptLevel": "high",
     "enabledByDefault": true
   },
   "packages": [],
-  "lastChangelogVersion": "0.79.1"
+  "lastChangelogVersion": "0.81.0",
+  "theme": "dark"
 }

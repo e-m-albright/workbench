@@ -26,8 +26,8 @@
       "patterns": ["\\bkill\\b", "\\bkillall\\b", "\\bpkill\\b", "\\blaunchctl\\b"]
     },
     {
-      "name": "destructive git or state-changing git",
-      "patterns": ["\\bgit\\s+add\\b", "\\bgit\\s+branch\\s+-[dD]\\b", "\\bgit\\s+checkout\\b", "\\bgit\\s+cherry-pick\\b", "\\bgit\\s+clean\\b", "\\bgit\\s+commit\\b", "\\bgit\\s+merge\\b", "\\bgit\\s+pull\\b", "\\bgit\\s+push\\b", "\\bgit\\s+rebase\\b", "\\bgit\\s+reset\\b", "\\bgit\\s+restore\\b", "\\bgit\\s+stash\\s+(drop|clear)\\b", "\\bgit\\s+switch\\b", "\\bgit\\s+tag\\b", "\\bgit\\s+worktree\\b"]
+      "name": "destructive or history-changing git",
+      "patterns": ["\\bgit\\s+branch\\s+-[dD]\\b", "\\bgit\\s+checkout\\b", "\\bgit\\s+cherry-pick\\b", "\\bgit\\s+clean\\b", "\\bgit\\s+merge\\b", "\\bgit\\s+pull\\b", "\\bgit\\s+push\\s+.*--force(-with-lease)?\\b", "\\bgit\\s+rebase\\b", "\\bgit\\s+reset\\b", "\\bgit\\s+restore\\b", "\\bgit\\s+stash\\s+(drop|clear)\\b", "\\bgit\\s+switch\\b", "\\bgit\\s+tag\\b", "\\bgit\\s+worktree\\b"]
     },
     {
       "name": "mutating GitHub CLI command",

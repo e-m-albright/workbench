@@ -36,7 +36,7 @@ interface SafeGitConfig {
 }
 
 const DEFAULT_CONFIG: Required<SafeGitConfig> = {
-  promptLevel: "medium",
+  promptLevel: "high",
   enabledByDefault: true,
 };
 
