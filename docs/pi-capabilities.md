@@ -33,6 +33,21 @@ Verdict at review time: **don't migrate.** Trust surface of a dev-version single
 4. **Remote access, if ever needed** - prefer tailscale + SSH/tmux over adopting the community web UI's PIN model; audit first if the package is ever installed.
 5. **Speed-based model comparison** - with tok/s now logged in the footer, a future extension could record per-model speed/cost history to inform auto vs explicit model choice.
 
+## Discovery telemetry experiment (started 2026-07-21)
+
+A disposable, local-only experiment to identify where model navigation wastes time before building LSP or repository-index infrastructure.
+
+- Extension: `agents/pi/extensions/discovery-telemetry.ts`
+- Config: `agents/pi/settings.json#discoveryTelemetry`
+- Raw state: `~/.local/state/workbench/pi-discovery/YYYY-MM-DD.jsonl`
+- Commands: `/discovery status|on|off|report|clear`
+- Retention: 7 days; 5 MB/day cap; trusted projects only
+- Never persisted: prompts, responses, source contents, patches, search terms, complete commands, environment, URLs, credentials
+
+**Removal is intentionally complete and mechanical:** delete the one extension (canonical + deployed copy), remove the `discoveryTelemetry` settings block, and delete `~/.local/state/workbench/pi-discovery/`. No shared agent code depends on it.
+
+Review after one week. Keep only if it identifies a concrete change (narrow LSP operations, better project maps, affected-test selection, or documentation fixes); otherwise remove it and clear the logs.
+
 ## Notes
 
 - The extension API does not expose: auto-compaction state, rate-limit windows (except Codex response headers), or a direct thinking-level getter (we read `thinking_level_change` session entries instead).

@@ -8,7 +8,12 @@
     "promptLevel": "high",
     "enabledByDefault": true
   },
+  "discoveryTelemetry": {
+    "enabledByDefault": true,
+    "retentionDays": 7,
+    "maxBytesPerDay": 5000000
+  },
   "packages": [],
-  "lastChangelogVersion": "0.81.0",
+  "lastChangelogVersion": "0.81.1",
   "theme": "dark"
 }
