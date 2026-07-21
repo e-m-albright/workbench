@@ -523,6 +523,14 @@ Tier 3 - At Scale (production systems with SLOs)
 └── Full OTel correlation
 ```
 
+> **Status check (2026-07):** OTel reached **CNCF graduated** status in May 2026
+> (same tier as Kubernetes/Prometheus) — the pick is validated, no migration risk.
+> Notable for us: **profiling** is now a fourth first-class signal alongside
+> traces/logs/metrics; **GenAI semantic conventions** cover agentic workflows
+> (adopt these for any agent product — Strands, Rig, and Genkit already emit
+> them); the **OpenTelemetry Injector** does zero-code instrumentation; **Weaver**
+> governs telemetry schemas at scale.
+
 ### OpenTelemetry Setup (Python)
 
 ```python

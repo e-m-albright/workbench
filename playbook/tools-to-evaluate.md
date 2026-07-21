@@ -68,6 +68,17 @@ Bookmarked tools and services worth investigating.
 - **[Leptos](https://leptos.dev)** -- Rust full-stack web framework. Evaluate for Rust-heavy teams.
 - **[Dioxus](https://dioxuslabs.com/)** -- Rust full-stack crossplatform app framework (web, desktop, mobile). Alternative to Leptos; evaluate when a single Rust codebase needs to ship to multiple platforms.
 - **Enhance** -- Backend-first web framework. Read: [How To Build an App With Enhance](https://thenewstack.io/how-to-build-an-app-with-enhance-a-backend-first-framework/).
+- **[Astryx](https://astryx.atmeta.com/)** (Meta, beta 2026) -- OSS design system: React + StyleX, 160+ accessible themeable components, dark mode, CLI scaffolding + theme generation. Grown internally at Meta for 8 years; claims 13k+ apps. The notable part for us: **"agent ready" is a first-class pitch** -- agent-oriented docs plus an MCP server, i.e. a design system built to be *consumed by coding agents*, not just humans. Tension: React-coupled, so per our classifier it's a skip for the Svelte stack -- evaluate for any React surface, and **study it as the reference pattern for agent-ready component docs/MCP regardless of framework**.
+
+## Drop-in performance swaps
+
+The recurring pattern: a native (usually Rust) reimplementation of a slow
+interpreted tool behind the *same API*, adoptable by swapping an import or
+binary. Already-committed swaps live in the stacks docs (ruff, uv, Biome/Oxlint,
+fnm); candidates below are watch-only. Evaluation bar: API parity %, independent
+(not self-reported) benchmarks, and out-of-beta status.
+
+- **[rustwright](https://github.com/Skyvern-AI/rustwright)** (Skyvern AI, MIT) -- Playwright's API on a native Rust engine speaking CDP directly, eliminating the Node driver subprocess. Claims 2.55x faster / 70% less memory vs playwright-python -- self-reported, "not yet capped-CI evidence" by their own admission. ~96% sync-Python API coverage (515/536 methods); **explicitly early alpha**. Caveats: Chromium-only (Firefox/WebKit error out), Python async wraps the sync engine via threads (≤25 concurrent workflows), cross-origin iframe gaps. Verdict: legit team (Skyvern is the browser-agent company) and honestly-labeled claims, but not production-ready. Import-swap makes trialing cheap -- revisit at beta + independent benchmarks. Would slot under `browser-tooling` if adopted.
 
 ## CMS / Content
 
@@ -146,6 +157,7 @@ Bookmarked tools and services worth investigating.
 - **[Magic Patterns](https://magicpatterns.com/)** -- AI tool for generating UI/UX patterns from text prompts. Pitched as "describe a UI, get production-ready React/Tailwind code." Mentioned in Garry Tan's "20x Company" video as part of the toolchain that lets tiny teams ship product surface area without dedicated design hires. Evaluate when prototyping needs to skip the Figma round-trip; reality-check the code quality before committing.
 - **[LLMLingua](https://github.com/microsoft/LLMLingua)** -- Microsoft's LLM-based prompt-compression library. Compresses long contexts by an order of magnitude while preserving most task accuracy, via a small model that scores token importance. Pairs with [[Knowledge/LLMs-and-AI/Context-Engineering]]: high-leverage when prompts are bumping the cost/latency budget and reranking alone isn't enough.
 - **[Vercel AI SDK](https://ai-sdk.dev)** -- TypeScript framework providing a unified interface across 100+ LLMs / 16+ providers for text, image, speech, video, tools, and structured output. Provider-agnostic (swap OpenAI/Anthropic/Google with a one-line change); first-class streaming primitives for React/Next/Vue/Svelte/Node. OSS (Apache 2.0), 13M weekly downloads, 24.2k stars. Default for any TS-based product needing LLM calls with streaming without provider lock-in. Cookbook example -- [Natural Language Postgres](https://ai-sdk.dev/cookbook/guides/natural-language-postgres) (NL-to-SQL with GPT-4o + Zod + auto-charting).
+- **[OpenWiki](https://www.langchain.com/blog/openwiki-0-2-adds-okf-support)** -- LangChain's OSS CLI that generates and maintains a wiki for a codebase and keeps it synced as code changes, built for coding-agent consumption. 0.2 (2026-07) adds **OKF (Open Knowledge Format)** -- a Google Cloud-proposed standard for knowledge wikis (YAML front matter with tags/categories, `index.md` summaries, `logs.md` changelogs) so agents can do cheap deterministic tag lookups instead of open-ended search. Inspired by **DeepWiki** (Cognition's hosted talk-to-a-repo docs, Devin-powered) and Karpathy's LLM-wiki concept. For our small hand-curated repos, AGENTS.md + this playbook already fill the role; evaluate when dropping agents into a large unfamiliar codebase. Watch OKF itself as the possible standard for agent-readable docs.
 - **[spec-kit](https://github.com/github/spec-kit)** -- GitHub's OSS toolkit for spec-driven development. Slash commands (`/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement`) walk an AI agent from intent through implementation. Works across 30+ agents (Copilot, Claude, Gemini, etc.). **Compare against** the `planning` skill before adopting -- significant overlap; pick one discipline.
 - **[Jules (Google)](https://jules.google)** -- Async coding agent (Gemini-powered) that clones your repo into a Google Cloud VM and works in the background, returning a PR. Fire-and-forget execution model; concurrent task support; "Jules Tools" CLI for scripting. Three tiers: free, Google AI Pro, Google AI Ultra (multi-agent). Evaluate as an alternative to Codex Cloud / Claude Code background tasks for backlog churn (deps bumps, test writing, small features).
 - **[Claude in Chrome (beta)](https://code.claude.com/docs/en/chrome)** -- Anthropic's official Chrome extension + `claude --chrome` / `/chrome` slash command for browser automation: live debugging, design verification, form filling, data extraction, authenticated-app interaction. Requires Chrome/Edge, extension v1.0.36+, Claude Code v2.0.73+, direct Anthropic plan. **De facto Anthropic-blessed alternative to pinchtab / Playwright MCP** for browser-tied workflows.
@@ -153,6 +165,51 @@ Bookmarked tools and services worth investigating.
 - **[awesome-agent-skills (VoltAgent)](https://github.com/VoltAgent/awesome-agent-skills)** -- Curated index of 1,100+ agent skills from official teams (Anthropic, Google, Vercel, Stripe) and community contributors. Targets Claude Code, Codex, Gemini CLI, Cursor. Browse before writing a new skill from scratch.
 - **[AgentHub (jamesrochabrun)](https://github.com/jamesrochabrun/AgentHub)** -- Native macOS app (SwiftUI) for managing Claude Code and Codex CLI sessions: real-time monitoring, parallel terminal execution, integrated diffs, worktree creation, GitHub PR/issue browsing. Worth a look when juggling many parallel agent sessions exceeds tmux's ergonomics.
 - **[Anthropic Academy (Skilljar)](https://anthropic.skilljar.com/)** -- Anthropic's official training portal with 20+ courses on Claude tools, API, MCP, agent skills, and AI fluency. Skim for non-obvious capabilities -- this is "how Anthropic wants you to use Claude," authoritative.
+
+### Agent frameworks -- build-your-own-agent SDKs (2026-07 survey)
+
+For when we *build* an agent product rather than drive a coding harness. Weighted
+picks in bold; the rest catalogued so we don't re-derive the field.
+
+**TypeScript**
+
+- **[Mastra](https://mastra.ai/)** -- Agents, workflows, memory, evals, observability; from the Gatsby team, YC W25. Hit 1.0 in Jan 2026; ~22k stars, 300k+ weekly npm downloads; still shipping fast (Jul 2026 "Goals": durable objectives for long-running agents with LLM-judged evals). **Weighted pick: default for any TS agent build.** Composes with, rather than replaces, the Vercel AI SDK (which stays the lower-level provider layer). Caveat: no SOC 2 as of early 2026. Native MCP support.
+
+**Python**
+
+- **[Pydantic AI](https://ai.pydantic.dev/)** -- **Weighted pick: closest in spirit to Mastra** -- type-safe, model-agnostic, testing built in, deliberately light orchestration. Native MCP. Multi-agent orchestration still maturing.
+- **[LangGraph](https://langchain-ai.github.io/langgraph/)** -- Explicit graph-based stateful orchestration; maximum control, steepest learning curve. The "serious production workflow" default per most 2026 surveys. Native MCP. Reach for it only when the workflow genuinely needs durable multi-step state.
+- **[Agno](https://agno.com/)** -- Batteries-included agent *platform* (build/run/monitor, multi-agent teams). Opinionated; closer to Mastra's full-stack ambition than Pydantic AI.
+- **[Google ADK](https://google.github.io/adk-docs/)** -- Gemini/GCP-native; strongest for multimodal (video/voice/image) agents. Only if committed to GCP. MCP via adapters.
+- **[OpenAI Agents SDK](https://openai.github.io/openai-agents-python/)** -- Model-driven loop with built-in tracing; tight integration with OpenAI hosted tools but works with 100+ models. Native MCP.
+- **[smolagents](https://github.com/huggingface/smolagents)** (Hugging Face) -- Code-first: agents write and execute Python instead of JSON tool calls. Fastest setup for a single-agent loop; no native MCP.
+- **[AWS Strands Agents](https://strandsagents.com/)** -- AWS's model-driven SDK, Bedrock-native, OTel-first (X-Ray/CloudWatch). Same "give the model tools and get out of the way" stance as smolagents. Native MCP.
+- **[CrewAI](https://www.crewai.com/)** -- Role-based multi-agent crews. Popular but MCP only via shims; surveys increasingly rank it behind LangGraph/Pydantic AI for production.
+
+**.NET / Java-shaped enterprises**
+
+- **[Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/)** -- AutoGen + Semantic Kernel merged into one .NET + Python SDK; 1.0 GA 2026-04. The Azure-enterprise default; note as the answer to "what happened to AutoGen/SK".
+
+**Rust / Go** (crossed to production-viable in 2026)
+
+- **[Rig](https://rig.rs/)** (Rust) -- Dominant Rust option, ~7.6k stars; 20+ providers, 10+ vector stores, OTel GenAI conventions, WASM, MCP. Real deployments (Cloudflare, Neon, Nethermind, St. Jude). Benchmarks claim ~5x memory reduction and 25-44% latency wins vs Python equivalents -- re-verify before citing.
+- **[Eino](https://github.com/cloudwego/eino)** (Go) -- ByteDance CloudWeGo's component-based framework, 11k+ stars; LangChain-inspired but Go-idiomatic, built for massive-scale serving.
+- **[Genkit Go](https://genkit.dev/)** (Go) -- Google's production-ready GenAI framework for Go; streaming, evals, tracing built in.
+
+### Personal AI assistants / always-on agents (2026-07 watch)
+
+A distinct category from coding harnesses and agent SDKs: persistent assistants
+that live in your messaging channels, hold cross-session memory, and act on your
+behalf. Same skepticism applies as Tier-3 harnesses (they hide a lot, and the
+self-hosted ones are a standing security surface — broad machine access + inbound
+messages from many channels). Watch, not adopt, until one earns trust.
+
+- **[OpenClaw](https://openclaw.ai/)** -- The viral one (200k+ GitHub stars). Local-first OSS personal agent by Peter Steinberger (PSPDFKit), BYOK, 24 messaging channels (WhatsApp/Telegram/Slack/iMessage/Signal/...), community plugin ecosystem, writes its own skills. Governance moved to a 7-person steering committee after Steinberger joined OpenAI (early 2026). Biggest open question for us: the attack surface of an autonomous agent bridged to every inbox.
+- **[Hermes Agent](https://hermes-agent.org/)** (Nous Research, Feb 2026) -- OSS self-improving personal agent on your own infra. Three-layer memory (skills / conversational / user model), 20+ messaging platforms via one gateway, 40+ tools, 6 terminal backends (local→Docker→SSH→Modal), multi-provider LLM + browser automation as of v0.18 (Jul 2026). The "own your assistant" analog of our Pi bet -- philosophically closest to us.
+- **[Town](https://www.town.com/)** -- Proprietary, email-native EA: you get an `@town.com` address and delegate like to a human assistant (inbox, calendar, Slack, docs). Founded by ex-Plaid CTO + ex-Google applied-AI lead; $55M Series A from a16z/Forerunner (Jun 2026). The polished rent-don't-own pole of this category.
+- **[Poke](https://poke.com/)** (The Interaction Company) -- Messaging-native agent: no app, you text it (iMessage/SMS/Telegram/WhatsApp) and it acts on email/calendar/files -- drafts replies, reschedules, books travel. Launched Mar 2026; $300M valuation (Spark/General Catalyst); first third-party AI agent approved on Apple's Messages for Business (Jun 2026). Town's competitor with texting instead of email as the interface.
+- **[Lindy](https://www.lindy.ai/)** -- Cloud "AI employee" -- proactive email management, scheduling, business workflow automation. The no-code/business-buyer pole; less interesting to us than the self-hosted options but a category anchor.
+- **Claude Cowork** (Anthropic) / **Perplexity Computer** -- The frontier-lab managed takes: autonomous desktop work and cloud agent grounded in live web research respectively. Track as the "the platform does it for you" endgame that squeezes the independents above.
 
 ### AI coding agents -- alternatives to evaluate against Claude Code / Codex / Cursor
 

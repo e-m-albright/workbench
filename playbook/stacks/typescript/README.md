@@ -43,7 +43,7 @@ Selection is *what* to reach for. Idioms below are *how* to use them. Detect the
 |------|------|-------|
 | Desktop app | **Tauri** | Only when you need native distribution |
 | Client analytics | **DuckDB-WASM** | Heavy client-side data processing |
-| Observability | **OpenTelemetry** | When 2+ services call each other; OTLP export (browser + node SDKs) |
+| Observability | **OpenTelemetry** | When 2+ services call each other; OTLP export (browser + node SDKs). CNCF-graduated 2026-05; use the GenAI semconv for agent work -- status check in [infrastructure.md](../infrastructure.md) |
 | Monorepo build | **Turborepo** | Simplest, Vercel-maintained. Over nx (plugin-heavy), moon (Rust-based) |
 | Large-repo lint | **Oxlint**, when speed or type-aware rules materially help | It does not replace framework semantic checks |
 | Published JS/TS library | **tsdown**, when declarations or multiple outputs are required | Adding a library packager to ordinary apps |

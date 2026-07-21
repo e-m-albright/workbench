@@ -35,7 +35,7 @@ Selection guidance is *what* to reach for; idioms and patterns below cover *how*
 
 | Need          | Pick                              | Notes                          |
 |---------------|-----------------------------------|--------------------------------|
-| Observability | **OpenTelemetry**                 | When 2+ services; OTLP export  |
+| Observability | **OpenTelemetry**                 | When 2+ services; OTLP export. CNCF-graduated 2026-05 -- status check in [infrastructure.md](../infrastructure.md) |
 | Docs          | **Starlight (Astro)** or **pkgsite** | Users vs. API audience      |
 
 ### Background jobs & server-rendered HTML
