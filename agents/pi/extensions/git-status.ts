@@ -192,12 +192,9 @@ function gitSegment(state: GitState): string {
 function authClass(ctx: ExtensionContext): "local" | "subscription" | "paid" {
 	const model = ctx.model;
 	if (!model) return "paid";
-	const isZeroCost =
-		model.cost.input === 0 &&
-		model.cost.output === 0 &&
-		model.cost.cacheRead === 0 &&
-		model.cost.cacheWrite === 0;
-	if (model.provider.includes("lm-studio") || model.provider.includes("ollama") || isZeroCost) return "local";
+	const baseUrl = (model.baseUrl ?? "").toLowerCase();
+	const isLocalHost = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1") || baseUrl.includes("[::1]");
+	if (model.provider.includes("lm-studio") || model.provider.includes("ollama") || isLocalHost) return "local";
 	if (ctx.modelRegistry.isUsingOAuth(model)) return "subscription";
 	return "paid";
 }
