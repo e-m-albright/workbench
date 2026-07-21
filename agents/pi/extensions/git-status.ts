@@ -269,6 +269,8 @@ function quotaFromHeaders(headers: Record<string, string>): QuotaState {
 	return { kind: "unknown" };
 }
 
+let lastSpeed: number | undefined;
+
 function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: QuotaState, width: number): string[] {
 	const theme = ctx.ui.theme;
 	const entries = ctx.sessionManager.getEntries();
@@ -308,25 +310,29 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 	const contextTokens = usage?.tokens === null || usage?.tokens === undefined ? "?" : formatTokens(usage.tokens);
 	const groupSep = dim(" \u2502 ");
 
+	// "(auto)" is static text: the extension API does not expose the
+	// auto-compaction toggle, and pi enables it by default.
 	const groups = [
 		severityColor(
 			contextSeverity(usage?.percent, usage?.tokens),
 			`ctx ${contextPercent}% ${contextTokens}/${formatTokens(contextWindow)}`,
-		),
+		) + dim(" (auto)"),
 	];
 
 	const tokenParts: string[] = [];
-	if (totalInput) tokenParts.push(statusColor("good", `\u2191${formatTokens(totalInput)}`));
-	if (totalOutput) tokenParts.push(statusColor("note", `\u2193${formatTokens(totalOutput)}`));
+	if (totalInput) tokenParts.push(statusColor("good", `in ${formatTokens(totalInput)}`));
+	if (totalOutput) tokenParts.push(statusColor("note", `out ${formatTokens(totalOutput)}`));
 	if (tokenParts.length > 0) groups.push(tokenParts.join(dim(" ")));
 
 	const cacheParts: string[] = [];
-	if (totalCacheRead) cacheParts.push(dim(`R${formatTokens(totalCacheRead)}`));
-	if (totalCacheWrite) cacheParts.push(dim(`W${formatTokens(totalCacheWrite)}`));
+	if (totalCacheRead) cacheParts.push(dim(`cache ${formatTokens(totalCacheRead)}`));
+	if (totalCacheWrite) cacheParts.push(dim(`cached ${formatTokens(totalCacheWrite)}`));
 	if (latestCacheHitRate !== undefined && (totalCacheRead > 0 || totalCacheWrite > 0)) {
-		cacheParts.push(cacheHitColor(latestCacheHitRate, `CH${latestCacheHitRate.toFixed(0)}%`));
+		cacheParts.push(cacheHitColor(latestCacheHitRate, `hit ${latestCacheHitRate.toFixed(0)}%`));
 	}
 	if (cacheParts.length > 0) groups.push(cacheParts.join(dim(" ")));
+
+	if (lastSpeed !== undefined) groups.push(dim(`${lastSpeed.toFixed(0)} tok/s`));
 
 	const cost = costSegment(totalCost);
 	if (cost) groups.push(cost);
@@ -406,6 +412,29 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("user_bash", async (_event, ctx) => {
 		await refresh(ctx);
+	});
+
+	let turnStart = 0;
+	let turnEntryCount = 0;
+
+	pi.on("turn_start", async (_event, ctx) => {
+		turnStart = Date.now();
+		turnEntryCount = ctx.sessionManager.getEntries().length;
+	});
+
+	pi.on("turn_end", async (_event, ctx) => {
+		if (!turnStart) return;
+		const elapsedSec = (Date.now() - turnStart) / 1000;
+		turnStart = 0;
+		if (elapsedSec < 0.5) return;
+		let output = 0;
+		for (const entry of ctx.sessionManager.getEntries().slice(turnEntryCount)) {
+			if (entry.type === "message" && entry.message.role === "assistant") {
+				output += (entry.message as AssistantMessage).usage.output;
+			}
+		}
+		if (output > 0) lastSpeed = output / elapsedSec;
+		requestRender?.();
 	});
 
 	pi.on("after_provider_response", async (event, ctx) => {
