@@ -423,7 +423,7 @@ export default function (pi: ExtensionAPI) {
 		ctx.ui.setStatus("git-dirty", undefined);
 		await refresh(ctx);
 
-		ctx.ui.setFooter((tui) => {
+		ctx.ui.setFooter((tui, _theme, footerData) => {
 			requestRender = () => tui.requestRender();
 			return {
 				dispose() {
@@ -431,7 +431,20 @@ export default function (pi: ExtensionAPI) {
 				},
 				invalidate() {},
 				render(width: number): string[] {
-					return renderFooter(ctx, gitState, quotaState, width);
+					const lines = renderFooter(ctx, gitState, quotaState, width);
+					const provider = footerData as unknown as {
+						getExtensionStatuses?: () => ReadonlyMap<string, string>;
+					};
+					const statuses = provider.getExtensionStatuses?.();
+					if (!statuses || statuses.size === 0) return lines;
+					const text = [...statuses.entries()]
+						.sort(([a], [b]) => a.localeCompare(b))
+						.map(([, status]) => status.replace(/[\r\n\t]+/g, " ").trim())
+						.join(" ");
+					const inline = `${lines[0]}${dim(" │ ")}${text}`;
+					if (visibleWidth(inline) <= width) lines[0] = inline;
+					else lines.push(truncateToWidth(text, width, dim("...")));
+					return lines;
 				},
 			};
 		});
