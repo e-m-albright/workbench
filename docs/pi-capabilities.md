@@ -21,7 +21,7 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded |
 | Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, protected read/write paths, remote-MCP default-deny, self-modification protection |
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
-| Presets (`presets.ts` + JSON) | Extension | `plan` (read-only, plan contract), `read`, `safe-auto`, `dev` |
+| Presets (`presets.ts` + JSON) | Extension | `plan` (read-only, plan contract), `sources` (connector reads only, no shell/edit — the prompt-injection containment mode), `read`, `safe-auto`, `dev` |
 | Consult (`consult.ts`) | Extension | `/consult` second opinion via Claude, Codex, or Fable |
 | Worker (`worker.ts`) | Extension | `/worker` — one worktree-isolated child Pi; parent-owned review and merge |
 | Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
