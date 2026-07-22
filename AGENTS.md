@@ -13,6 +13,23 @@ The adjacent repositories own different state:
 - `notes` owns private knowledge, CRM data, daily pages, personal automation
   instances, and generated operational state.
 
+## The notes vault and CLI
+
+Personal operating state lives in the Obsidian vault at
+`~/code/private/notes` (its own `AGENTS.md` holds vault conventions). When
+asked about "the daily brief", "today", queues, or people, go there first —
+not Gmail, Drive, or artifacts:
+
+- Daily Work brief: `_daily/work/YYYY-MM-DD.md` ("the daily folder"; journal
+  and exercise lanes sit alongside it).
+- Action queues: `_queue_work.md` and `_queue_life.md` at the vault root —
+  the only two durable action lists.
+- The `notes` CLI (on PATH; source in `~/code/private/notes`) is the default
+  read surface: `notes today` (day at a glance: rhythm, brief remainder, due
+  + upcoming), `notes people`, `notes health`, `notes velocity`, `notes open
+  <page>`. `notes --help` lists agent workflows (brief, track, pulse, queue,
+  outreach-prep, ...). Prefer these over re-deriving state by hand.
+
 ## Constraints
 
 - Optimize for the owner's workflow, not unknown users or machines.
