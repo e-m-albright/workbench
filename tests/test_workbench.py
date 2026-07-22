@@ -392,7 +392,8 @@ class WorkbenchTests(unittest.TestCase):
 
             self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 0)
 
-    def test_temporary_home_sync_and_check_all_vendors(self) -> None:
+    @patch.object(drift_mod.shutil, "which", return_value="/usr/local/bin/pi")
+    def test_temporary_home_sync_and_check_all_vendors(self, _which) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
             sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
@@ -405,7 +406,8 @@ class WorkbenchTests(unittest.TestCase):
                 0,
             )
 
-    def test_pi_sync_preserves_external_state_and_detects_managed_drift(self) -> None:
+    @patch.object(drift_mod.shutil, "which", return_value="/usr/local/bin/pi")
+    def test_pi_sync_preserves_external_state_and_detects_managed_drift(self, _which) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
             pi_home = home / ".pi/agent"
