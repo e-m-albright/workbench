@@ -51,4 +51,15 @@ describe("Pi permission policy", () => {
 			"destructive or history-changing git",
 		);
 	});
+
+	test("restricts MCP to explicit auth and allowlisted read-only tools", () => {
+		expect(reason("mcp", { server: "gmail", tool: "gmail_search_threads" })).toBeUndefined();
+		expect(reason("mcp", { server: "google-calendar", tool: "google_calendar_list_events" })).toBeUndefined();
+		expect(reason("mcp", { server: "gmail", tool: "gmail_create_draft" })).toContain(
+			"not on the read-only allowlist",
+		);
+		expect(reason("mcp", { server: "gmail", action: "auth-start" })).toContain(
+			"initiated explicitly",
+		);
+	});
 });

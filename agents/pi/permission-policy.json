@@ -1,5 +1,25 @@
 {
   "defaultAction": "allow",
+  "mcpAllowedTools": [
+    "get_event",
+    "get_message",
+    "get_thread",
+    "gmail_get_message",
+    "gmail_get_thread",
+    "gmail_list_drafts",
+    "gmail_list_labels",
+    "gmail_search_threads",
+    "google_calendar_get_event",
+    "google_calendar_list_calendars",
+    "google_calendar_list_events",
+    "google_calendar_search_events",
+    "list_calendars",
+    "list_drafts",
+    "list_events",
+    "list_labels",
+    "search_events",
+    "search_threads"
+  ],
   "denyCommands": [
     {
       "name": "privileged shell",

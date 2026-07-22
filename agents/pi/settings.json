@@ -15,7 +15,10 @@
     "retentionDays": 7,
     "maxBytesPerDay": 5000000
   },
-  "packages": [],
+  "packages": [
+    "npm:pi-mcp-adapter@2.11.0",
+    "npm:pi-agent-browser-native@0.2.71"
+  ],
   "lastChangelogVersion": "0.81.1",
   "theme": "dark"
 }

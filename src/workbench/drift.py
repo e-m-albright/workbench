@@ -194,7 +194,11 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
             "Pi settings",
         )
     )
-    for filename, nested_key in (("models.json", "providers"), ("presets.json", None)):
+    for filename, nested_key in (
+        ("models.json", "providers"),
+        ("presets.json", None),
+        ("mcp.json", None),
+    ):
         actual = _settings(pi_home / filename)
         expected = _settings(AGENTS / "pi" / filename)
         if nested_key:

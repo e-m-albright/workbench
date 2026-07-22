@@ -104,6 +104,8 @@ vocabulary, and safety policy.
   skill.
 - `docs/decisions/tombstones.md` prevents rejected tools and approaches from
   being casually rediscovered and reintroduced.
+- `docs/pi-build-philosophy.md` records what the Pi harness adopts, rejects, and
+  holds for evidence, while `docs/pi-capabilities.md` records current behavior.
 
 ## Install
 

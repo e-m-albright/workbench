@@ -45,6 +45,36 @@ become first-class agent configuration targets merely because they can host an
 agent extension. Project instructions remain portable through `AGENTS.md` and
 the two managed vendor entry points.
 
+## Bounded parallelism
+
+Parallel agents buy isolated context and latency reduction only when their work
+is meaningfully independent. Agent count is not a throughput metric.
+
+- Keep architecture and cross-cutting decisions under one planner or explicit
+  owner. Do not delegate the same design question to competing writers.
+- Give workers bounded, non-overlapping scopes. Prefer read-only research fan-out
+  to many agents editing the same tree.
+- Persist shared decisions in a small canonical design document rather than
+  relying on agent-to-agent transcript sharing.
+- Route collisions to a neutral reconciler or the primary agent; workers should
+  not overwrite each other or improvise a merge without both contexts.
+- Use fresh-context review with a different model or evidence lens. Review is
+  usually cheaper than recreating flawed implementation work.
+- Watch conflict count, duplicated implementations, churn, retries, lines added,
+  and verified task completion. A high commit or tool-call rate can be thrash.
+
+Cursor's 2026 swarm experiments attribute much of their gain to planner-worker
+context separation, not parallelism itself. Their successful large runs also
+required custom version control, explicit decision propagation, conflict
+reconciliation, megafile controls, and stacked review. That infrastructure is a
+warning against extrapolating swarm-scale results to ordinary Git worktrees.
+
+Cost-optimal routing can use a strong model for decomposition and less expensive
+models for bounded execution, but measure the complete run. A weaker planner can
+consume fewer planning tokens while causing much larger worker spend.
+
+Source: Cursor, [Agent swarms and the new model economics](https://cursor.com/blog/agent-swarm-model-economics), July 2026.
+
 ## Evaluation boundary
 
 Candidates belong in [`../tools-to-evaluate.md`](../tools-to-evaluate.md).

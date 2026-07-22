@@ -51,6 +51,47 @@ When an advisory is genuinely unavoidable, **pin the ignore with a written justi
 
 GitHub Action tags are mutable and have been force-pushed to malware in real supply-chain attacks (the `trivy-action` compromise, March 2026). Pin every third-party Action by full commit SHA; let Renovate/Dependabot bump the SHA with a changelog in the PR. Treat bumps to anything touching **transport or security defaults** (auth libs, OTEL, the HTTP stack, an MCP server lib) as manual-review — a semver-silent default change there can be a breaking change discovered only via prod errors.
 
+### Treat agent workspaces as active content
+
+An OS sandbox can correctly confine an agent and still lose the security
+boundary later. Files the agent writes may be interpreted by trusted host tools
+outside the sandbox: editor tasks, agent hooks, Git configuration, Python
+interpreter discovery, package scripts, build tools, or privileged local daemons.
+Prompt injection in a README, issue, dependency, or diff can therefore become
+host execution without a direct syscall escape.
+
+Practical rules:
+
+- Treat changes to `.claude`, `.vscode`, Git metadata, hooks, task files, package
+  scripts, virtual environments, and tool configuration as executable changes.
+  Review them before opening the project in a privileged editor or starting a new
+  agent session.
+- Do not rely on path denylists. Git metadata can live outside `.git`, and new
+  executable configuration surfaces appear faster than filename lists evolve.
+- Validate command semantics and arguments, not only the executable name. A
+  nominally read-only command can invoke helpers or configuration that executes
+  code.
+- Keep agents away from Docker sockets and other privileged local daemons unless
+  the task explicitly requires them. Access to a root-equivalent daemon defeats
+  filesystem containment.
+- Use an ephemeral clone, VM, or container for untrusted repositories and
+  untrusted issue or dependency content. Do not grant broad unsandboxed retries
+  merely because a command is incompatible with the sandbox.
+- Review the artifacts an agent leaves behind, not only its process behavior.
+  The important boundary is what trusted host software will execute next.
+
+This class is commonly called a **configuration-based sandbox escape**. The 2026
+reports affected Cursor, Codex, Gemini CLI, Antigravity, and earlier Claude Code
+flows. Most named vendor issues were patched, but the architectural lesson is
+broader than those versions.
+
+Sources: [BleepingComputer summary](https://www.bleepingcomputer.com/news/security/cursor-codex-gemini-cli-antigravity-hit-by-sandbox-escapes/), [Pillar Security's Week of Sandbox Escapes](https://www.pillar.security/blog/the-week-of-sandbox-escapes), and [Cymulate's configuration-based sandbox escape research](https://cymulate.com/blog/the-race-to-ship-ai-tools-left-security-behind-part-1-sandbox-escape/), July 2026.
+
+**Workbench follow-up:** audit the deployed Claude policy's
+`allowUnsandboxedCommands: true` escape hatch against this threat model. Do not
+change it from article evidence alone; test which recurring commands require it
+and whether narrower explicit exclusions preserve the workflow.
+
 ## Quick reference: adopt in this order
 
 1. **gitleaks** (pre-commit + CI) — blocks the single worst mistake; ~5-minute setup.

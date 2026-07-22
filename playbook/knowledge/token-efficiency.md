@@ -1,283 +1,208 @@
-# Token Efficiency & Model Performance
+# Token Efficiency and Model Performance
 
-> **Last reviewed**: 2026-04-24 — Refresh when new research or tools emerge.
+> **Last reviewed:** 2026-07-21 - Refresh when new measured evidence or billing behavior emerges.
 
-Strategies for reducing token consumption while improving model output quality. Less context, better results — backed by research.
+Reduce the total cost of correct work, not a local token proxy. An optimization
+is useful only when it lowers billed cost or latency without reducing task
+quality, increasing retries, or moving work into another token class.
 
----
+## Core principles
 
-## Core Principles
+1. **Measure the whole agent loop.** Prompt tokens, tool results, cache creation,
+   cache reads, output, retries, and extra turns all affect cost.
+2. **Estimate the reachable ceiling first.** Determine what fraction of the bill
+   a proposed optimization can influence before building or buying it.
+3. **Preserve quality.** Fewer tokens with worse task completion is not an
+   efficiency win.
+4. **Prefer structural reductions.** Remove irrelevant context, defer tools, and
+   isolate research before compressing text the model may need.
+5. **Treat self-reported savings as unverified.** A tool's counterfactual may not
+   match provider truncation, caching, tokenization, or billing.
 
-```
-Less input → better reasoning (Levy et al., ACL 2024)
-Middle context → systematically missed (Liu et al., TACL 2023)
-Forced brevity → +26pp accuracy (March 2026 study via caveman)
-Fewer tools → better instruction following (EASYTOOL, 2024)
-```
+## Durable levers
 
-**The counterintuitive finding**: Giving the model *less* to work with often produces *better* results. Every unnecessary token in context competes with the tokens that matter.
+### Keep stable instructions small
 
----
+For each line in an always-loaded prompt or `AGENTS.md`, ask whether removing it
+would cause a concrete recurring mistake. Remove general knowledge, duplication,
+and preferences that rarely apply.
 
-## Input Token Efficiency
+Stable prompt prefixes are more cache-friendly than frequently changing ones,
+but cache behavior is provider-specific. Verify the actual billed token classes
+rather than assuming a percentage.
 
-### System Prompt Discipline
+### Load tools and references on demand
 
-For every line in a system prompt or CLAUDE.md, ask: **"Would removing this cause a concrete mistake?"** If not, cut it.
+Tool schemas and reference documents consume context on every turn when loaded
+eagerly. Keep skill descriptions sufficient for routing, then load detailed
+references only when the task requires them.
 
-| Practice | Impact |
-|----------|--------|
-| Prune CLAUDE.md ruthlessly | Prevents instruction dilution |
-| Load tools/skills on-demand, not upfront | Reduces per-turn token cost |
-| Use deferred tool loading | Schemas only when needed |
-| Prompt caching for stable prefixes | 90% cost reduction on cached reads |
-| Compress context semantically | 40-58% reduction, 100% fact preservation |
+### Select context instead of dumping it
 
-**Each tool definition costs**: 346+ base tokens + schema per request. In a 20-turn agentic loop, 10 unnecessary tools = ~7,000+ wasted tokens.
+- Search for relevant files before reading broad directories.
+- Give implementation agents the narrow evidence they need.
+- Delegate noisy, read-heavy research into isolated contexts and return a compact
+  synthesis.
+- Start a fresh session for unrelated work.
+- Preserve critical decisions in a small canonical document rather than relying
+  on a long transcript.
 
-### Smart Context Selection
+### Decompose by responsibility
 
-- **Agentic search > RAG**: Let the model find what it needs via grep/glob rather than dumping chunks
-- **Sub-agents for research**: Investigation in a separate context window reports back a summary, keeping the main session clean
-- **Clear between tasks**: Kitchen-sink sessions are the #1 performance killer
+| Pattern | Use when | Main benefit |
+|---|---|---|
+| Single pass | Scope is small and explicit | Lowest coordination overhead |
+| Planner and worker | Ambiguity must be resolved before implementation | Expensive reasoning is concentrated |
+| Fan-out research | Read-only questions are independent | Parallelism without write collisions |
+| Writer and reviewer | Consequential output needs independent verification | Decorrelated error detection |
 
-### Semantic Compression (Input)
+More agents are not automatically more efficient. Coordination, duplicated
+search, merge conflicts, and repeated context can outweigh parallel speed.
 
-Tools like [caveman-compression](https://github.com/wilpel/caveman-compression) strip predictable grammar from context:
+### Route models by measured task class
 
-```
-Before: "In order to optimize the database query performance, we should
-         consider implementing an index on the frequently accessed columns"
+Use the least expensive model that reliably meets the quality bar for a bounded
+role. A stronger planner can sometimes reduce total worker spend by producing a
+clearer decomposition, but planner price alone is not the metric: a weak plan can
+multiply worker turns. Evaluate the complete run.
 
-After:  "Need fast queries. Check which columns used most. Add index
-         to those columns"
+## Evaluating token-saving claims
 
-Result: 29% token reduction, 100% factual preservation
-```
+Use this ladder for tools such as prompt compressors, terse-output skills, shell
+output filters, repository indexes, and context proxies.
 
-Three methods: LLM-based (40-58%), MLM-based (20-30%), NLP-based (15-30%).
+### 1. Define the causal claim
 
----
+Write down:
 
-## Output Token Efficiency
+- the exact treatment
+- which token classes or operations it can affect
+- the expected mechanism
+- the quality and compatibility risks
+- the adoption threshold
 
-### Compression Techniques (Ranked by Aggressiveness)
+Do not accept vague claims such as "saves context." Name the provider billing
+metric expected to move.
 
-| Level | Technique | Typical Reduction |
-|-------|-----------|-------------------|
-| 1 | "Be concise" in system prompt | ~10-20% (often ignored after a few turns) |
-| 2 | Structured output formats (JSON/YAML) | ~30-40% |
-| 3 | Pattern templates (`[thing] [action] [reason]`) | ~40-50% |
-| 4 | Caveman-speak system prompts | ~65% (range 22-87%) |
-| 5 | Ultra-compressed abbreviated syntax | ~70-80% |
-| 6 | Fine-tuned terse models (oogaboogalm) | Baked into weights |
+### 2. Estimate the coverage ceiling for free
 
-### The Caveman Approach
+Replay representative transcripts and calculate:
 
-[Caveman](https://github.com/JuliusBrussee/caveman) (45k+ stars) forces compressed output:
+- share of calls eligible for treatment
+- share of tool-result bytes or tokens eligible
+- share of total billed input represented by those results
+- provider-side truncation already applied
+- cache discounts that reduce the economic value of compression
 
-```
-Terse like caveman. Technical substance exact. Only fluff die.
-Drop: articles, filler (just/really/basically), pleasantries, hedging.
-Fragments OK. Short synonyms. Code unchanged.
-Pattern: [thing] [action] [reason]. [next step].
-```
+If a tool touches 20% of tool output and tool output is 20% of billed input, even
+perfect compression cannot save 60% of the bill.
 
-Three intensity levels:
-- **Lite**: Professional terseness, grammar preserved
-- **Full**: Fragments, articles removed (default)
-- **Ultra**: Maximum compression, abbreviated syntax
+### 3. Pre-register endpoints
 
-**Key finding**: Forced brevity doesn't degrade quality — a March 2026 study found it *improved* accuracy by 26 percentage points by reducing hedging and second-guessing.
-
----
-
-## Task Decomposition
-
-### Single-Responsibility Prompts
-
-Kitchen-sink prompts (one session, many unrelated tasks) degrade performance because:
-1. Context fills with irrelevant information from prior tasks
-2. Model attention spreads across competing instructions
-3. Errors compound without fresh-context checkpoints
-
-**Pattern**: One task per session. `/clear` between unrelated work.
-
-### Agent Orchestration Patterns
-
-| Pattern | When to Use | Trade-off |
-|---------|-------------|-----------|
-| **Prompt chaining** | Fixed, sequential subtasks | Latency ↑, accuracy ↑ |
-| **Router → specialist** | Input type determines handler | Separation of concerns |
-| **Orchestrator-workers** | Unpredictable subtask breakdown | Flexibility, more tokens |
-| **Fan-out parallelism** | Independent tasks | Speed, isolated context |
-| **Writer/Reviewer** | Implementation + verification | Fresh-context review catches more |
-
-### When Sub-Agents vs. Single-Pass
-
-**Use sub-agents when:**
-- Task reads many files (research, exploration)
-- You want fresh-context review of your own output
-- Multiple independent tasks can run in parallel
-- Investigation would pollute the main implementation context
-
-**Use single-pass when:**
-- The diff fits in one sentence
-- Scope is clear and small
-- No exploration needed
-
----
-
-## Model Routing
-
-### Tiered Routing Strategy
-
-| Task Type | Model | Rationale |
-|-----------|-------|-----------|
-| Triage, classification, linting | Haiku | Fast, cheap, sufficient for simple decisions |
-| Pre-commit hooks, formatting checks | Haiku | Sub-second, low cost |
-| Code implementation, debugging | Sonnet | Best cost/capability ratio |
-| Architecture, complex reasoning | Opus | Highest capability |
-| Security review, threat modeling | Opus | Nuance matters, cost is justified |
-
-**Rule of thumb**: Use the cheapest model that produces correct output for the task class.
-
-### When More Tools/Context Hurts
-
-Each additional tool or instruction:
-1. Adds tokens (direct cost)
-2. Increases decision-making complexity (indirect quality cost)
-3. Pushes critical information toward the "lost middle" zone
-4. Compounds across every turn of an agentic conversation
-
----
-
-## Research & Evidence
-
-### Key Papers
-
-| Paper | Finding | Citation |
-|-------|---------|----------|
-| **Same Task, More Tokens** (Levy et al., ACL 2024) | Reasoning degrades at lengths far below technical maximums | Input padding hurts even when models "support" long context |
-| **Lost in the Middle** (Liu et al., TACL 2023) | Information in the middle of long contexts is systematically missed | Put critical instructions at start and end |
-| **EASYTOOL** (arxiv 2401.06201, 2024) | Compressed tool docs reduce tokens AND improve tool utilization | Fewer, better-described tools > many redundant ones |
-| **Brief constraints + accuracy** (March 2026) | Brief response constraints improved accuracy by 26pp | Conciseness forces precision over hedging |
-
-### Tools & Projects
-
-| Tool | Stars | What It Does |
-|------|-------|--------------|
-| [Caveman](https://github.com/JuliusBrussee/caveman) | 45k+ | Output compression via system prompt (65% reduction) |
-| [caveman-compression](https://github.com/wilpel/caveman-compression) | 800+ | Input context compression library (40-58% reduction) |
-| [oogaboogalm](https://github.com/Mintzs/oogaboogalm) | 44 | Fine-tuned terse model weights |
-| [laconic](https://github.com/GabrielBarberini/laconic) | 13 | Short common words, contextual brevity |
-
-### Anthropic's Own Architecture Decisions
-
-Claude Code's design validates these findings:
-- **Deferred tool loading**: Schemas load on-demand, not all upfront
-- **Sub-agent architecture**: Research in separate context, summary returned
-- **Compaction via summarization**: Prunes conversation when context fills
-- **`/clear` recommendations**: Fresh context between unrelated tasks
-- **Prompt caching**: 90% cost reduction for stable prefixes (tools, system prompt)
-
----
-
-## Deferred Plugins (Revisit List)
-
-Disabled 2026-04-25 to reduce per-session token overhead. All still installed. Re-enable per-session with `/plugin enable <name>` or move back to always-on if the friction isn't worth the savings.
-
-| Plugin | What It Does | Re-enable When |
-|--------|-------------|----------------|
-| **feature-dev** | Guided feature development with codebase understanding | Starting a new feature |
-| **code-review** | PR code review | Reviewing PRs |
-| **code-simplifier** | Post-implementation cleanup | After finishing implementation |
-| **pr-review-toolkit** | Comprehensive PR review (5+ sub-agents) | PR creation or review |
-| **claude-md-management** | CLAUDE.md audit and improvement | Maintaining CLAUDE.md files |
-| **claude-code-setup** | Automation recommender for Claude Code | Setting up new projects |
-| **agent-sdk-dev** | Agent SDK app development | Building SDK apps |
-| **frontend-design** | Production-grade frontend interfaces | UI/frontend work |
-| **playground** | Interactive HTML playgrounds | Creating explorers/tools |
-| **security-guidance** | Security review guidance | Security review sessions |
-| **explanatory-output-style** | Educational insights in every response | Learning/onboarding sessions |
-| **data-engineering** | Airflow/pipeline management (20+ skills) | Data pipeline work |
-| **notion** | Notion MCP integration | Using Notion |
-
-**Gap**: Claude Code has no automatic plugin routing (detect task type, load relevant plugins). This is manual. If a plugin is needed >30% of sessions, it should be always-on. Revisit after 2-4 weeks of use to see which ones you keep re-enabling.
-
-**Ideal future**: A lightweight hook or router that detects task type from the first user message and enables relevant plugins automatically. Similar to how Claude Code already defers tool schemas.
-
----
-
-## Actionable Audit Prompt
-
-Use this prompt to audit and prune a project's AI configuration for efficiency. Adapt the repo name as needed.
-
-```markdown
-## Task: AI Configuration Efficiency Audit
-
-Audit this repository's AI agent configuration (AGENTS.md, vendor entry points,
-skills, tools, MCP servers, hooks) for token efficiency. The goal is
-fewer tokens in, fewer tokens out, better model performance.
-
-### Phase 1: Measure Current State
-
-1. Count total lines across all CLAUDE.md files (root + subdirectories)
-2. Count total .mdc rule files and their combined line count
-3. List all tools/skills currently loaded at session start
-4. List all MCP servers configured
-5. Identify any duplicate or near-duplicate instructions across files
-
-### Phase 2: Prune System Prompts
-
-For each line in CLAUDE.md and each .mdc rule, apply this test:
-- "Would removing this cause a CONCRETE mistake?" → Keep
-- "Is this general knowledge the model already has?" → Cut
-- "Is this a preference that rarely matters?" → Cut
-- "Is this duplicated elsewhere?" → Cut the duplicate
-
-Report: lines before, lines after, what was cut and why.
-
-### Phase 3: Audit Tool Loading
-
-For each tool/skill that loads at session start:
-- How often is it actually used? (check recent sessions if possible)
-- Could it be deferred (loaded on-demand instead)?
-- Is its description concise and unambiguous?
-
-Report: tools before, tools recommended for deferral, description improvements.
-
-### Phase 4: Consolidate Rules
-
-- Merge .mdc files that cover overlapping topics
-- Eliminate rules the model follows by default (don't instruct what's natural)
-- Convert verbose rules to terse single-line directives
-
-### Phase 5: Restructure for Cache Efficiency
-
-- Stable content (tools, core rules) should come first (cached)
-- Dynamic content (project-specific, changing) should come last
-- Identify cache breakpoint opportunities
-
-### Deliverables
-
-1. Pruned CLAUDE.md (before/after line count, diff summary)
-2. Consolidated .mdc rules (merged files, removed files)
-3. Tool loading recommendations (defer, remove, keep)
-4. Token budget estimate (before/after input tokens per turn)
-```
-
----
-
-## Quick Reference: Efficiency Checklist
-
-Before shipping any AI configuration change, verify:
-
-- [ ] CLAUDE.md is under 100 lines (each line prevents a concrete mistake)
-- [ ] No duplicate instructions across CLAUDE.md and .mdc files
-- [ ] Tools load on-demand where possible (deferred loading)
-- [ ] Tool descriptions are concise (under 2 sentences each)
-- [ ] Sub-agents handle research tasks (not the main session)
-- [ ] Model routing matches task complexity (haiku/sonnet/opus)
-- [ ] Stable prompt content is positioned for cache hits
-- [ ] `/clear` is used between unrelated tasks
+Primary endpoints:
+
+- paired per-task billed cost
+- uncached input plus cache-creation tokens where applicable
+- task quality or verifier score
+
+Secondary diagnostics:
+
+- cache reads
+- output tokens
+- turns and tool calls
+- retries and recovery reads
+- wall-clock latency
+- treatment exposure
+- compatibility or setup failures
+
+### 4. Run paired trials
+
+- Pin model, reasoning effort, harness, tool version, task input, and environment.
+- Run the same task with and without the treatment.
+- Exclude a task from both arms when either arm has an invalid trial, while
+  reporting treatment-caused failures separately.
+- Instrument whether the treatment actually activated.
+- Use per-task paired deltas. Aggregate totals are vulnerable to outliers and
+  long-context pricing thresholds.
+
+### 5. Climb an evidence ladder
+
+1. Transcript replay and ceiling estimate
+2. One wiring run
+3. Small smoke set at one attempt per task
+4. The same smoke set with repeated attempts
+5. Representative full benchmark
+6. Replication across relevant reasoning efforts or models
+
+Never make an adoption decision from one stochastic run. Report uncertainty and
+use a paired non-parametric test when the sample supports it.
+
+### 6. Audit the counterfactual
+
+Compare the tool's dashboard with the provider bill. Check whether the tool:
+
+- counts raw output the harness would already truncate
+- estimates tokens with a character heuristic
+- values cached and uncached tokens equally
+- ignores context outside its interception point
+- omits retries or extra turns induced by compression
+
+## Evidence: Caveman and RTK
+
+JetBrains evaluated both tools using paired SkillsBench runs on pinned Claude Code
+configurations. These are vendor-authored studies of third-party tools, not an
+independent academic benchmark, but their instrumentation and disclosed methods
+are substantially stronger than README savings claims.
+
+### Caveman
+
+- Advertised output-token reduction: 65%.
+- JetBrains measured reduction: 8.5%.
+- Lesson: forcing terse output can reduce some output, but the advertised local
+  reduction did not transfer proportionally to total agent cost.
+
+Do not use a fixed "65%" estimate or claim that terse grammar inherently improves
+accuracy. Evaluate concise-output instructions against the actual task and model.
+
+### RTK
+
+RTK rewrites eligible shell commands and compresses their output.
+
+- Transcript replay found only about one third of Bash calls eligible and just
+  under 20% of tool-result characters reachable, implying roughly a 3% ceiling
+  on input-token savings under the tested workload.
+- At low reasoning effort, JetBrains measured a median 7.6% cost increase
+  (`p=0.004`), 13.8% more turns, and 14.3% more cache reads.
+- At high reasoning effort, measured cost was effectively unchanged (`+0.1%`,
+  `p=0.99`).
+- Task quality was statistically indistinguishable in both arms.
+- RTK reported 96.2 million tokens saved during the low-effort run while the
+  measured bill increased. Its counterfactual counted raw output Claude Code
+  would truncate and did not price cache behavior like the provider.
+
+**Current decision:** do not adopt RTK. Revisit only if a materially different
+harness makes shell output a much larger share of billed input and a paired test
+shows end-to-end savings.
+
+## Efficiency checklist
+
+Before shipping an AI configuration or token optimization:
+
+- [ ] The target billing metric and quality bar are explicit.
+- [ ] A transcript replay estimates the reachable ceiling.
+- [ ] Stable instructions contain no obvious duplication.
+- [ ] Detailed tools and references load only when relevant.
+- [ ] Research context is isolated when it would pollute implementation.
+- [ ] The treatment is instrumented, not assumed.
+- [ ] Evaluation uses paired tasks and more than one stochastic attempt.
+- [ ] Provider bills are compared with tool-reported savings.
+- [ ] Cache reads, turns, retries, latency, and quality are reported.
+- [ ] Removal is clean if measured value does not clear the adoption threshold.
+
+## Sources
+
+- JetBrains AI, [Does Speaking to Agents Like Cavemen Really Save 65% of Tokens? We Test](https://blog.jetbrains.com/ai/2026/07/speak-to-ai-agents-like-cavemen-tosave-tokens/), July 2026.
+- JetBrains AI, [Does "rtk" skill really cut agent tokens by 60-90%? We tested it](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/), July 2026.
+- Levy et al., *Same Task, More Tokens*, ACL 2024.
+- Liu et al., *Lost in the Middle*, TACL 2023.
+- EASYTOOL, arXiv:2401.06201, 2024.

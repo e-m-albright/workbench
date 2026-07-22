@@ -1,13 +1,13 @@
 # Pi agent - capability overview and build candidates
 
-Snapshot of what the pi harness can do, what third parties have built on it, and the candidate enhancements we've considered. Status: **reference only - nothing here is committed work.** Captured 2026-07-21 after reviewing the community "PI Web UI / Control Deck" (@firstpick/pi-package-webui, v0.4.8 DEV).
+Snapshot of what the Pi harness can do and the candidate enhancements under review. [`pi-build-philosophy.md`](pi-build-philosophy.md) owns adoption and rejection rationale; this page owns current operational state. Captured 2026-07-21 and updated as the managed harness changes.
 
 ## What pi exposes (official, today)
 
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): branded welcome, custom footer (git-status), consult (second opinion), discovery telemetry, permission policy, presets, and safe-git.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome, custom footer (git-status), consult (second opinion), discovery telemetry, permission policy, presets, and safe-git. Pinned packages add the token-efficient MCP discovery proxy and a native wrapper around the existing Agent Browser CLI.
 
 ## What the community PI Web UI adds (reviewed 2026-07-21)
 
@@ -16,7 +16,8 @@ Snapshot of what the pi harness can do, what third parties have built on it, and
 | Session stats (tokens, cache, cost, ctx, model+effort, git) | **Have it** - our footer covers all of these |
 | Generation speed (tok/s) | **Done** 2026-07-21 (footer, per-turn output/elapsed) |
 | Auto-compact indicator | **Done** 2026-07-22 - shows `(auto)` before the first compaction and `compact×N` from actual session entries afterward |
-| Fast-mode status | **Done** 2026-07-21 when the active model/session exposes it; red `fast ON`, dim `fast off` |
+| Terminal activity title + session name | **Done** 2026-07-22 - spinner, repository, deterministic first-prompt name, and active tool; explicit session names remain authoritative |
+| Fast-mode status | Intentionally removed 2026-07-22 - the subscription route does not expose reliable state, priority service is expensive, and Evan prefers default-off over custom control machinery |
 | Codex subscription windows | **Done** 2026-07-22 - remaining percentage and local reset date for each app-server rate-limit window; refreshed after responses and every five minutes |
 | Branded startup mark | **Done** 2026-07-21 - six-line `PI` wordmark blending Workbench ruby through orange into Dotfiles topaz |
 | Multi-session browser tabs | Gap - TUI is one session per terminal; tmux covers most of this |
@@ -39,14 +40,49 @@ and discovery logs remain private live state.
 
 ## Prompt navigation
 
-Pi 0.81.1 already ships the safe core of the requested prompt navigator. Workbench
-sets `/tree` to its `user-only` filter and keeps double-Escape bound to opening it.
-From the transcript: double-Escape, then Up/Down to preview prior prompts, Escape
-to return without changing context. Enter intentionally rewinds to the selected
-prompt and starts a branch, so it is not a read-only scroll action. Pi's public
-extension API does not expose the terminal scrollback viewport, so a Claude-style
-preview that tracks manual terminal scrolling would require unsupported TUI
-internals and is intentionally not built.
+Pi 0.81.1 emits OSC 133 semantic zones around user and final assistant messages,
+and Ghostty defines `jump_to_prompt` actions for navigating those zones. In the
+current Ghostty session, however, Command-Up/Down behaved as top/bottom scrolling
+rather than semantic navigation; effective-config inspection did not establish a
+working binding. Compaction may remove old transcript content, but it does not
+explain the observed key behavior. Treat terminal-native navigation as promising
+but unverified until a controlled fresh-session probe passes.
+
+Workbench also sets `/tree` to its `user-only` filter and keeps double-Escape bound
+to opening it. Up/Down previews prior prompts and Escape returns without changing
+context; Enter intentionally rewinds and branches. Pi's public extension API still
+does not expose the terminal scrollback viewport, so a richer read-only navigator
+needs either a verified terminal path or an upstream viewport API.
+
+## Connector access
+
+Workbench configures pinned `pi-mcp-adapter` 2.11.0 with lazy OAuth routes for
+Gmail and Google Calendar. The servers are official `googleapis.com` endpoints;
+the client adapter is a third-party community package, not official Pi or Google
+support. OAuth stays explicit with `/mcp-auth <server>`, scopes are read-only, and
+Workbench's permission policy blocks remote tool calls outside a read-only
+allowlist. Tokens would remain in mode-0600 adapter state outside Workbench.
+Google does not advertise dynamic client registration, so no token is granted
+until a registered client and the residual extension trust are accepted.
+
+Strava is not configured in Pi yet. Its protected-resource metadata points clients
+to an issuer path whose prefix-form discovery URL returns HTML/404, while the
+working RFC suffix-form metadata advertises dynamic registration. The current MCP
+adapter therefore fails with `Unable to register client`. Do not retain a noisy
+broken startup route; use Claude's already-connected Strava MCP until that
+metadata/adapter incompatibility is fixed or a client is registered explicitly.
+
+## Native Agent Browser
+
+Workbench pins `pi-agent-browser-native` 0.2.71 around the existing Agent Browser
+CLI. It adds structured tool results, bounded context spills, secret redaction,
+stale-reference guards, session recovery, and artifact metadata. A live
+`example.com` open/snapshot smoke passed. Its doctor still flags the machine's
+Agent Browser 0.31.1 against the wrapper's 0.32.2 baseline; Dotfiles already
+declares 0.32.2, but the global dependency update is blocked by the harness and
+must be run manually. It does not justify using authenticated browser profiles by default;
+temporary sessions stay the safe baseline. Optional search credentials remain
+disabled.
 
 ## Build candidates (idea parking lot, prioritized by leverage)
 

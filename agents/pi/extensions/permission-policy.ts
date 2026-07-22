@@ -11,6 +11,7 @@ interface DenyCommandRule {
 export interface PermissionPolicy {
   defaultAction?: "allow" | "deny";
   denyCommands?: DenyCommandRule[];
+  mcpAllowedTools?: string[];
   protectedPaths?: string[];
   protectedReadPaths?: string[];
   protectedWritePaths?: string[];
@@ -19,6 +20,7 @@ export interface PermissionPolicy {
 export type LoadedPermissionPolicy = {
   defaultAction: "allow" | "deny";
   denyCommands: DenyCommandRule[];
+  mcpAllowedTools: string[];
   protectedReadPaths: string[];
   protectedWritePaths: string[];
 };
@@ -42,6 +44,7 @@ const SECRET_PATHS = [
 const FALLBACK_POLICY: LoadedPermissionPolicy = {
   defaultAction: "allow",
   denyCommands: [],
+  mcpAllowedTools: [],
   protectedReadPaths: SECRET_PATHS,
   protectedWritePaths: [...SECRET_PATHS, ".git/**", "node_modules/**"],
 };
@@ -67,6 +70,7 @@ function loadPolicy(cwd: string): LoadedPermissionPolicy {
       ...(globalPolicy.denyCommands ?? []),
       ...(projectPolicy.denyCommands ?? []),
     ],
+    mcpAllowedTools: projectPolicy.mcpAllowedTools ?? globalPolicy.mcpAllowedTools ?? FALLBACK_POLICY.mcpAllowedTools,
     protectedReadPaths: [
       ...(globalPolicy.protectedReadPaths ?? FALLBACK_POLICY.protectedReadPaths),
       ...(projectPolicy.protectedReadPaths ?? []),
@@ -177,6 +181,19 @@ export function policyBlockReason(
     if (matched) return `Protected path blocked by policy: ${matched}`;
   }
 
+  if (toolName === "mcp") {
+    const params = (input ?? {}) as Record<string, unknown>;
+    const action = typeof params.action === "string" ? params.action : undefined;
+    if (action === "auth-start" || action === "auth-complete") {
+      return "MCP OAuth must be initiated explicitly with /mcp-auth";
+    }
+    const remoteTool = typeof params.tool === "string" ? params.tool : undefined;
+    if (remoteTool && !policy.mcpAllowedTools.includes(remoteTool)) {
+      return `MCP tool is not on the read-only allowlist: ${remoteTool}`;
+    }
+    return undefined;
+  }
+
   if (toolName !== "bash") return undefined;
   const command = String((input as Record<string, unknown>).command ?? "");
   const protectedPath = protectedPathMention(cwd, command, policy.protectedReadPaths);
@@ -204,6 +221,7 @@ export default function permissionPolicyExtension(pi: ExtensionAPI) {
           "Permission policy",
           `  Default action: ${policy.defaultAction}`,
           `  Deny command groups: ${policy.denyCommands.length}`,
+          `  MCP read-only tools: ${policy.mcpAllowedTools.length}`,
           `  Protected read globs: ${policy.protectedReadPaths.length}`,
           `  Protected write globs: ${policy.protectedWritePaths.length}`,
           "  Source: ~/.pi/agent/permission-policy.json plus optional .pi/permission-policy.json",

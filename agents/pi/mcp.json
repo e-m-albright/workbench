@@ -1,0 +1,25 @@
+{
+  "settings": {
+    "toolPrefix": "short",
+    "autoAuth": false,
+    "outputGuard": true
+  },
+  "mcpServers": {
+    "gmail": {
+      "url": "https://gmailmcp.googleapis.com/mcp/v1",
+      "auth": "oauth",
+      "oauth": {
+        "scope": "https://www.googleapis.com/auth/gmail.readonly"
+      },
+      "lifecycle": "lazy"
+    },
+    "google-calendar": {
+      "url": "https://calendarmcp.googleapis.com/mcp/v1",
+      "auth": "oauth",
+      "oauth": {
+        "scope": "https://www.googleapis.com/auth/calendar.readonly"
+      },
+      "lifecycle": "lazy"
+    }
+  }
+}

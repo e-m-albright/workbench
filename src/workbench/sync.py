@@ -300,6 +300,7 @@ def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False) ->
     _merge_pi_object(source / "settings.json", destination / "settings.json")
     _merge_pi_object(source / "models.json", destination / "models.json", nested_key="providers")
     _merge_pi_object(source / "presets.json", destination / "presets.json")
+    _merge_pi_object(source / "mcp.json", destination / "mcp.json")
     _replace_pi_file(source / "permission-policy.json", destination / "permission-policy.json")
     for extension in sorted((source / "extensions").glob("*.ts")):
         _replace_pi_file(extension, destination / "extensions" / extension.name)
