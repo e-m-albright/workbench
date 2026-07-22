@@ -38,6 +38,7 @@ check:
     just lint-py
     just typecheck
     just test
+    just test-pi
     just lint
 
 # ── Testing ───────────────────────────────────────────────────────────────────
@@ -46,6 +47,11 @@ check:
 [group('testing')]
 test:
     uv run pytest -v
+
+# Run Pi extension behavior tests with Bun.
+[group('testing')]
+test-pi:
+    bun test tests/*.test.ts
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 

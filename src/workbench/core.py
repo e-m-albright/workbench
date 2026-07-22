@@ -48,7 +48,7 @@ RETIRED_SKILLS = {
         " the code-health lenses and project-owned gates"
     ),
 }
-VENDORS = ("claude", "codex")
+VENDORS = ("claude", "codex", "pi")
 VENDOR_CHOICES = (*VENDORS, "all")
 
 # Sandbox policy deployed to (and drift-checked against) ~/.claude/settings.json.

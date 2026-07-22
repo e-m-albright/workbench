@@ -3,10 +3,10 @@
 The portable intelligence and engineering-guidance layer for my development
 environment.
 
-Workbench is where I version the behavior I want Claude Code and Codex to share:
-agent rules, skills, specialist agents, prompts, MCP declarations, safety policy,
+Workbench is where I version the behavior I want Pi, Claude Code, and Codex to
+share: agent rules, skills, specialist agents, prompts, safety policy,
 engineering doctrine, and reusable project-health tools. It turns those canonical
-sources into each vendor's native configuration and verifies the live result.
+sources into each harness's native configuration and verifies the live result.
 
 This is a personal, opinionated repository. It optimizes one workflow rather
 than trying to become a general agent platform.
@@ -36,8 +36,8 @@ Workbench gives me one place to answer four questions:
 
 1. **How should my coding agents behave?** Shared rules, safety boundaries,
    reusable skills, and specialist-agent instructions live under `agents/`.
-2. **How do those instructions reach each vendor?** `workbench sync` translates
-   and deploys the canonical sources into Claude Code and Codex configuration.
+2. **How do those instructions reach each harness?** `workbench sync` translates
+   and deploys the canonical sources into Pi, Claude Code, and Codex configuration.
 3. **Has live configuration drifted?** `workbench drift` compares the deployed
    files and installed plugins directly with the repository.
 4. **What engineering judgment should carry between projects?** The playbook,
@@ -50,15 +50,15 @@ Workbench gives me one place to answer four questions:
                            │
                   workbench sync all
                            │
-              ┌────────────┴────────────┐
-              │                         │
-         Claude Code                 Codex
-     rules, settings, hooks     rules, TOML, hooks
-     skills, agents, plugins    skills, agents, plugins
-              │                         │
-              └────────────┬────────────┘
-                           │
-                 workbench drift all
+          ┌───────────────┼───────────────┐
+          │               │               │
+         Pi          Claude Code         Codex
+  rules, settings,   rules, settings,   rules, TOML,
+  skills, extensions skills, agents     skills, agents
+          │               │               │
+          └───────────────┼───────────────┘
+                          │
+                workbench drift all
                     live drift report
 ```
 
@@ -85,8 +85,8 @@ vocabulary, and safety policy.
 
 ### Agent configuration
 
-- One shared instruction file for Claude Code and Codex, with a small Codex
-  appendix where the vendors genuinely differ.
+- One shared instruction file for Pi, Claude Code, and Codex, with a small Codex
+  appendix where the harnesses genuinely differ.
 - Reusable skills installed into both vendors.
 - Shared Markdown specialist agents translated into native Codex TOML agents.
 - Vendor-native hooks, permission rules, sandbox defaults, and status lines.
@@ -130,7 +130,8 @@ just check
 
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
-and the installed Claude/Codex CLIs. Skill deployment also uses `npx skills`.
+and the installed Pi/Claude/Codex CLIs. Claude and Codex skill deployment also
+uses `npx skills`; Pi skills are copied directly into its native skill directory.
 
 ## Daily Workflows
 
@@ -185,10 +186,10 @@ Run `workbench`, `wb`, or either launcher's `--help` flag for the complete tree:
 
 ```text
 workbench
-├── sync [claude|codex|all]    deploy canonical configuration
+├── sync [claude|codex|pi|all] deploy canonical configuration
 │   ├── --no-skills            skip shared-skill installation
 │   └── --no-plugins           skip declared-plugin installation
-├── drift [claude|codex|all]   report managed drift and external additions
+├── drift [claude|codex|pi|all] report managed drift and external additions
 └── lint                       validate canonical repository sources
 ```
 
@@ -197,9 +198,9 @@ agent configuration; Just recipes develop and validate this repository.
 
 ## What `sync` Manages
 
-`sync` deploys global instructions, vendor configuration, command policy,
-hooks, specialist agents, skills, plugins, and MCP servers into Claude Code and
-Codex. The per-vendor file map and drift semantics live in
+`sync` deploys each harness's managed subset: global instructions, configuration,
+command policy, extensions or hooks, skills, specialist agents, plugins, and MCP
+servers where supported. The per-harness file map and drift semantics live in
 [`docs/managed-surfaces.md`](docs/managed-surfaces.md).
 
 ## Repository Tour

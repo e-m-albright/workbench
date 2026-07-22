@@ -34,7 +34,9 @@ WORKBENCH_BANNER = """\
 RUBY_STOPS = ((255, 184, 194), (230, 57, 86), (165, 9, 47), (101, 0, 24))
 
 USAGE_ROOT = "workbench [OPTIONS] COMMAND [ARGS]..."
-DESCRIPTION = "Portable agent intelligence: deploy and verify Claude Code and Codex configuration."
+DESCRIPTION = (
+    "Portable agent intelligence: deploy and verify Pi, Claude Code, and Codex configuration."
+)
 ALIAS_NOTE = "The shorter `wb` launcher is equivalent to `workbench`."
 COMMANDS_PANEL = "Configuration — deploy, verify, and validate"
 

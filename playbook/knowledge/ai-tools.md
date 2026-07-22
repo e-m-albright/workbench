@@ -7,7 +7,9 @@ configuration guidance.
 
 ## First-class coding agents
 
-Claude Code and Codex are the only first-class coding-agent targets.
+Pi, Claude Code, and Codex are the first-class coding-agent targets. Pi is the
+primary interactive harness; Codex and Claude Code remain specialist fallbacks
+for capabilities such as OS sandboxing, cloud execution, and hosted review.
 
 - Workbench owns portable rules, skills, prompts, subagent definitions, hooks,
   permissions policy, MCP declarations, and deployment translation.

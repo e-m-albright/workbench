@@ -4,7 +4,7 @@ A retrospective on the design of this workbench. The original version of this fi
 
 ## The shipped architecture
 
-- **Native skills, on demand.** Discipline lives in `agents/skills/*/SKILL.md` files loaded when a task matches, not in always-on instructions. Iron laws worth keeping (TDD, root-cause debugging, verify-before-done) are kept; the ceremony around them is not. Skills stay vendor-neutral so the same files serve Claude Code and Codex.
+- **Native skills, on demand.** Discipline lives in `agents/skills/*/SKILL.md` files loaded when a task matches, not in always-on instructions. Iron laws worth keeping (TDD, root-cause debugging, verify-before-done) are kept; the ceremony around them is not. Skills stay vendor-neutral so the same files serve Pi, Claude Code, and Codex.
 - **Native status fields.** Harness-provided status/config surfaces are used as-is rather than wrapped.
 - **One-level subagents.** Specialists (reviewer, security auditor, debugger) are dispatched one level deep for isolated context. No agent hierarchies, no swarm coordination.
 - **Deterministic sync/check reconciliation.** the `workbench` CLI (`src/workbench/`) deploys canonical files to each harness and verifies the deployed state matches. Drift is detected mechanically, not by convention.
@@ -14,7 +14,7 @@ A retrospective on the design of this workbench. The original version of this fi
 - **No orchestration framework.** The harness already dispatches subagents; a coordination layer on top adds surface without adding capability.
 - **No plugin wrapper.** Skills are plain markdown deployed by sync. Packaging as a vendor plugin would fork the portable format for distribution we don't need.
 - **No always-on instruction growth.** The global rules file is small and stable; new discipline becomes a skill (loaded when relevant), never another permanent paragraph in every context window.
-- **No telemetry.** No cost tracking, session analytics, or usage dashboards. The reconciliation check is the only self-measurement.
+- **No permanent analytics platform.** Workbench does not ship network telemetry or a durable usage dashboard. Pi's local discovery experiment is a narrow, seven-day, metadata-only exception with an explicit decision date and removal path.
 
 ## Rejected alternatives, and why (still true)
 

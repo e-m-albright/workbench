@@ -18,7 +18,7 @@ The adjacent repositories own different state:
 - Optimize for the owner's workflow, not unknown users or machines.
 - Never commit secrets, credentials, personal records, conversations, or agent
   memory.
-- Claude Code and Codex are the only first-class coding-agent integrations.
+- Pi, Claude Code, and Codex are the only first-class coding-agent integrations.
 - Keep rejected tools and approaches in `docs/decisions/tombstones.md`. When
   code enforces a retirement, the reason lives with the enforcement instead
   (`RETIRED_*` in `src/workbench/core.py`, `_*_disabled` in the MCP registry).

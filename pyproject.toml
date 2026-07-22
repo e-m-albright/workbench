@@ -1,7 +1,7 @@
 [project]
 name = "workbench"
 version = "0.1.0"
-description = "Deploy and verify the personal Claude Code and Codex workbench"
+description = "Deploy and verify the personal Pi, Claude Code, and Codex workbench"
 requires-python = ">=3.13"
 dependencies = [
     "typer>=0.15",

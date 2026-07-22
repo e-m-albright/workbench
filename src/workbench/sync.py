@@ -232,3 +232,56 @@ def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False)
         _sync_skills("codex", home)
     if deploy_plugins:
         _sync_plugins("codex", home)
+
+
+def _replace_pi_file(source: Path, destination: Path) -> None:
+    """Deploy a real file so a broken repository symlink cannot disable Pi."""
+    if destination.is_symlink():
+        destination.unlink()
+    copy_file(source, destination)
+
+
+def _merge_pi_object(source: Path, destination: Path, *, nested_key: str | None = None) -> None:
+    desired = _settings(source)
+    existing = _settings(destination)
+    if nested_key:
+        desired_nested = desired.get(nested_key, {})
+        existing_nested = existing.get(nested_key, {})
+        if not isinstance(desired_nested, dict) or not isinstance(existing_nested, dict):
+            raise WorkbenchError(f"Pi {nested_key} must be JSON objects")
+        desired = {**existing, **desired, nested_key: {**existing_nested, **desired_nested}}
+    else:
+        desired = {**existing, **desired}
+    if destination.is_symlink():
+        destination.unlink()
+    write_json(destination, desired)
+
+
+def _sync_pi_skills(home: Path) -> None:
+    destination = home / ".pi/agent/skills"
+    destination.mkdir(parents=True, exist_ok=True)
+    canonical = {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    for name in sorted(set(canonical) | set(RETIRED_SKILLS)):
+        deployed = destination / name
+        if deployed.is_symlink() or deployed.is_file():
+            deployed.unlink()
+        elif deployed.exists():
+            shutil.rmtree(deployed)
+    for name, source in canonical.items():
+        shutil.copytree(source, destination / name)
+
+
+def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False) -> None:
+    """Deploy Pi's transparent local configuration; packages remain settings-owned."""
+    del deploy_plugins  # Pi packages are declared in settings.json, not a separate plugin registry.
+    source = AGENTS / "pi"
+    destination = home / ".pi/agent"
+    _replace_pi_file(AGENTS / "shared/rules.md", destination / "AGENTS.md")
+    _merge_pi_object(source / "settings.json", destination / "settings.json")
+    _merge_pi_object(source / "models.json", destination / "models.json", nested_key="providers")
+    _merge_pi_object(source / "presets.json", destination / "presets.json")
+    _replace_pi_file(source / "permission-policy.json", destination / "permission-policy.json")
+    for extension in sorted((source / "extensions").glob("*.ts")):
+        _replace_pi_file(extension, destination / "extensions" / extension.name)
+    if deploy_skills:
+        _sync_pi_skills(home)

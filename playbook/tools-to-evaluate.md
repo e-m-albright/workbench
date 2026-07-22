@@ -265,7 +265,7 @@ Use one of the third-party hosts below if Moonshot's / DeepSeek's first-party AP
 
 **Overall daily-driver feel** — 1. (tie) **Zed** (flexible; shows code, not just an agent REPL) and **Pi** (pi.dev — surprisingly delightful: ultra-light terminal agent, ~1k-token system prompt, hackable, mid-session provider swap). 2. **Claude Code / Codex CLI / Cursor (+Cursor CLI)**. 3. **Gemini CLI**. 4. **OpenCode**. 5. **Crush** (cute, but the glamorous TUI is both nice and way too much — "just build an IDE if you're going to be so heavy"). 6. **Goose** (lowest of tools tried — see below). opencode/crush both fine, just too heavy for a daily driver vs a real IDE.
 
-> **Pi's evaluated niche:** terminal-native lightweight loop for **local LM Studio** (free/private) and BYO-key provider-hopping with a consistent feel. Pi is currently retired from active Workbench support; the evaluation remains for future reconsideration.
+> **Pi's adopted niche:** primary terminal-native interactive loop for subscription, local LM Studio, and BYO-key provider-hopping with a consistent transparent surface. Workbench now deploys and drift-checks Pi as a first-class target; Codex and Claude Code remain specialist fallbacks.
 
 > **Warp** (warp.dev) — WATCH, not yet tried. Different direction: an AI-native *terminal* built for multi-agent dev (Codex/OpenCode/Gemini as first-class threads, per-agent worktree/branch/PR metadata, unified notifications). Solid-feeling, ambitious product; a plausible "great solution" — deferred while exploring Zed. Revisit if juggling many agent sessions outgrows Zed + Ghostty.
 

@@ -106,8 +106,8 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn("Usage: workbench [OPTIONS] COMMAND [ARGS]...", result.stdout)
         self.assertIn("Options", result.stdout)
         self.assertIn("Configuration — deploy, verify, and validate", result.stdout)
-        self.assertIn("sync [claude|codex|all]", result.stdout)
-        self.assertIn("drift [claude|codex|all]", result.stdout)
+        self.assertIn("sync [claude|codex|pi|all]", result.stdout)
+        self.assertIn("drift [claude|codex|pi|all]", result.stdout)
         self.assertIn("--no-skills", result.stdout)
 
     def test_banner_uses_ruby_truecolor_gradient_on_terminals(self) -> None:
@@ -138,7 +138,7 @@ class WorkbenchTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("claude|codex|all", result.stdout)
+        self.assertIn("claude|codex|pi|all", result.stdout)
         self.assertIn("--no-skills", result.stdout)
         self.assertIn("--no-plugins", result.stdout)
 
@@ -173,7 +173,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("╭─ Error", result.stderr)
         self.assertIn("is not one of 'claude', 'codex',", result.stderr)
-        self.assertIn("workbench sync [claude|codex|all]", result.stderr)
+        self.assertIn("workbench sync [claude|codex|pi|all]", result.stderr)
         self.assertNotIn("usage: workbench", result.stderr)
 
     def test_unknown_command_has_visual_registry_error(self) -> None:
@@ -397,9 +397,56 @@ class WorkbenchTests(unittest.TestCase):
             home = Path(raw)
             sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
             sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
             self.deploy_skills(home, ".claude/skills", ".agents/skills")
 
-            self.assertEqual(drift_mod.drift(home, ("claude", "codex"), verify_plugins=False), 0)
+            self.assertEqual(
+                drift_mod.drift(home, ("claude", "codex", "pi"), verify_plugins=False),
+                0,
+            )
+
+    def test_pi_sync_preserves_external_state_and_detects_managed_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            pi_home = home / ".pi/agent"
+            (pi_home / "extensions").mkdir(parents=True)
+            (pi_home / "skills/external-skill").mkdir(parents=True)
+            (pi_home / "skills/external-skill/SKILL.md").write_text(
+                "---\nname: external-skill\ndescription: external\n---\n"
+            )
+            (pi_home / "settings.json").write_text(json.dumps({"externalSetting": True}))
+            (pi_home / "models.json").write_text(
+                json.dumps({"providers": {"external-provider": {"models": []}}})
+            )
+            (pi_home / "presets.json").write_text(json.dumps({"external-preset": {}}))
+            (pi_home / "extensions/external.ts").write_text("export default () => {};\n")
+
+            sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
+
+            settings = json.loads((pi_home / "settings.json").read_text())
+            models = json.loads((pi_home / "models.json").read_text())
+            presets = json.loads((pi_home / "presets.json").read_text())
+            self.assertTrue(settings["externalSetting"])
+            self.assertIn("external-provider", models["providers"])
+            self.assertIn("external-preset", presets)
+            self.assertTrue((pi_home / "extensions/external.ts").exists())
+            self.assertTrue((pi_home / "skills/external-skill/SKILL.md").exists())
+            self.assertFalse((pi_home / "settings.json").is_symlink())
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 0)
+
+            (pi_home / "extensions/welcome.ts").write_text("drift\n")
+            settings.pop("defaultPreset")
+            (pi_home / "settings.json").write_text(json.dumps(settings))
+
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
+
+    @patch.object(drift_mod.shutil, "which", return_value=None)
+    def test_pi_drift_requires_cli(self, _which) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
+
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
 
     def test_codex_sync_deploys_and_checks_profiles(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

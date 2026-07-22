@@ -14,8 +14,12 @@
       "patterns": ["(?:^|[;&|()\\s])cp(?:\\s|$)", "(?:^|[;&|()\\s])mv(?:\\s|$)", "(?:^|[;&|()\\s])ln(?:\\s|$)", "(?:^|[;&|()\\s])mkdir(?:\\s|$)", "(?:^|[;&|()\\s])rmdir(?:\\s|$)", "(?:^|[;&|()\\s])touch(?:\\s|$)", "(?:^|[;&|()\\s])tee(?:\\s|$)"]
     },
     {
-      "name": "untrusted network shell or download",
-      "patterns": ["\\bcurl\\b", "\\bwget\\b"]
+      "name": "network download, upload, or remote script execution",
+      "patterns": [
+        "\\bcurl\\b.*(?:\\|\\s*(?:ba)?sh\\b|--output\\b|--remote-name\\b|--upload-file\\b|--request\\s+(?:POST|PUT|PATCH|DELETE)\\b|--data(?:-binary|-raw|-urlencode)?\\b|-[oOTX]\\s*)",
+        "\\bwget\\b",
+        "(?:^|[;&|()\\s])(?:1?>|>>)\\s*\\S+"
+      ]
     },
     {
       "name": "inline interpreter escape hatch",
@@ -31,7 +35,17 @@
     },
     {
       "name": "mutating GitHub CLI command",
-      "patterns": ["\\bgh\\s+api\\b", "\\bgh\\s+auth\\b", "\\bgh\\s+gist\\s+(create|edit)\\b", "\\bgh\\s+issue\\s+(close|comment|create|edit)\\b", "\\bgh\\s+pr\\s+(close|comment|create|edit|merge|ready|review)\\b", "\\bgh\\s+release\\s+create\\b", "\\bgh\\s+repo\\s+(clone|fork)\\b", "\\bgh\\s+run\\s+rerun\\b", "\\bgh\\s+workflow\\s+run\\b"]
+      "patterns": [
+        "\\bgh\\s+api\\b.*(?:--method\\s+(?:POST|PUT|PATCH|DELETE)\\b|-X\\s*(?:POST|PUT|PATCH|DELETE)\\b|--input\\b|--field\\b|--raw-field\\b|-[fF]\\s*)",
+        "\\bgh\\s+auth\\b",
+        "\\bgh\\s+gist\\s+(create|edit)\\b",
+        "\\bgh\\s+issue\\s+(close|comment|create|edit)\\b",
+        "\\bgh\\s+pr\\s+(close|comment|create|edit|merge|ready|review)\\b",
+        "\\bgh\\s+release\\s+create\\b",
+        "\\bgh\\s+repo\\s+(clone|fork)\\b",
+        "\\bgh\\s+run\\s+rerun\\b",
+        "\\bgh\\s+workflow\\s+run\\b"
+      ]
     },
     {
       "name": "dependency installation or removal",
@@ -46,18 +60,35 @@
       "patterns": ["\\bdocker\\s+compose\\s+(down|up)\\b", "\\bdocker-compose\\s+(down|up)\\b", "\\bdocker\\s+run\\b", "\\bdocker\\s+volume\\b", "\\bdocker\\s+system\\s+prune\\b", "\\bdocker\\s+image\\s+prune\\b", "\\bwrangler\\s+(deploy|delete)\\b"]
     }
   ],
-  "protectedPaths": [
+  "protectedReadPaths": [
     ".env",
     ".env.*",
     "**/.env",
     "**/.env.*",
     "**/secrets/**",
-    "**/*key*",
-    "**/*token*",
-    "**/*credential*",
     "~/.ssh/**",
+    "~/.gnupg/**",
     "~/.aws/**",
-    "~/.config/gh/**",
+    "~/.config/gh/hosts.yml",
+    "~/.pi/agent/auth.json",
+    "~/.claude/.credentials.json",
+    "~/.codex/auth.json",
+    "~/Library/Keychains/**"
+  ],
+  "protectedWritePaths": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/secrets/**",
+    "~/.ssh/**",
+    "~/.gnupg/**",
+    "~/.aws/**",
+    "~/.config/gh/hosts.yml",
+    "~/.pi/agent/auth.json",
+    "~/.claude/.credentials.json",
+    "~/.codex/auth.json",
+    "~/Library/Keychains/**",
     ".git/**",
     "node_modules/**"
   ]

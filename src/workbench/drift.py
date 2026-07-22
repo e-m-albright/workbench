@@ -160,6 +160,43 @@ def _check_claude(home: Path, data: Path, findings: list[str], external: list[st
     return _settings(home / ".claude.json").get("mcpServers", {})
 
 
+def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
+    pi_home = home / ".pi/agent"
+    if not shutil.which("pi"):
+        findings.append("DRIFT Pi CLI is not installed or not on PATH")
+    _compare(AGENTS / "shared/rules.md", pi_home / "AGENTS.md", "Pi rules", findings)
+    _compare(
+        AGENTS / "pi/permission-policy.json",
+        pi_home / "permission-policy.json",
+        "Pi permission policy",
+        findings,
+    )
+    findings.extend(
+        _managed_value_errors(
+            _settings(pi_home / "settings.json"),
+            _settings(AGENTS / "pi/settings.json"),
+            "Pi settings",
+        )
+    )
+    for filename, nested_key in (("models.json", "providers"), ("presets.json", None)):
+        actual = _settings(pi_home / filename)
+        expected = _settings(AGENTS / "pi" / filename)
+        if nested_key:
+            actual = actual.get(nested_key, {})
+            expected = expected.get(nested_key, {})
+        findings.extend(_managed_value_errors(actual, expected, f"Pi {filename}"))
+        if isinstance(actual, dict) and isinstance(expected, dict):
+            for name in sorted(actual.keys() - expected.keys()):
+                external.append(f"EXTERNAL Pi {filename} entry: {name}")
+
+    expected_extensions = {path.name: path for path in (AGENTS / "pi/extensions").glob("*.ts")}
+    deployed_extensions = {path.name: path for path in (pi_home / "extensions").glob("*.ts")}
+    for name, source in expected_extensions.items():
+        _compare(source, pi_home / "extensions" / name, f"Pi extension {name}", findings)
+    for name in sorted(deployed_extensions.keys() - expected_extensions.keys()):
+        external.append(f"EXTERNAL Pi extension: {name}")
+
+
 def _check_codex(home: Path, findings: list[str], external: list[str]) -> object:
     """Verify Codex-managed state; returns the live MCP mapping."""
     _compare_text(
@@ -208,20 +245,26 @@ def _check_codex(home: Path, findings: list[str], external: list[str]) -> object
 def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) -> int:
     findings: list[str] = []
     external: list[str] = []
+    selected = tuple(vendors)
     data = home / DATA_REL
-    hooks = _canonical_hooks()
-    for name, hook in hooks.items():
-        _compare(hook, data / "hooks" / name, f"hook {name}", findings)
-    hook_root = data / "hooks"
-    if hook_root.exists():
-        for deployed in hook_root.iterdir():
-            # sync keeps one .bak beside a replaced hook; that backup is not drift.
-            if deployed.suffix == ".bak":
-                continue
-            if deployed.is_file() and deployed.name not in hooks:
-                findings.append(f"DRIFT retired runtime hook still present: {deployed.name}")
+    if {"claude", "codex"} & set(selected):
+        hooks = _canonical_hooks()
+        for name, hook in hooks.items():
+            _compare(hook, data / "hooks" / name, f"hook {name}", findings)
+        hook_root = data / "hooks"
+        if hook_root.exists():
+            for deployed in hook_root.iterdir():
+                # sync keeps one .bak beside a replaced hook; that backup is not drift.
+                if deployed.suffix == ".bak":
+                    continue
+                if deployed.is_file() and deployed.name not in hooks:
+                    findings.append(f"DRIFT retired runtime hook still present: {deployed.name}")
 
-    for vendor in vendors:
+    for vendor in selected:
+        if vendor == "pi":
+            _check_pi(home, findings, external)
+            _check_skills(home / ".pi/agent/skills", vendor, findings, external)
+            continue
         if vendor == "claude":
             mcp = _check_claude(home, data, findings, external)
             skill_root = home / ".claude/skills"
