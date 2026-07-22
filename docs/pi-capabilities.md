@@ -15,8 +15,9 @@ Snapshot of what the pi harness can do, what third parties have built on it, and
 |---|---|
 | Session stats (tokens, cache, cost, ctx, model+effort, git) | **Have it** - our footer covers all of these |
 | Generation speed (tok/s) | **Done** 2026-07-21 (footer, per-turn output/elapsed) |
-| Auto-compact indicator | **Done** 2026-07-21 (static "(auto)"; extension API can't read the toggle) |
+| Auto-compact indicator | **Done** 2026-07-22 - shows `(auto)` before the first compaction and `compact×N` from actual session entries afterward |
 | Fast-mode status | **Done** 2026-07-21 when the active model/session exposes it; red `fast ON`, dim `fast off` |
+| Codex subscription windows | **Done** 2026-07-22 - remaining percentage and local reset date for each app-server rate-limit window; refreshed after responses and every five minutes |
 | Branded startup mark | **Done** 2026-07-21 - six-line `PI` wordmark blending Workbench ruby through orange into Dotfiles topaz |
 | Multi-session browser tabs | Gap - TUI is one session per terminal; tmux covers most of this |
 | Remote access (open-to-network + PIN) | Gap - the standout feature; phone access to running agents |
@@ -74,5 +75,5 @@ when a task requires high-autonomy execution against untrusted content.
 
 ## Notes
 
-- The extension API does not expose: auto-compaction state, rate-limit windows (except Codex response headers), or a direct thinking-level getter (we read `thinking_level_change` session entries instead).
+- The extension API does not expose the auto-compaction toggle, but completed compactions appear as session entries and are counted in the footer. Codex subscription windows come from the authenticated local Codex app-server; no credentials or conversation content are read. Pi still has no direct thinking-level getter, so the footer reads `thinking_level_change` session entries.
 - Footer convention: keep every data point the default footer had; additions must earn their width.

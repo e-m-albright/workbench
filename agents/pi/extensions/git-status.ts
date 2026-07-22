@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
@@ -16,9 +18,21 @@ type GitState =
 			behind: number;
 		};
 
+export interface QuotaWindow {
+	usedPercent: number;
+	windowDurationMins?: number;
+	resetsAt?: number;
+}
+
 type QuotaState =
 	| { kind: "unknown" }
-	| { kind: "percent"; usedPercent: number; source: string };
+	| { kind: "percent"; usedPercent: number; source: string }
+	| {
+			kind: "codex";
+			planType?: string;
+			primary?: QuotaWindow;
+			secondary?: QuotaWindow;
+	  };
 
 function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
@@ -199,16 +213,58 @@ function authClass(ctx: ExtensionContext): "local" | "subscription" | "paid" {
 	return "paid";
 }
 
+function quotaWindowLabel(window: QuotaWindow): string {
+	const minutes = window.windowDurationMins;
+	if (!minutes) return "limit";
+	if (minutes % 10_080 === 0) return `${minutes / 10_080}w`;
+	if (minutes % 1_440 === 0) return `${minutes / 1_440}d`;
+	if (minutes % 60 === 0) return `${minutes / 60}h`;
+	return `${minutes}m`;
+}
+
+function resetLabel(epochSeconds: number | undefined, now = new Date()): string {
+	if (!epochSeconds) return "";
+	const reset = new Date(epochSeconds * 1000);
+	const time = reset
+		.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+		.replace(" ", "")
+		.toLowerCase();
+	const days = Math.round((reset.getTime() - now.getTime()) / 86_400_000);
+	if (days >= 0 && days < 7) {
+		const weekday = reset.toLocaleDateString(undefined, { weekday: "short" });
+		return `${weekday} ${time}`;
+	}
+	const date = reset.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+	return `${date} ${time}`;
+}
+
+export function formatCodexQuota(state: Extract<QuotaState, { kind: "codex" }>, now = new Date()): string {
+	const windows = [state.secondary, state.primary].filter((window): window is QuotaWindow => Boolean(window));
+	return windows
+		.map((window) => {
+			const remaining = Math.max(0, Math.min(100, 100 - window.usedPercent));
+			const reset = resetLabel(window.resetsAt, now);
+			return `${quotaWindowLabel(window)} ${Math.round(remaining)}%${reset ? `→${reset}` : ""}`;
+		})
+		.join(" ");
+}
+
 function authSegment(ctx: ExtensionContext, quotaState: QuotaState): string {
 	switch (authClass(ctx)) {
 		case "local":
 			return statusColor("good", "local");
-		case "subscription":
+		case "subscription": {
+			if (quotaState.kind === "codex") {
+				const detail = formatCodexQuota(quotaState);
+				return detail ? statusColor("note", `sub ${detail}`) : statusColor("note", "sub");
+			}
 			if (quotaState.kind === "percent") {
-				return amberRamp(quotaState.usedPercent, `sub ${Math.round(quotaState.usedPercent)}%`);
+				const remaining = Math.max(0, 100 - quotaState.usedPercent);
+				return amberRamp(quotaState.usedPercent, `sub ${Math.round(remaining)}% left`);
 			}
 			return statusColor("note", "sub");
-			case "paid":
+		}
+		case "paid":
 			return dim("api");
 	}
 }
@@ -301,6 +357,67 @@ function quotaFromHeaders(headers: Record<string, string>): QuotaState {
 	return { kind: "unknown" };
 }
 
+function quotaWindow(value: unknown): QuotaWindow | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const raw = value as Record<string, unknown>;
+	if (typeof raw.usedPercent !== "number") return undefined;
+	return {
+		usedPercent: raw.usedPercent,
+		windowDurationMins: typeof raw.windowDurationMins === "number" ? raw.windowDurationMins : undefined,
+		resetsAt: typeof raw.resetsAt === "number" ? raw.resetsAt : undefined,
+	};
+}
+
+async function codexQuota(): Promise<QuotaState> {
+	return new Promise((resolve) => {
+		const child = spawn("codex", ["app-server"], { stdio: ["pipe", "pipe", "ignore"] });
+		let settled = false;
+		const finish = (value: QuotaState) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			lines.close();
+			child.kill();
+			resolve(value);
+		};
+		const timeout = setTimeout(() => finish({ kind: "unknown" }), 5000);
+		const lines = createInterface({ input: child.stdout });
+		lines.on("line", (line) => {
+			try {
+				const message = JSON.parse(line) as Record<string, unknown>;
+				if (message.id === 1) {
+					child.stdin.write(`${JSON.stringify({ method: "initialized" })}\n`);
+					child.stdin.write(
+						`${JSON.stringify({ id: 2, method: "account/rateLimits/read", params: null })}\n`,
+					);
+					return;
+				}
+				if (message.id !== 2 || !message.result || typeof message.result !== "object") return;
+				const result = message.result as Record<string, unknown>;
+				if (!result.rateLimits || typeof result.rateLimits !== "object") return finish({ kind: "unknown" });
+				const rateLimits = result.rateLimits as Record<string, unknown>;
+				finish({
+					kind: "codex",
+					planType: typeof rateLimits.planType === "string" ? rateLimits.planType : undefined,
+					primary: quotaWindow(rateLimits.primary),
+					secondary: quotaWindow(rateLimits.secondary),
+				});
+			} catch {
+				// Ignore non-JSON diagnostics and unrelated app-server notifications.
+			}
+		});
+		child.on("error", () => finish({ kind: "unknown" }));
+		child.on("exit", () => finish({ kind: "unknown" }));
+		child.stdin.write(
+			`${JSON.stringify({
+				id: 1,
+				method: "initialize",
+				params: { clientInfo: { name: "workbench-pi-footer", version: "1" } },
+			})}\n`,
+		);
+	});
+}
+
 let lastSpeed: number | undefined;
 
 function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: QuotaState, width: number): string[] {
@@ -342,13 +459,13 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 	const contextTokens = usage?.tokens === null || usage?.tokens === undefined ? "?" : formatTokens(usage.tokens);
 	const groupSep = dim(" \u2502 ");
 
-	// "(auto)" is static text: the extension API does not expose the
-	// auto-compaction toggle, and pi enables it by default.
+	const compactions = entries.filter((entry) => entry.type === "compaction").length;
+	const compactStatus = compactions > 0 ? ` (compact×${compactions})` : " (auto)";
 	const groups = [
 		severityColor(
 			contextSeverity(usage?.percent, usage?.tokens),
 			`ctx ${contextPercent}% ${contextTokens}/${formatTokens(contextWindow)}`,
-		) + dim(" (auto)"),
+		) + dim(compactStatus),
 	];
 
 	const tokenParts: string[] = [];
@@ -404,7 +521,10 @@ export default function (pi: ExtensionAPI) {
 	let gitState: GitState = { kind: "not-git" };
 	let quotaState: QuotaState = { kind: "unknown" };
 	let refreshTimer: ReturnType<typeof setInterval> | undefined;
+	let quotaTimer: ReturnType<typeof setInterval> | undefined;
 	let refreshInFlight = false;
+	let quotaRefreshInFlight = false;
+	let lastQuotaRefresh = 0;
 	let requestRender: (() => void) | undefined;
 
 	const refresh = async (ctx: ExtensionContext) => {
@@ -418,10 +538,25 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 
+	const refreshQuota = async (ctx: ExtensionContext, force = false) => {
+		if (ctx.model?.provider !== "openai-codex" || authClass(ctx) !== "subscription") return;
+		if (quotaRefreshInFlight || (!force && Date.now() - lastQuotaRefresh < 60_000)) return;
+		quotaRefreshInFlight = true;
+		try {
+			const value = await codexQuota();
+			if (value.kind !== "unknown") quotaState = value;
+			lastQuotaRefresh = Date.now();
+			requestRender?.();
+		} finally {
+			quotaRefreshInFlight = false;
+		}
+	};
+
 	pi.on("session_start", async (_event, ctx) => {
 		if (!ctx.hasUI) return;
 		ctx.ui.setStatus("git-dirty", undefined);
 		await refresh(ctx);
+		void refreshQuota(ctx, true);
 
 		ctx.ui.setFooter((tui, _theme, footerData) => {
 			requestRender = () => tui.requestRender();
@@ -453,6 +588,10 @@ export default function (pi: ExtensionAPI) {
 		refreshTimer = setInterval(() => {
 			void refresh(ctx);
 		}, 3000);
+		quotaTimer && clearInterval(quotaTimer);
+		quotaTimer = setInterval(() => {
+			void refreshQuota(ctx, true);
+		}, 300_000);
 	});
 
 	pi.on("tool_execution_end", async (_event, ctx) => {
@@ -488,7 +627,9 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("after_provider_response", async (event, ctx) => {
 		if (ctx.model?.provider !== "openai-codex") return;
-		quotaState = quotaFromHeaders(event.headers as Record<string, string>);
+		const headerQuota = quotaFromHeaders(event.headers as Record<string, string>);
+		if (headerQuota.kind !== "unknown" && quotaState.kind !== "codex") quotaState = headerQuota;
+		await refreshQuota(ctx);
 		requestRender?.();
 	});
 
@@ -496,6 +637,10 @@ export default function (pi: ExtensionAPI) {
 		if (refreshTimer) {
 			clearInterval(refreshTimer);
 			refreshTimer = undefined;
+		}
+		if (quotaTimer) {
+			clearInterval(quotaTimer);
+			quotaTimer = undefined;
 		}
 		requestRender = undefined;
 	});

@@ -403,6 +403,9 @@ export default function discoveryTelemetry(pi: ExtensionAPI) {
 	pi.on("turn_end", async (_event, ctx) => {
 		if (!enabled()) return;
 		const usage = ctx.getContextUsage();
+		const compactions = ctx.sessionManager
+			.getEntries()
+			.filter((entry) => entry.type === "compaction").length;
 		append(ctx, {
 			event: "turn_end",
 			duration_ms: turnStarted ? Date.now() - turnStarted : undefined,
@@ -417,6 +420,7 @@ export default function discoveryTelemetry(pi: ExtensionAPI) {
 			context_tokens: usage?.tokens,
 			context_percent: usage?.percent,
 			context_growth: usage?.tokens === undefined ? undefined : usage.tokens - turnContextStart,
+			compactions,
 		});
 	});
 
