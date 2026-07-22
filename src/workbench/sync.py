@@ -257,18 +257,27 @@ def _merge_pi_object(source: Path, destination: Path, *, nested_key: str | None 
     write_json(destination, desired)
 
 
+def _remove_deployed_path(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.exists():
+        shutil.rmtree(path)
+
+
 def _sync_pi_skills(home: Path) -> None:
-    destination = home / ".pi/agent/skills"
-    destination.mkdir(parents=True, exist_ok=True)
+    """Deploy shared skills once where Pi and Codex both discover them."""
+    shared_destination = home / ".agents/skills"
+    pi_destination = home / ".pi/agent/skills"
+    shared_destination.mkdir(parents=True, exist_ok=True)
+    pi_destination.mkdir(parents=True, exist_ok=True)
     canonical = {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
     for name in sorted(set(canonical) | set(RETIRED_SKILLS)):
-        deployed = destination / name
-        if deployed.is_symlink() or deployed.is_file():
-            deployed.unlink()
-        elif deployed.exists():
-            shutil.rmtree(deployed)
+        _remove_deployed_path(shared_destination / name)
+        # Older Workbench versions copied shared skills here too. Pi discovers
+        # both roots, so retaining those copies produces a collision warning.
+        _remove_deployed_path(pi_destination / name)
     for name, source in canonical.items():
-        shutil.copytree(source, destination / name)
+        shutil.copytree(source, shared_destination / name)
 
 
 def _harden_pi_session_permissions(destination: Path) -> None:

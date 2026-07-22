@@ -131,7 +131,8 @@ just check
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
 and the installed Pi/Claude/Codex CLIs. Claude and Codex skill deployment also
-uses `npx skills`; Pi skills are copied directly into its native skill directory.
+uses `npx skills`; Pi and Codex discover one shared real-file deployment under
+`~/.agents/skills`, avoiding duplicate Pi skill warnings.
 
 ## Daily Workflows
 

@@ -398,7 +398,7 @@ class WorkbenchTests(unittest.TestCase):
             sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
             sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
             sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
-            self.deploy_skills(home, ".claude/skills", ".agents/skills")
+            self.deploy_skills(home, ".claude/skills")
 
             self.assertEqual(
                 drift_mod.drift(home, ("claude", "codex", "pi"), verify_plugins=False),
@@ -418,6 +418,12 @@ class WorkbenchTests(unittest.TestCase):
             (pi_home / "skills/external-skill/SKILL.md").write_text(
                 "---\nname: external-skill\ndescription: external\n---\n"
             )
+            canonical_name = next(
+                path.parent.name for path in core.AGENTS.glob("skills/*/SKILL.md")
+            )
+            duplicate = pi_home / "skills" / canonical_name
+            duplicate.mkdir(parents=True)
+            (duplicate / "SKILL.md").write_text("stale duplicate\n")
             (pi_home / "settings.json").write_text(json.dumps({"externalSetting": True}))
             (pi_home / "models.json").write_text(
                 json.dumps({"providers": {"external-provider": {"models": []}}})
@@ -435,6 +441,8 @@ class WorkbenchTests(unittest.TestCase):
             self.assertIn("external-preset", presets)
             self.assertTrue((pi_home / "extensions/external.ts").exists())
             self.assertTrue((pi_home / "skills/external-skill/SKILL.md").exists())
+            self.assertFalse((pi_home / "skills" / canonical_name).exists())
+            self.assertTrue((home / ".agents/skills" / canonical_name / "SKILL.md").exists())
             self.assertFalse((pi_home / "settings.json").is_symlink())
             self.assertEqual((pi_home / "sessions").stat().st_mode & 0o777, 0o700)
             self.assertEqual(session.stat().st_mode & 0o777, 0o600)

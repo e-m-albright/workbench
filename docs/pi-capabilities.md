@@ -30,10 +30,23 @@ Verdict at review time: **don't migrate.** Trust surface of a dev-version single
 
 Pi is a first-class `workbench sync pi` / `workbench drift pi` target. Workbench
 deploys its global rules, settings, model providers, presets, permission policy,
-extensions, and shared skills. Drift checks the Pi CLI, every managed file, and
-reports unknown skills/extensions/providers/presets as external without deleting
-them. Authentication, trust decisions, sessions, model cache, and discovery logs
-remain private live state.
+extensions, and shared skills. Shared skills live once under `~/.agents/skills`,
+which Pi discovers alongside Pi-only external skills under its native directory;
+this prevents duplicate-skill startup warnings. Drift checks the Pi CLI, every
+managed file, and reports unknown skills/extensions/providers/presets as external
+without deleting them. Authentication, trust decisions, sessions, model cache,
+and discovery logs remain private live state.
+
+## Prompt navigation
+
+Pi 0.81.1 already ships the safe core of the requested prompt navigator. Workbench
+sets `/tree` to its `user-only` filter and keeps double-Escape bound to opening it.
+From the transcript: double-Escape, then Up/Down to preview prior prompts, Escape
+to return without changing context. Enter intentionally rewinds to the selected
+prompt and starts a branch, so it is not a read-only scroll action. Pi's public
+extension API does not expose the terminal scrollback viewport, so a Claude-style
+preview that tracks manual terminal scrolling would require unsupported TUI
+internals and is intentionally not built.
 
 ## Build candidates (idea parking lot, prioritized by leverage)
 
@@ -75,5 +88,6 @@ when a task requires high-autonomy execution against untrusted content.
 
 ## Notes
 
+- Context size is provider-specific. Pi 0.81.1 currently advertises GPT-5.6 Sol as 272K through the `openai-codex` subscription route and 1.1M through OpenRouter. The footer uses the active provider's model metadata; it must not relabel the subscription route as 1.1M without endpoint evidence.
 - The extension API does not expose the auto-compaction toggle, but completed compactions appear as session entries and are counted in the footer. Codex subscription windows come from the authenticated local Codex app-server; no credentials or conversation content are read. Pi still has no direct thinking-level getter, so the footer reads `thinking_level_change` session entries.
 - Footer convention: keep every data point the default footer had; additions must earn their width.

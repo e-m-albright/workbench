@@ -2,6 +2,8 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.6-sol",
   "defaultThinkingLevel": "medium",
+  "doubleEscapeAction": "tree",
+  "treeFilterMode": "user-only",
   "shellCommandPrefix": "shopt -s expand_aliases\neval \"$(grep '^alias ' $HOME/code/public/dotfiles/shell/.zshrc)\"",
   "defaultPreset": "dev",
   "safeGit": {

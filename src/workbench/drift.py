@@ -80,6 +80,19 @@ def _check_skills(skill_root: Path, vendor: str, findings: list[str], external: 
             external.append(f"EXTERNAL {vendor} skill: {name}")
 
 
+def _check_pi_native_skills(skill_root: Path, findings: list[str], external: list[str]) -> None:
+    """Pi-native skills may be external, but shared copies are duplicate drift."""
+    canonical = {path.parent.name for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    deployed = {path.parent.name for path in skill_root.glob("*/SKILL.md")}
+    for name in sorted(deployed):
+        if name in canonical:
+            findings.append(f"DRIFT duplicate Pi skill shadows shared skill: {name}")
+        elif name in RETIRED_SKILLS:
+            findings.append(f"DRIFT retired pi skill still present: {name}")
+        else:
+            external.append(f"EXTERNAL pi skill: {name}")
+
+
 def _check_subagents(
     vendor: str, destination: Path, findings: list[str], external: list[str]
 ) -> None:
@@ -266,7 +279,8 @@ def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) ->
     for vendor in selected:
         if vendor == "pi":
             _check_pi(home, findings, external)
-            _check_skills(home / ".pi/agent/skills", vendor, findings, external)
+            _check_skills(home / ".agents/skills", vendor, findings, external)
+            _check_pi_native_skills(home / ".pi/agent/skills", findings, external)
             continue
         if vendor == "claude":
             mcp = _check_claude(home, data, findings, external)
