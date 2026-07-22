@@ -16,7 +16,7 @@ reference.
 | Skills | `~/.pi/agent/skills` | Claude global skill directory | `~/.agents/skills` |
 | Plugins / packages | `packages` in managed Pi settings | IDs from `agents/claude/plugins.json` | IDs from `agents/codex/plugins.json` |
 | MCP servers | None by design | Shared registry plus preserved external servers | Shared registry plus preserved external servers |
-| Generated/private state | Preserved and unmanaged: auth, sessions, trust, model cache, telemetry | Preserved vendor state | Preserved vendor state |
+| Generated/private state | Contents preserved and unmanaged; session filesystem permissions enforced private | Preserved vendor state | Preserved vendor state |
 
 Pi settings, models, and presets preserve unknown top-level entries while
 Workbench replaces its managed entries. Unknown Pi extensions, skills, model
@@ -27,7 +27,8 @@ cannot silently disable the harness.
 Plugin IDs are version-controlled and installation is reproducible. OAuth
 consent and account sessions remain interactive vendor state; credentials,
 session transcripts, trust decisions, and OAuth grants never belong in
-Workbench.
+Workbench. Sync sets Pi session directories to `0700` and transcript files to
+`0600` without reading or changing their contents.
 
 ## Drift semantics
 

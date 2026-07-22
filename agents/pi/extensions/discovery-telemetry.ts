@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
 	appendFileSync,
+	chmodSync,
 	existsSync,
 	mkdirSync,
 	readdirSync,
@@ -93,7 +94,8 @@ function cleanOldLogs(retentionDays: number): void {
 function append(ctx: ExtensionContext, payload: Omit<LogEvent, "ts" | "run" | "repo">): void {
 	if (!ctx.isProjectTrusted()) return;
 	const cfg = config();
-	mkdirSync(logDir, { recursive: true });
+	mkdirSync(logDir, { recursive: true, mode: 0o700 });
+	chmodSync(logDir, 0o700);
 	const path = logPath();
 	if (existsSync(path) && statSync(path).size >= cfg.maxBytesPerDay) return;
 	const event: LogEvent = {
@@ -103,6 +105,7 @@ function append(ctx: ExtensionContext, payload: Omit<LogEvent, "ts" | "run" | "r
 		...payload,
 	};
 	appendFileSync(path, `${JSON.stringify(event)}\n`, { encoding: "utf8", mode: 0o600 });
+	chmodSync(path, 0o600);
 }
 
 function commandClass(command: string): string {

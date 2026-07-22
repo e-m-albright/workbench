@@ -271,11 +271,22 @@ def _sync_pi_skills(home: Path) -> None:
         shutil.copytree(source, destination / name)
 
 
+def _harden_pi_session_permissions(destination: Path) -> None:
+    """Keep persisted conversations private without inspecting or owning them."""
+    sessions = destination / "sessions"
+    if not sessions.exists():
+        return
+    sessions.chmod(0o700)
+    for path in sessions.rglob("*"):
+        path.chmod(0o700 if path.is_dir() else 0o600)
+
+
 def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False) -> None:
     """Deploy Pi's transparent local configuration; packages remain settings-owned."""
     del deploy_plugins  # Pi packages are declared in settings.json, not a separate plugin registry.
     source = AGENTS / "pi"
     destination = home / ".pi/agent"
+    _harden_pi_session_permissions(destination)
     _replace_pi_file(AGENTS / "shared/rules.md", destination / "AGENTS.md")
     _merge_pi_object(source / "settings.json", destination / "settings.json")
     _merge_pi_object(source / "models.json", destination / "models.json", nested_key="providers")

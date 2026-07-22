@@ -410,6 +410,10 @@ class WorkbenchTests(unittest.TestCase):
             home = Path(raw)
             pi_home = home / ".pi/agent"
             (pi_home / "extensions").mkdir(parents=True)
+            (pi_home / "sessions/project").mkdir(parents=True)
+            session = pi_home / "sessions/project/session.jsonl"
+            session.write_text("private conversation\n")
+            session.chmod(0o644)
             (pi_home / "skills/external-skill").mkdir(parents=True)
             (pi_home / "skills/external-skill/SKILL.md").write_text(
                 "---\nname: external-skill\ndescription: external\n---\n"
@@ -432,6 +436,8 @@ class WorkbenchTests(unittest.TestCase):
             self.assertTrue((pi_home / "extensions/external.ts").exists())
             self.assertTrue((pi_home / "skills/external-skill/SKILL.md").exists())
             self.assertFalse((pi_home / "settings.json").is_symlink())
+            self.assertEqual((pi_home / "sessions").stat().st_mode & 0o777, 0o700)
+            self.assertEqual(session.stat().st_mode & 0o777, 0o600)
             self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 0)
 
             (pi_home / "extensions/welcome.ts").write_text("drift\n")

@@ -164,6 +164,9 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
     pi_home = home / ".pi/agent"
     if not shutil.which("pi"):
         findings.append("DRIFT Pi CLI is not installed or not on PATH")
+    sessions = pi_home / "sessions"
+    if sessions.exists() and sessions.stat().st_mode & 0o077:
+        findings.append("DRIFT Pi session directory is accessible to other local users")
     _compare(AGENTS / "shared/rules.md", pi_home / "AGENTS.md", "Pi rules", findings)
     _compare(
         AGENTS / "pi/permission-policy.json",
