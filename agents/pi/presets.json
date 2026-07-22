@@ -1,4 +1,9 @@
 {
+  "plan": {
+    "thinkingLevel": "high",
+    "tools": ["read", "grep", "find", "ls"],
+    "instructions": "You are in PLAN MODE. Investigate read-only and produce an implementation plan; do not edit files, write files, or run shell commands. The plan must name: scope, explicit non-goals, ordered steps with the files each touches, verification commands, and risks or open questions. Challenge the request if a smaller change satisfies the goal. End by asking the user to review the plan and switch to dev (/preset dev) to execute it."
+  },
   "read": {
     "thinkingLevel": "medium",
     "tools": ["read", "grep", "find", "ls"],

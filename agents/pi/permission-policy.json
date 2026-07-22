@@ -1,25 +1,6 @@
 {
   "defaultAction": "allow",
-  "mcpAllowedTools": [
-    "get_event",
-    "get_message",
-    "get_thread",
-    "gmail_get_message",
-    "gmail_get_thread",
-    "gmail_list_drafts",
-    "gmail_list_labels",
-    "gmail_search_threads",
-    "google_calendar_get_event",
-    "google_calendar_list_calendars",
-    "google_calendar_list_events",
-    "google_calendar_search_events",
-    "list_calendars",
-    "list_drafts",
-    "list_events",
-    "list_labels",
-    "search_events",
-    "search_threads"
-  ],
+  "mcpAllowedTools": [],
   "denyCommands": [
     {
       "name": "privileged shell",
@@ -36,14 +17,18 @@
     {
       "name": "network download, upload, or remote script execution",
       "patterns": [
-        "\\bcurl\\b.*(?:\\|\\s*(?:ba)?sh\\b|--output\\b|--remote-name\\b|--upload-file\\b|--request\\s+(?:POST|PUT|PATCH|DELETE)\\b|--data(?:-binary|-raw|-urlencode)?\\b|-[oOTX]\\s*)",
+        "\\bcurl\\b.*(?:\\|\\s*(?:ba)?sh\\b|--output\\b|--remote-name\\b|--upload-file\\b|--request\\s+(?:POST|PUT|PATCH|DELETE)\\b|--data(?:-binary|-raw|-urlencode)?\\b|--form\\b|--header\\b|--cookie\\b|--json\\b|(?:^|\\s)-[A-Za-z]*[doOTXHb]\\b)",
         "\\bwget\\b",
         "(?:^|[;&|()\\s])(?:1?>|>>)\\s*\\S+"
       ]
     },
     {
       "name": "inline interpreter escape hatch",
-      "patterns": ["\\b(python|python3|node|ruby|perl|bash|sh)\\s+-(c|e)\\b", "\\beval\\b"]
+      "patterns": [
+        "\\b(python|python3|node|ruby|perl|bash|sh)\\s+-(c|e)\\b",
+        "\\b(python|python3|node|ruby|perl|bash|sh)\\b[^|;&]*(?:--eval\\b|--exec\\b|<<)",
+        "\\beval\\b"
+      ]
     },
     {
       "name": "process control",
@@ -91,6 +76,7 @@
     "~/.aws/**",
     "~/.config/gh/hosts.yml",
     "~/.pi/agent/auth.json",
+    "~/Library/Application Support/notes-app/**",
     "~/.claude/.credentials.json",
     "~/.codex/auth.json",
     "~/Library/Keychains/**"
@@ -105,7 +91,8 @@
     "~/.gnupg/**",
     "~/.aws/**",
     "~/.config/gh/hosts.yml",
-    "~/.pi/agent/auth.json",
+    "~/.pi/agent/**",
+    "~/Library/Application Support/notes-app/**",
     "~/.claude/.credentials.json",
     "~/.codex/auth.json",
     "~/Library/Keychains/**",

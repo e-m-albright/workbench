@@ -51,6 +51,15 @@ function firstUserPrompt(ctx: ExtensionContext): string | undefined {
 	return undefined;
 }
 
+// ctx.sessionManager is typed ReadonlySessionManager; appendSessionInfo exists only
+// on the concrete SessionManager Pi currently passes through. Guard the call so a
+// future Pi that enforces the read-only wrapper degrades to an unnamed session
+// instead of crashing the extension.
+function nameSession(ctx: ExtensionContext, name: string): void {
+	const manager = ctx.sessionManager as unknown as { appendSessionInfo?: (name: string) => void };
+	manager.appendSessionInfo?.(name);
+}
+
 export default function activityTitle(pi: ExtensionAPI) {
 	let timer: ReturnType<typeof setInterval> | undefined;
 	let frameIndex = 0;
@@ -90,7 +99,7 @@ export default function activityTitle(pi: ExtensionAPI) {
 			const prompt = firstUserPrompt(ctx);
 			if (prompt) {
 				thread = deriveThreadTitle(prompt);
-				ctx.sessionManager.appendSessionInfo(thread);
+				nameSession(ctx, thread);
 			}
 		}
 		const root = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd: ctx.cwd, timeout: 1000 });
@@ -102,7 +111,7 @@ export default function activityTitle(pi: ExtensionAPI) {
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!ctx.sessionManager.getSessionName()) {
 			thread = deriveThreadTitle(event.prompt);
-			ctx.sessionManager.appendSessionInfo(thread);
+			nameSession(ctx, thread);
 		} else {
 			thread = ctx.sessionManager.getSessionName();
 		}

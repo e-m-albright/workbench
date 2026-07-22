@@ -91,7 +91,7 @@ function cleanOldLogs(retentionDays: number): void {
 	}
 }
 
-function append(ctx: ExtensionContext, payload: Omit<LogEvent, "ts" | "run" | "repo">): void {
+function append(ctx: ExtensionContext, payload: { event: string } & Record<string, unknown>): void {
 	if (!ctx.isProjectTrusted()) return;
 	const cfg = config();
 	mkdirSync(logDir, { recursive: true, mode: 0o700 });
@@ -419,7 +419,7 @@ export default function discoveryTelemetry(pi: ExtensionAPI) {
 			unique_paths: uniquePaths.size,
 			context_tokens: usage?.tokens,
 			context_percent: usage?.percent,
-			context_growth: usage?.tokens === undefined ? undefined : usage.tokens - turnContextStart,
+			context_growth: usage?.tokens == null ? undefined : usage.tokens - turnContextStart,
 			compactions,
 		});
 	});

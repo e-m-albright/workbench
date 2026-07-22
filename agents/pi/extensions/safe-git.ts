@@ -71,8 +71,14 @@ export default function (pi: ExtensionAPI) {
     { pattern: /\bgit\s+revert\b/i, action: "revert", severity: "medium" },
     { pattern: /\bgit\s+am\b/i, action: "apply patches", severity: "medium" },
 
-    // GitHub CLI - all commands (medium risk)
-    { pattern: /\bgh\s+\S+/i, action: "GitHub CLI", severity: "medium" },
+    // GitHub CLI - mutating subcommands only; reads (pr view, run list, api GET)
+    // pass silently so a session-wide approval never covers unseen mutations.
+    {
+      pattern:
+        /\bgh\s+(?:api\s+[^|;&]*(?:--method\s+|-X\s*)(?:POST|PUT|PATCH|DELETE)\b|api\s+[^|;&]*(?:--input\b|--field\b|--raw-field\b|-[fF]\s)|auth\b|gist\s+(?:create|edit|delete)\b|issue\s+(?:close|comment|create|edit|delete)\b|pr\s+(?:close|comment|create|edit|merge|ready|review)\b|release\s+(?:create|delete|edit|upload)\b|repo\s+(?:create|delete|edit|fork|clone)\b|run\s+(?:cancel|rerun)\b|workflow\s+(?:enable|disable|run)\b|secret\b|variable\s+(?:set|delete)\b|alias\s+set\b|extension\s+(?:install|remove)\b|config\s+set\b)/i,
+      action: "mutating GitHub CLI",
+      severity: "medium",
+    },
   ];
 
   const severityIcons: Record<Severity, string> = {

@@ -7,25 +7,33 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome, custom footer (git-status), consult (second opinion), discovery telemetry, permission policy, presets, and safe-git. Pinned packages add the token-efficient MCP discovery proxy and a native wrapper around the existing Agent Browser CLI.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome, custom footer (git-status), consult (second opinion), discovery telemetry, permission policy, presets (including read-only plan mode), safe-git, worker (one worktree-isolated delegate), and google-readonly (owned Gmail/Calendar read-only tools). Pinned packages add the currently-idle MCP discovery proxy and a native wrapper around the existing Agent Browser CLI.
 
-## What the community PI Web UI adds (reviewed 2026-07-21)
+## Delta over vanilla Pi
 
-| Capability | Our status |
-|---|---|
-| Session stats (tokens, cache, cost, ctx, model+effort, git) | **Have it** - our footer covers all of these |
-| Generation speed (tok/s) | **Done** 2026-07-21 (footer, per-turn output/elapsed) |
-| Auto-compact indicator | **Done** 2026-07-22 - shows `(auto)` before the first compaction and `compact×N` from actual session entries afterward |
-| Terminal activity title + session name | **Done** 2026-07-22 - spinner, repository, deterministic first-prompt name, and active tool; explicit session names remain authoritative |
-| Fast-mode status | Intentionally removed 2026-07-22 - the subscription route does not expose reliable state, priority service is expensive, and Evan prefers default-off over custom control machinery |
-| Codex subscription windows | **Done** 2026-07-22 - remaining percentage and local reset date for each app-server rate-limit window; refreshed after responses and every five minutes |
-| Branded startup mark | **Done** 2026-07-21 - six-line `PI` wordmark blending Workbench ruby through orange into Dotfiles topaz |
-| Multi-session browser tabs | Gap - TUI is one session per terminal; tmux covers most of this |
-| Remote access (open-to-network + PIN) | Gap - the standout feature; phone access to running agents |
-| Agent-done desktop notifications | Gap - useful for long autonomous runs |
-| GUI conveniences (model/thinking dropdowns, themes, repo explorer, server actions) | Low value for a terminal-native workflow |
+Everything the managed harness adds to a stock `pi` install, in one place:
 
-Verdict at review time: **don't migrate.** Trust surface of a dev-version single-author package with a network-listening mode, against a workflow that is terminal-native and already hardened (permission-policy, safe-git). Revisit if multi-session or phone access becomes a real need.
+| Addition | Kind | What it provides |
+|---|---|---|
+| Workbench deploy + drift | Infrastructure | One public source of truth for settings, providers, presets, policy, extensions, and shared skills; `workbench sync pi` / `workbench drift pi` |
+| Custom footer (`git-status.ts`) | Extension | Git state, model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
+| Activity title (`activity-title.ts`) | Extension | Terminal-tab spinner, repository, deterministic first-prompt session name, active tool |
+| Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded |
+| Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, protected read/write paths, remote-MCP default-deny, self-modification protection |
+| Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
+| Presets (`presets.ts` + JSON) | Extension | `plan` (read-only, plan contract), `read`, `safe-auto`, `dev` |
+| Consult (`consult.ts`) | Extension | `/consult` second opinion via Claude, Codex, or Fable |
+| Worker (`worker.ts`) | Extension | `/worker` — one worktree-isolated child Pi; parent-owned review and merge |
+| Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
+| Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
+| Discovery telemetry (`discovery-telemetry.ts`) | Experiment | Local navigation/verification friction metrics; review 2026-07-28 |
+| `pi-agent-browser-native` 0.2.71 | Pinned package | Structured wrapper over the Agent Browser CLI (0.32.2) |
+| `just typecheck-pi` | Dev gate | Typechecks extensions against the installed Pi API |
+| pi-guide skill | Skill | Versioned tutorial for native Pi plus this harness |
+
+The community Pi Web UI comparison that previously lived here concluded
+**don't migrate**; the decision and its revisit conditions live in
+[`pi-build-philosophy.md`](pi-build-philosophy.md) (Explicitly absent).
 
 ## Managed Workbench target
 
@@ -56,21 +64,31 @@ needs either a verified terminal path or an upstream viewport API.
 
 ## Connector access
 
-Workbench configures pinned `pi-mcp-adapter` 2.11.0 with lazy OAuth routes for
-Gmail and Google Calendar. The servers are official `googleapis.com` endpoints;
-the client adapter is a third-party community package, not official Pi or Google
-support. OAuth stays explicit with `/mcp-auth <server>`, scopes are read-only, and
-Workbench's permission policy blocks remote tool calls outside a read-only
-allowlist. Tokens would remain in mode-0600 adapter state outside Workbench.
-Google does not advertise dynamic client registration, so no token is granted
-until a registered client and the residual extension trust are accepted.
+Gmail and Google Calendar are served by the Workbench-owned `google-readonly.ts`
+extension: direct REST calls to `googleapis.com`, loopback OAuth with PKCE,
+read-only scopes. All connector credentials live in one agent-neutral root,
+`~/Library/Application Support/notes-app/` — `google/client-secret.json` (the
+OAuth client shared with the notes Gmail labeler), `google/readonly-token.json`,
+`strava/client.json`, and `strava/token.json`, each mode 0600 under 0700
+directories. The whole root is on the permission policy's protected read and
+write lists. `/google-auth` mints the grant once; `/google-status` reports
+state.
+Tools: `gmail_search_threads`, `gmail_get_thread`, `calendar_list_calendars`,
+`calendar_list_events` — read-only by construction, with a standing guideline
+that message and event content is untrusted data, never instructions.
 
-Strava is not configured in Pi yet. Its protected-resource metadata points clients
-to an issuer path whose prefix-form discovery URL returns HTML/404, while the
-working RFC suffix-form metadata advertises dynamic registration. The current MCP
-adapter therefore fails with `Unable to register client`. Do not retain a noisy
-broken startup route; use Claude's already-connected Strava MCP until that
-metadata/adapter incompatibility is fixed or a client is registered explicitly.
+Pi has no MCP client installed. `pi-mcp-adapter` was removed once every source
+moved to owned connectors; the notes project's Granola tools spawn a pinned
+`mcp-remote` directly. The permission policy's remote-MCP default-deny remains
+as dormant defense should an MCP tool ever reappear.
+
+Strava is served by the sibling `strava-readonly.ts` extension: a personal API
+app (free; callback domain `localhost`), then `/strava-auth`. Tools:
+`strava_list_activities`, `strava_get_activity`, `strava_athlete_stats` —
+read-only, `read,activity:read_all` scopes, rotating refresh tokens persisted at
+0600. The MCP route stays retired (Strava's discovery metadata is incompatible
+with local MCP proxies; Claude's hosted connector works because Anthropic's
+client handles it).
 
 ## Native Agent Browser
 
@@ -84,13 +102,12 @@ must be run manually. It does not justify using authenticated browser profiles b
 temporary sessions stay the safe baseline. Optional search credentials remain
 disabled.
 
-## Build candidates (idea parking lot, prioritized by leverage)
+## Build candidates
 
-1. **Tighten what we have** - footer legend terseness pass once the annotations bed in; tune ctx severity thresholds with real usage.
-2. **Completion notifications** - explicitly deferred because notifications interrupt flow; revisit only if long unattended runs become common.
-3. **Multi-session awareness** - an extension or CLI that lists live pi sessions (pid, cwd, model, ctx%, cost) across terminals, read-only. Cheaper than tabs, fits tmux.
-4. **Remote access, if ever needed** - prefer Tailscale + SSH/tmux over adopting the community web UI's PIN model; audit first if the package is ever installed.
-5. **Speed-based model comparison** - with tok/s now logged in the footer, a future extension could record per-model speed/cost history to inform auto vs explicit model choice.
+Adoption rationale, research tracks, and the idea parking lot live in
+[`pi-build-philosophy.md`](pi-build-philosophy.md); active time-boxed trials live
+in [`experiments.md`](experiments.md). This page records only current
+operational state.
 
 ## Discovery telemetry experiment (started 2026-07-21)
 
@@ -118,6 +135,33 @@ filenames such as `token-efficiency.md` remain readable while credential files
 stay blocked and dependency trees remain write-protected. Read-only GitHub API
 and public `curl` output are allowed; mutations, downloads, uploads, remote script
 execution, destructive Git, and shell filesystem mutation remain blocked.
+
+Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
+
+- `curl` short upload/exfil flags (`-d`, `-H`, `-b`, `-o`, `-T`, `-X`) and the
+  long `--form`/`--header`/`--cookie`/`--json` forms are denied alongside the
+  previously blocked long data flags. `-F` remains open because case-insensitive
+  matching would also block the ubiquitous `-f`; form uploads still trip the
+  protected-path mention check when they reference secrets.
+- Interpreter escapes via `--eval`/`--exec` and heredocs (`python3 <<EOF`) are
+  denied, not just `-c`/`-e`.
+- Protected-path matching now strips substitution punctuation (`$(cat X)`),
+  expands `$HOME`, and resolves symlinks before glob matching.
+- `~/.pi/agent/**` is write-protected, so a session cannot silently edit its own
+  policy, extensions, or settings; changes flow through the repo and
+  `workbench sync pi`.
+- Safe-git prompts only on mutating `gh` subcommands; reads pass silently so a
+  session-wide approval never covers unseen mutations.
+- `just typecheck-pi` typechecks every extension against the installed Pi API,
+  and `workbench sync pi` merges `mcp.json` per server, so ad hoc connected
+  servers survive a sync and appear in drift as external entries.
+- The MCP allowlist still carries both prefixed and unprefixed tool-name variants
+  for Gmail/Calendar; prune to the observed names after the first authorized
+  connection.
+
+Known limits are recorded as named residual risks in
+[`pi-build-philosophy.md`](pi-build-philosophy.md): GET-based exfiltration,
+adapter token custody, and alias expansion after inspection.
 
 These are harness guardrails, not syscall containment. Use Codex or Claude Code
 when a task requires high-autonomy execution against untrusted content.

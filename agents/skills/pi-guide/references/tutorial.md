@@ -127,10 +127,12 @@ content.
 | Footer | Git state, model, thinking, context, tokens, cost, speed, compaction, quota |
 | Permission policy | Blocks protected paths, risky shell effects, and non-allowlisted MCP calls |
 | Safe Git | Adds approval gates around destructive history operations |
-| Presets | Switches coherent model/tool/behavior profiles |
-| Consult | Explicit independent second opinion |
+| Presets | Switches coherent model/tool/behavior profiles; `plan` is read-only planning with a required plan contract |
+| Consult | Explicit independent second opinion (`/consult`, `--fable` for adversarial) |
+| Worker | One worktree-isolated delegate (`/worker`); parent reviews the diff and owns the merge |
+| Google read-only | Owned Gmail/Calendar tools (`/google-auth`, `/google-status`); direct REST, read-only scopes |
+| Strava read-only | Owned activity tools (`/strava-auth`, `/strava-status`); free personal API |
 | Discovery telemetry | Temporary local measurement of navigation and verification friction |
-| MCP adapter | Token-efficient remote-tool discovery; OAuth remains explicit and constrained |
 | Native Agent Browser | Structured wrapper around the trusted Agent Browser CLI |
 
 Terminal titles use the first user prompt unless `/name` supplies an explicit

@@ -39,6 +39,7 @@ check:
     just typecheck
     just test
     just test-pi
+    just typecheck-pi
     just lint
 
 # ── Testing ───────────────────────────────────────────────────────────────────
@@ -52,6 +53,39 @@ test:
 [group('testing')]
 test-pi:
     bun test tests/*.test.ts
+
+# Typecheck Pi extensions against the installed Pi API; skips when Pi is absent.
+[group('testing')]
+typecheck-pi:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v pi >/dev/null 2>&1; then
+        echo "typecheck-pi: pi CLI not found; skipping"
+        exit 0
+    fi
+    pkg="$(dirname "$(dirname "$(readlink -f "$(command -v pi)")")")"
+    cfg="{{justfile_directory()}}/.pi-tsconfig.generated.json"
+    trap 'rm -f "$cfg"' EXIT
+    cat > "$cfg" <<EOF
+    {
+      "compilerOptions": {
+        "noEmit": true,
+        "strict": true,
+        "skipLibCheck": true,
+        "target": "es2022",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "typeRoots": ["$pkg/node_modules/@types"],
+        "paths": {
+          "@earendil-works/pi-coding-agent": ["$pkg/dist/index.d.ts"],
+          "@earendil-works/*": ["$pkg/node_modules/@earendil-works/*/dist/index.d.ts"],
+          "typebox": ["$pkg/node_modules/typebox/build/index.d.mts"]
+        }
+      },
+      "include": ["{{justfile_directory()}}/agents/pi/extensions/*.ts"]
+    }
+    EOF
+    bunx tsc -p "$cfg"
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 

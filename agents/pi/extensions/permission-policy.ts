@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { join, normalize, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
@@ -36,6 +36,7 @@ const SECRET_PATHS = [
   "~/.aws/**",
   "~/.config/gh/hosts.yml",
   "~/.pi/agent/auth.json",
+  "~/Library/Application Support/notes-app/**",
   "~/.claude/.credentials.json",
   "~/.codex/auth.json",
   "~/Library/Keychains/**",
@@ -46,7 +47,7 @@ const FALLBACK_POLICY: LoadedPermissionPolicy = {
   denyCommands: [],
   mcpAllowedTools: [],
   protectedReadPaths: SECRET_PATHS,
-  protectedWritePaths: [...SECRET_PATHS, ".git/**", "node_modules/**"],
+  protectedWritePaths: [...SECRET_PATHS, "~/.pi/agent/**", ".git/**", "node_modules/**"],
 };
 
 function readPolicyFile(path: string): PermissionPolicy {
@@ -70,7 +71,11 @@ function loadPolicy(cwd: string): LoadedPermissionPolicy {
       ...(globalPolicy.denyCommands ?? []),
       ...(projectPolicy.denyCommands ?? []),
     ],
-    mcpAllowedTools: projectPolicy.mcpAllowedTools ?? globalPolicy.mcpAllowedTools ?? FALLBACK_POLICY.mcpAllowedTools,
+    mcpAllowedTools: [
+      ...FALLBACK_POLICY.mcpAllowedTools,
+      ...(globalPolicy.mcpAllowedTools ?? []),
+      ...(projectPolicy.mcpAllowedTools ?? []),
+    ],
     protectedReadPaths: [
       ...(globalPolicy.protectedReadPaths ?? FALLBACK_POLICY.protectedReadPaths),
       ...(projectPolicy.protectedReadPaths ?? []),
@@ -97,7 +102,11 @@ function globToRegExp(glob: string): RegExp {
 }
 
 function normalizeCandidatePath(cwd: string, candidate: string): string {
-  const withoutQuotes = candidate.replace(/^['\"]|['\"]$/g, "");
+  // Strip wrapping quotes plus trailing shell punctuation a command substitution
+  // leaves attached, e.g. `$(cat ~/.pi/agent/auth.json)` tokenizes with `)`.
+  const withoutQuotes = candidate
+    .replace(/^[('"`]+|[)'"`;,]+$/g, "")
+    .replace(/^\$\{HOME\}|^\$HOME/, process.env.HOME ?? "~");
   if (withoutQuotes.startsWith("~")) return normalize(withoutQuotes.replace(/^~/, process.env.HOME ?? "~"));
   if (withoutQuotes.startsWith("/")) return normalize(withoutQuotes);
   return normalize(resolve(cwd, withoutQuotes));
@@ -106,10 +115,22 @@ function normalizeCandidatePath(cwd: string, candidate: string): string {
 export function pathMatchesPolicy(cwd: string, path: string, protectedPathGlobs: string[]): string | undefined {
   const normalized = normalizeCandidatePath(cwd, path);
   const relative = normalize(path.replace(/^\.\//, ""));
+  // A symlink inside the project can point at a protected file; match the
+  // resolved target too, not just the literal string.
+  let resolvedReal: string | undefined;
+  try {
+    if (existsSync(normalized)) {
+      const real = realpathSync(normalized);
+      if (real !== normalized) resolvedReal = real;
+    }
+  } catch {
+    resolvedReal = undefined;
+  }
 
   for (const glob of protectedPathGlobs) {
     const regex = globToRegExp(glob);
     if (regex.test(normalized) || regex.test(relative)) return glob;
+    if (resolvedReal && regex.test(resolvedReal)) return glob;
   }
 
   return undefined;
@@ -138,10 +159,16 @@ function extractInputPaths(input: unknown): string[] {
 }
 
 function protectedPathMention(cwd: string, command: string, protectedPathGlobs: string[]): string | undefined {
-  const tokens = command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? [];
+  // Two passes: quoted-token matching preserves paths with spaces, and a
+  // metacharacter split exposes paths embedded in substitutions like $(cat X).
+  const tokens = [
+    ...(command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? []),
+    ...command.split(/[\s$`()|;&<>"']+/),
+  ];
   for (const token of tokens) {
-    const cleaned = token.replace(/^['\"]|['\"]$/g, "");
-    const looksLikePath = cleaned.includes("/") || cleaned.startsWith(".") || cleaned.startsWith("~");
+    const cleaned = token.replace(/^[('"`]+|[)'"`;,]+$/g, "");
+    const looksLikePath =
+      cleaned.includes("/") || cleaned.startsWith(".") || cleaned.startsWith("~") || cleaned.startsWith("$HOME");
     if (!looksLikePath) continue;
 
     const matched = pathMatchesPolicy(cwd, cleaned, protectedPathGlobs);
