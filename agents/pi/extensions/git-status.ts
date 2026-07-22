@@ -466,6 +466,7 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 			contextSeverity(usage?.percent, usage?.tokens),
 			`ctx ${contextPercent}% ${contextTokens}/${formatTokens(contextWindow)}`,
 		) + dim(compactStatus),
+		authSegment(ctx, quotaState),
 	];
 
 	const tokenParts: string[] = [];
@@ -485,7 +486,6 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 
 	const cost = costSegment(ctx, totalCost);
 	if (cost) groups.push(cost);
-	groups.push(authSegment(ctx, quotaState));
 
 	let left = groups.join(groupSep);
 	let leftWidth = visibleWidth(left);
