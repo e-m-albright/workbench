@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -46,6 +47,32 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(merged["external"], {"command": "example"})
         self.assertNotIn("context7", merged)
         self.assertEqual(merged["granola"]["url"], "https://mcp.granola.ai/mcp")
+
+    def test_active_mcp_expands_env_refs_and_strips_metadata(self) -> None:
+        registry = {
+            "$comment": "registry-level note",
+            "svc": {
+                "$comment": "server-level note",
+                "command": "run",
+                "env": {"KEY": "${TEST_WB_KEY}", "FALLBACK": "${TEST_WB_MISSING:-default}"},
+                "targets": ["claude"],
+            },
+        }
+        with patch.dict("os.environ", {"TEST_WB_KEY": "secret-value"}, clear=False):
+            active = mcp.active_mcp("claude", registry)
+
+        svc = active["svc"]
+        self.assertNotIn("$comment", svc)
+        self.assertNotIn("targets", svc)
+        self.assertEqual(svc["env"]["KEY"], "secret-value")
+        self.assertEqual(svc["env"]["FALLBACK"], "default")
+
+    def test_active_mcp_leaves_unset_ref_literal_for_drift(self) -> None:
+        registry = {"svc": {"env": {"KEY": "${TEST_WB_UNSET}"}, "targets": ["claude"]}}
+        with patch.dict("os.environ", {}, clear=False):
+            os.environ.pop("TEST_WB_UNSET", None)
+            active = mcp.active_mcp("claude", registry)
+        self.assertEqual(active["svc"]["env"]["KEY"], "${TEST_WB_UNSET}")
 
     def test_merge_mcp_prunes_managed_server_removed_from_target(self) -> None:
         merged = mcp.merge_mcp(

@@ -2,10 +2,39 @@
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Mapping
 
 from workbench.core import AGENTS, WorkbenchError, load_json
+
+_ENV_REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
+
+
+def _expand_env(value: object) -> object:
+    """Resolve ${VAR} / ${VAR:-default} references against the environment.
+
+    The registry is committed, so a server's secret lives there only as a
+    reference. Machine-local configs (Claude Desktop notably) do not expand
+    ${VAR} themselves, so sync bakes the value in at stamp time - keeping both
+    the CLI and Desktop surfaces uniform. An unset variable with no default is
+    left as the literal reference, so drift calls it out rather than writing an
+    empty secret.
+    """
+    if isinstance(value, str):
+
+        def _sub(match: re.Match[str]) -> str:
+            name, default = match.group(1), match.group(2)
+            if name in os.environ:
+                return os.environ[name]
+            return default if default is not None else match.group(0)
+
+        return _ENV_REF.sub(_sub, value)
+    if isinstance(value, dict):
+        return {key: _expand_env(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_expand_env(item) for item in value]
+    return value
 
 
 def _registry() -> dict[str, object]:
@@ -35,7 +64,11 @@ def active_mcp(
             continue
         targets = value.get("targets", [])
         if isinstance(targets, list) and target in targets:
-            servers[name] = {key: item for key, item in value.items() if key != "targets"}
+            servers[name] = {
+                key: _expand_env(item)
+                for key, item in value.items()
+                if key != "targets" and not key.startswith("$")
+            }
     return servers
 
 

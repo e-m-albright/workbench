@@ -6,6 +6,14 @@
     "url": "https://mcp.granola.ai/mcp",
     "targets": ["claude", "desktop"]
   },
+  "exa": {
+    "$comment": "Exa neural search over stdio. The key is a reference here, never a literal: EXA_API_KEY is exported from ~/.zshrc.local (untracked, machine-local) and sync bakes it into the generated CLI and Desktop configs at stamp time. Sync-time expansion (not runtime) is what keeps this working in Claude Desktop, which does not expand ${VAR} itself (anthropics/claude-code#40372). If EXA_API_KEY is unset at stamp time the literal reference is written and drift flags it.",
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "exa-mcp-server"],
+    "env": { "EXA_API_KEY": "${EXA_API_KEY}" },
+    "targets": ["claude"]
+  },
   "_context7_disabled": "context7 MCP disabled 2026-06-09 — replaced by the `ctx7` CLI (`npx ctx7 library <name>` + `ctx7 docs <id>`, full 1:1 parity with the MCP's two tools). Docs lookup now needs no always-on MCP tax and is universal across every shell-capable agent, not patchy per-vendor. (was: https://mcp.context7.com/mcp, targets cursor/gemini)",
 
   "_playwright_disabled": "playwright MCP disabled 2026-06-09 — browser automation lives in the CLI layer instead (playwright framework for deterministic tests + agent-browser CLI for agent-driven browsing, pinchtab on standby for human-in-the-loop authed sessions). No always-on MCP context tax. (was: npx @playwright/mcp@latest, targets: claude/cursor/codex/gemini)",
