@@ -120,7 +120,7 @@ A disposable, local-only experiment to identify where model navigation wastes ti
 - Retention: 7 days; 5 MB/day cap; trusted projects only
 - Never persisted: prompts, responses, source contents, patches, search terms, complete commands, environment, URLs, credentials
 - Current experiment metrics: first-mutation latency + prior tool/search/read counts; unique-path fanout; repeated reads only when path/range/mtime are unchanged; edit-before-read; routing-doc reads; classified tool failures; zero-result searches; per-turn tool mix, duration, and context growth; verification after mutation
-- Footer status: `discovery ● on` (accent) / `discovery ○ off` (dim), inline with the repo line when width allows
+- Footer status: `telemetry ● on` (accent) / `telemetry ○ off` (dim), inline with the repo line when width allows
 
 **Removal is intentionally complete and mechanical:** delete the canonical extension, remove the `discoveryTelemetry` settings block, run `workbench sync pi`, and delete `~/.local/state/workbench/pi-discovery/`. No shared agent code depends on it.
 

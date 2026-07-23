@@ -33,7 +33,7 @@ export function formatActivityTitle(
 	indicator = "π",
 	activity?: string,
 ): string {
-	const context = thread ? `${project} / ${thread}` : project;
+	const context = thread ? `${project} | ${thread}` : project;
 	return activity ? `${indicator} ${context} · ${activity}` : `${indicator} ${context}`;
 }
 

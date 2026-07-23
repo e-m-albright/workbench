@@ -267,8 +267,8 @@ export default function discoveryTelemetry(pi: ExtensionAPI) {
 		ctx.ui.setStatus(
 			"discovery",
 			enabled()
-				? ctx.ui.theme.fg("accent", "discovery ● on")
-				: ctx.ui.theme.fg("dim", "discovery ○ off"),
+				? ctx.ui.theme.fg("accent", "telemetry ● on")
+				: ctx.ui.theme.fg("dim", "telemetry ○ off"),
 		);
 	}
 

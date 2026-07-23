@@ -418,9 +418,7 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 	if (home && cwd.startsWith(home)) cwd = `~${cwd.slice(home.length)}`;
 
 	const gitText = gitSegment(gitState);
-	const sessionName = ctx.sessionManager.getSessionName();
-	let pathLine = gitText ? `${statusColor("note", "π")} ${dim(cwd)} ${gitText}` : `${statusColor("note", "π")} ${dim(cwd)}`;
-	if (sessionName) pathLine += dim(` • ${sessionName}`);
+	const pathLine = gitText ? `${statusColor("note", "π")} ${dim(cwd)} ${gitText}` : `${statusColor("note", "π")} ${dim(cwd)}`;
 	const coloredPathLine = truncateToWidth(pathLine, width, dim("..."));
 
 	const usage = ctx.getContextUsage();
