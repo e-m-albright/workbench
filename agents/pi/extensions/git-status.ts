@@ -58,12 +58,11 @@ function dim(text: string): string {
 	return process.env.NO_COLOR ? text : `${ANSI_DIM}${text}${ANSI_RESET}`;
 }
 
-function amberRamp(percent: number | null | undefined, text: string): string {
-	if (percent === null || percent === undefined) return dim(text);
-	if (percent >= 90) return color("#d9784d", text); // burnt amber, not alarm red
-	if (percent >= 75) return color("#d9913d", text); // orange amber
-	if (percent >= 55) return color("#d3b15f", text); // distinct gold
-	return color("#8fa879", text); // muted sage
+function remainingCapacityColor(percent: number, text: string): string {
+	if (percent >= 50) return color("#8fa879", text); // muted sage
+	if (percent >= 25) return color("#d3b15f", text); // distinct gold
+	if (percent >= 10) return color("#d9913d", text); // orange amber
+	return color("#b85669", text); // muted crimson
 }
 
 // Context severity ramps absolute tokens as well as percent: model quality
@@ -244,7 +243,8 @@ export function formatCodexQuota(state: Extract<QuotaState, { kind: "codex" }>, 
 		.map((window) => {
 			const remaining = Math.max(0, Math.min(100, 100 - window.usedPercent));
 			const reset = resetLabel(window.resetsAt, now);
-			return `${quotaWindowLabel(window)} ${Math.round(remaining)}%${reset ? `→${reset}` : ""}`;
+			const capacity = remainingCapacityColor(remaining, `${Math.round(remaining)}% left`);
+			return `${dim(`${quotaWindowLabel(window)} `)}${capacity}${reset ? dim(`→${reset}`) : ""}`;
 		})
 		.join(" ");
 }
@@ -256,11 +256,11 @@ function authSegment(ctx: ExtensionContext, quotaState: QuotaState): string {
 		case "subscription": {
 			if (quotaState.kind === "codex") {
 				const detail = formatCodexQuota(quotaState);
-				return detail ? statusColor("note", `sub ${detail}`) : statusColor("note", "sub");
+				return detail ? `${statusColor("note", "sub")} ${detail}` : statusColor("note", "sub");
 			}
 			if (quotaState.kind === "percent") {
 				const remaining = Math.max(0, 100 - quotaState.usedPercent);
-				return amberRamp(quotaState.usedPercent, `sub ${Math.round(remaining)}% left`);
+				return `${statusColor("note", "sub")} ${remainingCapacityColor(remaining, `${Math.round(remaining)}% left`)}`;
 			}
 			return statusColor("note", "sub");
 		}
