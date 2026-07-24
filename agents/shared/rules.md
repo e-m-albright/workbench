@@ -14,6 +14,7 @@ Project-specific rules live in the project's hand-written `AGENTS.md` (with `CLA
 - **Detect stack and tooling** from existing project files; **prefer existing scripts/task runners** over introducing new ones.
 - **If assumptions are required,** state them briefly and proceed with the safest default.
 - **Follow through on the obvious.** When the next step is low-risk, in-repo, and reversible (updating README/AGENTS after a change, the obvious continuation of the current task), just do it — don't stop to ask. This does not loosen confirm-first for anything outward-facing, destructive, or hard to reverse.
+- **Session handoffs are disposable and live on the Desktop, never in a repo.** A handoff is a temporary bootstrap note for the *next* chat, not a durable artifact. Write it to `~/Desktop/` (so it's visibly in the way and gets cleaned up), never commit it into a project tree, and delete or supersede it once its work has landed. Durable knowledge from a session belongs in the repo's real docs/notes, not a handoff.
 
 ## Safety
 
