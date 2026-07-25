@@ -459,6 +459,11 @@ class WorkbenchTests(unittest.TestCase):
             )
             (pi_home / "presets.json").write_text(json.dumps({"external-preset": {}}))
             (pi_home / "extensions/external.ts").write_text("export default () => {};\n")
+            retired = pi_home / "extensions/discovery-telemetry.ts"
+            retired.write_text("stale retired extension\n")
+            retired_state = home / ".local/state/workbench/pi-discovery/old.jsonl"
+            retired_state.parent.mkdir(parents=True)
+            retired_state.write_text("stale private telemetry\n")
 
             sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
 
@@ -469,6 +474,8 @@ class WorkbenchTests(unittest.TestCase):
             self.assertIn("external-provider", models["providers"])
             self.assertIn("external-preset", presets)
             self.assertTrue((pi_home / "extensions/external.ts").exists())
+            self.assertFalse(retired.exists())
+            self.assertFalse(retired_state.parent.exists())
             self.assertTrue((pi_home / "skills/external-skill/SKILL.md").exists())
             self.assertFalse((pi_home / "skills" / canonical_name).exists())
             self.assertTrue((home / ".agents/skills" / canonical_name / "SKILL.md").exists())

@@ -7,7 +7,7 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome, custom footer (git-status), consult (second opinion), discovery telemetry, permission policy, presets (including read-only plan mode), safe-git, worker (one worktree-isolated delegate), and google-readonly (owned Gmail/Calendar read-only tools). Pinned packages add the currently-idle MCP discovery proxy and a native wrapper around the existing Agent Browser CLI.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome, custom footer (git-status), consult (second opinion), permission policy, presets (including read-only plan mode), safe-git, worker (one worktree-isolated delegate), and owned read-only Google and Strava connectors. The pinned package wraps the existing Agent Browser CLI.
 
 ## Delta over vanilla Pi
 
@@ -26,7 +26,6 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Worker (`worker.ts`) | Extension | `/worker` — one worktree-isolated child Pi; parent-owned review and merge |
 | Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
-| Discovery telemetry (`discovery-telemetry.ts`) | Experiment | Local navigation/verification friction metrics; review 2026-07-28 |
 | `pi-agent-browser-native` 0.2.71 | Pinned package | Structured wrapper over the Agent Browser CLI (0.32.2) |
 | `just typecheck-pi` | Dev gate | Typechecks extensions against the installed Pi API |
 | pi-guide skill | Skill | Versioned tutorial for native Pi plus this harness |
@@ -43,8 +42,7 @@ extensions, and shared skills. Shared skills live once under `~/.agents/skills`,
 which Pi discovers alongside Pi-only external skills under its native directory;
 this prevents duplicate-skill startup warnings. Drift checks the Pi CLI, every
 managed file, and reports unknown skills/extensions/providers/presets as external
-without deleting them. Authentication, trust decisions, sessions, model cache,
-and discovery logs remain private live state.
+without deleting them. Authentication, trust decisions, sessions, and model cache remain private live state.
 
 ## Prompt navigation
 
@@ -108,23 +106,6 @@ Adoption rationale, research tracks, and the idea parking lot live in
 [`pi-build-philosophy.md`](pi-build-philosophy.md); active time-boxed trials live
 in [`experiments.md`](experiments.md). This page records only current
 operational state.
-
-## Discovery telemetry experiment (started 2026-07-21)
-
-A disposable, local-only experiment to identify where model navigation wastes time before building LSP or repository-index infrastructure.
-
-- Extension: `agents/pi/extensions/discovery-telemetry.ts`
-- Config: `agents/pi/settings.json#discoveryTelemetry`
-- Raw state: `~/.local/state/workbench/pi-discovery/YYYY-MM-DD.jsonl`
-- Commands: `/discovery status|on|off|report|clear`
-- Retention: 7 days; 5 MB/day cap; trusted projects only
-- Never persisted: prompts, responses, source contents, patches, search terms, complete commands, environment, URLs, credentials
-- Current experiment metrics: first-mutation latency + prior tool/search/read counts; unique-path fanout; repeated reads only when path/range/mtime are unchanged; edit-before-read; routing-doc reads; classified tool failures; zero-result searches; per-turn tool mix, duration, and context growth; verification after mutation
-- Footer status: `telemetry ● on` (accent) / `telemetry ○ off` (dim), inline with the repo line when width allows
-
-**Removal is intentionally complete and mechanical:** delete the canonical extension, remove the `discoveryTelemetry` settings block, run `workbench sync pi`, and delete `~/.local/state/workbench/pi-discovery/`. No shared agent code depends on it.
-
-Review after one week. Keep only if it identifies a concrete change (narrow LSP operations, better project maps, affected-test selection, or documentation fixes); otherwise remove it and clear the logs.
 
 ## Permission guardrails
 

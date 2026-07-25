@@ -10,11 +10,6 @@
     "promptLevel": "high",
     "enabledByDefault": true
   },
-  "discoveryTelemetry": {
-    "enabledByDefault": true,
-    "retentionDays": 7,
-    "maxBytesPerDay": 5000000
-  },
   "packages": [
     "npm:pi-agent-browser-native@0.2.71"
   ],

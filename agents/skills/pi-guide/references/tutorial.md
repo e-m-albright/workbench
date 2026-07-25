@@ -132,7 +132,6 @@ content.
 | Worker | One worktree-isolated delegate (`/worker`); parent reviews the diff and owns the merge |
 | Google read-only | Owned Gmail/Calendar tools (`/google-auth`, `/google-status`); direct REST, read-only scopes |
 | Strava read-only | Owned activity tools (`/strava-auth`, `/strava-status`); free personal API |
-| Discovery telemetry | Temporary local measurement of navigation and verification friction |
 | Native Agent Browser | Structured wrapper around the trusted Agent Browser CLI |
 
 Terminal titles use the first user prompt unless `/name` supplies an explicit
@@ -153,7 +152,7 @@ Currently absent on purpose:
 - a broad Pi Web UI or public network listener
 - a permanent subagent roster or concurrent writers
 - wholesale replacement of native read/edit/search tools with hashline machinery
-- LSP, AST, and semantic indexing before telemetry identifies the bottleneck
+- LSP, AST, and semantic indexing before repeated work identifies a concrete bottleneck
 - broad Web Access provider and extraction fallbacks before a recurring gap
 
 Research candidates have explicit evidence thresholds and removal paths in

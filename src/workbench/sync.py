@@ -31,6 +31,9 @@ from workbench.core import (
 )
 from workbench.mcp import _desktop_mcp, merge_mcp, retired_mcp_names
 
+_RETIRED_PI_EXTENSIONS = ("discovery-telemetry.ts",)
+_RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
+
 
 def _sync_plugins(vendor: str, home: Path) -> None:
     desired = _string_array(AGENTS / vendor / "plugins.json")
@@ -296,11 +299,15 @@ def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False) ->
     source = AGENTS / "pi"
     destination = home / ".pi/agent"
     _harden_pi_session_permissions(destination)
+    for path in _RETIRED_PI_STATE_PATHS:
+        _remove_deployed_path(home / path)
     _replace_pi_file(AGENTS / "shared/rules.md", destination / "AGENTS.md")
     _merge_pi_object(source / "settings.json", destination / "settings.json")
     _merge_pi_object(source / "models.json", destination / "models.json", nested_key="providers")
     _merge_pi_object(source / "presets.json", destination / "presets.json")
     _replace_pi_file(source / "permission-policy.json", destination / "permission-policy.json")
+    for name in _RETIRED_PI_EXTENSIONS:
+        _remove_deployed_path(destination / "extensions" / name)
     for extension in sorted((source / "extensions").glob("*.ts")):
         _replace_pi_file(extension, destination / "extensions" / extension.name)
     if deploy_skills:

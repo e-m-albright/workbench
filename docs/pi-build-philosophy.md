@@ -99,12 +99,11 @@ read-only adapter named under Source connectors, not a fork.
 | Capability | Decision and evidence | Guardrail / removal |
 |---|---|---|
 | Upstream Pi TUI | Primary transparent, provider-neutral harness. Native sessions, trees, skills, prompt templates, model switching, thinking controls, extensions, RPC, and project trust cover the core workflow. | Stay near upstream. Do not fork core without a demonstrated blocker. |
-| Workbench-managed Pi | Settings, providers, presets, extensions, skills, permission policy, and MCP routing are deployed and drift-checked from one public source. | Credentials, sessions, trust decisions, and telemetry remain private live state. |
+| Workbench-managed Pi | Settings, providers, presets, extensions, skills, permission policy, and MCP routing are deployed and drift-checked from one public source. | Credentials, sessions, and trust decisions remain private live state. |
 | Custom footer | Restores native information and adds repository state, context, cost, speed, compaction, and Codex quota evidence. | Every field must earn its width. Remove annotations that do not change behavior. |
 | Activity title and deterministic session name | Terminal tabs now show spinner, repository, concise first-prompt label, and active tool. Resumed unnamed sessions remain findable; explicit names win. | No completion notification. Remove if titles become noisy or inaccurate. |
 | Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, uploads, destructive Git, and risky shell mutations before execution. | These are not containment. Keep tests aligned with real failure modes. |
 | Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded. |
-| Discovery telemetry | Time-boxed local evidence for navigation and verification friction before adding code intelligence. | Review after one week; remove completely if it does not change a decision. |
 | Owned Google read-only connector | `google-readonly.ts` implements Gmail/Calendar search and read directly against `googleapis.com` with loopback OAuth (PKCE), read-only scopes, and 0600 token storage. Replaces the generic adapter route so no third-party dependency tree sits in the token path. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; credential files are on the protected read list; tools are read-only by construction. |
 | Bounded worktree worker | `/worker` delegates one task to a child Pi in an isolated git worktree — the smallest validated slice of the subagent research track. | One worker at a time; child may not commit, push, or install; parent reviews the diff and owns the merge. Remove if delegation does not save time on repeated decomposable work. |
 | Plan preset | `/preset plan` gives a read-only planning stance with a required scope/non-goals/steps/verification contract before switching to dev. | A preset plus instructions, no machinery. Remove if unused. |
@@ -125,7 +124,7 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 | Broad Pi Web UI migration | Rejected | Network-listening trust surface and GUI overlap exceed the current phone-access need. | A supervised phone workflow proves valuable and Tailscale plus SSH or an audited loopback UI is insufficient. |
 | Oh My Pi migration | Rejected | Its batteries-included fork bundles a large tool, runtime, memory, browser, subagent, collaboration, and editor surface that conflicts with the compact upstream-first goal. | Several independently validated capabilities require coordinated core changes that extensions cannot provide. |
 | Hashline tool-suite replacement | Deferred, not adopted | Hash anchors provide stale-line verification and compact edit references, but exact-text Edit already fails loudly. No comparative model benchmark or independent evaluation was found, and the available package replaces most core filesystem tools plus Bash output. | Telemetry shows stale edit failures or material read/edit token waste; a narrow controlled trial beats exact replacement. |
-| LSP, AST, or semantic index by default | Deferred | Plausible leverage, but no local evidence yet identifies definitions, references, diagnostics, or repository mapping as the dominant bottleneck. | Discovery telemetry names a repeated failure and a bounded trial reduces it. |
+| LSP, AST, or semantic index by default | Deferred | The July 2026 telemetry trial found no repeated local-code reads or symbol-navigation bottleneck; broad repository orientation and post-mutation verification were the actual weak points. | Repeated definitions, references, or diagnostics friction appears in ordinary work and a bounded trial can measure it. |
 | Persistent subagent fleet | Rejected for now | A roster and parallel writers add coordination, trust, and reconciliation cost. `/consult` covers independent review. | Two or more independent threads recur and bounded delegation measurably reduces latency or protects context. |
 | Automatic parallel writers | Rejected | Shared-checkout mutation races and unclear ownership are worse than sequential work. | Every writer is isolated in a worktree with explicit ownership and parent verification. |
 | `pi-mcp-adapter` MCP proxy | Removed 2026-07-22 | Every routed server moved to owned connectors (Google, Strava) or a project-scoped pinned `mcp-remote` (Granola); an idle proxy carrying ~200 transitive packages earned nothing. The permission policy's remote-MCP default-deny stays as dormant defense. | A remote MCP server earns adoption that a small owned client cannot serve |
@@ -180,10 +179,10 @@ Working policy:
 
 - **Candidates:** https://github.com/samfoy/pi-lsp-extension and
   https://github.com/narumiruna/pi-extensions/tree/main/extensions/pi-lsp
-- **Next test:** after the telemetry review, trial diagnostics, definitions,
-  references, and symbol overview in one representative repository.
-- **Evidence threshold:** fewer search/read cycles, earlier error detection, or
-  shorter first-mutation latency without noisy false diagnostics.
+- **July 2026 result:** the telemetry trial found no repeated local-code reads or
+  symbol-navigation bottleneck, so no code-intelligence trial is currently justified.
+- **Revisit threshold:** ordinary work repeatedly stalls on diagnostics, definitions,
+  references, or symbol discovery and a bounded trial can measure the improvement.
 - **Avoid:** installing LSP, AST search, repository maps, and semantic indexing as
   one indivisible stack.
 
@@ -195,8 +194,8 @@ Working policy:
 - **Evidence gap:** repository tests validate implementation behavior, not model
   success against exact-string Edit. No comparative benchmark was found in the
   candidate or Oh My Pi repositories during the 2026-07-21 review.
-- **Next test:** count exact-match failures and edit payload from telemetry, then
-  compare a narrow hash-edit primitive on the same tasks.
+- **Next test:** only after ordinary work demonstrates recurring stale or exact-match
+  edit failures, compare one narrow hash-edit primitive against exact replacement.
 - **Adopt only if:** it measurably beats exact replacement. Do not begin by
   replacing read, edit, grep, find, list, write, and Bash together.
 
