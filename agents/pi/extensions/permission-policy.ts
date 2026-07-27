@@ -37,6 +37,8 @@ const SECRET_PATHS = [
   "~/.config/gh/hosts.yml",
   "~/.pi/agent/auth.json",
   "~/Library/Application Support/notes-app/**",
+  "~/.claude.json",
+  "~/Library/Application Support/Claude/claude_desktop_config.json",
   "~/.claude/.credentials.json",
   "~/.codex/auth.json",
   "~/Library/Keychains/**",

@@ -81,6 +81,22 @@ describe("Pi permission policy", () => {
 		expect(reason("write", { path: "~/.pi/agent/settings.json" })).toContain("~/.pi/agent");
 	});
 
+	test("blocks generated Claude configs that contain materialized secrets", () => {
+		const paths = [
+			"~/.claude.json",
+			"~/Library/Application Support/Claude/claude_desktop_config.json",
+		];
+		for (const path of paths) {
+			expect(reason("read", { path })).toContain(path);
+			expect(reason("write", { path })).toContain(path);
+		}
+		expect(
+			reason("bash", {
+				command: 'cat "$HOME/Library/Application Support/Claude/claude_desktop_config.json"',
+			}),
+		).toContain("claude_desktop_config.json");
+	});
+
 	test("follows symlinks to protected targets", () => {
 		const base = mkdtempSync(join(tmpdir(), "wb-policy-"));
 		mkdirSync(join(base, "secrets"), { recursive: true });
