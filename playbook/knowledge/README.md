@@ -4,6 +4,9 @@ Durable, opinionated knowledge that isn't tied to one language stack. Reference 
 
 - [ai-tools.md](ai-tools.md) — AI frameworks, evals, coding-assistant landscape
 - [ai-coding-frameworks.md](ai-coding-frameworks.md) — agent meta-framework notes
+- [ai-code-review.md](ai-code-review.md) — AI PR-reviewer landscape and the workflow tactics that matter more than the tool
+- [llm-evals-observability.md](llm-evals-observability.md) — eval framework & observability platform comparison (Promptfoo, Langfuse, Logfire, pydantic-evals, Phoenix, …)
+- [agent-capability-patterns.md](agent-capability-patterns.md) — emerging harness capabilities: advisor strategy, monitors, managed runtimes, visual builders
 - [token-efficiency.md](token-efficiency.md) — token efficiency, task decomposition, model routing
 - [browser-tooling.md](browser-tooling.md) — tiered browser/UI automation tools
 - [customer-discovery.md](customer-discovery.md) — customer-interview methodology (Mom Test)

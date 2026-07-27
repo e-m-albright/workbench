@@ -24,3 +24,4 @@ Each language is a directory: `README.md` (selection + idioms + patterns) and a 
 - [services.md](services.md) — hosting / db / auth / payments / queues / durable execution / realtime / observability picks (self-host-first)
 - [infrastructure.md](infrastructure.md) — Docker, IaC, dev-env tooling, observability topology + footguns, build discipline
 - [security.md](security.md) — supply-chain & secrets (gitleaks, dependency auditing, secrets management)
+- [data-stores.md](data-stores.md) — embedded/agent-written data stores: SQLite+DuckDB default, rejected "agent memory" engines, graduation triggers
