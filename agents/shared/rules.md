@@ -4,6 +4,10 @@ Your global instruction file, deployed verbatim to Claude Code and Codex. Mainta
 
 Project-specific rules live in the project's hand-written `AGENTS.md` (with `CLAUDE.md`/`GEMINI.md` symlinked to it so every harness loads it). A repo's what/why belongs in an AGENTS.md `## Project Context` section; a large domain glossary graduates to `DOMAIN.md`.
 
+## Personal operating state
+
+- The private knowledge base, CRM, queues, meetings, and event radar live in `~/code/private/notes`, regardless of the current working directory. When the user refers to "the knowledge base," "the notes," people, organizations, meetings, conferences, or events, start there, read its `AGENTS.md`, and use the `notes` CLI before searching unrelated local files or external services. In particular, `notes query events` is the canonical conference and community-event list.
+
 ## Process
 
 - **Verify before claiming done.** Run tests/builds and show output before saying something works. Evidence before assertions.
