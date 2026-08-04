@@ -6,7 +6,7 @@ owns the current operational inventory. [`experiments.md`](experiments.md) owns
 active time-boxed experiments. [`decisions/tombstones.md`](decisions/tombstones.md)
 owns rejected approaches that should stay absent.
 
-Last reviewed: 2026-07-21.
+Last reviewed: 2026-08-01.
 
 ## Goal
 
@@ -109,6 +109,7 @@ read-only adapter named under Source connectors, not a fork.
 | Plan preset | `/preset plan` gives a read-only planning stance with a required scope/non-goals/steps/verification contract before switching to dev. | A preset plus instructions, no machinery. Remove if unused. |
 | Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, and artifact metadata. | Pin the version, use temporary sessions by default, keep optional web-search credentials disabled, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
+| Transcript Reader | Recurring scrollback friction justified a bounded read-only overlay: `/reader` or Ctrl+Shift+R groups each turn into prompt, compact work, and final answer and opens at the newest completed answer. | Uses only public session/custom-component APIs, never changes branch/editor state, keeps normal Pi as the full-detail fallback, and does not claim to alter Paseo's client UI. Remove if native semantic navigation becomes reliable and strictly better. |
 
 ## Explicitly absent
 
@@ -119,7 +120,6 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 | Fast-mode control or display | Rejected | The Codex subscription route does not expose reliable state; priority service changes usage economics; thinking level is not Fast mode. Silent custom inference would be misleading. | Pi exposes authoritative provider-route state and the owner wants the cost tradeoff. |
 | Completion notifications | Rejected | They interrupt flow and duplicate visible terminal state. | Long unattended runs become common and missed completions are observed. |
 | Visible request ledger on every multipart prompt | Retired | It added ceremony and awkward tone without preventing a demonstrated omission. | Internal reconciliation repeatedly drops independent requests. |
-| Custom transcript viewport or overlay | Rejected for now | Pi exposes no public scrollback viewport API. Rebuilding the transcript renderer would depend on private internals and compete with terminal-native navigation. | Ghostty semantic navigation is proven insufficient and Pi exposes a supported viewport API. |
 | Multi-session GUI tabs | Rejected for now | Terminal tabs and session resume cover the real need without another session manager. | Cross-session visibility becomes recurring friction that terminal titles cannot solve. |
 | Broad Pi Web UI migration | Rejected | Network-listening trust surface and GUI overlap exceed the current phone-access need. | A supervised phone workflow proves valuable and Tailscale plus SSH or an audited loopback UI is insufficient. |
 | Oh My Pi migration | Rejected | Its batteries-included fork bundles a large tool, runtime, memory, browser, subagent, collaboration, and editor surface that conflicts with the compact upstream-first goal. | Several independently validated capabilities require coordinated core changes that extensions cannot provide. |
@@ -165,15 +165,16 @@ Working policy:
 
 ### Prompt navigation
 
-- **Question:** Can Ghostty's OSC 133 semantic navigation provide read-only prompt
-  movement without changing Pi's branch or editor?
-- **Current evidence:** Pi emits semantic zones and Ghostty binds prompt jumping,
-  but the observed session jumped to scrollback extremes.
-- **Next test:** fresh un-compacted session with several prompts, then compacted and
-  resumed sessions.
-- **Adopt:** document the working key and stop.
-- **Escalate:** file an interoperability issue or request a Pi viewport API.
-- **Do not build:** a private transcript renderer.
+- **Built 2026-08-01:** the managed Transcript Reader uses Pi's public session and
+  custom-component APIs rather than terminal scrollback control or private renderer
+  internals. It opens at the newest completed answer, groups turns deterministically,
+  and preserves normal Pi as the full-detail view.
+- **Native path still worth testing:** if Ghostty's OSC 133 navigation becomes
+  reliable across fresh, compacted, and resumed sessions, compare it against the
+  reader and remove whichever path is redundant.
+- **Paseo boundary:** the App Store client owns its transcript rendering. Answer-start
+  buttons, sticky turn orientation, and work-card collapse must be implemented there,
+  not simulated by a Pi TUI extension.
 
 ### Code intelligence
 

@@ -7,7 +7,7 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome, custom footer (git-status), consult (second opinion), permission policy, presets (including read-only plan mode), safe-git, worker (one worktree-isolated delegate), and owned read-only Google and Strava connectors. The pinned package wraps the existing Agent Browser CLI.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, transcript reader, branded welcome, custom footer (git-status), consult (second opinion), permission policy, presets (including read-only plan mode), safe-git, worker (one worktree-isolated delegate), and owned read-only Google and Strava connectors. The pinned package wraps the existing Agent Browser CLI.
 
 ## Delta over vanilla Pi
 
@@ -18,6 +18,7 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Workbench deploy + drift | Infrastructure | One public source of truth for settings, providers, presets, policy, extensions, and shared skills; `workbench sync pi` / `workbench drift pi` |
 | Custom footer (`git-status.ts`) | Extension | Git state, model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
 | Activity title (`activity-title.ts`) | Extension | Terminal-tab spinner, repository, deterministic first-prompt session name, active tool |
+| Transcript reader (`transcript-reader.ts`) | Extension | `/reader` or Ctrl+Shift+R opens a read-only prompt/work/answer navigator at the newest completed answer; work is summarized and expandable while the standard Pi transcript remains available |
 | Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded |
 | Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, protected read/write paths, remote-MCP default-deny, self-modification protection |
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
@@ -56,9 +57,16 @@ but unverified until a controlled fresh-session probe passes.
 
 Workbench also sets `/tree` to its `user-only` filter and keeps double-Escape bound
 to opening it. Up/Down previews prior prompts and Escape returns without changing
-context; Enter intentionally rewinds and branches. Pi's public extension API still
-does not expose the terminal scrollback viewport, so a richer read-only navigator
-needs either a verified terminal path or an upstream viewport API.
+context; Enter intentionally rewinds and branches.
+
+For reading rather than branching, `/reader` or Ctrl+Shift+R opens the managed
+Transcript Reader. It groups the active branch into prompt, compact work, and final
+answer sections, opens at the newest completed answer, and moves between turns with
+`[` / `]`. `p`, `a`, and `g` jump to the prompt, current answer, and newest answer;
+`w` expands progress notes. It uses only the public session and custom-component APIs,
+never changes the active branch or editor, and leaves the standard Pi transcript as
+the full-detail fallback. Paseo owns its mobile rendering, so this TUI extension does
+not add the same controls to the Paseo App Store client.
 
 ## Connector access
 
