@@ -1,6 +1,6 @@
 ---
 name: browser-tooling
-description: Choose between Playwright, agent-browser, and pinchtab. Use for UI bugs, deployed-page verification, browser automation, E2E coverage, or requests to inspect and interact with a webpage.
+description: Choose between Playwright and agent-browser. Use for UI bugs, deployed-page verification, browser automation, E2E coverage, or requests to inspect and interact with a webpage.
 ---
 
 # Browser Tooling Router
@@ -8,15 +8,14 @@ description: Choose between Playwright, agent-browser, and pinchtab. Use for UI 
 These tools sit at **different layers of the stack**, not in competition:
 
 ```
-AI Agent  →  control layer (agent-browser / pinchtab)  →  CDP  →  Chrome
-              automation framework (Playwright)  ──────────┘
+AI Agent  →  agent-browser control layer  →  CDP  →  Chrome
+             Playwright automation code   ──────────┘
 ```
 
-- **Playwright** — automation *framework*. You (or a test) write code that says exactly what to do. Most reliable; the testing/scraping/production foundation. Not agent-native (the LLM must emit Playwright code).
-- **agent-browser** (Vercel Labs) — agent-native browser *CLI*. Compact text/a11y representations, `agent-browser open … / click @e2 / fill @e3 "…"`. Token-efficient, fast, shells out — **no MCP context tax.**
-- **pinchtab** — agent-oriented control *server*: a persistent, logged-in, watchable browser over a lightweight HTTP API + accessibility snapshots. Best when a human watches/intervenes on an authed site.
+- **Playwright** — deterministic automation framework. Use code for known workflows, production jobs, and regression tests.
+- **agent-browser** (Vercel Labs) — agent-native browser CLI. Use compact snapshots and semantic actions for exploration, unfamiliar pages, and supervised interaction.
 
-**The default stack: Playwright + agent-browser for ~90% of work; pinchtab on standby for human-in-the-loop authed sessions.** Chrome DevTools is **not** an explicitly-supported standing tool, and there are **no browser MCP servers loaded** — the CLI layer gives the same agent-native control (a11y snapshots, persistent session) without paying a per-session context tax.
+**The default stack is Playwright + agent-browser.** There are no standing browser MCP servers: the native Pi wrapper provides Agent Browser on demand without an MCP context tax.
 
 ## Decision tree
 
@@ -24,9 +23,9 @@ AI Agent  →  control layer (agent-browser / pinchtab)  →  CDP  →  Chrome
 - `agent-browser open <url>`, then `click @e2` / `fill @e3 "…"` / snapshot. ~200–400 tokens/page.
 - First choice for almost everything an agent does in a browser.
 
-**Human-in-the-loop on a logged-in site (you watch, agent drives)** → **pinchtab** (standby)
-- `pinchtab serve --port 9867` then `curl localhost:9867/snapshot`. ~800 tokens/page.
-- Reach for it only when agent-browser's headless model isn't enough — i.e. you need a persistent, visible, authenticated browser.
+**Known multi-step portal or recurring read workflow** → **Playwright helper**
+- Encode fixed routes, selectors, validation, and stop-before-submit boundaries in code.
+- Keep the browser headed when a user must watch, authenticate, or intervene.
 
 **"Catch this regression forever" / deterministic scrape / production workflow** → **Playwright tests**
 - Free per run. Write tests in the project's E2E test directory (e.g. `web/tests/e2e/`). For WebRTC apps, use Chromium's fake-media flags (see below).
@@ -44,20 +43,20 @@ AI Agent  →  control layer (agent-browser / pinchtab)  →  CDP  →  Chrome
 |------|-------|------------|
 | Playwright tests in CI | framework | 0 / run (one-time write cost) |
 | agent-browser CLI | agent control | ~200–400 tokens / page · no MCP tax |
-| pinchtab CLI/server | agent control | ~800 tokens / page · no MCP tax |
+| Playwright helper | deterministic workflow | implementation cost, then no model navigation cost |
 | Stagehand | agent framework | LLM tokens / test run |
 | ~~Playwright MCP~~ | dropped | was ~13.7k always-on context |
 | ~~Chrome DevTools MCP~~ | dropped | was ~18k always-on context · launch ad-hoc if ever needed |
 
 ## Why CLI, not MCP, for browser control
 
-An MCP server taxes every session's context with its tool schemas whether or not you browse. The agent-native value of Playwright-MCP / pinchtab-MCP — **structured a11y snapshots + a persistent browser session** — is exactly what `agent-browser` (CLI) and `pinchtab` (server) already give you on demand, at zero standing cost. Note Playwright-the-framework (tests) is a *different layer* from Playwright-MCP (agent control); we keep the former, drop the latter. So nothing is lost by removing the browser MCPs.
+An MCP server taxes every session's context with its tool schemas whether or not you browse. Agent Browser plus Pi's native wrapper already provides the agent-facing control surface on demand. Playwright-the-framework is a different layer from Playwright MCP: keep the framework for deterministic code and tests, while leaving the MCP disabled.
 
 ## Workflow patterns
 
 **Bug report → permanent test:**
-1. Reproduce/poke with `agent-browser` (or pinchtab if you need to watch a logged-in session).
-2. Once root-caused, write a Playwright test so it's protected forever.
+1. Reproduce or inspect with `agent-browser`.
+2. Once root-caused, write a Playwright test so it is protected forever.
 
 **WebRTC (example config, e.g. Daily.co projects):** Playwright tests with Chromium fake-media flags — `--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream`, `--use-file-for-fake-audio-capture=path.wav`, `--use-file-for-fake-video-capture=path.y4m`.
 
