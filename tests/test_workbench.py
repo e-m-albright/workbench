@@ -419,6 +419,36 @@ class WorkbenchTests(unittest.TestCase):
 
             self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 0)
 
+    def test_rules_only_sync_preserves_unrelated_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sentinels = [
+                home / ".claude/settings.json",
+                home / ".codex/config.toml",
+                home / ".pi/agent/settings.json",
+            ]
+            for sentinel in sentinels:
+                sentinel.parent.mkdir(parents=True, exist_ok=True)
+                sentinel.write_text("unrelated work in progress\n")
+
+            for vendor in ("claude", "codex", "pi"):
+                sync.sync_rules(home, vendor)
+
+            self.assertEqual(
+                (home / ".claude/CLAUDE.md").read_text(),
+                (core.AGENTS / "shared/rules.md").read_text(),
+            )
+            self.assertIn(
+                (core.AGENTS / "shared/rules.md").read_text().rstrip(),
+                (home / ".codex/AGENTS.md").read_text(),
+            )
+            self.assertEqual(
+                (home / ".pi/agent/AGENTS.md").read_text(),
+                (core.AGENTS / "shared/rules.md").read_text(),
+            )
+            for sentinel in sentinels:
+                self.assertEqual(sentinel.read_text(), "unrelated work in progress\n")
+
     @patch.object(drift_mod.shutil, "which", return_value="/usr/local/bin/pi")
     def test_temporary_home_sync_and_check_all_vendors(self, _which) -> None:
         with tempfile.TemporaryDirectory() as raw:

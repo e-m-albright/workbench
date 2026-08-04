@@ -244,6 +244,19 @@ def _replace_pi_file(source: Path, destination: Path) -> None:
     copy_file(source, destination)
 
 
+def sync_rules(home: Path, vendor: str) -> None:
+    """Deploy only global instructions without reconciling unrelated configuration."""
+    source = AGENTS / "shared/rules.md"
+    if vendor == "claude":
+        copy_file(source, home / ".claude/CLAUDE.md")
+    elif vendor == "codex":
+        write_text(home / ".codex/AGENTS.md", expected_codex_rules_md())
+    elif vendor == "pi":
+        _replace_pi_file(source, home / ".pi/agent/AGENTS.md")
+    else:
+        raise WorkbenchError(f"unsupported vendor for rules sync: {vendor}")
+
+
 def _merge_pi_object(source: Path, destination: Path, *, nested_key: str | None = None) -> None:
     desired = _settings(source)
     existing = _settings(destination)

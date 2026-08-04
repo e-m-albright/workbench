@@ -18,7 +18,7 @@ from workbench import drift as drift_module
 from workbench import lint as lint_module
 from workbench.core import WorkbenchError, _vendors
 from workbench.render import DESCRIPTION, print_command_help, print_error, print_help
-from workbench.sync import sync_claude, sync_codex, sync_pi
+from workbench.sync import sync_claude, sync_codex, sync_pi, sync_rules
 
 
 class Vendor(StrEnum):
@@ -50,11 +50,17 @@ def sync(
     no_plugins: Annotated[
         bool, typer.Option("--no-plugins", help="skip declared-plugin installation")
     ] = False,
+    rules_only: Annotated[
+        bool, typer.Option("--rules-only", help="deploy only global instruction files")
+    ] = False,
 ) -> None:
     """Deploy Workbench-managed configuration to supported coding agents."""
     home = _home()
     deployers = {"claude": sync_claude, "codex": sync_codex, "pi": sync_pi}
     for name in _vendors(vendor.value):
+        if rules_only:
+            sync_rules(home, name)
+            continue
         deployers[name](
             home,
             deploy_skills=not no_skills,
