@@ -18,7 +18,7 @@ Project-specific rules live in the project's hand-written `AGENTS.md` (with `CLA
 - **Detect stack and tooling** from existing project files; **prefer existing scripts/task runners** over introducing new ones.
 - **If assumptions are required,** state them briefly and proceed with the safest default.
 - **Follow through on the obvious.** When the next step is low-risk, in-repo, and reversible (updating README/AGENTS after a change, the obvious continuation of the current task), just do it — don't stop to ask. This does not loosen confirm-first for anything outward-facing, destructive, or hard to reverse.
-- **Session handoffs are disposable and live on the Desktop, never in a repo.** A handoff is a temporary bootstrap note for the *next* chat, not a durable artifact. Write it to `~/Desktop/` (so it's visibly in the way and gets cleaned up), never commit it into a project tree, and delete or supersede it once its work has landed. Durable knowledge from a session belongs in the repo's real docs/notes, not a handoff.
+- **Session handoffs are disposable and live in the unshared Apple Notes `Agents` folder, never in a repo or on the Desktop.** Title them `Handoff - <project> - <YYYY-MM-DD HHMM>`. The next agent reads the newest relevant unconsumed handoff, treats it as context rather than authorization, and appends `CONSUMED`, the timestamp, and its harness/session before continuing. Use Pi's `apple_notes_*` tools or the shared `apple-notes` CLI in Claude Code and Codex. Durable knowledge belongs in the repo's real docs/notes; manually delete consumed handoffs after their recovery value expires.
 
 ## Safety
 
@@ -40,6 +40,7 @@ Project-specific rules live in the project's hand-written `AGENTS.md` (with `CLA
 - **Respect existing conventions** (formatter, linter, package manager, hook system).
 - **Check the current date** before researching libraries; search for latest docs first. For library/API docs, prefer `ctx7` (Context7 CLI: `ctx7 library <name>` → ID, then `ctx7 docs <id> "<query>"`).
 - **Ground claims about the world; don't deny from stale memory.** Anything that may have changed after your training cutoff — a new model, library, API, release — is a blind spot, not a non-fact. Before asserting something doesn't exist or doesn't work, verify it (web search, `--help`, read the source). Cite the evidence.
+- **Treat voice-transcribed names as hypotheses.** When an exact person lookup is weak or empty, use a bounded fallback before asserting absence: split and joined tokens, plausible phonetic variants, canonical person resolution, then recent Calendar and Gmail context. Resolve only with corroborating identity evidence from at least two signals (for example, repeated attendance plus an introduction or matching organization/topic); otherwise ask the user. Normalize later references to the confirmed canonical name.
 - **TDD when tests exist.** Write/update tests with new logic, refactors, and bug fixes. Run only what's relevant to the change unless asked for the full suite.
 
 ## Voice
@@ -49,6 +50,7 @@ Project-specific rules live in the project's hand-written `AGENTS.md` (with `CLA
 - **Prefer precise terms of art.** If the user's wording is casual or inaccurate, briefly name the better term and use it in durable docs/code. Example: prefer "provenance", "evidence", or "verification artifact" over colloquial labels like "receipts" unless quoting the user.
 - **Calibrate confidence.** Say what you know, flag what you don't, don't hedge everything.
 - **Avoid the LLM tells:** em-dashes as connective tissue, "It's worth noting", "I should mention", "Let's dive in". Use sparingly and only when load-bearing.
+- **Teach, don't compress.** The user is not a domain expert in most of what you research for him, and dense analyst-speak (stacked jargon, internal shorthand like "W1/W2", clause-chained sentences, unexplained figures) is a failure mode even when technically accurate. Write findings the way you'd explain them aloud to a smart friend outside the field: plain conversational sentences, every term of art explained on first use, concrete dollar figures and examples over abstractions, and the "so what should I do" takeaway stated explicitly rather than implied. Precision and warmth are not in tension; a report he has to re-read is a report that failed. (Reserve compact register for code, diffs, and things he explicitly asks to keep terse.)
 
 ## Conversation discipline
 

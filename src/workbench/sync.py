@@ -19,6 +19,7 @@ from workbench.core import (
     DATA_REL,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
+    ROOT,
     SKILLS_CLI,
     WorkbenchError,
     _home_env,
@@ -54,7 +55,19 @@ def _canonical_hooks() -> dict[str, Path]:
     return {hook.name: hook for hook in sorted((AGENTS / "shared/hooks").glob("*.sh"))}
 
 
+def _canonical_clis() -> dict[str, Path]:
+    """Small local CLIs shared by Pi, Claude Code, and Codex."""
+    names = ("apple-notes",)
+    return {name: ROOT / "bin" / name for name in names}
+
+
+def _install_shared_clis(home: Path) -> None:
+    for name, source in _canonical_clis().items():
+        copy_file(source, home / ".local/bin" / name, executable=True)
+
+
 def _install_runtime_files(home: Path) -> Path:
+    _install_shared_clis(home)
     data = home / DATA_REL
     hooks = _canonical_hooks()
     hook_dir = data / "hooks"
@@ -309,6 +322,7 @@ def _harden_pi_session_permissions(destination: Path) -> None:
 def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False) -> None:
     """Deploy Pi's transparent local configuration; packages remain settings-owned."""
     del deploy_plugins  # Pi packages are declared in settings.json, not a separate plugin registry.
+    _install_shared_clis(home)
     source = AGENTS / "pi"
     destination = home / ".pi/agent"
     _harden_pi_session_permissions(destination)
