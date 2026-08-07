@@ -57,7 +57,7 @@ def _canonical_hooks() -> dict[str, Path]:
 
 def _canonical_clis() -> dict[str, Path]:
     """Small local CLIs shared by Pi, Claude Code, and Codex."""
-    names = ("apple-notes",)
+    names = ("apple-contacts", "apple-notes")
     return {name: ROOT / "bin" / name for name in names}
 
 

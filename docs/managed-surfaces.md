@@ -12,7 +12,7 @@ reference.
 | Desktop configuration | None | Claude Desktop MCPs and managed preferences | ChatGPT connector plugins through the Codex plugin CLI |
 | Command policy | `~/.pi/agent/permission-policy.json` plus permission-policy and safe-git extensions | Claude permissions and sandbox settings | `~/.codex/rules/default.rules` |
 | Extensions / hooks | `~/.pi/agent/extensions/*.ts` | Claude settings plus shared runtime scripts | `~/.codex/hooks.json` plus shared runtime scripts |
-| Shared local CLIs | `~/.local/bin/apple-notes` plus native Pi tools | `~/.local/bin/apple-notes` via shell | `~/.local/bin/apple-notes` via shell |
+| Shared local CLIs | `~/.local/bin/apple-notes`, `~/.local/bin/apple-contacts`, plus native Pi tools | the same CLIs via shell | the same CLIs via shell |
 | Specialist agents | Not native; intentionally not deployed | `~/.claude/agents/*.md` | `~/.codex/agents/*.toml` |
 | Skills | Shared skills in `~/.agents/skills`; Pi-only external skills may remain in `~/.pi/agent/skills` | Claude global skill directory | `~/.agents/skills` |
 | Plugins / packages | `packages` in managed Pi settings | IDs from `agents/claude/plugins.json` | IDs from `agents/codex/plugins.json` |
