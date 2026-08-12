@@ -48,11 +48,9 @@ An example in a prompt is worth 10 lines of description, but only if it's the *r
 
 Don't use examples for simple directives. "Never open with praise" doesn't need an example.
 
-### Prefer Negative Constraints for Style
+### Use Negative Constraints Sparingly
 
-Telling a model what NOT to do is often more effective than describing what to do, because the model's default behavior is the thing you're correcting.
-
-"Don't use em dashes, don't start paragraphs with 'This...', don't use 'delve' or 'landscape'" is more effective than "write naturally" because it targets specific failure modes.
+A specific negative constraint can correct a recurring failure, but a long banned-words list makes prose unnatural and diverts attention from the task. Prefer the desired outcome ("write direct, natural prose") and add a narrow ban only after observing a persistent problem such as performative praise or canned transitions.
 
 ### Order Matters
 
@@ -63,6 +61,7 @@ Models weight earlier content more heavily. Put your most important directives f
 Shorter prompts leave more context for the actual conversation. Every token in your system prompt is a token not available for the model's reasoning about your question.
 
 Rules of thumb:
+- Account-wide web-chat instructions: fit within the tightest provider limit and aim for well under 1500 characters
 - System prompt (general, all conversations): aim for under 1000 words
 - Project prompt (specific context): add only what's not inferable from the project itself
 - If a section doesn't change behavior, cut it
@@ -76,7 +75,7 @@ Use this list when drafting or auditing a prompt. Each concern is a failure mode
 
 - [ ] **Depth over breadth.** Does the prompt prevent shallow survey answers?
 - [ ] **Evidence grounding.** Does it require claims to be backed by specifics, not vibes?
-- [ ] **Counterargument awareness.** Does it require the model to identify who would disagree and why?
+- [ ] **Counterargument awareness.** Does it surface credible disagreement when it could change the answer?
 - [ ] **Epistemic honesty.** Does it require distinguishing confidence levels and knowledge sources?
 - [ ] **Research rigor.** Does it push for correctness over speed on research questions?
 - [ ] **Prior art awareness.** Does it ask the model to cite known solutions rather than reinventing?
@@ -88,26 +87,26 @@ Use this list when drafting or auditing a prompt. Each concern is a failure mode
 - [ ] **Directness.** Does it instruct leading with the important thing, not burying it?
 - [ ] **Efficiency.** Does it prevent restating the user's question or padding with filler?
 - [ ] **Disagreement protocol.** Does it make clear that disagreement is expected and valued?
-- [ ] **Confidence calibration.** Does it require explicit confidence markers?
+- [ ] **Confidence calibration.** Does it distinguish fact, inference, and uncertainty when material?
 - [ ] **Brevity permission.** Does it allow short answers to be short?
 
 ### Writing Quality
 
-- [ ] **AI-ism avoidance.** Does it ban specific overused patterns (em dashes, "delve", "landscape", etc.)?
+- [ ] **AI-ism avoidance.** Does it discourage filler and canned phrasing without creating an awkward vocabulary blacklist?
 - [ ] **Human voice.** Does it instruct writing like a competent human, not a language model?
 - [ ] **Format appropriateness.** Does it prevent over-structuring (bullets when prose works)?
 
 ### User Development
 
-- [ ] **Teaching over answering.** Does it encourage building the user's capability, not just solving their problem?
-- [ ] **Socratic flexibility.** Does it default to teaching but respect urgency signals?
+- [ ] **Teaching when useful.** Does it explain the mental model for complex questions without turning direct answers into lectures?
+- [ ] **Clarification discipline.** Does it ask questions only when missing context would materially change the answer?
 - [ ] **Long-term optimization.** Does it prefer recommendations that compound over time?
 - [ ] **Anti-learned-helplessness.** Does it avoid creating dependency on the model?
 
 ### Proactive Behavior
 
 - [ ] **Unsolicited risk identification.** Does it instruct raising risks the user didn't ask about?
-- [ ] **Alternative generation.** Does it require proposing genuinely different alternatives, not just critiquing?
+- [ ] **Alternative generation.** Does it propose a different path when one is meaningfully better or exposes a real tradeoff?
 - [ ] **Assumption surfacing.** Does it require stating assumptions rather than burying them?
 
 ### Domain Specificity (for Project Prompts)
@@ -126,7 +125,7 @@ Use this list when drafting or auditing a prompt. Each concern is a failure mode
 5. **Revise.** Tighten, cut, or restructure. Then test again.
 
 Common iteration patterns:
-- "The model keeps doing X" -> Add a specific ban on X (negative constraints work)
+- "The model keeps doing X" -> Name the desired behavior first; add a narrow ban only if the failure persists
 - "The model is too cautious/hedgy" -> Add "if you have a view, state it with reasoning"
 - "Answers are too long" -> Add brevity permission AND check that your prompt itself isn't encouraging length through excessive detail
 - "The model agrees with everything" -> Strengthen the disagreement protocol with structure (not just "push back when you disagree" but HOW to structure disagreement)
@@ -134,5 +133,5 @@ Common iteration patterns:
 ## Reference Material
 
 - `prompts/references/expert-panel.md`: Named experts with documented thinking frameworks, organized by domain. Use when drafting domain-specific project prompts that benefit from named reasoning styles.
-- `prompts/system-prompt-advisor.md`: The current general-purpose advisor prompt. Use as a template or starting point.
+- `prompts/system-prompt-advisor.md`: The canonical account-wide instructions for Gemini, Claude, and ChatGPT. Keep them compact and provider-neutral.
 - `agents/shared/rules.md`: The deployed cross-vendor communication rules. Keep intentional overlap with the advisor prompt explicit rather than copying whole sections mechanically.
