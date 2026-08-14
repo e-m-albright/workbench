@@ -5,12 +5,8 @@ mock.module("typebox", () => {
 	return { Type: { Object: schema, String: schema, Optional: schema, Array: schema } };
 });
 
-const {
-	buildDispatchArgs,
-	confirmationText,
-	newestRunUrl,
-	validateDispatch,
-} = await import("../agents/pi/extensions/github-workflow-dispatch");
+const module = await import("../agents/pi/extensions/github-workflow-dispatch");
+const { buildDispatchArgs, confirmationText, newestRunUrl, validateDispatch } = module;
 
 const dispatch = {
 	repository: "e-m-albright/evan",
@@ -55,6 +51,32 @@ describe("GitHub workflow dispatch", () => {
 		expect(() =>
 			validateDispatch({ ...dispatch, inputs: [{ name: "bad name", value: "x" }] }),
 		).toThrow("input name");
+	});
+
+	test("requires confirmation, dispatches once, and returns the created run URL", async () => {
+		let tool: any;
+		const exec = mock(async (_command: string, args: string[]) => {
+			if (args[0] === "workflow") return { code: 0, stdout: "", stderr: "" };
+			return {
+				code: 0,
+				stdout: JSON.stringify([{ createdAt: new Date().toISOString(), url: "https://github.test/run/1" }]),
+				stderr: "",
+			};
+		});
+		module.default({ registerTool: (value: any) => (tool = value), exec } as any);
+		const confirm = mock(async () => true);
+
+		const result = await tool.execute(
+			"call-1",
+			dispatch,
+			undefined,
+			undefined,
+			{ hasUI: true, ui: { confirm } },
+		);
+
+		expect(confirm).toHaveBeenCalledTimes(1);
+		expect(exec).toHaveBeenCalledTimes(2);
+		expect(result.details.runUrl).toBe("https://github.test/run/1");
 	});
 
 	test("returns only a newly created workflow-dispatch run URL", () => {
