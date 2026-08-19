@@ -1,161 +1,133 @@
 ---
 name: tree-ontology
-description: Design or audit command trees and file trees for coherent vocabulary, sibling axes, hierarchy, defaults, and safe aliases. Use for "organize this CLI", "audit this file tree", naming cleanup, information architecture, or deciding where something belongs.
+description: Decide where a new module, command, route, or directory belongs and what to name it; audit trees for mixed sibling axes, compound names, and hierarchy. Use for "where should this live", "what should I call this", or "organize this CLI".
 ---
 
 # Tree Ontology
 
-Use this skill to make a command tree or file tree predictable: a reader should infer where something belongs, what neighboring nodes mean, and how the structure can expand without memorizing exceptions.
+A tree is predictable when a reader can infer where something belongs, what neighboring nodes mean, and how the structure grows without memorizing exceptions.
 
-Audit by default. Change files or public command paths only when the user explicitly asks for implementation.
+Most ontology decisions are not audits. They are one person adding one node and picking a name, dozens of times between audits. That is where structure is actually set, so start with the fast path and escalate only when the placement resists.
+
+Change files or public command paths only when the user asks for implementation.
+
+## Placing a single node
+
+When adding a module, command, route, or directory, work through this before creating the file. It takes under a minute and it is the highest-leverage moment in the tree's life — a node placed by reflex is the sediment a future audit has to excavate.
+
+1. **Name the axis of the parent you are about to join.** What single question do that parent's existing children answer — domain? operation? lifecycle? external system? If you cannot state it in one phrase, the parent is already mixed, and adding to it deepens the problem.
+2. **Check the node answers that same question.** A node that answers a different question is the first grain of a mixed sibling set, no matter how convenient the location.
+3. **Test the name against its siblings, not in isolation.** Read the full path aloud. It should narrow from broad concept to specific intent, in the vocabulary the domain already uses.
+4. **If the name needs a prefix or suffix to disambiguate, the affix is a missing directory.** `cli_actions.py`, `cli_world.py`, and `vault_lint.py` are a `cli/` package and a `vault/` package spelled with underscores. Create the level instead.
+5. **If placement is genuinely ambiguous, that is information.** Ambiguity usually means the tree has no axis at this level, or the node does two jobs and wants splitting. Say so rather than picking the least-bad slot silently.
 
 ## Preference model
 
-Apply these preferences unless the project documents a stronger domain-specific rule:
+Apply these unless the project documents a stronger domain-specific rule:
 
-1. **Canonical names use complete words.** Prefer `organizations`, `investors`, and `database` over `orgs`, `vcs`, and `db`. Keep common abbreviations as ergonomic aliases when useful; do not present them as canonical.
+1. **Canonical names use complete words.** Prefer `organizations`, `investors`, `database` over `orgs`, `vcs`, `db`. Keep abbreviations as ergonomic aliases, never as the canonical form.
 2. **One segment carries one concept.** Prefer `query connectors capacity` over `query connector-capacity`. A compound name usually hides a missing level.
 3. **Hierarchy earns qualification.** Add a level when it distinguishes a durable subtype, view, target, or operation and gives future siblings somewhere logical to live.
 4. **Siblings share an axis.** Children of one node should all be domains, views, operations, lifecycle stages, audiences, or another single kind of distinction. A mixed sibling set is the primary ontology smell.
-5. **Nouns precede qualifiers; mutations end in verbs.** Prefer `hypotheses stale` and `person action set`. The path should narrow from broad concept to specific action.
+5. **Nouns precede qualifiers; mutations end in verbs.** Prefer `hypotheses stale` and `person action set`.
 6. **Bare parents have a useful default.** Let `query connectors` show the primary actionable view. Add `--all` or a child only for a materially different projection.
-7. **Plurality communicates cardinality.** Use plural nouns for collections and singular nouns for one entity or mutation target. Apply the chosen policy consistently within a tree.
-8. **Canonical structure and typing convenience are separate layers.** Preserve a clear full path, then add exact aliases or deterministic unique-prefix matching. Ambiguous prefixes fail with candidates. Typos suggest but do not execute automatically, especially for mutations.
-9. **Bounded context beats grammatical purity.** Do not force every node under a generic verb when that obscures ownership. If `query` means world-model reads, application status such as `jobs` should remain outside it.
-10. **One concept has one home.** Other paths point, alias, import, or delegate; they do not grow competing implementations or duplicated state.
+7. **Plurality communicates cardinality.** Plural for collections, singular for one entity or mutation target. Apply consistently within a tree.
+8. **Canonical structure and typing convenience are separate layers.** Preserve a clear full path, then add exact aliases or deterministic unique-prefix matching. Ambiguous prefixes fail with candidates. Typos suggest but never execute, especially for mutations.
+9. **Bounded context beats grammatical purity.** Do not force every node under a generic verb when that obscures ownership. If `query` means world-model reads, application status such as `jobs` belongs outside it.
+10. **One concept has one home.** Other paths point, alias, import, or delegate; they never grow competing implementations or duplicated state.
+11. **A package's exported names must not collide with its sibling modules.** An `__init__` that re-exports `app` beside an `app.py` shadows the module, and the failure surfaces far from the cause.
 
-These rules are preferences, not a demand for maximum depth. A one-word node is better when it is already precise and has no meaningful sibling distinction.
+These are preferences, not a demand for depth. A one-word node is better when it is already precise and has no meaningful sibling distinction.
 
-## Choose the mode
+## Choosing the axis
 
-### Build from scratch
+For anything larger than a single node, the axis is the whole design. Two habits separate a finding from an opinion.
 
-Start from user intent and domain vocabulary before naming directories or commands. Produce the smallest tree that handles current needs and has an obvious extension point for already-anticipated siblings.
+**Measure the coupling before you choose.** Candidate axes are cheap to argue about and cheap to test. Build the actual dependency graph — imports for a file tree, shared options and output shapes for a command tree — and count edges between candidate groupings. A real axis shows up as overwhelmingly one-directional flow. In one restructure, a tree that looked like it needed subject-matter grouping turned out to have a clean dependency gradient hiding in it: 66 edges from the surface layer down to data, 44 from domain modules down to primitives, and almost nothing upward. The measurement chose the axis; taste would have chosen worse. Measurement also settles ordering disputes: two candidate tiers separated by one edge each way are genuinely arbitrary, and knowing that is worth more than a confident guess.
 
-### Audit an existing tree
+**Prefer the axis you can enforce.** When two ontologies are both defensible, the tiebreaker is which one yields a mechanical invariant. Grouping by dependency direction gives you "no module imports a layer above it" — a check that runs in CI. Grouping by subject gives you nothing checkable. This matters because unenforced structure decays silently: hand-maintained directory listings drift, and the drift is found by the next person who trusts them.
 
-Inventory the live structure, entrypoints, aliases, documentation, and call sites. Report the current ontology before proposing a replacement. Preserve behavior and compatibility unless the user approves a breaking migration.
+That criterion also justifies levels that look thin. A node with only two children still earns its place when it is the level a rule is stated over — the rule needs a name to attach to.
 
-## Workflow
+**Ship the enforcement in the same change.** A reorganization plus "we will add the lint later" is a reorganization that decays. Encode the invariant as a check, and seed it with an honest baseline of the violations that already exist, each annotated with the fix it implies. Fail on new violations, and fail on baseline entries that no longer occur, so the list can only shrink and cannot rot into a record of things fixed long ago.
+
+## Auditing an existing tree
 
 ### 1. Establish the boundary
 
-Identify:
+Identify who uses the tree (humans, agents, scripts, several audiences), whether it represents domains, effects, artifacts, workflows, lifecycle, or navigation, which names are public contracts, and what glossaries, decisions, and rejected designs already exist.
 
-- Who uses the tree: humans, agents, scripts, libraries, or several audiences.
-- Whether it represents domains, effects, artifacts, workflows, lifecycle, deployment, or navigation.
-- Which names are public contracts and which are internal identifiers.
-- Existing domain glossaries, architecture decisions, compatibility promises, and rejected designs.
+Implementation categories such as `views`, `helpers`, or `services` may be useful internally and still make poor public paths.
 
-Do not confuse implementation categories with user intent. Labels such as `views`, `helpers`, or `services` may be useful internally but often make poor public paths.
+### 2. Inventory what is actually there
 
-### 2. Inventory the actual tree
+Use the repository's native tooling and inspect rendered output — actual CLI help, the real filesystem — rather than registration source alone.
 
-For command trees, capture:
+For command trees capture visible commands at every level, parent defaults and options, hidden aliases and prefix behavior, side effects (read, local mutation, workflow, external mutation), and every caller: help text, examples, tests, scripts, automation.
 
-- Visible commands at every level.
-- Defaults and options on parent groups.
-- Hidden aliases, abbreviations, prefix behavior, and typo handling.
-- Side effects: read, local mutation, workflow, external mutation.
-- Help text, examples, tests, scripts, and automation that call old paths.
+For file trees capture directories, entrypoints, indexes, generated areas, the imports that reveal real ownership, duplicate concepts, forwarding modules, suffix families such as `*_v2`, and miscellaneous buckets.
 
-For file trees, capture:
-
-- Directories, representative files, entrypoints, indexes, and generated areas.
-- Imports and references that reveal real ownership.
-- Duplicate concepts, forwarding modules, suffix families such as `*_v2`, and miscellaneous buckets.
-- Public package paths or links that make moves consequential.
-
-Use the repository's native inventory tools. Inspect the rendered CLI help or actual filesystem, not only registration source.
+**Treat every inventory finding as a hypothesis until you check it.** Claims of deadness are the ones that bite: a path that no longer exists may be a retired concept, or a transient buffer sitting empty in its correct steady state. Confirm what a thing is *for* before calling it dead — and re-verify findings that arrive from a subagent or an earlier session.
 
 ### 3. Name the axis at every branch
 
-Write a short label for what each level separates. Examples:
+Write a short label for what each level separates:
 
 ```text
 query                 axis: world-model domain
   connectors          axis: connector projection
     capacity
     coverage
-    offers
 
 write                 axis: entity
   person              axis: owned sub-concept or mutation
     action            axis: mutation
       set
-      clear
 ```
 
-If one branch requires several axis labels joined by “and,” it probably mixes concepts. Either split it or explicitly justify the exception.
+A branch whose label needs several concepts joined by "and" is mixing axes. Split it, or justify the exception explicitly.
 
 ### 4. Run the ontology tests
 
-Evaluate each branch with these tests:
+- **Prediction:** given one known path, can a newcomer guess where a sibling belongs?
+- **Sibling axis:** do siblings answer the same kind of question?
+- **Read aloud:** does the path move from broad concept to precise intent?
+- **Vocabulary:** are domain terms used consistently, without unexplained synonyms or abbreviations? Prefer a word the project's own glossary already uses over a term of art imported from elsewhere.
+- **Compound:** would splitting a hyphenated or suffixed name expose a useful hierarchy?
+- **Default:** is the bare parent useful, or merely another help screen?
+- **Boundary:** do read, mutation, workflow, and external effects sit behind honest boundaries?
+- **Depth:** does each level add information? Collapse pass-through levels, unless the level carries a stated rule.
+- **Collision:** will aliases or prefixes become ambiguous as known siblings arrive?
+- **Ownership:** is there one canonical home, with compatibility paths delegating to it?
 
-- **Prediction:** Given one known path, can a newcomer guess where a sibling belongs?
-- **Sibling axis:** Do siblings answer the same kind of question?
-- **Read aloud:** Does the path read from broad concept to precise intent?
-- **Vocabulary:** Are exact domain terms used consistently, without unexplained synonyms or abbreviations?
-- **Compound:** Would splitting a hyphenated or suffixed name expose a useful hierarchy?
-- **Default:** Is the bare parent useful, or merely another help screen?
-- **Boundary:** Do read, mutation, workflow, and external effects live behind honest boundaries?
-- **Depth:** Does each level add information? Collapse pass-through levels.
-- **Collision:** Will aliases or prefixes become ambiguous as known siblings are added?
-- **Ownership:** Is there one canonical home, with compatibility paths delegating to it?
-
-Distinguish a structural defect from a taste preference. Rename only when the new shape improves prediction, ownership, safety, or extensibility.
+Separate structural defects from taste. Rename when the new shape improves prediction, ownership, safety, or extensibility.
 
 ### 5. Propose the canonical form
 
-Show the proposed tree and a complete migration table:
+Show the proposed tree and a migration table:
 
 | Current | Canonical | Compatibility | Reason |
 |---|---|---|---|
 | `query candidate-overlap` | `query connectors overlap` | hidden old alias | domain first; hierarchy replaces compound |
 | `write person action-set` | `write person action set` | hidden old alias | owned concept before mutation |
 
-State:
+State canonical names, defaults and `--all` behavior, aliases and prefix rules, any intentional axis exception, and what is explicitly not being reorganized.
 
-- Canonical full names.
-- Defaults and `--all` behavior.
-- Exact aliases and unique-prefix rules.
-- Any intentional exception to the sibling axis.
-- What is explicitly not being reorganized.
+For a consequential public tree, get approval on representative examples before migrating everything.
 
-For a consequential public tree, get user approval on representative examples before implementing the entire migration.
+## Migrating
 
-### 6. Migrate without parallel implementations
-
-When implementation is approved:
-
-1. Register the canonical path as the only active implementation.
-2. Point old paths at it as hidden compatibility aliases when breakage would be costly.
-3. Keep fuzzy matching advisory; use only exact aliases and unique prefixes for execution.
-4. Update help, documentation, examples, tests, automation, and generated templates.
-5. Add deterministic coverage for the ontology when possible: every saved query has one canonical path, visible segments contain no banned abbreviations, or every workflow is mapped deliberately.
-6. Record a removal condition for compatibility aliases rather than keeping them indefinitely by habit.
-
-For file moves, use history-preserving moves, update imports and links, and leave forwarding files only when an external compatibility contract requires them.
-
-### 7. Verify the rendered result
-
-Verify behavior rather than source shape alone:
-
-- Render every affected help level or list the final file tree.
-- Exercise full names, aliases, unique prefixes, ambiguous prefixes, and typo suggestions.
-- Confirm old compatibility paths delegate correctly and stay out of canonical help.
-- Run tests, lint, type checks, link checks, and documentation-command validation relevant to the repository.
-- Search current documentation for retired canonical forms. Exclude historical snapshots deliberately rather than rewriting history blindly.
+Renaming is a data migration, not a text edit — the imports are the easy part, and the references that break are rarely the ones grep finds first. Read [migration.md](references/migration.md) before executing any multi-file move.
 
 ## Output contract
 
 For an audit, report:
 
-1. **Conclusion** - whether the ontology is coherent and the main source of friction.
-2. **Current axes** - what each level actually separates today.
-3. **Findings** - evidence-backed inconsistencies, ordered by impact.
-4. **Canonical proposal** - complete tree plus current-to-proposed mapping.
-5. **Compatibility and safety** - aliases, ambiguity behavior, migration risks.
-6. **Verification plan** - exact checks that prove the new organization landed.
+1. **Conclusion** — whether the ontology is coherent, and the main source of friction.
+2. **Current axes** — what each level actually separates today.
+3. **Findings** — evidence-backed inconsistencies, ordered by impact.
+4. **Canonical proposal** — complete tree plus current-to-proposed mapping.
+5. **Compatibility and safety** — aliases, ambiguity behavior, migration risks.
+6. **Verification plan** — the exact checks that prove the new organization landed.
 
-For a build, finish with the implemented tree, compatibility behavior, verification evidence, and any intentionally deferred branches.
+For a build, finish with the implemented tree, compatibility behavior, verification evidence, and any deliberately deferred branches.
