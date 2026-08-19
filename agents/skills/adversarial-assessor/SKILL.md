@@ -21,7 +21,7 @@ ASSESSOR_MODEL=<model-id> agents/skills/adversarial-assessor/scripts/assess.sh  
 
 Run `scripts/assess.sh` as a black box — do not read the source or reimplement it; it exists to be called directly rather than ingested into your context window.
 
-It writes a timestamped report (header names the resolved model) to `docs/health/assessments/` and prints the path. It calls a **paid model** under a budget cap, so it is opt-in and scoped, not a gate. Needs the `claude` CLI on PATH.
+It writes a timestamped report (header names the resolved model) to `.ai/artifacts/assessments/` - agent scratch, gitignored - and prints the path. Pass `--out` to put it somewhere durable when a review is genuinely worth keeping. It calls a **paid model** under a budget cap, so it is opt-in and scoped, not a gate. Needs the `claude` CLI on PATH.
 
 ## The discipline (this is the load-bearing part)
 
@@ -38,4 +38,4 @@ It writes a timestamped report (header names the resolved model) to `docs/health
 - Generating *new* ideas collaboratively → use the ideation mode in `planning`. This skill attacks existing work; it does not brainstorm.
 
 ## See also
-- `docs/decisions/` — where finding dispositions and durable decisions live; prior assessment reports sit under `docs/health/assessments/`.
+- Record dispositions wherever the repo already keeps durable decisions; prior assessment reports sit under `.ai/artifacts/assessments/`. Do not invent a decisions tree for a repo that has none.

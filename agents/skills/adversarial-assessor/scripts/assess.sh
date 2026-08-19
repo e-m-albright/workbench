@@ -47,7 +47,10 @@ fi
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 SCOPE="${SCOPE:-$repo_root}"
-OUT="${OUT:-$repo_root/docs/health/assessments}"
+# Default to the agent-scratch tree, which repos already gitignore. Creating a
+# top-level docs/ in someone else's repository is not this tool's call, and an
+# ungroomed pile of generated reviews is worse than no pile. --out overrides.
+OUT="${OUT:-$repo_root/.ai/artifacts/assessments}"
 focus_text="${focus[*]:-}"
 [[ -z "$focus_text" ]] && focus_text="overall code health, design, and feature completeness"
 
