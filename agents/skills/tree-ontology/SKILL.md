@@ -18,7 +18,7 @@ When adding a module, command, route, or directory, work through this before cre
 1. **Name the axis of the parent you are about to join.** What single question do that parent's existing children answer — domain? operation? lifecycle? external system? If you cannot state it in one phrase, the parent is already mixed, and adding to it deepens the problem.
 2. **Check the node answers that same question.** A node that answers a different question is the first grain of a mixed sibling set, no matter how convenient the location.
 3. **Test the name against its siblings, not in isolation.** Read the full path aloud. It should narrow from broad concept to specific intent, in the vocabulary the domain already uses.
-4. **If the name needs a prefix or suffix to disambiguate, the affix is a missing directory.** `cli_actions.py`, `cli_world.py`, and `vault_lint.py` are a `cli/` package and a `vault/` package spelled with underscores. Create the level instead.
+4. **If the name needs a prefix or suffix to disambiguate, the affix is a missing directory.** A family like `cli_actions.py` / `cli_export.py` / `cli_status.py` is a `cli/` package spelled with underscores. Create the level instead.
 5. **If placement is genuinely ambiguous, that is information.** Ambiguity usually means the tree has no axis at this level, or the node does two jobs and wants splitting. Say so rather than picking the least-bad slot silently.
 
 ## Preference model
