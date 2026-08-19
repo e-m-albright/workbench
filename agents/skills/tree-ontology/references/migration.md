@@ -48,6 +48,20 @@ all of them.
 
 **Expect one collision class the rewrite cannot see:** a package `__init__` that re-exports a symbol sharing a name with a sibling module. The symbol wins, the module becomes unreachable, and the errors appear far from the cause. If a module and an exported name collide, rename the module to something the package does not export.
 
+## When a split is blocked by a test seam
+
+Before splitting a large module, check what its tests reach into. A module-level
+global that tests monkeypatch — a repository root, a clock, a config handle — is
+a seam the whole suite is wired to. Moving functions that read it into sibling
+modules breaks every patch at once, and the tempting fix (importing the global
+back across modules) rebuilds the coupling the split was meant to remove.
+
+The real fix is to pass that state explicitly, through the context object the
+functions already share, and to update the patches in the same change. That is a
+behavior-risky refactor in its own right — size it separately, and do not smuggle
+it inside a reorganization. Finding the seam is a reason to stop and re-scope,
+not a detail to work around.
+
 ## Retiring the old names
 
 Where the project keeps a tripwire for retired terminology, only names that **changed** need entries. A node that moved but kept its basename still reads true in prose and still resolves wherever resolution is by basename. Applying this distinction keeps a retirement list proportionate — dozens of entries rather than hundreds — and keeps it meaningful.
