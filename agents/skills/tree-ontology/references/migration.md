@@ -37,6 +37,15 @@ Use history-preserving moves so the diff reads as motion. Verify afterwards that
 
 Keep the move commit free of logic changes. If a genuine fix is needed to make things pass, land it separately — a diff that is 95% motion and 5% behavior hides the 5%.
 
+**A reorganization can convert a tolerated violation into a hard failure.** An
+upward dependency that a codebase has lived with often survives only because
+import order happened to resolve it. Regrouping files changes that order — and a
+latent layering violation becomes a circular import. This is the tree telling the
+truth rather than a new bug: fix the coupling, or remove whatever amplifies it,
+and note that a package `__init__` which eagerly re-exports from a large sibling
+is the usual amplifier, since it turns importing any one module into importing
+all of them.
+
 **Expect one collision class the rewrite cannot see:** a package `__init__` that re-exports a symbol sharing a name with a sibling module. The symbol wins, the module becomes unreachable, and the errors appear far from the cause. If a module and an exported name collide, rename the module to something the package does not export.
 
 ## Retiring the old names
