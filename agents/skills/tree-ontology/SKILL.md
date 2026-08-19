@@ -49,6 +49,8 @@ For anything larger than a single node, the axis is the whole design. Two habits
 
 That criterion also justifies levels that look thin. A node with only two children still earns its place when it is the level a rule is stated over — the rule needs a name to attach to.
 
+**A rule that constrains tools has to be a check, not a sentence.** Prose conventions bind whoever reads them, and generators read nothing. A repository that had documented "no new top-level directories without approval" for months grew one anyway, because a review script defaulted its output path there. When a tree sprouts a node nobody chose, find what wrote it: deleting the artifact while the generator stands means it returns next run. Tools that write into a repository they do not own should default to an ignored scratch location and take an explicit flag to put anything durable elsewhere.
+
 **Ship the enforcement in the same change.** A reorganization plus "we will add the lint later" is a reorganization that decays. Encode the invariant as a check, and seed it with an honest baseline of the violations that already exist, each annotated with the fix it implies. Fail on new violations, and fail on baseline entries that no longer occur, so the list can only shrink and cannot rot into a record of things fixed long ago.
 
 ## Auditing an existing tree
@@ -92,12 +94,13 @@ A branch whose label needs several concepts joined by "and" is mixing axes. Spli
 - **Prediction:** given one known path, can a newcomer guess where a sibling belongs?
 - **Sibling axis:** do siblings answer the same kind of question?
 - **Read aloud:** does the path move from broad concept to precise intent?
-- **Vocabulary:** are domain terms used consistently, without unexplained synonyms or abbreviations? Prefer a word the project's own glossary already uses over a term of art imported from elsewhere.
+- **Vocabulary:** are domain terms used consistently, without unexplained synonyms or abbreviations? Prefer a word the project's own glossary already uses over a term of art imported from elsewhere. Where one concept crosses surfaces — a CLI command, an HTTP route, a module, a type — it drifts into a different spelling per surface unless something checks the correspondence; a generated or test-enforced mirror between two of them is what keeps the vocabulary honest.
 - **Compound:** would splitting a hyphenated or suffixed name expose a useful hierarchy?
 - **Default:** is the bare parent useful, or merely another help screen?
 - **Boundary:** do read, mutation, workflow, and external effects sit behind honest boundaries?
 - **Depth:** does each level add information? Collapse pass-through levels, unless the level carries a stated rule.
 - **Collision:** will aliases or prefixes become ambiguous as known siblings arrive?
+- **Resolution:** if references resolve leniently — by basename, by unique prefix, by fuzzy match — resolve them strictly once and compare. Leniency hides rot: a link to a deleted page can quietly resolve to the page containing it, or to an unrelated file that happens to share a name, and a link checker sharing that leniency reports success.
 - **Ownership:** is there one canonical home, with compatibility paths delegating to it?
 
 Separate structural defects from taste. Rename when the new shape improves prediction, ownership, safety, or extensibility.
