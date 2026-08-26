@@ -4,7 +4,7 @@ mock.module("@earendil-works/pi-tui", () => ({
 	truncateToWidth: (value: string) => value,
 	visibleWidth: (value: string) => value.replace(/\x1b\[[0-9;]*m/g, "").length,
 }));
-const { formatCodexQuota } = await import("../agents/pi/extensions/git-status");
+const { formatCodexQuota } = await import("../agents/pi/extensions/footer");
 
 test("Codex quota labels and colorizes remaining capacity", () => {
 	const value = formatCodexQuota(

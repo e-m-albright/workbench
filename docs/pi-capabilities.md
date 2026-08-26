@@ -7,7 +7,7 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, transcript reader, branded welcome, custom footer (git-status), consult (second opinion), permission policy, presets (including read-only plan mode), safe-git, worker (one worktree-isolated delegate), owned read-only Google and Strava connectors, a confirmed Apple Notes bridge whose writes are restricted to `Agents`, and a bounded Apple Contacts CLI used by private projection workflows. The pinned package wraps the existing Agent Browser CLI.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, transcript reader, branded welcome, custom footer, consult (second opinion), permission policy, presets (including read-only plan mode), safe-git, worker (one worktree-isolated delegate), owned read-only Google and Strava connectors, a confirmed Apple Notes bridge whose writes are restricted to `Agents`, and a bounded Apple Contacts CLI used by private projection workflows. The pinned package wraps the existing Agent Browser CLI.
 
 ## Delta over vanilla Pi
 
@@ -16,7 +16,7 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Addition | Kind | What it provides |
 |---|---|---|
 | Workbench deploy + drift | Infrastructure | One public source of truth for settings, providers, presets, policy, extensions, and shared skills; `workbench sync pi` / `workbench drift pi` |
-| Custom footer (`git-status.ts`) | Extension | Git state, model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
+| Custom footer (`footer.ts`) | Extension | Git state, model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
 | Activity title (`activity-title.ts`) | Extension | Terminal-tab spinner, repository, deterministic first-prompt session name, active tool |
 | Transcript reader (`transcript-reader.ts`) | Extension | `/reader` or Ctrl+Shift+R opens a read-only prompt/work/answer navigator at the newest completed answer; work is summarized and expandable while the standard Pi transcript remains available |
 | Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded |

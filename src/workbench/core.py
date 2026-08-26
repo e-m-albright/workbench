@@ -67,6 +67,10 @@ RETIRED_PI_EXTENSIONS = {
         "the five-day telemetry trial answered its question; the collector"
         " was retired with the lesson preserved in tombstones.md"
     ),
+    "git-status.ts": (
+        "renamed to footer.ts — the file is the whole Pi footer (context,"
+        " quota, cost, model), and git state is a minority of it"
+    ),
 }
 RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
 VENDORS = ("claude", "codex", "pi")

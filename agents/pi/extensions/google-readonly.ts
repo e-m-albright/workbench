@@ -11,6 +11,11 @@
  *     (Google's native "installed" Desktop-app JSON, shared with the labeler)
  *   ~/Library/Application Support/notes-app/google/readonly-token.json
  *     (this connector's read-only grant, mode 0600)
+ * Deliberate ceiling: strava-readonly.ts mirrors this file's OAuth/loopback
+ * scaffolding (token store, refresh, callback server) because extensions
+ * deploy as flat single files. A fix to those blocks must be hand-mirrored
+ * there; extract a shared helper if a third connector ever appears.
+ *
  * Both are on the permission policy's protected read list, so the agent's own
  * tools cannot read them; only this extension touches them. Run /google-auth
  * once to mint the read-only grant.

@@ -37,7 +37,12 @@ const MAX_NOTIFY_CHARS = 6000;
 const FABLE_MODEL = "claude-fable-5";
 
 function getSettings(ctx: ExtensionContext): Required<ConsultSettings> {
-	const settings = (ctx as any).settingsManager?.getSettings?.() ?? {};
+	// Unofficial settings surface (no public getSettings on ExtensionContext yet);
+	// keep this cast identical across extensions so a Pi API change breaks them uniformly.
+	const settings =
+		(
+			ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
+		).settingsManager?.getSettings() ?? {};
 	const consult = (settings.consult ?? {}) as ConsultSettings;
 	const provider =
 		consult.provider === "codex" || consult.provider === "claude" ? consult.provider : DEFAULT_PROVIDER;

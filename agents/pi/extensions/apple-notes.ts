@@ -3,6 +3,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 
 const CLI = "apple-notes";
+// Mirrors WRITE_FOLDER in bin/apple-notes — the CLI is the source of truth.
 const WRITE_FOLDER = "Agents";
 const MAX_CONTENT_CHARS = 20_000;
 const UNTRUSTED_GUIDELINE =

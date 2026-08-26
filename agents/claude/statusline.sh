@@ -16,6 +16,8 @@ j() {
 }
 
 if [[ -z "${NO_COLOR:-}" ]]; then
+    # Palette contract: these RGB triples are the hex palette in
+    # agents/pi/extensions/footer.ts; a pytest asserts they stay equal.
     R=$'\033[0m'
     DIM=$'\033[2m'
     NOTE=$'\033[38;2;128;166;173m'

@@ -106,7 +106,11 @@ export default function (pi: ExtensionAPI) {
 
 	// Helper to get effective config
 	function getEffectiveConfig(ctx: ExtensionContext): { enabled: boolean; promptLevel: PromptLevel } {
-		const settings = (ctx as any).settingsManager?.getSettings() ?? {};
+		// Unofficial settings surface; cast kept identical across extensions.
+		const settings =
+			(
+				ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
+			).settingsManager?.getSettings() ?? {};
 		const config: Required<SafeGitConfig> = {
 			...DEFAULT_CONFIG,
 			...(settings.safeGit ?? {}),
@@ -186,7 +190,10 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("safegit-status", {
 		description: "Show safe-git status and settings",
 		handler: async (_args, ctx) => {
-			const settings = (ctx as any).settingsManager?.getSettings() ?? {};
+			const settings =
+				(
+					ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
+				).settingsManager?.getSettings() ?? {};
 			const globalConfig: Required<SafeGitConfig> = {
 				...DEFAULT_CONFIG,
 				...(settings.safeGit ?? {}),

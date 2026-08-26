@@ -74,7 +74,12 @@ function truncate(text: string): string {
 }
 
 function timeoutMs(ctx: ExtensionContext): number {
-	const settings = (ctx as any).settingsManager?.getSettings?.() ?? {};
+	// Unofficial settings surface (no public getSettings on ExtensionContext yet);
+	// keep this cast identical across extensions so a Pi API change breaks them uniformly.
+	const settings =
+		(
+			ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
+		).settingsManager?.getSettings() ?? {};
 	const value = Number(settings.worker?.timeoutMs);
 	return Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
 }

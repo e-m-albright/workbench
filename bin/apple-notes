@@ -4,9 +4,11 @@ const WRITE_FOLDER = "Agents";
 const MAX_BODY_CHARS = 100_000;
 const BACKEND_TIMEOUT_MS = 20_000;
 
+// The JXA constants interpolate from the ones above so the folder name and
+// body cap have a single definition (String.raw still interpolates ${}).
 const JXA = String.raw`
-const WRITE_FOLDER = "Agents";
-const MAX_BODY_CHARS = 100000;
+const WRITE_FOLDER = ${JSON.stringify(WRITE_FOLDER)};
+const MAX_BODY_CHARS = ${MAX_BODY_CHARS};
 
 function value(object, property) {
   try { return object[property](); } catch (_) { return undefined; }

@@ -741,6 +741,21 @@ js_repl = false
         self.assertNotIn("sandbox_mode", writer)
         self.assertNotIn("sandbox_mode", unrestricted)
 
+    def test_status_palette_matches_between_statusline_and_pi_footer(self) -> None:
+        """The bash statusline and the Pi footer render one visual grammar."""
+        statusline = (core.AGENTS / "claude/statusline.sh").read_text()
+        rgb = re.findall(r"38;2;(\d+);(\d+);(\d+)m", statusline)
+        statusline_hexes = {f"#{int(r):02x}{int(g):02x}{int(b):02x}" for r, g, b in rgb}
+        footer = (core.AGENTS / "pi/extensions/footer.ts").read_text()
+        footer_hexes = set(re.findall(r"#[0-9a-f]{6}\b", footer))
+
+        self.assertTrue(statusline_hexes)
+        self.assertEqual(
+            statusline_hexes - footer_hexes,
+            set(),
+            "statusline palette colors missing from the Pi footer",
+        )
+
     def test_destructive_guard_matches_shared_git_vectors(self) -> None:
         data = json.loads((core.ROOT / "tests/data/git-guard-vectors.json").read_text())
         for vector in data["vectors"]:

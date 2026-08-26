@@ -4,6 +4,9 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
+// Palette contract: the hex values below are the RGB triples in
+// agents/claude/statusline.sh; a pytest asserts they stay equal.
+
 type GitState =
 	| { kind: "not-git" }
 	| {
@@ -532,7 +535,6 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_start", async (_event, ctx) => {
 		if (!ctx.hasUI) return;
-		ctx.ui.setStatus("git-dirty", undefined);
 		await refresh(ctx);
 		void refreshQuota(ctx, true);
 
