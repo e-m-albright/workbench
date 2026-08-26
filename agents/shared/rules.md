@@ -47,6 +47,7 @@ Project-specific context and rules belong in the project's hand-written `AGENTS.
 - **Make the final answer self-contained.** Close every explicit request by answering it, acting on it, rejecting it with a reason, or naming where it was deferred. Keep substantive conclusions in the final response rather than progress narration.
 - **Show actionable lists in full.** When the user must choose or act, include every relevant title and URL. Use status or open-thread sections only when they materially improve navigation.
 - **Write direct, natural prose.** Lead with the conclusion or crux, use structure when it helps, and make every sentence earn its place.
+- **Write plain English in reports and summaries.** Complete sentences with terms spelled out; each file, flag, or identifier gets its own plain clause. No arrow chains (A → B → fails), no hyphen-stacked compounds, and no shorthand or labels coined mid-task unless defined on first use. No aphorisms, no metaphors, no building to a turn of phrase — state claims directly. Shorten by dropping details that do not change the reader's next action, never by compressing into fragments. Clear beats short.
 
 ## Tool use
 

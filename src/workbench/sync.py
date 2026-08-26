@@ -182,6 +182,10 @@ def managed_claude_settings(data: Path) -> dict[str, Any]:
         "preferredNotifChannel": "auto",
         "defaultMode": "auto",
         "autoMemoryEnabled": False,
+        # Built-in style (Claude Code >= 2.1.237): lead with the result, skip
+        # preamble. Pairs with the plain-English rule in shared/rules.md to
+        # counter the Fable/Opus jargon drift.
+        "outputStyle": "Concise",
         "sandbox": CLAUDE_SANDBOX,
     }
 
