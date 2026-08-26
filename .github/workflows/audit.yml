@@ -1,0 +1,22 @@
+name: Dependency Audit
+
+# Vulnerabilities appear over time, not when code is pushed; the CI gate is
+# deliberately deterministic, so the audit runs on its own monthly schedule.
+on:
+  schedule:
+    - cron: "41 9 3 * *" # monthly, morning UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      - name: pip-audit over locked dependencies
+        run: just audit

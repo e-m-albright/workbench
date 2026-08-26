@@ -14,6 +14,7 @@ workbench = "workbench.cli:entry"
 [dependency-groups]
 dev = [
     "pytest>=8.3",
+    "pytest-timeout>=2.3",
     "ruff>=0.9",
     "pyright>=1.1.390",
     "pip-audit>=2.7",
@@ -58,3 +59,5 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# A hung subprocess test fails loudly instead of open; unknown markers error.
+addopts = "--timeout=60 --strict-markers"

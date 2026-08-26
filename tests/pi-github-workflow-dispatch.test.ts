@@ -48,9 +48,9 @@ describe("GitHub workflow dispatch", () => {
 		expect(() => validateDispatch({ ...dispatch, repository: "evan" })).toThrow("owner/name");
 		expect(() => validateDispatch({ ...dispatch, workflow: "--help" })).toThrow("workflow");
 		expect(() => validateDispatch({ ...dispatch, ref: "--help" })).toThrow("ref");
-		expect(() =>
-			validateDispatch({ ...dispatch, inputs: [{ name: "bad name", value: "x" }] }),
-		).toThrow("input name");
+		expect(() => validateDispatch({ ...dispatch, inputs: [{ name: "bad name", value: "x" }] })).toThrow(
+			"input name",
+		);
 	});
 
 	test("requires confirmation, dispatches once, and returns the created run URL", async () => {
@@ -66,13 +66,10 @@ describe("GitHub workflow dispatch", () => {
 		module.default({ registerTool: (value: any) => (tool = value), exec } as any);
 		const confirm = mock(async () => true);
 
-		const result = await tool.execute(
-			"call-1",
-			dispatch,
-			undefined,
-			undefined,
-			{ hasUI: true, ui: { confirm } },
-		);
+		const result = await tool.execute("call-1", dispatch, undefined, undefined, {
+			hasUI: true,
+			ui: { confirm },
+		});
 
 		expect(confirm).toHaveBeenCalledTimes(1);
 		expect(exec).toHaveBeenCalledTimes(2);

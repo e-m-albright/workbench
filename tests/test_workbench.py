@@ -742,9 +742,7 @@ js_repl = false
         self.assertNotIn("sandbox_mode", unrestricted)
 
     def test_destructive_guard_matches_shared_git_vectors(self) -> None:
-        data = json.loads(
-            (core.ROOT / "tests/data/git-guard-vectors.json").read_text()
-        )
+        data = json.loads((core.ROOT / "tests/data/git-guard-vectors.json").read_text())
         for vector in data["vectors"]:
             with self.subTest(command=vector["command"]):
                 result = self.run_hook(

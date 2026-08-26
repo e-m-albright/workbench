@@ -16,7 +16,7 @@ type GitState =
 			conflicts: number;
 			ahead: number;
 			behind: number;
-		};
+	  };
 
 export interface QuotaWindow {
 	usedPercent: number;
@@ -206,8 +206,10 @@ function authClass(ctx: ExtensionContext): "local" | "subscription" | "paid" {
 	const model = ctx.model;
 	if (!model) return "paid";
 	const baseUrl = (model.baseUrl ?? "").toLowerCase();
-	const isLocalHost = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1") || baseUrl.includes("[::1]");
-	if (model.provider.includes("lm-studio") || model.provider.includes("ollama") || isLocalHost) return "local";
+	const isLocalHost =
+		baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1") || baseUrl.includes("[::1]");
+	if (model.provider.includes("lm-studio") || model.provider.includes("ollama") || isLocalHost)
+		return "local";
 	if (ctx.modelRegistry.isUsingOAuth(model)) return "subscription";
 	return "paid";
 }
@@ -390,7 +392,12 @@ async function codexQuota(): Promise<QuotaState> {
 
 let lastSpeed: number | undefined;
 
-function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: QuotaState, width: number): string[] {
+function renderFooter(
+	ctx: ExtensionContext,
+	gitState: GitState,
+	quotaState: QuotaState,
+	width: number,
+): string[] {
 	const theme = ctx.ui.theme;
 	const entries = ctx.sessionManager.getEntries();
 	let totalInput = 0;
@@ -418,13 +425,17 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 	if (home && cwd.startsWith(home)) cwd = `~${cwd.slice(home.length)}`;
 
 	const gitText = gitSegment(gitState);
-	const pathLine = gitText ? `${statusColor("note", "π")} ${dim(cwd)} ${gitText}` : `${statusColor("note", "π")} ${dim(cwd)}`;
+	const pathLine = gitText
+		? `${statusColor("note", "π")} ${dim(cwd)} ${gitText}`
+		: `${statusColor("note", "π")} ${dim(cwd)}`;
 	const coloredPathLine = truncateToWidth(pathLine, width, dim("..."));
 
 	const usage = ctx.getContextUsage();
 	const contextWindow = usage?.contextWindow ?? ctx.model?.contextWindow ?? 0;
-	const contextPercent = usage?.percent === null || usage?.percent === undefined ? "?" : usage.percent.toFixed(1);
-	const contextTokens = usage?.tokens === null || usage?.tokens === undefined ? "?" : formatTokens(usage.tokens);
+	const contextPercent =
+		usage?.percent === null || usage?.percent === undefined ? "?" : usage.percent.toFixed(1);
+	const contextTokens =
+		usage?.tokens === null || usage?.tokens === undefined ? "?" : formatTokens(usage.tokens);
 	const groupSep = dim(" \u2502 ");
 
 	const compactions = entries.filter((entry) => entry.type === "compaction").length;
@@ -474,7 +485,8 @@ function renderFooter(ctx: ExtensionContext, gitState: GitState, quotaState: Quo
 		const availableRight = width - leftWidth - 2;
 		if (availableRight > 0) {
 			const truncatedRight = truncateToWidth(right, availableRight, "");
-			statsLine = left + " ".repeat(Math.max(1, width - leftWidth - visibleWidth(truncatedRight))) + truncatedRight;
+			statsLine =
+				left + " ".repeat(Math.max(1, width - leftWidth - visibleWidth(truncatedRight))) + truncatedRight;
 		} else {
 			statsLine = left;
 		}

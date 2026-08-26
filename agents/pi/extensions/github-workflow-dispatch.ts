@@ -142,7 +142,9 @@ export default function githubWorkflowDispatch(pi: ExtensionAPI) {
 			const result = await pi.exec("gh", buildDispatchArgs(dispatch), { signal, timeout: 30_000 });
 			if (result.code !== 0) throw new Error(result.stderr.trim() || "gh workflow run failed");
 			const runUrl = await discoverRunUrl(pi, dispatch, dispatchedAt, signal);
-			const text = runUrl ? `Workflow dispatched: ${runUrl}` : "Workflow dispatched; run URL is not visible yet.";
+			const text = runUrl
+				? `Workflow dispatched: ${runUrl}`
+				: "Workflow dispatched; run URL is not visible yet.";
 			return { content: [{ type: "text" as const, text }], details: { dispatch, runUrl } };
 		},
 	});

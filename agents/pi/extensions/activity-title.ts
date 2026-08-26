@@ -21,7 +21,10 @@ export function deriveThreadTitle(prompt: string): string {
 	const words = clause.split(/\s+/).filter(Boolean).slice(0, MAX_THREAD_WORDS);
 	let title = words.join(" ").replace(/^[,\s]+|[,\s]+$/g, "");
 	if (title.length > MAX_THREAD_LENGTH) {
-		const clipped = title.slice(0, MAX_THREAD_LENGTH - 1).replace(/\s+\S*$/, "").trimEnd();
+		const clipped = title
+			.slice(0, MAX_THREAD_LENGTH - 1)
+			.replace(/\s+\S*$/, "")
+			.trimEnd();
 		title = `${clipped || title.slice(0, MAX_THREAD_LENGTH - 1).trimEnd()}…`;
 	}
 	return title || "new session";

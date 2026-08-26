@@ -12,6 +12,20 @@ lint:
 lint-py:
     uv run ruff check .
 
+# Biome format for the TypeScript surface. `just fmt-ts check` verifies only.
+[group('quality')]
+fmt-ts mode='write':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{mode}}" in
+        write | all) bunx @biomejs/biome@2.3.8 format --write agents/pi/extensions tests ;;
+        --check | check) bunx @biomejs/biome@2.3.8 format agents/pi/extensions tests ;;
+        *)
+            printf 'fmt-ts: unknown mode %q (try --check, check)\n' "{{mode}}" >&2
+            exit 1
+            ;;
+    esac
+
 # ShellCheck over every tracked shell script, including the extensionless bin/ CLIs.
 [group('quality')]
 lint-shell:
@@ -48,6 +62,7 @@ check:
     just typecheck-pi
     just lint
     just lint-shell
+    just fmt-ts check
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 

@@ -1,9 +1,4 @@
-import type {
-	ExtensionAPI,
-	ExtensionContext,
-	SessionEntry,
-	Theme,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
 
 export interface WorkSummary {
@@ -23,7 +18,9 @@ function contentText(content: unknown): string {
 	if (!Array.isArray(content)) return "";
 	return content
 		.filter((block): block is { type: "text"; text: string } => {
-			return Boolean(block && typeof block === "object" && block.type === "text" && typeof block.text === "string");
+			return Boolean(
+				block && typeof block === "object" && block.type === "text" && typeof block.text === "string",
+			);
 		})
 		.map((block) => block.text)
 		.join("\n")
@@ -84,7 +81,8 @@ export function formatWorkSummary(work: WorkSummary): string {
 		parts.push(`${count} ${name}`);
 	}
 	if (work.errors > 0) parts.push(`${work.errors} ${work.errors === 1 ? "error" : "errors"}`);
-	if (total === 0 && work.notes.length > 0) parts.push(`${work.notes.length} progress ${work.notes.length === 1 ? "note" : "notes"}`);
+	if (total === 0 && work.notes.length > 0)
+		parts.push(`${work.notes.length} progress ${work.notes.length === 1 ? "note" : "notes"}`);
 	return parts.join(" · ");
 }
 
@@ -101,7 +99,8 @@ export function reconcileReaderSelection(
 	turnIndex: number,
 	followLatest: boolean,
 ): { turnIndex: number; anchor?: "answer" } {
-	if (!followLatest || nextTurns.length === 0) return { turnIndex: Math.min(turnIndex, Math.max(0, nextTurns.length - 1)) };
+	if (!followLatest || nextTurns.length === 0)
+		return { turnIndex: Math.min(turnIndex, Math.max(0, nextTurns.length - 1)) };
 	const previousLatest = previousTurns.at(-1);
 	const nextLatest = nextTurns.at(-1);
 	return {
@@ -129,7 +128,23 @@ export type ReaderInput =
 	| "pageUp"
 	| "pageDown";
 
-type ReaderKey = "escape" | "ctrl+c" | "[" | "]" | "p" | "home" | "a" | "end" | "g" | "w" | "up" | "k" | "down" | "j" | "pageUp" | "pageDown";
+type ReaderKey =
+	| "escape"
+	| "ctrl+c"
+	| "["
+	| "]"
+	| "p"
+	| "home"
+	| "a"
+	| "end"
+	| "g"
+	| "w"
+	| "up"
+	| "k"
+	| "down"
+	| "j"
+	| "pageUp"
+	| "pageDown";
 type KeyMatcher = (data: string, key: ReaderKey) => boolean;
 
 export function classifyReaderInput(data: string, matchesKey: KeyMatcher): ReaderInput | undefined {
@@ -199,7 +214,10 @@ class TranscriptReader implements Component {
 			}
 			if (turn.work.notes.length === 0) {
 				lines.push(
-					this.theme.fg("dim", this.truncate("Full tool detail remains available in the standard Pi transcript.", width)),
+					this.theme.fg(
+						"dim",
+						this.truncate("Full tool detail remains available in the standard Pi transcript.", width),
+					),
 				);
 			}
 		}
@@ -226,11 +244,12 @@ class TranscriptReader implements Component {
 
 		const bodyHeight = Math.max(3, this.tui.terminal.rows - 2);
 		this.scrollOffset = clampScrollOffset(built.lines.length, bodyHeight, this.scrollOffset);
-		const section = this.scrollOffset >= built.answerStart
-			? "answer"
-			: this.scrollOffset >= built.workStart
-				? "work"
-				: "prompt";
+		const section =
+			this.scrollOffset >= built.answerStart
+				? "answer"
+				: this.scrollOffset >= built.workStart
+					? "work"
+					: "prompt";
 		const excerpt = oneLine(turn.prompt);
 		const headerText = this.truncate(
 			`Reader · turn ${this.turnIndex + 1}/${this.turns.length} · ${section} · ${excerpt}`,
@@ -249,21 +268,41 @@ class TranscriptReader implements Component {
 	handleInput(data: string): void {
 		const page = Math.max(3, this.tui.terminal.rows - 5);
 		switch (classifyReaderInput(data, this.matchesKey)) {
-			case "close": this.done(); break;
-			case "previousTurn": this.changeTurn(-1); break;
-			case "nextTurn": this.changeTurn(1); break;
-			case "prompt": this.pendingAnchor = "prompt"; break;
-			case "answer": this.pendingAnchor = "answer"; break;
+			case "close":
+				this.done();
+				break;
+			case "previousTurn":
+				this.changeTurn(-1);
+				break;
+			case "nextTurn":
+				this.changeTurn(1);
+				break;
+			case "prompt":
+				this.pendingAnchor = "prompt";
+				break;
+			case "answer":
+				this.pendingAnchor = "answer";
+				break;
 			case "latest":
 				this.followLatest = true;
 				this.turnIndex = this.turns.length - 1;
 				this.pendingAnchor = this.turns.at(-1)?.answer ? "answer" : "prompt";
 				break;
-			case "work": this.expandedWork = !this.expandedWork; break;
-			case "up": this.scrollOffset--; break;
-			case "down": this.scrollOffset++; break;
-			case "pageUp": this.scrollOffset -= page; break;
-			case "pageDown": this.scrollOffset += page; break;
+			case "work":
+				this.expandedWork = !this.expandedWork;
+				break;
+			case "up":
+				this.scrollOffset--;
+				break;
+			case "down":
+				this.scrollOffset++;
+				break;
+			case "pageUp":
+				this.scrollOffset -= page;
+				break;
+			case "pageDown":
+				this.scrollOffset += page;
+				break;
 		}
 		this.tui.requestRender();
 	}
@@ -291,23 +330,27 @@ async function openReader(ctx: ExtensionContext): Promise<void> {
 		import("@earendil-works/pi-coding-agent"),
 	]);
 	const markdownTheme = getMarkdownTheme();
-	const renderMarkdown: MarkdownRenderer = (text, width) => new Markdown(text, 0, 0, markdownTheme).render(width);
-	await ctx.ui.custom<void>((tui, theme, _keybindings, done) => {
-		return new TranscriptReader(
-			turns,
-			() => parseTranscript(ctx.sessionManager.getBranch()),
-			!ctx.isIdle(),
-			tui,
-			theme,
-			renderMarkdown,
-			truncateToWidth,
-			matchesKey,
-			() => done(),
-		);
-	}, {
-		overlay: true,
-		overlayOptions: { anchor: "top-left", width: "100%", maxHeight: "100%" },
-	});
+	const renderMarkdown: MarkdownRenderer = (text, width) =>
+		new Markdown(text, 0, 0, markdownTheme).render(width);
+	await ctx.ui.custom<void>(
+		(tui, theme, _keybindings, done) => {
+			return new TranscriptReader(
+				turns,
+				() => parseTranscript(ctx.sessionManager.getBranch()),
+				!ctx.isIdle(),
+				tui,
+				theme,
+				renderMarkdown,
+				truncateToWidth,
+				matchesKey,
+				() => done(),
+			);
+		},
+		{
+			overlay: true,
+			overlayOptions: { anchor: "top-left", width: "100%", maxHeight: "100%" },
+		},
+	);
 }
 
 export default function transcriptReader(pi: ExtensionAPI) {

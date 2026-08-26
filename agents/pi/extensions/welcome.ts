@@ -2,14 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 
 const RESET = "\x1b[0m";
-const PI_LINES = [
-	"██████╗ ██╗",
-	"██╔══██╗██║",
-	"██████╔╝██║",
-	"██╔═══╝ ██║",
-	"██║     ██║",
-	"╚═╝     ╚═╝",
-];
+const PI_LINES = ["██████╗ ██╗", "██╔══██╗██║", "██████╔╝██║", "██╔═══╝ ██║", "██║     ██║", "╚═╝     ╚═╝"];
 
 // Ruby red -> orange -> topaz yellow, combining Workbench and Dotfiles.
 const STOPS = [
@@ -35,12 +28,14 @@ function mixColor(position: number): readonly [number, number, number] {
 function gradient(line: string): string {
 	if (process.env.NO_COLOR) return line;
 	const width = Math.max(1, line.length - 1);
-	return [...line]
-		.map((character, column) => {
-			const [red, green, blue] = mixColor(column / width);
-			return `\x1b[38;2;${red};${green};${blue}m${character}`;
-		})
-		.join("") + RESET;
+	return (
+		[...line]
+			.map((character, column) => {
+				const [red, green, blue] = mixColor(column / width);
+				return `\x1b[38;2;${red};${green};${blue}m${character}`;
+			})
+			.join("") + RESET
+	);
 }
 
 export default function (pi: ExtensionAPI) {

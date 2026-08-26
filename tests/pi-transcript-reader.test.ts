@@ -35,12 +35,9 @@ test("groups each prompt with compact work and its final answer", () => {
 			toolName: "read",
 			isError: false,
 		}),
-		message(
-			"a2",
-			"assistant",
-			[{ type: "text", text: "## Recommendation\n\nFix the adapter boundary." }],
-			{ stopReason: "stop" },
-		),
+		message("a2", "assistant", [{ type: "text", text: "## Recommendation\n\nFix the adapter boundary." }], {
+			stopReason: "stop",
+		}),
 		message("u2", "user", [{ type: "text", text: "What should I test?" }]),
 	]);
 

@@ -30,8 +30,8 @@ describe("Pi permission policy", () => {
 	test("allows read-only GitHub API calls and blocks mutations", () => {
 		expect(reason("bash", { command: "gh api repos/example/project/contents" })).toBeUndefined();
 		expect(
-		reason("bash", { command: "gh api repos/example/project/issues --method POST --field title=x" }),
-	).toContain("mutating GitHub CLI");
+			reason("bash", { command: "gh api repos/example/project/issues --method POST --field title=x" }),
+		).toContain("mutating GitHub CLI");
 	});
 
 	test("allows public curl reads but blocks downloads and remote scripts", () => {
@@ -82,10 +82,7 @@ describe("Pi permission policy", () => {
 	});
 
 	test("blocks generated Claude configs that contain materialized secrets", () => {
-		const paths = [
-			"~/.claude.json",
-			"~/Library/Application Support/Claude/claude_desktop_config.json",
-		];
+		const paths = ["~/.claude.json", "~/Library/Application Support/Claude/claude_desktop_config.json"];
 		for (const path of paths) {
 			expect(reason("read", { path })).toContain(path);
 			expect(reason("write", { path })).toContain(path);
@@ -109,9 +106,7 @@ describe("Pi permission policy", () => {
 		expect(reason("mcp", { server: "gmail", tool: "gmail_search_threads" })).toContain(
 			"not on the read-only allowlist",
 		);
-		expect(reason("mcp", { server: "gmail", action: "auth-start" })).toContain(
-			"initiated explicitly",
-		);
+		expect(reason("mcp", { server: "gmail", action: "auth-start" })).toContain("initiated explicitly");
 	});
 
 	test("blocks tool reads of the shared connector credential root", () => {
