@@ -86,7 +86,13 @@ typecheck-pi:
         echo "typecheck-pi: pi CLI not found; skipping"
         exit 0
     fi
-    pkg="$(dirname "$(dirname "$(readlink -f "$(command -v pi)")")")"
+    resolved="$(readlink -f "$(command -v pi)")"
+    # The package root is everything before /dist/ — robust to the CLI entry
+    # moving deeper (0.82 shipped dist/cli.js; 0.84 ships dist/cli/...).
+    pkg="${resolved%%/dist/*}"
+    if [[ "$pkg" == "$resolved" ]]; then
+        pkg="$(dirname "$(dirname "$resolved")")"
+    fi
     cfg="{{justfile_directory()}}/.pi-tsconfig.generated.json"
     trap 'rm -f "$cfg"' EXIT
     cat > "$cfg" <<EOF

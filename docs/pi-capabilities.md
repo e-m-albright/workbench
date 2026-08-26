@@ -49,7 +49,7 @@ without deleting them. Authentication, trust decisions, sessions, and model cach
 
 ## Prompt navigation
 
-Pi 0.81.1 emits OSC 133 semantic zones around user and final assistant messages,
+Pi (verified on 0.84.3) emits OSC 133 semantic zones around user and final assistant messages,
 and Ghostty defines `jump_to_prompt` actions for navigating those zones. In the
 current Ghostty session, however, Command-Up/Down behaved as top/bottom scrolling
 rather than semantic navigation; effective-config inspection did not establish a
@@ -159,6 +159,6 @@ when a task requires high-autonomy execution against untrusted content.
 
 ## Notes
 
-- Context size is provider-specific. Pi 0.81.1 currently advertises GPT-5.6 Sol as 272K through the `openai-codex` subscription route and 1.1M through OpenRouter. The footer uses the active provider's model metadata; it must not relabel the subscription route as 1.1M without endpoint evidence.
+- Context size is provider-specific. Pi (verified on 0.84.3) currently advertises GPT-5.6 Sol as 272K through the `openai-codex` subscription route and 1.1M through OpenRouter. The footer uses the active provider's model metadata; it must not relabel the subscription route as 1.1M without endpoint evidence.
 - The extension API does not expose the auto-compaction toggle, but completed compactions appear as session entries and are counted in the footer. Codex subscription windows come from the authenticated local Codex app-server; no credentials or conversation content are read. Pi still has no direct thinking-level getter, so the footer reads `thinking_level_change` session entries.
 - Footer convention: keep every data point the default footer had; additions must earn their width.

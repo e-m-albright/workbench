@@ -18,7 +18,7 @@ notes      private knowledge and operating layer
 ### 1. [`dotfiles`](https://github.com/e-m-albright/dotfiles) — host foundation
 
 Turns a fresh Mac into the working host: packages, shell, terminal, editors,
-Git, macOS preferences, privacy utilities, local models, and remote session
+Git, macOS preferences, privacy utilities, and remote session
 control. Owns the `dotfiles` Typer CLI and Mission Control TUI. It installs
 Workbench and delegates agent configuration to it.
 
@@ -69,7 +69,11 @@ intentionally not published; neither public repository requires it.
   health), `check` (repository validation), `drift` (live vs. desired state),
   `sync` (deploy desired state), `status`, `open`.
 - Each repository exposes `just check` and `just audit` (where applicable) with
-  the same meanings.
+  the same meanings; `just typecheck` is the shared name for the type gate.
+- Cross-layer contract: `dotfiles doctor` runs `workbench drift all` and treats
+  exit 0 as clean and exit 1 as drift, reading the first non-empty output line
+  as the drift detail. Change that verb or its exit semantics in both repos
+  together.
 - Live desired-state comparison only — no stored machine snapshots that go
   stale.
 - Output stays readable without a TTY or ANSI support.
