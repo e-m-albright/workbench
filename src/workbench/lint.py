@@ -9,6 +9,11 @@ from pathlib import Path
 
 from workbench.core import AGENTS, ROOT, WorkbenchError, _frontmatter_field, load_json
 
+# Single source for the skill-description context budget; the test suite
+# imports these rather than re-deriving the rule.
+PER_SKILL_DESCRIPTION_LIMIT = 280
+DESCRIPTION_BUDGET = 5_500
+
 
 def _markdown_link_errors(root: Path) -> list[str]:
     errors: list[str] = []
@@ -102,11 +107,16 @@ def lint() -> int:
             errors.append(f"skill description with colon must be quoted: {name}")
         length = len(raw_description.strip('"'))
         description_chars += length
-        if length > 280:
-            errors.append(f"skill description exceeds 280 chars: {name} ({length})")
+        if length > PER_SKILL_DESCRIPTION_LIMIT:
+            errors.append(
+                f"skill description exceeds {PER_SKILL_DESCRIPTION_LIMIT} chars: {name} ({length})"
+            )
 
-    if description_chars > 5_500:
-        errors.append(f"skill descriptions exceed 5500-char context budget: {description_chars}")
+    if description_chars > DESCRIPTION_BUDGET:
+        errors.append(
+            f"skill descriptions exceed {DESCRIPTION_BUDGET}-char context budget: "
+            f"{description_chars}"
+        )
 
     for script in sorted(AGENTS.rglob("*.sh")):
         result = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)

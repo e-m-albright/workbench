@@ -261,8 +261,10 @@ class WorkbenchTests(unittest.TestCase):
             self.assertFalse(": " in raw and not raw.startswith('"'), skill)
             descriptions.append(raw.strip('"'))
 
-        self.assertTrue(all(len(description) <= 280 for description in descriptions))
-        self.assertLessEqual(sum(map(len, descriptions)), 5_000)
+        self.assertTrue(
+            all(len(d) <= lint_mod.PER_SKILL_DESCRIPTION_LIMIT for d in descriptions)
+        )
+        self.assertLessEqual(sum(map(len, descriptions)), lint_mod.DESCRIPTION_BUDGET)
 
     def test_markdown_link_check_skips_examples_and_finds_broken_links(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
