@@ -149,15 +149,7 @@ Task complete. Before starting the next task:
 
 ### Save State for Handoffs
 
-When switching between tools (Claude → Codex) or ending a session:
-
-```
-Save your current state to .agents/artifacts/sessions/save-state.md:
-- What was accomplished
-- What's left to do
-- Key decisions made and why
-- Files that need attention
-```
+When switching between tools or ending a session, use the `handoff` skill. It writes a private, temporary Markdown artifact outside the repository, records decisions and verification evidence, and gives the next session one clear action. Keep durable knowledge in repository documentation rather than a handoff.
 
 ---
 
@@ -226,7 +218,7 @@ One Redditor with ~100 scoped patterns found Claude started following rules lite
 | Complex architecture decision | Staff architect role + "propose 2 options" |
 | Security-sensitive code | Security auditor role + prompt stacking |
 | Mid-session quality drift | Guardrail reset with concrete rules |
-| Switching tools mid-task | Save state to markdown for handoff |
+| Switching tools mid-task | Use the `handoff` skill |
 | Too many tokens accumulated | Explicit context budget check |
 
 ---
