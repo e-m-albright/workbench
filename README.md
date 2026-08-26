@@ -133,9 +133,9 @@ just check
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
 [Bun](https://bun.sh) (runs the private layer's `apple-notes`/`apple-contacts` CLIs
-and the Pi extension tests), and the installed Pi/Claude/Codex CLIs. Claude and
-Codex skill deployment also uses `npx skills`; Pi and Codex discover one shared real-file deployment under
-`~/.agents/skills`, avoiding duplicate Pi skill warnings.
+and the Pi extension tests), and the installed Pi/Claude/Codex CLIs. Workbench stages and atomically replaces its local skill copies;
+Pi and Codex discover one shared real-file deployment under `~/.agents/skills`, avoiding duplicate Pi skill
+warnings without a network-backed skill installer.
 
 ## Daily Workflows
 

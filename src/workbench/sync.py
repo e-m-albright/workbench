@@ -21,7 +21,6 @@ from workbench.core import (
     RETIRED_PI_STATE_PATHS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
-    SKILLS_CLI,
     WorkbenchError,
     _home_env,
     _list_plugins,
@@ -89,58 +88,42 @@ def _install_runtime_files(home: Path) -> Path:
     return data
 
 
-def _sync_skills(vendor: str, home: Path) -> None:
-    skill_names = sorted(path.parent.name for path in (AGENTS / "skills").glob("*/SKILL.md"))
-    if not shutil.which("npx"):
-        raise WorkbenchError("npx is required to deploy skills")
-    env = _home_env(home)
-    # The npx skills CLI names the claude agent "claude-code"; that external id
-    # stays at this subprocess boundary — everything else speaks "claude".
-    agent_id = "claude-code" if vendor == "claude" else vendor
-    # Remove the full current set too (not just retirements) so a renamed or
-    # relocated skill can't leave a stale copy behind from a prior deploy.
-    removals = sorted(set(skill_names) | set(RETIRED_SKILLS))
-    if removals:
-        subprocess.run(
-            ["npx", SKILLS_CLI, "remove", *removals, "-a", agent_id, "-g", "-y"],
-            check=False,
-            env=env,
-        )
+def _tree_files(root: Path) -> dict[Path, bytes]:
+    if not root.is_dir() or root.is_symlink():
+        return {}
+    return {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+
+
+def _replace_tree(source: Path, destination: Path) -> None:
+    """Stage one local tree, then swap it into place without a network gap."""
+    if _tree_files(source) == _tree_files(destination):
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    staged = destination.with_name(destination.name + ".tmp")
+    backup = destination.with_name(destination.name + ".bak")
+    _remove_deployed_path(staged)
+    _remove_deployed_path(backup)
+    shutil.copytree(source, staged)
+    if destination.exists() or destination.is_symlink():
+        destination.replace(backup)
     try:
-        subprocess.run(
-            [
-                "npx",
-                SKILLS_CLI,
-                "add",
-                str(AGENTS / "skills"),
-                "-s",
-                "*",
-                "-a",
-                agent_id,
-                "-g",
-                "-y",
-                "--copy",
-            ],
-            check=True,
-            env=env,
-        )
-    except subprocess.CalledProcessError as exc:
-        # The remove above already ran, so a failed add leaves this vendor
-        # with no deployed skills — say so instead of a bare subprocess error.
-        raise WorkbenchError(
-            f"skills add failed after removal: {vendor} currently has no deployed"
-            " skills — fix the npx/npm failure and re-run `workbench sync`"
-        ) from exc
-    skill_roots = [home / ".agents/skills"]
-    if vendor == "claude":
-        skill_roots.append(home / ".claude/skills")
-    for root in skill_roots:
-        for name in RETIRED_SKILLS:
-            retired = root / name
-            if retired.is_symlink() or retired.is_file():
-                retired.unlink()
-            elif retired.exists():
-                shutil.rmtree(retired)
+        staged.replace(destination)
+    except OSError:
+        if backup.exists() or backup.is_symlink():
+            backup.replace(destination)
+        raise
+    _remove_deployed_path(backup)
+
+
+def _sync_skills(vendor: str, home: Path) -> None:
+    if vendor not in {"claude", "codex"}:
+        raise WorkbenchError(f"unsupported skill target: {vendor}")
+    root = home / (".claude/skills" if vendor == "claude" else ".agents/skills")
+    canonical = {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    for name in RETIRED_SKILLS:
+        _remove_deployed_path(root / name)
+    for name, source in canonical.items():
+        _replace_tree(source, root / name)
 
 
 def _sync_subagents(vendor: str, destination: Path) -> None:
@@ -215,7 +198,7 @@ def sync_claude(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> Non
     if not isinstance(live_mcp, dict):
         live_mcp = {}
     root_settings["mcpServers"] = merge_mcp(live_mcp, "claude")
-    write_json(claude_root, root_settings)
+    write_json(claude_root, root_settings, mode=0o600)
 
     _sync_claude_desktop(home)
     _sync_subagents("claude", claude_home / "agents")
@@ -240,7 +223,7 @@ def _sync_claude_desktop(home: Path) -> None:
     if not isinstance(defaults, dict) or not isinstance(existing, dict):
         raise WorkbenchError("Claude Desktop preferences must be JSON objects")
     settings["preferences"] = {**defaults, **existing}
-    write_json(path, settings)
+    write_json(path, settings, mode=0o600)
 
 
 def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
@@ -255,7 +238,7 @@ def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None
 
     config = codex_home / "config.toml"
     existing = config.read_text() if config.exists() else ""
-    write_text(config, merge_codex_config(existing))
+    write_text(config, merge_codex_config(existing), mode=0o600)
     for profile in sorted((AGENTS / "codex/profiles").glob("*.toml")):
         copy_file(profile, codex_home / f"{profile.stem}.config.toml")
     if copy_file(AGENTS / "shared/hooks.json", codex_home / "hooks.json"):

@@ -114,7 +114,7 @@ typecheck-pi:
       "include": ["{{justfile_directory()}}/agents/pi/extensions/*.ts"]
     }
     EOF
-    bunx tsc -p "$cfg"
+    bunx --package typescript@7.0.2 tsc -p "$cfg"
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 

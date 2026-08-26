@@ -4,6 +4,7 @@ import { Type } from "typebox";
 const REPOSITORY_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const WORKFLOW_RE = /^[A-Za-z0-9_.\/-]+$/;
 const INPUT_NAME_RE = /^[A-Za-z0-9_.-]+$/;
+const SENSITIVE_INPUT_RE = /(?:^|[_.-])(secret|token|password|credential|api[_.-]?key)(?:$|[_.-])/i;
 
 export interface WorkflowInput {
 	name: string;
@@ -33,6 +34,9 @@ export function validateDispatch(dispatch: WorkflowDispatch): void {
 	if (dispatch.inputs.length > 20) throw new Error("at most 20 workflow inputs are allowed");
 	for (const input of dispatch.inputs) {
 		if (!INPUT_NAME_RE.test(input.name)) throw new Error(`invalid input name: ${input.name}`);
+		if (SENSITIVE_INPUT_RE.test(input.name)) {
+			throw new Error(`sensitive input ${input.name} must use GitHub Actions secrets, not workflow inputs`);
+		}
 		if (input.value.length > 1000 || /\0/.test(input.value)) {
 			throw new Error(`invalid value for input: ${input.name}`);
 		}
@@ -117,6 +121,7 @@ export default function githubWorkflowDispatch(pi: ExtensionAPI) {
 		promptSnippet: "github_workflow_dispatch: confirm and run one GitHub Actions workflow",
 		promptGuidelines: [
 			"Use github_workflow_dispatch instead of gh workflow run after the user approves the exact repository, workflow, ref, and inputs.",
+			"Never pass credentials, tokens, passwords, or other secrets as workflow inputs; configure them as GitHub Actions secrets.",
 		],
 		parameters: Type.Object({
 			repository: Type.String({ description: "GitHub owner/name" }),

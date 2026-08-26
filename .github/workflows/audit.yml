@@ -1,8 +1,13 @@
 name: Dependency Audit
 
-# Vulnerabilities appear over time, not when code is pushed; the CI gate is
-# deliberately deterministic, so the audit runs on its own monthly schedule.
+# Audit dependency changes before merge and rescan monthly because
+# vulnerabilities can appear after a lockfile lands.
 on:
+  pull_request:
+    paths:
+      - pyproject.toml
+      - uv.lock
+      - .github/workflows/audit.yml
   schedule:
     - cron: "41 9 3 * *" # monthly, morning UTC
   workflow_dispatch:

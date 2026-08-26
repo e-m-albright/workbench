@@ -21,9 +21,6 @@ CODEX_APPENDIX = """\
 - When CODEX.md exists at a project root, it is a symlink to AGENTS.md.
 - Follow the same verification, testing, and minimal-change conventions as Claude Code.
 """
-# Vercel's skills deploy CLI, pinned so `sync` never executes whatever npm
-# happens to serve as latest. Bump deliberately: `npm view skills version`.
-SKILLS_CLI = "skills@1.5.23"
 # Retired capabilities: name -> why. Each mapping is both the enforcement list
 # (sync removes, drift flags) and the record of the decision — the single
 # source for anything code can turn off. Tool/approach rejections with no code
@@ -159,25 +156,41 @@ def _backup(path: Path) -> None:
         shutil.copy2(path, path.with_name(path.name + ".bak"))
 
 
-def write_text(path: Path, content: str, *, executable: bool = False) -> bool:
+def write_text(
+    path: Path,
+    content: str,
+    *,
+    executable: bool = False,
+    mode: int | None = None,
+) -> bool:
     current = path.read_text() if path.exists() else None
     if current == content:
-        if executable:
-            path.chmod(path.stat().st_mode | 0o111)
+        desired_mode = mode
+        if desired_mode is None and executable:
+            desired_mode = path.stat().st_mode | 0o111
+        if desired_mode is not None and (path.stat().st_mode & 0o777) != (desired_mode & 0o777):
+            path.chmod(desired_mode)
+            _changed_paths.append(path)
+            return True
         return False
+    existing_mode = path.stat().st_mode & 0o777 if path.exists() else None
     path.parent.mkdir(parents=True, exist_ok=True)
     _backup(path)
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(content)
-    if executable:
+    if mode is not None:
+        tmp.chmod(mode)
+    elif existing_mode is not None:
+        tmp.chmod(existing_mode | (0o111 if executable else 0))
+    elif executable:
         tmp.chmod(tmp.stat().st_mode | 0o111)
     tmp.replace(path)
     _changed_paths.append(path)
     return True
 
 
-def write_json(path: Path, value: Any) -> bool:
-    return write_text(path, json.dumps(value, indent=2) + "\n")
+def write_json(path: Path, value: Any, *, mode: int | None = None) -> bool:
+    return write_text(path, json.dumps(value, indent=2) + "\n", mode=mode)
 
 
 def copy_file(source: Path, destination: Path, *, executable: bool = False) -> bool:

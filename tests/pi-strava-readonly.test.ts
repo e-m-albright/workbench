@@ -6,7 +6,9 @@ mock.module("typebox", () => {
 	const schema = () => ({});
 	return { Type: { Object: schema, String: schema, Number: schema, Optional: schema } };
 });
-const { buildActivitiesUrl, formatActivity } = await import("../agents/pi/extensions/strava-readonly");
+const { buildActivitiesUrl, formatActivity, formatAthleteStats } = await import(
+	"../agents/pi/extensions/strava-readonly"
+);
 
 describe("Pi Strava read-only connector", () => {
 	test("builds activity URLs only against strava.com with bounded paging", () => {
@@ -37,5 +39,16 @@ describe("Pi Strava read-only connector", () => {
 
 	test("tolerates sparse activity payloads", () => {
 		expect(formatActivity({})).toContain("(untitled)");
+	});
+
+	test("includes swim totals promised by the stats contract", () => {
+		const lines = formatAthleteStats({
+			recent_swim_totals: { count: 2, distance: 3000, moving_time: 3600 },
+			ytd_swim_totals: { count: 12, distance: 24000, moving_time: 28800 },
+			all_swim_totals: { count: 80, distance: 180000, moving_time: 180000 },
+		});
+		expect(lines.join("\n")).toContain("Recent swims");
+		expect(lines.join("\n")).toContain("YTD swims");
+		expect(lines.join("\n")).toContain("All-time swims");
 	});
 });

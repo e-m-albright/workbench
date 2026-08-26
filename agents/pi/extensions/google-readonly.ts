@@ -40,6 +40,7 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_API = "https://gmail.googleapis.com/gmail/v1";
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 const AUTH_TIMEOUT_MS = 300_000;
+const API_TIMEOUT_MS = 30_000;
 const MAX_BODY_CHARS = 4000;
 
 const UNTRUSTED_GUIDELINE =
@@ -68,8 +69,8 @@ function readJson<T>(path: string): T | undefined {
 	if (!existsSync(path)) return undefined;
 	try {
 		return JSON.parse(readFileSync(path, "utf8")) as T;
-	} catch {
-		return undefined;
+	} catch (error) {
+		throw new Error(`Invalid JSON at ${path}: ${error instanceof Error ? error.message : error}`);
 	}
 }
 
@@ -128,6 +129,25 @@ export function headerValue(headers: { name?: string; value?: string }[] | undef
 	return headers?.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? "";
 }
 
+interface ThreadSearchResult {
+	id: string;
+	snippet?: string;
+	messages?: { payload?: { headers?: { name?: string; value?: string }[] } }[];
+}
+
+export function formatThreadSearchResult(thread: ThreadSearchResult): string {
+	const headers = thread.messages?.at(-1)?.payload?.headers;
+	return [
+		thread.id,
+		headerValue(headers, "Date"),
+		headerValue(headers, "From"),
+		headerValue(headers, "Subject"),
+		capText(thread.snippet ?? "", 160),
+	]
+		.filter(Boolean)
+		.join("  ");
+}
+
 export function buildEventsUrl(params: {
 	calendarId: string;
 	timeMin?: string;
@@ -145,12 +165,25 @@ export function buildEventsUrl(params: {
 	return url.toString();
 }
 
-async function exchangeToken(body: Record<string, string>): Promise<Record<string, unknown>> {
-	const response = await fetch(TOKEN_URL, {
-		method: "POST",
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-		body: new URLSearchParams(body).toString(),
-	});
+async function boundedFetch(url: string, init: RequestInit = {}, signal?: AbortSignal): Promise<Response> {
+	const timeout = AbortSignal.timeout(API_TIMEOUT_MS);
+	const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+	return fetch(url, { ...init, signal: combined });
+}
+
+async function exchangeToken(
+	body: Record<string, string>,
+	signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
+	const response = await boundedFetch(
+		TOKEN_URL,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: new URLSearchParams(body).toString(),
+		},
+		signal,
+	);
 	const json = (await response.json()) as Record<string, unknown>;
 	if (!response.ok) {
 		throw new Error(`Token endpoint ${response.status}: ${JSON.stringify(json)}`);
@@ -158,19 +191,25 @@ async function exchangeToken(body: Record<string, string>): Promise<Record<strin
 	return json;
 }
 
-async function accessToken(): Promise<string> {
+async function accessToken(signal?: AbortSignal): Promise<string> {
 	const tokens = readJson<StoredTokens>(tokensPath());
 	if (!tokens) throw new Error("Not authorized. Run /google-auth first.");
 	if (tokens.expiresAt > Date.now() + 60_000) return tokens.accessToken;
 
 	const config = readConfig();
 	if (!config) throw new Error(`Missing OAuth client config at ${configPath()}.`);
-	const refreshed = await exchangeToken({
-		grant_type: "refresh_token",
-		refresh_token: tokens.refreshToken,
-		client_id: config.clientId,
-		client_secret: config.clientSecret,
-	});
+	const refreshed = await exchangeToken(
+		{
+			grant_type: "refresh_token",
+			refresh_token: tokens.refreshToken,
+			client_id: config.clientId,
+			client_secret: config.clientSecret,
+		},
+		signal,
+	);
+	if (typeof refreshed.access_token !== "string" || !refreshed.access_token) {
+		throw new Error("Google token response is missing access_token.");
+	}
 	const next: StoredTokens = {
 		accessToken: String(refreshed.access_token),
 		refreshToken: tokens.refreshToken,
@@ -180,9 +219,9 @@ async function accessToken(): Promise<string> {
 	return next.accessToken;
 }
 
-async function apiGet(url: string): Promise<any> {
-	const token = await accessToken();
-	const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+async function apiGet(url: string, signal?: AbortSignal): Promise<any> {
+	const token = await accessToken(signal);
+	const response = await boundedFetch(url, { headers: { Authorization: `Bearer ${token}` } }, signal);
 	if (!response.ok) {
 		throw new Error(`Google API ${response.status}: ${capText(await response.text(), 500)}`);
 	}
@@ -250,12 +289,15 @@ async function runAuthFlow(pi: ExtensionAPI, ctx: ExtensionContext, config: OAut
 		redirect_uri: `http://127.0.0.1:${port}/callback`,
 		code_verifier: verifier,
 	});
-	if (!exchanged.refresh_token) {
+	if (typeof exchanged.refresh_token !== "string" || !exchanged.refresh_token) {
 		throw new Error("Google did not return a refresh token; re-run /google-auth.");
 	}
+	if (typeof exchanged.access_token !== "string" || !exchanged.access_token) {
+		throw new Error("Google did not return an access token; re-run /google-auth.");
+	}
 	saveTokens({
-		accessToken: String(exchanged.access_token),
-		refreshToken: String(exchanged.refresh_token),
+		accessToken: exchanged.access_token,
+		refreshToken: exchanged.refresh_token,
 		expiresAt: Date.now() + Number(exchanged.expires_in ?? 3600) * 1000,
 	});
 }
@@ -309,13 +351,21 @@ export default function googleReadonly(pi: ExtensionAPI) {
 			query: Type.String({ description: "Gmail search query, e.g. from:alice newer_than:7d" }),
 			maxResults: Type.Optional(Type.Number({ minimum: 1, maximum: 25 })),
 		}),
-		async execute(_id, params) {
+		async execute(_id, params, signal) {
 			const url = new URL(`${GMAIL_API}/users/me/threads`);
 			url.searchParams.set("q", params.query);
 			url.searchParams.set("maxResults", String(Math.min(params.maxResults ?? 10, 25)));
-			const data = await apiGet(url.toString());
-			const threads = (data.threads ?? []) as { id: string; snippet?: string }[];
-			const lines = threads.map((t) => `${t.id}  ${capText(t.snippet ?? "", 160)}`);
+			const data = await apiGet(url.toString(), signal);
+			const summaries = (data.threads ?? []) as { id: string }[];
+			const threads = await Promise.all(
+				summaries.map((thread) =>
+					apiGet(
+						`${GMAIL_API}/users/me/threads/${encodeURIComponent(thread.id)}?format=metadata&metadataHeaders=Date&metadataHeaders=From&metadataHeaders=Subject`,
+						signal,
+					),
+				),
+			);
+			const lines = (threads as ThreadSearchResult[]).map(formatThreadSearchResult);
 			return textResult(lines.length ? lines.join("\n") : "No matching threads.", { count: lines.length });
 		},
 	});
@@ -330,9 +380,10 @@ export default function googleReadonly(pi: ExtensionAPI) {
 		parameters: Type.Object({
 			threadId: Type.String(),
 		}),
-		async execute(_id, params) {
+		async execute(_id, params, signal) {
 			const data = await apiGet(
 				`${GMAIL_API}/users/me/threads/${encodeURIComponent(params.threadId)}?format=full`,
+				signal,
 			);
 			const messages = (data.messages ?? []) as {
 				payload?: GmailPart & { headers?: { name?: string; value?: string }[] };
@@ -359,9 +410,10 @@ export default function googleReadonly(pi: ExtensionAPI) {
 		label: "Calendar list",
 		description: "List the user's Google calendars (read-only).",
 		promptSnippet: "calendar_list_calendars: list Google calendars (read-only)",
+		promptGuidelines: [UNTRUSTED_GUIDELINE],
 		parameters: Type.Object({}),
-		async execute() {
-			const data = await apiGet(`${CALENDAR_API}/users/me/calendarList`);
+		async execute(_id, _params, signal) {
+			const data = await apiGet(`${CALENDAR_API}/users/me/calendarList`, signal);
 			const items = (data.items ?? []) as { id: string; summary?: string; primary?: boolean }[];
 			const lines = items.map((c) => `${c.primary ? "* " : "  "}${c.id}  ${c.summary ?? ""}`);
 			return textResult(lines.join("\n") || "No calendars.", { count: items.length });
@@ -382,7 +434,7 @@ export default function googleReadonly(pi: ExtensionAPI) {
 			calendarId: Type.Optional(Type.String({ description: "Defaults to primary" })),
 			maxResults: Type.Optional(Type.Number({ minimum: 1, maximum: 50 })),
 		}),
-		async execute(_id, params) {
+		async execute(_id, params, signal) {
 			const data = await apiGet(
 				buildEventsUrl({
 					calendarId: params.calendarId ?? "primary",
@@ -391,6 +443,7 @@ export default function googleReadonly(pi: ExtensionAPI) {
 					query: params.query,
 					maxResults: Math.min(params.maxResults ?? 25, 50),
 				}),
+				signal,
 			);
 			const items = (data.items ?? []) as {
 				summary?: string;

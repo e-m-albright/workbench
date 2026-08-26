@@ -47,6 +47,11 @@ def _compare_text(expected: str, destination: Path, label: str, findings: list[s
         findings.append(f"DRIFT {label}")
 
 
+def _check_private_mode(path: Path, label: str, findings: list[str]) -> None:
+    if path.exists() and path.stat().st_mode & 0o077:
+        findings.append(f"DRIFT {label} is accessible to other local users: {path}")
+
+
 def _managed_value_errors(actual: object, expected: object, label: str) -> list[str]:
     if not isinstance(expected, dict):
         return [] if actual == expected else [f"DRIFT {label}"]
@@ -65,15 +70,21 @@ def _check_skills(skill_root: Path, vendor: str, findings: list[str], external: 
         if name not in deployed:
             findings.append(f"DRIFT {vendor} skill missing: {name}")
             continue
-        for source in source_root.rglob("*"):
-            if source.is_file():
-                relative = source.relative_to(source_root)
-                _compare(
-                    source,
-                    deployed[name] / relative,
-                    f"{vendor} skill {name}/{relative}",
-                    findings,
-                )
+        source_files = {
+            source.relative_to(source_root) for source in source_root.rglob("*") if source.is_file()
+        }
+        deployed_files = {
+            path.relative_to(deployed[name]) for path in deployed[name].rglob("*") if path.is_file()
+        }
+        for relative in sorted(source_files):
+            _compare(
+                source_root / relative,
+                deployed[name] / relative,
+                f"{vendor} skill {name}/{relative}",
+                findings,
+            )
+        for relative in sorted(deployed_files - source_files):
+            findings.append(f"DRIFT {vendor} skill {name}: unexpected file {relative}")
     for name in deployed.keys() - canonical.keys():
         if name in RETIRED_SKILLS:
             findings.append(f"DRIFT retired {vendor} skill still present: {name}")
@@ -159,7 +170,11 @@ def _check_claude(home: Path, data: Path, findings: list[str], external: list[st
     findings.extend(
         _managed_value_errors(settings, managed_claude_settings(data), "Claude settings")
     )
-    desktop = _settings(home / "Library/Application Support/Claude/claude_desktop_config.json")
+    claude_root = home / ".claude.json"
+    desktop_path = home / "Library/Application Support/Claude/claude_desktop_config.json"
+    _check_private_mode(claude_root, "Claude root configuration", findings)
+    _check_private_mode(desktop_path, "Claude Desktop configuration", findings)
+    desktop = _settings(desktop_path)
     findings.extend(
         _managed_value_errors(desktop.get("mcpServers"), _desktop_mcp(), "Claude Desktop MCP")
     )
@@ -171,7 +186,7 @@ def _check_claude(home: Path, data: Path, findings: list[str], external: list[st
         for key in desktop_defaults.keys() - live_preferences.keys():
             findings.append(f"DRIFT Claude Desktop preference missing: {key}")
     _check_subagents("claude", home / ".claude/agents", findings, external)
-    return _settings(home / ".claude.json").get("mcpServers", {})
+    return _settings(claude_root).get("mcpServers", {})
 
 
 def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
@@ -179,8 +194,16 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
     if not shutil.which("pi"):
         findings.append("DRIFT Pi CLI is not installed or not on PATH")
     sessions = pi_home / "sessions"
-    if sessions.exists() and sessions.stat().st_mode & 0o077:
-        findings.append("DRIFT Pi session directory is accessible to other local users")
+    if sessions.exists():
+        for path in (sessions, *sessions.rglob("*")):
+            if path.is_symlink():
+                findings.append(f"DRIFT Pi session path is a symlink: {path}")
+                continue
+            if path.stat().st_mode & 0o077:
+                kind = "directory" if path.is_dir() else "file"
+                findings.append(
+                    f"DRIFT Pi session {kind} is accessible to other local users: {path}"
+                )
     _compare(AGENTS / "shared/rules.md", pi_home / "AGENTS.md", "Pi rules", findings)
     _compare(
         AGENTS / "pi/permission-policy.json",
@@ -229,6 +252,7 @@ def _check_codex(home: Path, findings: list[str], external: list[str]) -> object
         findings,
     )
     config_path = home / ".codex/config.toml"
+    _check_private_mode(config_path, "Codex configuration", findings)
     parsed = tomllib.loads(config_path.read_text()) if config_path.exists() else {}
     if config_path.exists():
         _compare_text(

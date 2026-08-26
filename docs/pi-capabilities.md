@@ -143,12 +143,9 @@ Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
   `workbench sync pi`.
 - Safe-git prompts only on mutating `gh` subcommands; reads pass silently so a
   session-wide approval never covers unseen mutations.
-- `just typecheck-pi` typechecks every extension against the installed Pi API,
-  and `workbench sync pi` merges `mcp.json` per server, so ad hoc connected
-  servers survive a sync and appear in drift as external entries.
-- The MCP allowlist still carries both prefixed and unprefixed tool-name variants
-  for Gmail/Calendar; prune to the observed names after the first authorized
-  connection.
+- `just typecheck-pi` typechecks every extension against the installed Pi API.
+- Pi has no active MCP client or remote-tool allowlist. Gmail, Calendar, Strava,
+  and Apple Notes access is provided by the bounded owned connectors above.
 
 Known limits are recorded as named residual risks in
 [`pi-build-philosophy.md`](pi-build-philosophy.md): GET-based exfiltration,

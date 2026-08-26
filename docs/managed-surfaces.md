@@ -28,8 +28,9 @@ are reported as `EXTERNAL`, not deleted. Pi extensions
 are deployed as real files rather than repository symlinks so moving a checkout
 cannot silently disable the harness.
 
-Plugin IDs are version-controlled and installation is reproducible. OAuth
-consent and account sessions remain interactive vendor state; credentials,
+Plugin IDs are version-controlled and drift-checked. Marketplace installation
+resolves the vendor's current plugin content, so identity is declarative but the
+artifact itself is not reproducibly pinned. OAuth consent and account sessions remain interactive vendor state; credentials,
 session transcripts, trust decisions, and OAuth grants never belong in
 Workbench. Sync sets Pi session directories to `0700` and transcript files to
 `0600` without reading or changing their contents.

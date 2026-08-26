@@ -77,10 +77,10 @@ Named residual risks the guardrails cannot close (accepted 2026-07-21):
   flags and substitution-wrapped secret reads are blocked, but the only real fix
   is an egress allowlist or OS sandbox. Use Codex or Claude Code for
   high-autonomy work against untrusted content.
-- **Token custody sits outside the guardrails.** The permission policy blocks
-  the agent's tools from reading `~/.pi/agent/auth.json`; it cannot constrain
-  the MCP adapter process, which owns that file as part of its function. Adapter
-  code review and version pinning are the only controls on token confidentiality.
+- **Provider token custody sits outside the guardrails.** The permission policy
+  blocks the agent's tools from reading `~/.pi/agent/auth.json`; it cannot
+  constrain Pi or provider-auth code running as the same user. Upstream review
+  and version pinning are the remaining controls on token confidentiality.
 - **Alias expansion happens after policy inspection.** `shellCommandPrefix`
   evals dotfiles aliases in every shell command, so the policy sees the alias
   name, not its expansion. Keep destructive aliases out of the sourced alias

@@ -94,8 +94,8 @@ def _desktop_mcp() -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
     for name, config in raw.items():
         if config.get("type") == "http" and isinstance(config.get("url"), str):
-            # Pinned like SKILLS_CLI so Desktop never runs whatever npm serves
-            # as latest; bump deliberately (`npm view mcp-remote version`).
+            # Pinned so Desktop never runs whatever npm serves as latest;
+            # bump deliberately (`npm view mcp-remote version`).
             args: list[str] = ["-y", "mcp-remote@0.2.5", str(config["url"])]
             headers = config.get("headers", {})
             if isinstance(headers, dict):

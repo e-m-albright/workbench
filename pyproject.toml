@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Deploy and verify the personal Pi, Claude Code, and Codex workbench"
 requires-python = ">=3.13"
 dependencies = [
+    "pyyaml>=6.0",
     "typer>=0.15",
     "rich>=13.9",
 ]

@@ -245,11 +245,8 @@ export function policyBlockReason(
 }
 
 export default function permissionPolicyExtension(pi: ExtensionAPI) {
-	let lastPolicy: LoadedPermissionPolicy | undefined;
-
 	function policyFor(ctx: ExtensionContext) {
-		lastPolicy = loadPolicy(ctx.cwd);
-		return lastPolicy;
+		return loadPolicy(ctx.cwd);
 	}
 
 	pi.registerCommand("permissions-status", {

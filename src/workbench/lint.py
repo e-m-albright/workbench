@@ -7,12 +7,29 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from workbench.core import AGENTS, ROOT, WorkbenchError, _frontmatter_field, load_json
+import yaml
+
+from workbench.core import AGENTS, ROOT, WorkbenchError, load_json
 
 # Single source for the skill-description context budget; the test suite
 # imports these rather than re-deriving the rule.
 PER_SKILL_DESCRIPTION_LIMIT = 280
 DESCRIPTION_BUDGET = 5_500
+
+
+def _frontmatter_mapping(text: str, path: Path) -> dict[str, object]:
+    if not text.startswith("---\n"):
+        raise WorkbenchError(f"missing opening frontmatter delimiter: {path}")
+    closing = text.find("\n---\n", 4)
+    if closing < 0:
+        raise WorkbenchError(f"missing closing frontmatter delimiter: {path}")
+    try:
+        raw = yaml.safe_load(text[4:closing])
+    except yaml.YAMLError as exc:
+        raise WorkbenchError(f"invalid YAML frontmatter: {path}: {exc}") from exc
+    if not isinstance(raw, dict) or not all(isinstance(key, str) for key in raw):
+        raise WorkbenchError(f"frontmatter must be a string-keyed object: {path}")
+    return raw
 
 
 def _markdown_link_errors(root: Path) -> list[str]:
@@ -93,27 +110,51 @@ def lint() -> int:
         if not rule_pattern.fullmatch(stripped):
             errors.append(f"invalid Codex rule syntax: {rules_path.relative_to(ROOT)}:{number}")
 
+    for subagent in sorted((AGENTS / "subagents").glob("*.md")):
+        content = subagent.read_text()
+        try:
+            frontmatter = _frontmatter_mapping(content, subagent)
+        except WorkbenchError as exc:
+            errors.append(str(exc))
+            continue
+        name = frontmatter.get("name")
+        description = frontmatter.get("description")
+        tools = frontmatter.get("tools")
+        if not isinstance(name, str) or name != subagent.stem:
+            errors.append(f"subagent name/path mismatch: {subagent.relative_to(ROOT)}")
+        if not isinstance(description, str) or not description:
+            errors.append(f"missing subagent description: {subagent.relative_to(ROOT)}")
+        if tools is not None and not isinstance(tools, str):
+            errors.append(
+                f"subagent tools must be a comma-separated string: {subagent.relative_to(ROOT)}"
+            )
+        closing = content.find("\n---\n", 4)
+        if closing < 0 or not content[closing + 5 :].strip():
+            errors.append(f"missing subagent body: {subagent.relative_to(ROOT)}")
+
     names: set[str] = set()
     for skill in sorted((AGENTS / "skills").glob("*/SKILL.md")):
         content = skill.read_text()
-        name = _frontmatter_field(content, "name")
-        if not name:
+        try:
+            frontmatter = _frontmatter_mapping(content, skill)
+        except WorkbenchError as exc:
+            errors.append(str(exc))
+            continue
+        name_value = frontmatter.get("name")
+        if not isinstance(name_value, str) or not name_value:
             errors.append(f"missing skill name: {skill.relative_to(ROOT)}")
             continue
+        name = name_value
         if name != skill.parent.name:
             errors.append(f"skill name/path mismatch: {skill.parent.name} != {name}")
         if name in names:
             errors.append(f"duplicate skill name: {name}")
         names.add(name)
-        raw_description = _frontmatter_field(content, "description")
-        if not raw_description:
+        description_value = frontmatter.get("description")
+        if not isinstance(description_value, str) or not description_value:
             errors.append(f"missing skill description: {skill.relative_to(ROOT)}")
             continue
-        if ": " in raw_description and not (
-            raw_description.startswith('"') and raw_description.endswith('"')
-        ):
-            errors.append(f"skill description with colon must be quoted: {name}")
-        length = len(raw_description.strip('"'))
+        length = len(description_value)
         description_chars += length
         if length > PER_SKILL_DESCRIPTION_LIMIT:
             errors.append(

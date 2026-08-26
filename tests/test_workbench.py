@@ -106,6 +106,22 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(path.read_text(), "new")
             self.assertEqual(path.with_name("config.json.bak").read_text(), "old")
 
+    def test_write_text_preserves_or_enforces_private_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            existing = Path(raw) / "existing.json"
+            existing.write_text("old\n")
+            existing.chmod(0o600)
+
+            core.write_text(existing, "new\n")
+            private = Path(raw) / "private.json"
+            core.write_text(private, "secret\n", mode=0o600)
+
+            self.assertEqual(existing.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(private.stat().st_mode & 0o777, 0o600)
+            private.chmod(0o644)
+            self.assertTrue(core.write_text(private, "secret\n", mode=0o600))
+            self.assertEqual(private.stat().st_mode & 0o777, 0o600)
+
     def test_launcher_resolves_chained_symlinks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             link = Path(raw) / "workbench"
@@ -217,39 +233,74 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn("Configuration", result.stderr)
         self.assertNotIn("usage: workbench", result.stderr)
 
-    @patch.object(subprocess, "run")
-    @patch.object(shutil, "which", return_value="/usr/bin/npx")
-    def test_skill_sync_removes_retired_skills_before_installing(self, _which, run) -> None:
+    def test_skill_sync_replaces_stale_trees_and_removes_retired_skills(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
+            root = home / ".agents/skills"
+            canonical_name = next(
+                path.parent.name for path in core.AGENTS.glob("skills/*/SKILL.md")
+            )
+            stale = root / canonical_name
+            stale.mkdir(parents=True)
+            (stale / "SKILL.md").write_text("stale")
+            (stale / "removed-reference.md").write_text("stale")
             for name in core.RETIRED_SKILLS:
-                retired = home / ".agents/skills" / name
+                retired = root / name
                 retired.mkdir(parents=True)
                 (retired / "SKILL.md").write_text("retired")
 
             sync._sync_skills("codex", home)
 
+            self.assertEqual(
+                (root / canonical_name / "SKILL.md").read_text(),
+                (core.AGENTS / "skills" / canonical_name / "SKILL.md").read_text(),
+            )
+            self.assertFalse((root / canonical_name / "removed-reference.md").exists())
             for name in core.RETIRED_SKILLS:
-                self.assertFalse((home / ".agents/skills" / name).exists())
+                self.assertFalse((root / name).exists())
 
-        remove_command = run.call_args_list[0].args[0]
-        self.assertEqual(remove_command[:3], ["npx", core.SKILLS_CLI, "remove"])
-        self.assertIn("agentic-e2e-debugging", remove_command)
-        self.assertIn("converge", remove_command)
+    @patch.object(sync.shutil, "copytree", side_effect=OSError("copy failed"))
+    def test_skill_sync_preserves_current_tree_when_staging_fails(self, _copytree) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            source = next(core.AGENTS.glob("skills/*"))
+            destination = Path(raw) / source.name
+            destination.mkdir()
+            current = destination / "SKILL.md"
+            current.write_text("current")
 
-    def test_check_treats_retired_deployed_skill_as_drift(self) -> None:
+            with self.assertRaises(OSError):
+                sync._replace_tree(source, destination)
+
+            self.assertEqual(current.read_text(), "current")
+
+    def test_check_treats_retired_and_extra_skill_files_as_drift(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             skill_root = Path(raw)
             retired = skill_root / "converge"
             retired.mkdir()
             (retired / "SKILL.md").write_text("retired")
+            canonical = next(core.AGENTS.glob("skills/*"))
+            deployed = skill_root / canonical.name
+            shutil.copytree(canonical, deployed)
+            (deployed / "stale.md").write_text("stale")
             findings: list[str] = []
             external: list[str] = []
 
             drift_mod._check_skills(skill_root, "codex", findings, external)
 
             self.assertIn("DRIFT retired codex skill still present: converge", findings)
+            self.assertTrue(
+                any("unexpected file" in item and "stale.md" in item for item in findings)
+            )
             self.assertNotIn("EXTERNAL codex skill: converge", external)
+
+    def test_skill_frontmatter_validation_rejects_malformed_yaml(self) -> None:
+        with self.assertRaises(core.WorkbenchError):
+            lint_mod._frontmatter_mapping(
+                "name: misplaced\n---\ndescription: nope\n", Path("bad.md")
+            )
+        with self.assertRaises(core.WorkbenchError):
+            lint_mod._frontmatter_mapping("---\nname: [unterminated\n---\nbody\n", Path("bad.md"))
 
     def test_skill_descriptions_fit_context_budget(self) -> None:
         descriptions = []
@@ -298,6 +349,9 @@ class WorkbenchTests(unittest.TestCase):
             self.assertTrue(actual["sandbox"]["enabled"])
             self.assertTrue(actual["sandbox"]["allowUnsandboxedCommands"])
             self.assertIn("git push *", actual["sandbox"]["excludedCommands"])
+            self.assertEqual((home / ".claude.json").stat().st_mode & 0o777, 0o600)
+            desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
+            self.assertEqual(desktop.stat().st_mode & 0o777, 0o600)
             self.assertTrue((home / ".claude.json.bak").exists() is False)
 
     def test_plugin_inventory_parses_each_vendor_shape_with_enabled_state(
@@ -418,6 +472,9 @@ class WorkbenchTests(unittest.TestCase):
 
             self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 0)
 
+            (home / ".claude.json").chmod(0o644)
+            self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 1)
+            (home / ".claude.json").chmod(0o600)
             (home / ".claude/hooks.json").write_text("{}\n")
             (home / ".claude/settings.json").write_text(json.dumps({"voiceEnabled": False}))
 
@@ -528,6 +585,9 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(session.stat().st_mode & 0o777, 0o600)
             self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 0)
 
+            session.chmod(0o644)
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
+            session.chmod(0o600)
             (pi_home / "extensions/welcome.ts").write_text("drift\n")
             settings.pop("defaultPreset")
             (pi_home / "settings.json").write_text(json.dumps(settings))

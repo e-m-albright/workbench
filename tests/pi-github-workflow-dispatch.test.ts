@@ -51,6 +51,9 @@ describe("GitHub workflow dispatch", () => {
 		expect(() => validateDispatch({ ...dispatch, inputs: [{ name: "bad name", value: "x" }] })).toThrow(
 			"input name",
 		);
+		expect(() => validateDispatch({ ...dispatch, inputs: [{ name: "api_token", value: "x" }] })).toThrow(
+			"GitHub Actions secrets",
+		);
 	});
 
 	test("requires confirmation, dispatches once, and returns the created run URL", async () => {

@@ -23,13 +23,13 @@ not Gmail, Drive, or artifacts:
 
 - Daily Work brief: `_daily/work/YYYY-MM-DD.md` ("the daily folder"; journal
   and exercise lanes sit alongside it).
-- Action queues: `_queue_work.md` and `_queue_life.md` at the vault root —
-  the only two durable action lists.
+- Action state: database-backed rows exposed through `notes actions
+  work|life|due|waiting`; retired Markdown queue files are not writable state.
 - The `notes` CLI (on PATH; source in `~/code/private/notes`) is the default
   read surface: `notes today` (day at a glance: rhythm, brief remainder, due
-  + upcoming), `notes people`, `notes health`, `notes velocity`, `notes open
-  <page>`. `notes --help` lists agent workflows (brief, track, pulse, queue,
-  outreach-prep, ...). Prefer these over re-deriving state by hand.
+  + upcoming), `notes actions`, `notes query people`, `notes health`, and
+  `notes open <page>`. Use `notes --help` for the current command catalog rather
+  than re-deriving state by hand.
 
 ## Constraints
 
