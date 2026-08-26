@@ -44,15 +44,16 @@ check:
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 
-# Run deterministic unit tests with verbose output.
+# Run deterministic unit tests. Example: `just test -k budget`.
 [group('testing')]
-test:
-    uv run pytest -v
+test *args:
+    uv run pytest -v {{args}}
 
-# Run Pi extension behavior tests with Bun.
+# Run Pi extension behavior tests with Bun. Example: `just test-pi tests/pi-presets.test.ts`.
 [group('testing')]
-test-pi:
-    bun test tests/*.test.ts
+test-pi *args='tests/*.test.ts':
+    bun test {{args}}
+
 
 # Typecheck Pi extensions against the installed Pi API; skips when Pi is absent.
 [group('testing')]
@@ -104,6 +105,12 @@ sync *args:
 # Compare live configuration with canonical sources. Example: `just drift claude`.
 [group('deployment')]
 drift *args:
+    ./bin/workbench drift {{args}}
+
+# Sync then immediately verify: closes the deploy loop in one command.
+[group('deployment')]
+deploy *args:
+    ./bin/workbench sync {{args}}
     ./bin/workbench drift {{args}}
 
 # ── Help (default) ────────────────────────────────────────────────────────────

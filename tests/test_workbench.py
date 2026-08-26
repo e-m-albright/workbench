@@ -261,9 +261,7 @@ class WorkbenchTests(unittest.TestCase):
             self.assertFalse(": " in raw and not raw.startswith('"'), skill)
             descriptions.append(raw.strip('"'))
 
-        self.assertTrue(
-            all(len(d) <= lint_mod.PER_SKILL_DESCRIPTION_LIMIT for d in descriptions)
-        )
+        self.assertTrue(all(len(d) <= lint_mod.PER_SKILL_DESCRIPTION_LIMIT for d in descriptions))
         self.assertLessEqual(sum(map(len, descriptions)), lint_mod.DESCRIPTION_BUDGET)
 
     def test_markdown_link_check_skips_examples_and_finds_broken_links(self) -> None:
@@ -289,7 +287,7 @@ class WorkbenchTests(unittest.TestCase):
             settings.parent.mkdir(parents=True)
             settings.write_text(json.dumps({"custom": 7, "permissions": {"custom": True}}))
 
-            sync.sync_claude(home, deploy_skills=False)
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
 
             actual = json.loads(settings.read_text())
             self.assertEqual(actual["custom"], 7)
@@ -368,11 +366,25 @@ class WorkbenchTests(unittest.TestCase):
             backup = hook_dir / "notify.sh.bak"
             backup.write_text("#!/bin/sh\n")
 
-            sync.sync_claude(home, deploy_skills=False)
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
 
             self.assertFalse(retired.exists())
             self.assertFalse(backup.exists())
             self.assertTrue((hook_dir / "guard-destructive-shell.sh").exists())
+
+    def test_sync_keeps_backup_of_replaced_current_hook(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            hook_dir = home / core.DATA_REL / "hooks"
+            hook_dir.mkdir(parents=True)
+            (hook_dir / "guard-destructive-shell.sh").write_text("#!/bin/sh\nstale\n")
+
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            backup = hook_dir / "guard-destructive-shell.sh.bak"
+            self.assertTrue(backup.exists())
+
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            self.assertTrue(backup.exists(), "second sync must not delete the kept backup")
 
     def test_codex_subagents_render_as_native_toml(self) -> None:
         source = core.AGENTS / "subagents/code-reviewer.md"
@@ -401,7 +413,7 @@ class WorkbenchTests(unittest.TestCase):
     def test_check_detects_managed_file_content_drift(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
-            sync.sync_claude(home, deploy_skills=False)
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
             self.deploy_skills(home, ".claude/skills")
 
             self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 0)
@@ -414,7 +426,7 @@ class WorkbenchTests(unittest.TestCase):
     def test_drift_ignores_sync_backup_of_current_hook(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
-            sync.sync_claude(home, deploy_skills=False)
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
             self.deploy_skills(home, ".claude/skills")
             backup = home / core.DATA_REL / "hooks/guard-destructive-shell.sh.bak"
             backup.write_text("#!/bin/sh\n")

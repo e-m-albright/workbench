@@ -17,6 +17,8 @@ from workbench.core import (
     AGENTS,
     CLAUDE_SANDBOX,
     DATA_REL,
+    RETIRED_PI_EXTENSIONS,
+    RETIRED_PI_STATE_PATHS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
     ROOT,
@@ -32,9 +34,6 @@ from workbench.core import (
 )
 from workbench.mcp import _desktop_mcp, merge_mcp, retired_mcp_names
 
-_RETIRED_PI_EXTENSIONS = ("discovery-telemetry.ts",)
-_RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
-
 
 def _sync_plugins(vendor: str, home: Path) -> None:
     desired = _string_array(AGENTS / vendor / "plugins.json")
@@ -43,6 +42,12 @@ def _sync_plugins(vendor: str, home: Path) -> None:
     installed = _list_plugins(vendor, home)
     for plugin in desired:
         if plugin in installed:
+            # Codex has no enable subcommand; a disabled codex plugin stays a
+            # drift finding the owner resolves in the vendor UI.
+            if not installed[plugin] and vendor == "claude":
+                subprocess.run(
+                    [vendor, "plugin", "enable", plugin], check=True, env=_home_env(home)
+                )
             continue
         command = [vendor, "plugin", "install", plugin, "--scope", "user"]
         if vendor == "codex":
@@ -73,6 +78,11 @@ def _install_runtime_files(home: Path) -> Path:
     hook_dir = data / "hooks"
     if hook_dir.exists():
         for deployed in hook_dir.iterdir():
+            # Keep the one .bak beside a replaced *current* hook — drift skips
+            # it and README promises it survives. A retired hook's backup goes
+            # with the hook.
+            if deployed.suffix == ".bak" and deployed.name.removesuffix(".bak") in hooks:
+                continue
             if deployed.is_file() and deployed.name not in hooks:
                 deployed.unlink()
     for name, hook in hooks.items():
@@ -102,23 +112,31 @@ def _sync_skills(vendor: str, home: Path) -> None:
             check=False,
             env=env,
         )
-    subprocess.run(
-        [
-            "npx",
-            SKILLS_CLI,
-            "add",
-            str(AGENTS / "skills"),
-            "-s",
-            "*",
-            "-a",
-            agent_id,
-            "-g",
-            "-y",
-            "--copy",
-        ],
-        check=True,
-        env=env,
-    )
+    try:
+        subprocess.run(
+            [
+                "npx",
+                SKILLS_CLI,
+                "add",
+                str(AGENTS / "skills"),
+                "-s",
+                "*",
+                "-a",
+                agent_id,
+                "-g",
+                "-y",
+                "--copy",
+            ],
+            check=True,
+            env=env,
+        )
+    except subprocess.CalledProcessError as exc:
+        # The remove above already ran, so a failed add leaves this vendor
+        # with no deployed skills — say so instead of a bare subprocess error.
+        raise WorkbenchError(
+            f"skills add failed after removal: {vendor} currently has no deployed"
+            " skills — fix the npx/npm failure and re-run `workbench sync`"
+        ) from exc
     skill_roots = [home / ".agents/skills"]
     if vendor == "claude":
         skill_roots.append(home / ".claude/skills")
@@ -174,7 +192,7 @@ def managed_claude_settings(data: Path) -> dict[str, Any]:
     }
 
 
-def sync_claude(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False) -> None:
+def sync_claude(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
     data = _install_runtime_files(home)
     claude_home = home / ".claude"
     copy_file(AGENTS / "shared/rules.md", claude_home / "CLAUDE.md")
@@ -227,7 +245,7 @@ def _sync_claude_desktop(home: Path) -> None:
     write_json(path, settings)
 
 
-def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False) -> None:
+def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
     _install_runtime_files(home)
     codex_home = home / ".codex"
     write_text(codex_home / "AGENTS.md", expected_codex_rules_md())
@@ -242,7 +260,10 @@ def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False)
     write_text(config, merge_codex_config(existing))
     for profile in sorted((AGENTS / "codex/profiles").glob("*.toml")):
         copy_file(profile, codex_home / f"{profile.stem}.config.toml")
-    copy_file(AGENTS / "shared/hooks.json", codex_home / "hooks.json")
+    if copy_file(AGENTS / "shared/hooks.json", codex_home / "hooks.json"):
+        # Codex records trust against each hook's hash, so a changed hooks.json
+        # is skipped until re-trusted — drift's byte comparison cannot see that.
+        print("NOTE codex hooks changed; run /hooks in Codex to re-trust them")
     _sync_subagents("codex", codex_home / "agents")
     if deploy_skills:
         _sync_skills("codex", home)
@@ -319,21 +340,21 @@ def _harden_pi_session_permissions(destination: Path) -> None:
         path.chmod(0o700 if path.is_dir() else 0o600)
 
 
-def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool = False) -> None:
+def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
     """Deploy Pi's transparent local configuration; packages remain settings-owned."""
     del deploy_plugins  # Pi packages are declared in settings.json, not a separate plugin registry.
     _install_shared_clis(home)
     source = AGENTS / "pi"
     destination = home / ".pi/agent"
     _harden_pi_session_permissions(destination)
-    for path in _RETIRED_PI_STATE_PATHS:
+    for path in RETIRED_PI_STATE_PATHS:
         _remove_deployed_path(home / path)
     _replace_pi_file(AGENTS / "shared/rules.md", destination / "AGENTS.md")
     _merge_pi_object(source / "settings.json", destination / "settings.json")
     _merge_pi_object(source / "models.json", destination / "models.json", nested_key="providers")
     _merge_pi_object(source / "presets.json", destination / "presets.json")
     _replace_pi_file(source / "permission-policy.json", destination / "permission-policy.json")
-    for name in _RETIRED_PI_EXTENSIONS:
+    for name in RETIRED_PI_EXTENSIONS:
         _remove_deployed_path(destination / "extensions" / name)
     for extension in sorted((source / "extensions").glob("*.ts")):
         _replace_pi_file(extension, destination / "extensions" / extension.name)

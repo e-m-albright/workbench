@@ -42,6 +42,15 @@ Workbench. Sync sets Pi session directories to `0700` and transcript files to
   non-zero.
 - `EXTERNAL` - a valid unmanaged addition remains in the live harness config. It
   is reported for visibility but does not fail the command.
+- `NOTE` - verification was skipped (for example, a vendor CLI is absent); the
+  item is neither drift nor external and is counted separately.
 
 `sync` preserves unmanaged configuration, writes only Workbench-owned values,
-and keeps one `.bak` file before replacing live configuration.
+and keeps one `.bak` file before replacing live configuration. It reports each
+file it rewrote and ends with a changed-file count, so an unchanged run reads
+"nothing to change".
+
+Known limitation: Codex records hook trust against each hook's hash, so after
+`sync` updates `~/.codex/hooks.json` the changed hooks are skipped until
+re-trusted via `/hooks` inside Codex. Drift compares bytes only and cannot see
+untrusted-but-deployed hooks; sync prints a reminder when the file changes.

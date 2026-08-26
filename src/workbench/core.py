@@ -48,6 +48,13 @@ RETIRED_SKILLS = {
         " the code-health lenses and project-owned gates"
     ),
 }
+RETIRED_PI_EXTENSIONS = {
+    "discovery-telemetry.ts": (
+        "the five-day telemetry trial answered its question; the collector"
+        " was retired with the lesson preserved in tombstones.md"
+    ),
+}
+RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
 VENDORS = ("claude", "codex", "pi")
 VENDOR_CHOICES = (*VENDORS, "all")
 
@@ -118,6 +125,17 @@ def load_json(path: Path, default: Any = None) -> Any:
         raise WorkbenchError(f"invalid JSON: {path}: {exc}") from exc
 
 
+# Paths rewritten since the last drain, recorded by write_text so sync can
+# report what it actually changed instead of an unconditional OK line.
+_changed_paths: list[Path] = []
+
+
+def drain_changed_paths() -> list[Path]:
+    drained = list(_changed_paths)
+    _changed_paths.clear()
+    return drained
+
+
 def _backup(path: Path) -> None:
     if path.exists():
         shutil.copy2(path, path.with_name(path.name + ".bak"))
@@ -136,6 +154,7 @@ def write_text(path: Path, content: str, *, executable: bool = False) -> bool:
     if executable:
         tmp.chmod(tmp.stat().st_mode | 0o111)
     tmp.replace(path)
+    _changed_paths.append(path)
     return True
 
 

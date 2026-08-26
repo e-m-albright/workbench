@@ -16,7 +16,7 @@ from typer.core import TyperGroup
 
 from workbench import drift as drift_module
 from workbench import lint as lint_module
-from workbench.core import WorkbenchError, _vendors
+from workbench.core import VENDOR_CHOICES, WorkbenchError, _vendors, drain_changed_paths
 from workbench.render import DESCRIPTION, print_command_help, print_error, print_help
 from workbench.sync import sync_claude, sync_codex, sync_pi, sync_rules
 
@@ -26,6 +26,11 @@ class Vendor(StrEnum):
     CODEX = "codex"
     PI = "pi"
     ALL = "all"
+
+
+# The Typer choice enum and core's vendor list must never diverge; a dynamic
+# StrEnum would guarantee that but defeats static checking, so assert instead.
+assert tuple(member.value for member in Vendor) == VENDOR_CHOICES
 
 
 app = typer.Typer(
@@ -57,6 +62,7 @@ def sync(
     """Deploy Workbench-managed configuration to supported coding agents."""
     home = _home()
     deployers = {"claude": sync_claude, "codex": sync_codex, "pi": sync_pi}
+    drain_changed_paths()
     for name in _vendors(vendor.value):
         if rules_only:
             sync_rules(home, name)
@@ -66,7 +72,16 @@ def sync(
             deploy_skills=not no_skills,
             deploy_plugins=not no_plugins,
         )
-    print("OK workbench synchronized")
+    changed = drain_changed_paths()
+    for path in changed:
+        try:
+            print(f"updated ~/{path.relative_to(home)}")
+        except ValueError:
+            print(f"updated {path}")
+    if changed:
+        print(f"OK workbench synchronized; {len(changed)} file(s) updated")
+    else:
+        print("OK workbench synchronized; nothing to change")
 
 
 @app.command(short_help="report managed drift and external additions")

@@ -17,6 +17,7 @@ from workbench.codex import (
 from workbench.core import (
     AGENTS,
     DATA_REL,
+    RETIRED_PI_EXTENSIONS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
     ROOT,
@@ -213,7 +214,10 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
     for name, source in expected_extensions.items():
         _compare(source, pi_home / "extensions" / name, f"Pi extension {name}", findings)
     for name in sorted(deployed_extensions.keys() - expected_extensions.keys()):
-        external.append(f"EXTERNAL Pi extension: {name}")
+        if name in RETIRED_PI_EXTENSIONS:
+            findings.append(f"DRIFT retired pi extension still present: {name}")
+        else:
+            external.append(f"EXTERNAL Pi extension: {name}")
 
 
 def _check_codex(home: Path, findings: list[str], external: list[str]) -> object:
@@ -311,12 +315,19 @@ def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) ->
         if verify_plugins:
             _check_plugins(vendor, home, findings, external)
 
+    # NOTE lines record skipped verification, not external additions; keep
+    # them out of the external count so the summary line stays honest.
+    notes = [message for message in external if message.startswith("NOTE ")]
+    external = [message for message in external if not message.startswith("NOTE ")]
     for message in findings:
         print(message)
     for message in external:
         print(message)
+    for message in notes:
+        print(message)
+    suffix = f"; {len(notes)} note(s)" if notes else ""
     if findings:
-        print(f"\n{len(findings)} managed drift item(s); {len(external)} external item(s)")
+        print(f"\n{len(findings)} managed drift item(s); {len(external)} external item(s){suffix}")
         return 1
-    print(f"OK managed configuration matches workbench; {len(external)} external item(s)")
+    print(f"OK managed configuration matches workbench; {len(external)} external item(s){suffix}")
     return 0

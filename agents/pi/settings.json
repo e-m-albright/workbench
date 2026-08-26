@@ -13,6 +13,5 @@
   "packages": [
     "npm:pi-agent-browser-native@0.2.71"
   ],
-  "lastChangelogVersion": "0.81.1",
   "theme": "dark"
 }
