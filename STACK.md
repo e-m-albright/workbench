@@ -10,7 +10,7 @@ dotfiles   host foundation and machine capabilities
     ↓
 workbench  reusable agent intelligence and engineering standards
     ↓
-notes      private knowledge and operating layer
+private workflow layers
 ```
 
 ## Layers
@@ -29,12 +29,12 @@ each vendor's native configuration; `workbench drift` verifies the live result.
 Workbench assumes a host provisioned by Dotfiles but runs from a standalone
 checkout as well.
 
-### 3. `notes` — private knowledge and operations
+### 3. Private workflow layers
 
-A private knowledge-and-operations layer sits above these public repositories.
-It applies the host foundation and reusable agent conventions to personal
-workflows and information. Its data, integrations, and operating details are
-intentionally not published; neither public repository requires it.
+Private layers may sit above these public repositories. They apply the host
+foundation and reusable agent conventions to personal workflows and
+information. Their names, data, integrations, and operating details are
+intentionally not published; neither public repository requires them.
 
 ## Ownership
 
@@ -44,7 +44,7 @@ intentionally not published; neither public repository requires it.
 | Agent rules, skills, prompts, MCP/plugin declarations, hooks, permissions | `workbench` |
 | Engineering doctrine, stack guidance, review skills, portable health tooling | `workbench` |
 | Project architecture, domain rules, tests, project-specific policy | The individual project |
-| Private knowledge, personal automation instances, generated operational state | Private `notes` |
+| Private knowledge, personal automation instances, generated operational state | Their private owning layer |
 | OAuth grants, credentials, vendor-generated memory | Live vendor state, never Git |
 
 ## Integration contract
@@ -80,11 +80,10 @@ intentionally not published; neither public repository requires it.
 
 Dotfiles and Workbench are public and must never contain credentials, personal
 records, conversations, generated agent memory, or private operational state.
-The private layer's domains, providers, schedules, integrations, schemas,
-locations, and identities are not described in the public repositories beyond
-the summary above and the minimal read-surface pointers (vault entry points
-and `notes` CLI verbs) that Workbench's `AGENTS.md` documents so agents route
-to the vault instead of searching external services. Public CI never has access to the private repository.
+A private layer's name, domains, providers, schedules, integrations, schemas,
+locations, and identities are not described in the public repositories. Public
+agent rules may point to an optional machine-local private context file without
+publishing its contents. Public CI never has access to a private repository.
 
 ## Reuse
 

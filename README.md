@@ -13,7 +13,7 @@ than trying to become a general agent platform.
 
 ## Position in the Stack
 
-Workbench is the middle layer of a three-repository capability stack, described
+Workbench is the agent-intelligence layer of the capability stack described
 canonically in [`STACK.md`](STACK.md):
 
 ```text
@@ -21,14 +21,13 @@ dotfiles   host foundation and machine capabilities
     ↓
 workbench  reusable agent intelligence and engineering standards
     ↓
-notes      private knowledge and operating layer
+private workflow layers
 ```
 
 [`dotfiles`](https://github.com/e-m-albright/dotfiles) provisions the host and
-installs Workbench; a private knowledge-and-operations layer applies both public
-layers to personal workflows through their CLI contracts. Each layer stands
-alone — integration is composition and provisioning order, never
-cross-repository Python imports.
+installs Workbench; private workflow layers may apply both public layers through
+their CLI contracts. Each layer stands alone - integration is composition and
+provisioning order, never cross-repository Python imports.
 
 ## What It Does
 
@@ -73,7 +72,7 @@ not store a snapshot of the machine and compare against that stale observation.
 | Engineering doctrine, stack guidance, review skills, and portable health tooling | **Workbench** |
 | Fresh-Mac setup, packages, shell, Git, terminal, editor, and macOS configuration | [`dotfiles`](https://github.com/e-m-albright/dotfiles) |
 | Project architecture, domain rules, tests, and project-specific infrastructure policy | The individual project |
-| Private notes, CRM data, conversations, personal automation instances, and generated operational state | Private `notes` repository |
+| Private records, conversations, workflow instances, and generated operational state | Their private owning layer |
 | OAuth grants, account sessions, credentials, and vendor-generated memory | Live vendor state, never Git |
 
 Dotfiles installs Workbench and links `workbench` plus its short alias `wb` into
@@ -131,8 +130,8 @@ just check
 
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
-[Bun](https://bun.sh) (runs the private layer's `apple-notes`/`apple-contacts` CLIs
-and the Pi extension tests), and the installed Pi/Claude/Codex CLIs. Workbench stages and atomically replaces its local skill copies;
+[Bun](https://bun.sh) (runs local connector CLIs and the Pi extension tests),
+and the installed Pi/Claude/Codex CLIs. Workbench stages and atomically replaces its local skill copies;
 Pi and Codex discover one shared real-file deployment under `~/.agents/skills`, avoiding duplicate Pi skill
 warnings without a network-backed skill installer.
 

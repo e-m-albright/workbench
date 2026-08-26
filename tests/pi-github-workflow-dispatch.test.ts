@@ -45,7 +45,7 @@ describe("GitHub workflow dispatch", () => {
 	});
 
 	test("rejects flag-shaped and malformed identifiers", () => {
-		expect(() => validateDispatch({ ...dispatch, repository: "evan" })).toThrow("owner/name");
+		expect(() => validateDispatch({ ...dispatch, repository: "missing-slash" })).toThrow("owner/name");
 		expect(() => validateDispatch({ ...dispatch, workflow: "--help" })).toThrow("workflow");
 		expect(() => validateDispatch({ ...dispatch, ref: "--help" })).toThrow("ref");
 		expect(() => validateDispatch({ ...dispatch, inputs: [{ name: "bad name", value: "x" }] })).toThrow(

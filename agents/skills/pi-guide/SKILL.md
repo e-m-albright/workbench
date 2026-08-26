@@ -1,6 +1,6 @@
 ---
 name: pi-guide
-description: Print a versioned tutorial for using Pi's native features and Evan's custom harness before proposing new machinery. Use for "/skill:pi-guide", "teach me Pi", "Pi shortcuts", or "am I using Pi well".
+description: Print a versioned tutorial for using Pi's native features and the configured custom harness before proposing new machinery. Use for "/skill:pi-guide", "teach me Pi", "Pi shortcuts", or "am I using Pi well".
 allowed-tools: Read
 disable-model-invocation: true
 argument-hint: "[quickstart|keys|sessions|tools|custom|philosophy|all]"

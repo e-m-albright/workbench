@@ -5,31 +5,14 @@
 Workbench is a public, personal development-intelligence repository. It
 owns portable agent configuration, engineering guidance, and project-health
 tools. Reusable automation mechanics may live here when one earns its place
-(none do today); workflow instances stay in `notes`.
+(none do today); private workflow instances stay in their owning private layer.
+`CATALOGUE.md` is the maintained feature map; update it when a capability is
+added, removed, materially expanded, split, or consolidated.
 
-The adjacent repositories own different state:
-
-- `dotfiles` owns fresh-Mac setup, packages, shell/editor configuration, drift
-  reconciliation, and remote-host access.
-- `notes` owns private knowledge, CRM data, daily pages, personal automation
-  instances, and generated operational state.
-
-## The notes vault and CLI
-
-Personal operating state lives in the Obsidian vault at
-`~/code/private/notes` (its own `AGENTS.md` holds vault conventions). When
-asked about "the daily brief", "today", queues, or people, go there first —
-not Gmail, Drive, or artifacts:
-
-- Daily Work brief: `_daily/work/YYYY-MM-DD.md` ("the daily folder"; journal
-  and exercise lanes sit alongside it).
-- Action state: database-backed rows exposed through `notes actions
-  work|life|due|waiting`; retired Markdown queue files are not writable state.
-- The `notes` CLI (on PATH; source in `~/code/private/notes`) is the default
-  read surface: `notes today` (day at a glance: rhythm, brief remainder, due
-  + upcoming), `notes actions`, `notes query people`, `notes health`, and
-  `notes open <page>`. Use `notes --help` for the current command catalog rather
-  than re-deriving state by hand.
+The adjacent public host repository owns fresh-Mac setup, packages,
+shell/editor configuration, drift reconciliation, and remote-host access.
+Exact private repository names, paths, and routing belong only in the
+machine-local context named by the shared agent rules.
 
 ## Constraints
 
@@ -45,7 +28,7 @@ not Gmail, Drive, or artifacts:
 - Deterministic health checks may gate changes. Stochastic assessments from
   review skills are advisory and must record evidence, rubric version, and model provenance.
 - Reusable automation mechanics may live here; workflows coupled to private
-  notes or venture context stay in `notes`.
+  personal or venture context stay in their private owner.
 
 ## Privacy (public repo)
 

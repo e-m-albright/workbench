@@ -6,7 +6,7 @@ Project-specific context and rules belong in the project's hand-written `AGENTS.
 
 ## Personal operating state
 
-- The private knowledge base, CRM, queues, meetings, and event radar live in `~/code/private/notes`, regardless of the current working directory. For requests about the knowledge base, notes, people, organizations, meetings, conferences, or events, start there, read its `AGENTS.md`, and use the `notes` CLI before unrelated local files or external services. `notes query events` is the canonical conference and community-event view.
+- Machine-local private routing and repository aliases live in `~/.config/workbench/private-context.md` when that file exists. Read it before handling requests about personal operating state, main repositories, productivity tools, home apps, or similar shorthand. Keep its contents private and never copy them into public repositories.
 - Session handoffs are temporary Markdown artifacts managed by the `handoff` skill; reflections use the separate `reflect` skill. Keep durable knowledge in the repository's real documentation, and do not use Apple Notes or the Desktop as the canonical handoff store.
 
 ## Execution
