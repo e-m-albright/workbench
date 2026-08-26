@@ -741,6 +741,19 @@ js_repl = false
         self.assertNotIn("sandbox_mode", writer)
         self.assertNotIn("sandbox_mode", unrestricted)
 
+    def test_destructive_guard_matches_shared_git_vectors(self) -> None:
+        data = json.loads(
+            (core.ROOT / "tests/data/git-guard-vectors.json").read_text()
+        )
+        for vector in data["vectors"]:
+            with self.subTest(command=vector["command"]):
+                result = self.run_hook(
+                    "guard-destructive-shell.sh",
+                    {"tool_input": {"command": vector["command"]}},
+                )
+                expected = 2 if vector["hook"] == "block" else 0
+                self.assertEqual(result.returncode, expected, result.stderr)
+
     def test_destructive_guard_allows_benign_command(self) -> None:
         result = self.run_hook(
             "guard-destructive-shell.sh", {"tool_input": {"command": "git status"}}

@@ -21,6 +21,10 @@
  *
  * Commands: /safegit (toggle) · /safegit-level <high|medium|none> · /safegit-status
  *
+ * Division of labor: permission-policy.ts enforces the hard regex denylist
+ * (never-allowed commands); this extension is the *approval* layer for
+ * legitimate-but-consequential git/gh mutations.
+ *
  * Adapted (notification deps removed) from qualisero/rhubarb-pi safe-git (MIT).
  * Source: https://github.com/qualisero/rhubarb-pi/tree/main/extensions/safe-git
  */
@@ -40,6 +44,50 @@ const DEFAULT_CONFIG: Required<SafeGitConfig> = {
   enabledByDefault: true,
 };
 
+// Patterns that require explicit approval, ordered by severity (first match
+// wins). Exported, with classifyCommand, so tests can table-drive the shared
+// vector list in tests/data/git-guard-vectors.json.
+export const gitPatterns: { pattern: RegExp; action: string; severity: Severity }[] = [
+  // High risk - destructive operations
+  { pattern: /\bgit\s+push\s+.*--force(-with-lease)?\b/i, action: "force push", severity: "high" },
+  // A leading + on a refspec forces the push regardless of flags.
+  { pattern: /\bgit\s+push\s+[^|;&]*\s\+\S/i, action: "force push", severity: "high" },
+  { pattern: /\bgit\s+reset\s+--hard\b/i, action: "hard reset", severity: "high" },
+  { pattern: /\bgit\s+clean\s+-[a-z]*f/i, action: "clean (remove untracked files)", severity: "high" },
+  { pattern: /\bgit\s+stash\s+(drop|clear)\b/i, action: "drop/clear stash", severity: "high" },
+  { pattern: /\bgit\s+branch\s+-[dD]\b/i, action: "delete branch", severity: "high" },
+  { pattern: /\bgit\s+reflog\s+expire\b/i, action: "expire reflog", severity: "high" },
+
+  // Medium risk - state-changing operations
+  { pattern: /\bgit\s+push\b/i, action: "push", severity: "medium" },
+  { pattern: /\bgit\s+commit\b/i, action: "commit", severity: "medium" },
+  { pattern: /\bgit\s+rebase\b/i, action: "rebase", severity: "medium" },
+  { pattern: /\bgit\s+merge\b/i, action: "merge", severity: "medium" },
+  { pattern: /\bgit\s+tag\b/i, action: "create/modify tag", severity: "medium" },
+  { pattern: /\bgit\s+cherry-pick\b/i, action: "cherry-pick", severity: "medium" },
+  { pattern: /\bgit\s+revert\b/i, action: "revert", severity: "medium" },
+  { pattern: /\bgit\s+am\b/i, action: "apply patches", severity: "medium" },
+
+  // GitHub CLI - mutating subcommands only; reads (pr view, run list, api GET)
+  // pass silently so a session-wide approval never covers unseen mutations.
+  {
+    pattern:
+      /\bgh\s+(?:api\s+[^|;&]*(?:--method\s+|-X\s*)(?:POST|PUT|PATCH|DELETE)\b|api\s+[^|;&]*(?:--input\b|--field\b|--raw-field\b|-[fF]\s)|auth\b|gist\s+(?:create|edit|delete)\b|issue\s+(?:close|comment|create|edit|delete)\b|pr\s+(?:close|comment|create|edit|merge|ready|review)\b|release\s+(?:create|delete|edit|upload)\b|repo\s+(?:create|delete|edit|fork|clone)\b|run\s+(?:cancel|rerun)\b|workflow\s+(?:enable|disable|run)\b|secret\b|variable\s+(?:set|delete)\b|alias\s+set\b|extension\s+(?:install|remove)\b|config\s+set\b)/i,
+    action: "mutating GitHub CLI",
+    severity: "medium",
+  },
+];
+
+// Pure classifier: the approval decision minus the UI, for table tests.
+export function classifyCommand(command: string): { action: string; severity: Severity } | null {
+  for (const { pattern, action, severity } of gitPatterns) {
+    if (pattern.test(command)) {
+      return { action, severity };
+    }
+  }
+  return null;
+}
+
 export default function (pi: ExtensionAPI) {
   // Session overrides
   let sessionEnabledOverride: boolean | null = null;
@@ -50,36 +98,6 @@ export default function (pi: ExtensionAPI) {
 
   // Session blocks: track which actions are auto-blocked for this session
   const sessionBlockedActions: Set<string> = new Set();
-
-  // Patterns that require explicit approval, ordered by severity
-  const gitPatterns: { pattern: RegExp; action: string; severity: Severity }[] = [
-    // High risk - destructive operations
-    { pattern: /\bgit\s+push\s+.*--force(-with-lease)?\b/i, action: "force push", severity: "high" },
-    { pattern: /\bgit\s+reset\s+--hard\b/i, action: "hard reset", severity: "high" },
-    { pattern: /\bgit\s+clean\s+-[a-z]*f/i, action: "clean (remove untracked files)", severity: "high" },
-    { pattern: /\bgit\s+stash\s+(drop|clear)\b/i, action: "drop/clear stash", severity: "high" },
-    { pattern: /\bgit\s+branch\s+-[dD]\b/i, action: "delete branch", severity: "high" },
-    { pattern: /\bgit\s+reflog\s+expire\b/i, action: "expire reflog", severity: "high" },
-
-    // Medium risk - state-changing operations
-    { pattern: /\bgit\s+push\b/i, action: "push", severity: "medium" },
-    { pattern: /\bgit\s+commit\b/i, action: "commit", severity: "medium" },
-    { pattern: /\bgit\s+rebase\b/i, action: "rebase", severity: "medium" },
-    { pattern: /\bgit\s+merge\b/i, action: "merge", severity: "medium" },
-    { pattern: /\bgit\s+tag\b/i, action: "create/modify tag", severity: "medium" },
-    { pattern: /\bgit\s+cherry-pick\b/i, action: "cherry-pick", severity: "medium" },
-    { pattern: /\bgit\s+revert\b/i, action: "revert", severity: "medium" },
-    { pattern: /\bgit\s+am\b/i, action: "apply patches", severity: "medium" },
-
-    // GitHub CLI - mutating subcommands only; reads (pr view, run list, api GET)
-    // pass silently so a session-wide approval never covers unseen mutations.
-    {
-      pattern:
-        /\bgh\s+(?:api\s+[^|;&]*(?:--method\s+|-X\s*)(?:POST|PUT|PATCH|DELETE)\b|api\s+[^|;&]*(?:--input\b|--field\b|--raw-field\b|-[fF]\s)|auth\b|gist\s+(?:create|edit|delete)\b|issue\s+(?:close|comment|create|edit|delete)\b|pr\s+(?:close|comment|create|edit|merge|ready|review)\b|release\s+(?:create|delete|edit|upload)\b|repo\s+(?:create|delete|edit|fork|clone)\b|run\s+(?:cancel|rerun)\b|workflow\s+(?:enable|disable|run)\b|secret\b|variable\s+(?:set|delete)\b|alias\s+set\b|extension\s+(?:install|remove)\b|config\s+set\b)/i,
-      action: "mutating GitHub CLI",
-      severity: "medium",
-    },
-  ];
 
   const severityIcons: Record<Severity, string> = {
     high: "🔴",
@@ -139,8 +157,10 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // Interactive mode
+      // Interactive mode: map the selection by index, not by parsing the
+      // display string, so wording edits cannot break level handling.
       const { promptLevel } = getEffectiveConfig(ctx);
+      const levels: (PromptLevel | null)[] = ["high", "medium", "none", null];
       const options = [
         `🔴 high - Only high-risk (force push, hard reset, etc.)`,
         `🟡 medium - Medium and high-risk (push, commit, etc.)`,
@@ -150,16 +170,15 @@ export default function (pi: ExtensionAPI) {
 
       ctx.ui.notify(`Current level: ${promptLevel}\n`, "info");
       const choice = await ctx.ui.select("Set prompt level:", options);
+      const selected = choice ? levels[options.indexOf(choice)] : null;
 
-      if (!choice || choice.startsWith("❌")) {
+      if (selected == null) {
         ctx.ui.notify("Cancelled.", "info");
         return;
       }
 
-      // Extract level from choice
-      const level = choice.split(" ")[1] as PromptLevel;
-      sessionPromptLevelOverride = level;
-      ctx.ui.notify(`Prompt level set to: ${choice}`, "info");
+      sessionPromptLevelOverride = selected;
+      ctx.ui.notify(`Prompt level set to: ${selected}`, "info");
       ctx.ui.notify(`(Temporary for this session)`, "info");
     },
   });
@@ -227,75 +246,75 @@ export default function (pi: ExtensionAPI) {
 
     const command = event.input.command as string;
 
-    // Check all patterns (first match wins - patterns ordered by severity)
-    for (const { pattern, action, severity } of gitPatterns) {
-      if (pattern.test(command)) {
-        // Check if this action is already blocked for this session
-        if (sessionBlockedActions.has(action)) {
-          ctx.ui.notify(`🚫 Git ${action} auto-blocked (session setting)`, "warning");
-          return { block: true, reason: `Git ${action} blocked by user (session setting)` };
-        }
+    const match = classifyCommand(command);
+    if (!match) return undefined;
+    const { action, severity } = match;
 
-        // Check if this action is already approved for this session
-        if (sessionApprovedActions.has(action)) {
-          ctx.ui.notify(`✅ Git ${action} auto-approved (session setting)`, "info");
-          return undefined;
-        }
+    // Check if this action is already blocked for this session
+    if (sessionBlockedActions.has(action)) {
+      ctx.ui.notify(`🚫 Git ${action} auto-blocked (session setting)`, "warning");
+      return { block: true, reason: `Git ${action} blocked by user (session setting)` };
+    }
 
-        // Check if this severity level should trigger a prompt
-        if (!shouldPrompt(severity, promptLevel)) {
-          return undefined;
-        }
+    // Check if this action is already approved for this session
+    if (sessionApprovedActions.has(action)) {
+      ctx.ui.notify(`✅ Git ${action} auto-approved (session setting)`, "info");
+      return undefined;
+    }
 
-        const icon = severityIcons[severity];
+    // Check if this severity level should trigger a prompt
+    if (!shouldPrompt(severity, promptLevel)) {
+      return undefined;
+    }
 
-        // In non-interactive mode (headless, RPC, print mode), block entirely
-        if (!ctx.hasUI) {
-          return {
-            block: true,
-            reason: `Git ${action} blocked: requires explicit user approval (no UI available)`,
-          };
-        }
+    const icon = severityIcons[severity];
 
-        // Interactive mode: ask for confirmation with option to approve all for session
-        const title =
-          severity === "high"
-            ? `${icon} ⚠️ HIGH RISK: Git ${action} requires approval`
-            : `${icon} Git ${action} requires approval`;
+    // In non-interactive mode (headless, RPC, print mode), block entirely
+    if (!ctx.hasUI) {
+      return {
+        block: true,
+        reason: `Git ${action} blocked: requires explicit user approval (no UI available)`,
+      };
+    }
 
-        const choice = await ctx.ui.select(title, [
-          "✅ Allow this command once",
-          "⏭️  Decline this time (ask again later)",
-          `✅✅ Auto-approve all "git ${action}" for this session only`,
-          `🚫 Auto-block all "git ${action}" for this session only`,
-        ]);
+    // Interactive mode: ask for confirmation, mapping the selection by index
+    // so wording edits cannot change which branch runs.
+    const title =
+      severity === "high"
+        ? `${icon} ⚠️ HIGH RISK: Git ${action} requires approval`
+        : `${icon} Git ${action} requires approval`;
 
-        if (!choice || choice.startsWith("⏭️")) {
-          // Decline this time - block the command but don't add to blocked list
-          ctx.ui.notify(`Git ${action} declined`, "info");
-          return { block: true, reason: `Git ${action} declined by user` };
-        }
+    const approvalOptions = [
+      "✅ Allow this command once",
+      "⏭️  Decline this time (ask again later)",
+      `✅✅ Auto-approve all "git ${action}" for this session only`,
+      `🚫 Auto-block all "git ${action}" for this session only`,
+    ];
+    const choice = await ctx.ui.select(title, approvalOptions);
+    const index = choice ? approvalOptions.indexOf(choice) : 1;
 
-        if (choice.startsWith("🚫")) {
-          // Block this action type for the entire session
-          sessionBlockedActions.add(action);
-          ctx.ui.notify(`🚫 All "git ${action}" commands auto-blocked for this session`, "warning");
-          ctx.ui.notify(`⏱️  Auto-block will reset when session ends`, "info");
-          return { block: true, reason: `Git ${action} blocked by user (session setting)` };
-        }
+    if (index === 1 || index < 0) {
+      // Decline this time - block the command but don't add to blocked list
+      ctx.ui.notify(`Git ${action} declined`, "info");
+      return { block: true, reason: `Git ${action} declined by user` };
+    }
 
-        if (choice.startsWith("✅✅")) {
-          // Approve this action type for the entire session
-          sessionApprovedActions.add(action);
-          ctx.ui.notify(`✅ All "git ${action}" commands auto-approved for this session`, "info");
-          ctx.ui.notify(`⏱️  Auto-approval will reset when session ends`, "info");
-        } else {
-          // Approve just this once
-          ctx.ui.notify(`Git ${action} approved once`, "info");
-        }
+    if (index === 3) {
+      // Block this action type for the entire session
+      sessionBlockedActions.add(action);
+      ctx.ui.notify(`🚫 All "git ${action}" commands auto-blocked for this session`, "warning");
+      ctx.ui.notify(`⏱️  Auto-block will reset when session ends`, "info");
+      return { block: true, reason: `Git ${action} blocked by user (session setting)` };
+    }
 
-        return undefined;
-      }
+    if (index === 2) {
+      // Approve this action type for the entire session
+      sessionApprovedActions.add(action);
+      ctx.ui.notify(`✅ All "git ${action}" commands auto-approved for this session`, "info");
+      ctx.ui.notify(`⏱️  Auto-approval will reset when session ends`, "info");
+    } else {
+      // Approve just this once
+      ctx.ui.notify(`Git ${action} approved once`, "info");
     }
 
     return undefined;

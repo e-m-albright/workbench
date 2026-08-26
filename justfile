@@ -12,6 +12,12 @@ lint:
 lint-py:
     uv run ruff check .
 
+# ShellCheck over every tracked shell script, including the extensionless bin/ CLIs.
+[group('quality')]
+lint-shell:
+    git ls-files -z '*.sh' | xargs -0 shellcheck -S warning
+    shellcheck -S warning bin/workbench bin/wf
+
 # Format Python sources. `just fmt --check` (or `just fmt check`) verifies only.
 [group('quality')]
 fmt mode='write':
@@ -41,6 +47,7 @@ check:
     just test-pi
     just typecheck-pi
     just lint
+    just lint-shell
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 

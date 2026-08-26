@@ -70,17 +70,32 @@ block_if '(^|[[:space:];|&])eval([[:space:]]|$)' \
     'eval hides the real command from the guard. Run the underlying command directly.'
 
 # --- Destructive git ---------------------------------------------------------
-block_if '(^|[[:space:]])git[[:space:]]+push[[:space:]]+([^&;|]*[[:space:]])?(--force([^-]|$)|-f([[:space:]]|$))' \
+# Match against the quote-stripped command (same treatment as the rm branch):
+# a quoted flag ("--force") or escaped token must not slip past the regexes.
+git_block_if() {
+    if printf '%s' "$fs_cmd" | grep -qE "$1"; then
+        block "$2"
+    fi
+}
+
+git_block_if '(^|[[:space:]])git[[:space:]]+push[[:space:]]+([^&;|]*[[:space:]])?(--force([^-]|$)|-f([[:space:]]|$))' \
     'force push detected. Use --force-with-lease only with explicit user authorization.'
-block_if '(^|[[:space:]])git[[:space:]]+reset[[:space:]]+(--hard|-{1,2}h)([[:space:]]|$)' \
+# A leading + on a refspec is a force push regardless of flags.
+git_block_if '(^|[[:space:]])git[[:space:]]+push[[:space:]]+[^&;|]*[[:space:]]\+[^[:space:]]' \
+    'force push via +refspec detected. Force refspecs rewrite remote history.'
+git_block_if '(^|[[:space:]])git[[:space:]]+reset[[:space:]]+(--hard|-{1,2}h)([[:space:]]|$)' \
     'git reset --hard discards uncommitted work.'
-block_if '(^|[[:space:]])git[[:space:]]+clean[[:space:]]+-[a-zA-Z]*f' \
+git_block_if '(^|[[:space:]])git[[:space:]]+clean[[:space:]]+-[a-zA-Z]*f' \
     'git clean -f deletes untracked files. Use git status / git stash first.'
-block_if '(^|[[:space:]])git[[:space:]]+branch[[:space:]]+(-D|--delete[[:space:]]+--force)' \
+git_block_if '(^|[[:space:]])git[[:space:]]+branch[[:space:]]+(-D|--delete[[:space:]]+--force)' \
     'git branch -D destructively deletes branches without a merge check.'
-block_if '(^|[[:space:]])git[[:space:]].*--no-verify' \
+git_block_if '(^|[[:space:]])git[[:space:]]+stash[[:space:]]+(drop|clear)([[:space:]]|$)' \
+    'git stash drop/clear permanently discards stashed work.'
+git_block_if '(^|[[:space:]])git[[:space:]]+reflog[[:space:]]+expire([[:space:]]|$)' \
+    'git reflog expire destroys recovery history.'
+git_block_if '(^|[[:space:]])git[[:space:]].*--no-verify' \
     '--no-verify bypasses pre-commit/pre-push hooks. Investigate the hook failure instead.'
-block_if '(^|[[:space:]])git[[:space:]].*(--no-gpg-sign|-c[[:space:]]+commit\.gpgsign=false)' \
+git_block_if '(^|[[:space:]])git[[:space:]].*(--no-gpg-sign|-c[[:space:]]+commit\.gpgsign=false)' \
     'GPG signing bypass detected. Sign commits unless the user explicitly opted out.'
 
 exit 0

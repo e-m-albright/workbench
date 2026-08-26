@@ -135,6 +135,12 @@ export default function presetsExtension(pi: ExtensionAPI) {
 
       const name = choice.replace(/ \(active\)$/, "");
       const preset = presets[name];
+      if (!preset) {
+        // Stripping " (active)" from a preset name that genuinely ends with
+        // it would miss; fail soft instead of passing undefined onward.
+        ctx.ui.notify(`Unknown preset: ${name}`, "warning");
+        return;
+      }
       if (!(await confirmTaintedSwitch(name, preset, ctx))) return;
       activePresetName = name;
       activePreset = preset;
@@ -145,6 +151,9 @@ export default function presetsExtension(pi: ExtensionAPI) {
 
   pi.on("session_start", async (_event, ctx) => {
     presets = loadPresets(ctx.cwd);
+    // The containment boundary is the session: taint from a previous session
+    // in this long-lived process must not follow into a fresh one.
+    sessionReadUntrustedContent = false;
     const settingsManager = (ctx as unknown as { settingsManager?: { getSettings(): PresetSettings } }).settingsManager;
     const settings = (settingsManager?.getSettings() ?? {}) as PresetSettings;
     const requested = (pi.getFlag("preset") as string | undefined) ?? settings.defaultPreset;
