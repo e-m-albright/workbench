@@ -7,9 +7,11 @@
 # those inside a conversation that already has the context they need.
 set -euo pipefail
 
+# Every entry must have agents/skills/<name>/SKILL.md — workbench lint checks.
 STARTERS=(
     review
     code-health
+    improvement-hunt
     security-review
     dep-audit
     release

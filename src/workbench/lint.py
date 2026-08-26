@@ -126,6 +126,17 @@ def lint() -> int:
             f"{description_chars}"
         )
 
+    # bin/wf's STARTERS array is a hand-listed subset of skills; a renamed or
+    # retired skill must fail here rather than silently breaking the launcher.
+    wf_text = (ROOT / "bin/wf").read_text()
+    starters_match = re.search(r"STARTERS=\(\n(.*?)\)", wf_text, re.DOTALL)
+    if not starters_match:
+        errors.append("bin/wf: STARTERS array not found")
+    else:
+        for starter in starters_match.group(1).split():
+            if not (AGENTS / "skills" / starter / "SKILL.md").exists():
+                errors.append(f"bin/wf starter without a skill: {starter}")
+
     for script in sorted(AGENTS.rglob("*.sh")):
         result = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
         if result.returncode:

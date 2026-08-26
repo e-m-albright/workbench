@@ -166,6 +166,20 @@ Skip the slower external installers when only configuration files need repair:
 workbench sync all --no-skills --no-plugins
 ```
 
+`just deploy` chains sync and drift so a deploy is verified in one command.
+
+### Launch a workflow skill
+
+`bin/wf` starts a from-zero workflow skill in a fresh Claude session:
+
+```bash
+wf --list
+wf review src/
+wf improvement-hunt
+```
+
+Lint verifies every starter maps to a skill in `agents/skills/`.
+
 ### Validate repository sources
 
 ```bash
