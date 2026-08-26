@@ -46,10 +46,6 @@ not Gmail, Drive, or artifacts:
   advisory and must record evidence, rubric version, and model provenance.
 - Reusable automation mechanics may live here; workflows coupled to private
   notes or venture context stay in `notes`.
-- Known boundary exception: `bin/apple-notes` and `bin/apple-contacts` are
-  macOS host integrations that encode private-layer conventions. They live here
-  for deployment convenience; if the private layer grows its own deploy path,
-  they move there.
 
 ## Privacy (public repo)
 

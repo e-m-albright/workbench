@@ -132,7 +132,7 @@ just check
 
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
-[Bun](https://bun.sh) (runs the deployed `apple-notes`/`apple-contacts` CLIs
+[Bun](https://bun.sh) (runs the private layer's `apple-notes`/`apple-contacts` CLIs
 and the Pi extension tests), and the installed Pi/Claude/Codex CLIs. Claude and
 Codex skill deployment also uses `npx skills`; Pi and Codex discover one shared real-file deployment under
 `~/.agents/skills`, avoiding duplicate Pi skill warnings.
@@ -242,8 +242,6 @@ pyproject.toml           uv-managed project (Typer, Rich; pytest/Ruff/Pyright de
 tests/                   deterministic CLI, sync, drift, guard-hook, and Pi extension tests
 bin/workbench            relocatable shell launcher (execs via uv)
 bin/wf                   fresh-session skill launcher (review, release, ...)
-bin/apple-notes          Apple Notes bridge CLI, deployed to ~/.local/bin by sync
-bin/apple-contacts       Apple Contacts bridge CLI, deployed to ~/.local/bin by sync
 ```
 
 ## Extending Workbench

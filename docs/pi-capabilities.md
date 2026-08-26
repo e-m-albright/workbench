@@ -27,8 +27,8 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Worker (`worker.ts`) | Extension | `/worker` — one worktree-isolated child Pi; parent-owned review and merge |
 | Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
-| Apple Notes (`apple-notes.ts` + shared CLI) | Extension | Reads unshared, unlocked notes; confirmed create/append only in unshared `Agents`; Claude Code and Codex can use the same macOS-only CLI through shell |
-| Apple Contacts (`apple-contacts` shared CLI) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays in the notes repo |
+| Apple Notes (`apple-notes.ts` + notes-layer CLI) | Extension | Reads unshared, unlocked notes; confirmed create/append only in unshared `Agents`; Claude Code and Codex can use the same macOS-only CLI through shell |
+| Apple Contacts (`apple-contacts` CLI, owned by the notes layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays in the notes repo |
 | `pi-agent-browser-native` 0.2.71 | Pinned package | Structured wrapper over the Agent Browser CLI (0.32.2) |
 | `just typecheck-pi` | Dev gate | Typechecks extensions against the installed Pi API |
 | pi-guide skill | Skill | Versioned tutorial for native Pi plus this harness |

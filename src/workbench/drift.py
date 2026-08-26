@@ -26,7 +26,7 @@ from workbench.core import (
     _string_array,
 )
 from workbench.mcp import _desktop_mcp, active_mcp, retired_mcp_names
-from workbench.sync import _canonical_clis, _canonical_hooks, managed_claude_settings
+from workbench.sync import _canonical_hooks, _canonical_shell_fragments, managed_claude_settings
 
 
 def _digest(path: Path) -> str:
@@ -271,8 +271,8 @@ def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) ->
     selected = tuple(vendors)
     data = home / DATA_REL
     if selected:
-        for name, source in _canonical_clis().items():
-            _compare(source, home / ".local/bin" / name, f"shared CLI {name}", findings)
+        for name, fragment in _canonical_shell_fragments().items():
+            _compare(fragment, data / "shell" / name, f"shell fragment {name}", findings)
     if {"claude", "codex"} & set(selected):
         hooks = _canonical_hooks()
         for name, hook in hooks.items():

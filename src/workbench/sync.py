@@ -21,7 +21,6 @@ from workbench.core import (
     RETIRED_PI_STATE_PATHS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
-    ROOT,
     SKILLS_CLI,
     WorkbenchError,
     _home_env,
@@ -60,20 +59,15 @@ def _canonical_hooks() -> dict[str, Path]:
     return {hook.name: hook for hook in sorted((AGENTS / "shared/hooks").glob("*.sh"))}
 
 
-def _canonical_clis() -> dict[str, Path]:
-    """Small local CLIs shared by Pi, Claude Code, and Codex."""
-    names = ("apple-contacts", "apple-notes")
-    return {name: ROOT / "bin" / name for name in names}
-
-
-def _install_shared_clis(home: Path) -> None:
-    for name, source in _canonical_clis().items():
-        copy_file(source, home / ".local/bin" / name, executable=True)
+def _canonical_shell_fragments() -> dict[str, Path]:
+    """Shell fragments (agent launchers) sourced by the dotfiles zshrc."""
+    return {f.name: f for f in sorted((AGENTS / "shared/shell").glob("*.zsh"))}
 
 
 def _install_runtime_files(home: Path) -> Path:
-    _install_shared_clis(home)
     data = home / DATA_REL
+    for name, fragment in _canonical_shell_fragments().items():
+        copy_file(fragment, data / "shell" / name)
     hooks = _canonical_hooks()
     hook_dir = data / "hooks"
     if hook_dir.exists():
@@ -343,7 +337,8 @@ def _harden_pi_session_permissions(destination: Path) -> None:
 def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
     """Deploy Pi's transparent local configuration; packages remain settings-owned."""
     del deploy_plugins  # Pi packages are declared in settings.json, not a separate plugin registry.
-    _install_shared_clis(home)
+    for name, fragment in _canonical_shell_fragments().items():
+        copy_file(fragment, home / DATA_REL / "shell" / name)
     source = AGENTS / "pi"
     destination = home / ".pi/agent"
     _harden_pi_session_permissions(destination)
