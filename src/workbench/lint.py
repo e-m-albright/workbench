@@ -22,6 +22,9 @@ def _markdown_link_errors(root: Path) -> list[str]:
         # Skip dot-directories (.venv, .git): vendored docs are not repository sources.
         if any(part.startswith(".") for part in path.relative_to(root).parts):
             continue
+        # Ceiling: fences toggle on any ``` prefix, so a ````-wrapped block
+        # containing ``` examples inverts the state. Fine at current usage;
+        # match fence lengths if that ever appears in repository docs.
         fenced = False
         for line_number, line in enumerate(path.read_text().splitlines(), 1):
             if line.lstrip().startswith("```"):
@@ -31,9 +34,13 @@ def _markdown_link_errors(root: Path) -> list[str]:
                 continue
             for match in link_pattern.finditer(line):
                 raw = match.group(1).split("#", 1)[0].strip().strip("<>")
-                if not raw or "://" in raw or raw.startswith(("mailto:", "/")):
+                if not raw or "://" in raw or raw.startswith("mailto:"):
                     continue
-                if not (path.parent / raw).resolve().exists():
+                # Root-absolute links resolve against the repository root; the
+                # convention is relative links, but a typo'd /path should fail
+                # rather than being skipped.
+                base = root / raw.lstrip("/") if raw.startswith("/") else path.parent / raw
+                if not base.resolve().exists():
                     relative = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
                     errors.append(f"broken local link: {relative}:{line_number}: {raw}")
     return errors
@@ -47,10 +54,11 @@ def lint() -> int:
             load_json(path)
         except WorkbenchError as exc:
             errors.append(str(exc))
-    try:
-        tomllib.loads((AGENTS / "codex/statusline.toml").read_text())
-    except tomllib.TOMLDecodeError as exc:
-        errors.append(f"invalid Codex statusline TOML: {exc}")
+    for toml_path in sorted(AGENTS.rglob("*.toml")):
+        try:
+            tomllib.loads(toml_path.read_text())
+        except tomllib.TOMLDecodeError as exc:
+            errors.append(f"invalid TOML: {toml_path.relative_to(ROOT)}: {exc}")
 
     for entry in sorted((AGENTS / "skills").iterdir()):
         if entry.is_dir() and not (entry / "SKILL.md").exists():

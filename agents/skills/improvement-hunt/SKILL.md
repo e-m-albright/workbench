@@ -23,9 +23,8 @@ small zero-risk fixes may land on a branch and be noted in the report.)
    stated philosophy is — findings are judged against the repo's own goals,
    not a generic ideal.
 2. **Sweep in parallel.** Dispatch one subagent per lens group below, all in
-   a single message so they run concurrently (Explore, code-reviewer,
-   security-auditor, performance-engineer, or general-purpose as fits each
-   lens). Give each agent the whole repo as scope and instruct it to be
+   a single message so they run concurrently (Explore, security-auditor,
+   performance-engineer, or general-purpose as fits each lens). Give each agent the whole repo as scope and instruct it to be
    exhaustive within its lens: read the real code, follow every lead, and
    report everything it finds — filtering happens at the ranking stage, not
    inside the sweep. Research-lens agents must use current web sources.

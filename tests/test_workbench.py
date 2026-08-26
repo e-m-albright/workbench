@@ -387,28 +387,28 @@ class WorkbenchTests(unittest.TestCase):
             self.assertTrue(backup.exists(), "second sync must not delete the kept backup")
 
     def test_codex_subagents_render_as_native_toml(self) -> None:
-        source = core.AGENTS / "subagents/code-reviewer.md"
+        source = core.AGENTS / "subagents/debugger.md"
 
         rendered = codex._render_codex_subagent(source)
         parsed = tomllib.loads(rendered)
 
-        self.assertEqual(parsed["name"], "code-reviewer")
-        self.assertIn("correctness", parsed["description"])
-        self.assertIn("review", parsed["developer_instructions"].lower())
+        self.assertEqual(parsed["name"], "debugger")
+        self.assertIn("root-cause", parsed["description"])
+        self.assertIn("debug", parsed["developer_instructions"].lower())
 
     def test_sync_codex_replaces_markdown_subagents_and_prunes_retired(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             destination = Path(raw) / ".codex/agents"
             destination.mkdir(parents=True)
-            (destination / "code-reviewer.md").write_text("stale")
+            (destination / "debugger.md").write_text("stale")
             (destination / "docs-scribe.md").write_text("retired")
 
             sync._sync_subagents("codex", destination)
 
             self.assertFalse(list(destination.glob("*.md*")))
             self.assertFalse((destination / "docs-scribe.toml").exists())
-            parsed = tomllib.loads((destination / "code-reviewer.toml").read_text())
-            self.assertEqual(parsed["name"], "code-reviewer")
+            parsed = tomllib.loads((destination / "debugger.toml").read_text())
+            self.assertEqual(parsed["name"], "debugger")
 
     def test_check_detects_managed_file_content_drift(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

@@ -29,6 +29,11 @@ SKILLS_CLI = "skills@1.5.19"
 # source for anything code can turn off. Tool/approach rejections with no code
 # switch stay in docs/decisions/tombstones.md.
 RETIRED_SUBAGENTS = {
+    "code-reviewer": (
+        "trigger-identical to the review skill ('review this', 'code review')"
+        " with no isolated-context benefit the skill lacks — the same overlap"
+        " rationale that retired legacy-modernizer"
+    ),
     "docs-scribe": (
         "ordinary documentation updates gain too little from an isolated"
         " context beyond project rules and the project-files skill"
@@ -46,6 +51,15 @@ RETIRED_SKILLS = {
     "converge": (
         "its metric engine, language packs, and prescriptive loop overlapped"
         " the code-health lenses and project-owned gates"
+    ),
+    "migration-writer": (
+        "a Goose/Drizzle/sqlc stack skill deployed globally — the exact"
+        " category the 'globally installed stack skills' tombstone retired;"
+        " revive inside a project that uses those tools"
+    ),
+    "skill-creator": (
+        "superseded by the skill-authoring port of the same upstream source;"
+        " the stale deployed fork duplicated its triggers on every harness"
     ),
 }
 RETIRED_PI_EXTENSIONS = {

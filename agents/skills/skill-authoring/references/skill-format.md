@@ -90,18 +90,13 @@ Upstream skills evolve. Pinning a commit SHA lets us:
 - Trace inspiration back to the original author.
 - Decide whether to re-port wholesale or merge specific changes.
 
-When updating an already-ported skill: bump `source_commit` + `ported_at`, append to `adaptations`, update the registry row.
+When updating an already-ported skill: bump `source_commit` + `ported_at` and append to `adaptations`.
 
-## Lifecycle (deferred to Phase 5)
+## Layout
 
-When we adopt Matt Pocock's bucketing pattern, skills will move under:
-- `agents/skills/engineering/<name>/` — daily code work
-- `agents/skills/productivity/<name>/` — workflow, non-code
-- `agents/skills/misc/<name>/` — rare utilities
-- `agents/skills/personal/<name>/` — never in plugin manifest
-- `agents/skills/in-progress/<name>/` — drafts, never in plugin manifest
-- `agents/skills/deprecated/<name>/` — retired, never in plugin manifest
-
-Currently flat under `agents/skills/`. Migration deferred until enough skills exist for the structure to earn its cost.
+Skills live flat under `agents/skills/`. A bucketed hierarchy
+(engineering/productivity/misc) was considered and deferred: the structure
+does not earn its cost at this scale, and retirement already has a mechanism
+(`RETIRED_SKILLS` in `src/workbench/core.py`).
 
 _Promoted from `.ai/rules/process/skill-format.mdc` into this skill's references._

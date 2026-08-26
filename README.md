@@ -87,10 +87,10 @@ vocabulary, and safety policy.
 
 - One shared instruction file for Pi, Claude Code, and Codex, with a small Codex
   appendix where the harnesses genuinely differ.
-- Reusable skills installed into both vendors.
+- Reusable skills installed for all three harnesses.
 - Shared Markdown specialist agents translated into native Codex TOML agents.
 - Vendor-native hooks, permission rules, sandbox defaults, and status lines.
-- Declarative plugin installation for both vendors.
+- Declarative plugin installation for Claude and Codex.
 - A shared MCP registry that preserves intentional external additions and
   removes explicitly retired integrations.
 
@@ -132,8 +132,9 @@ just check
 
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
-and the installed Pi/Claude/Codex CLIs. Claude and Codex skill deployment also
-uses `npx skills`; Pi and Codex discover one shared real-file deployment under
+[Bun](https://bun.sh) (runs the deployed `apple-notes`/`apple-contacts` CLIs
+and the Pi extension tests), and the installed Pi/Claude/Codex CLIs. Claude and
+Codex skill deployment also uses `npx skills`; Pi and Codex discover one shared real-file deployment under
 `~/.agents/skills`, avoiding duplicate Pi skill warnings.
 
 ## Daily Workflows
@@ -191,7 +192,8 @@ Run `workbench`, `wb`, or either launcher's `--help` flag for the complete tree:
 workbench
 ├── sync [claude|codex|pi|all] deploy canonical configuration
 │   ├── --no-skills            skip shared-skill installation
-│   └── --no-plugins           skip declared-plugin installation
+│   ├── --no-plugins           skip declared-plugin installation
+│   └── --rules-only           deploy only global instruction files
 ├── drift [claude|codex|pi|all] report managed drift and external additions
 └── lint                       validate canonical repository sources
 ```
@@ -213,6 +215,7 @@ agents/
 ├── shared/              cross-vendor rules, hooks, and MCP registry
 ├── claude/              Claude settings fragments and plugin declarations
 ├── codex/               Codex rules, hooks, status line, and plugins
+├── pi/                  Pi settings, models, presets, permission policy, and extensions
 ├── skills/              reusable on-demand workflows
 ├── subagents/           shared specialist-agent source documents
 └── prompts/             reusable prompts below the skill threshold
@@ -222,8 +225,11 @@ health/                  portable deterministic checks and review rubrics
 docs/decisions/          durable architectural decisions and tombstones
 src/workbench/           Typer + Rich deployment and verification CLI
 pyproject.toml           uv-managed project (Typer, Rich; pytest/Ruff/Pyright dev gate)
-tests/                   deterministic CLI, sync, drift, and guard-hook tests
+tests/                   deterministic CLI, sync, drift, guard-hook, and Pi extension tests
 bin/workbench            relocatable shell launcher (execs via uv)
+bin/wf                   fresh-session skill launcher (review, release, ...)
+bin/apple-notes          Apple Notes bridge CLI, deployed to ~/.local/bin by sync
+bin/apple-contacts       Apple Contacts bridge CLI, deployed to ~/.local/bin by sync
 ```
 
 ## Extending Workbench

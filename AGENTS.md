@@ -3,8 +3,9 @@
 ## Project Context
 
 Workbench is a public, personal development-intelligence repository. It
-owns portable agent configuration, engineering guidance, project-health tools,
-and context-free automation building blocks.
+owns portable agent configuration, engineering guidance, and project-health
+tools. Reusable automation mechanics may live here when one earns its place
+(none do today); workflow instances stay in `notes`.
 
 The adjacent repositories own different state:
 
