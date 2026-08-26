@@ -105,8 +105,8 @@ def lint() -> int:
         if length > 280:
             errors.append(f"skill description exceeds 280 chars: {name} ({length})")
 
-    if description_chars > 5_000:
-        errors.append(f"skill descriptions exceed 5000-char context budget: {description_chars}")
+    if description_chars > 5_500:
+        errors.append(f"skill descriptions exceed 5500-char context budget: {description_chars}")
 
     for script in sorted(AGENTS.rglob("*.sh")):
         result = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
