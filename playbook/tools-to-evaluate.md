@@ -315,6 +315,16 @@ Use one of the third-party hosts below if Moonshot's / DeepSeek's first-party AP
 - **Local fallback:** both Kimi K2 (1T params, MoE) and DeepSeek V3 (671B, MoE) are too large for a single M4 Pro. Distilled variants (Kimi-K2-mini, DeepSeek-V3-Lite) run via **Ollama** or **LM Studio** if local inference becomes load-bearing -- currently disabled in `macos/brew.sh`.
 - **[Colibri](https://www.developersdigest.tech/blog/colibri-glm-52-slow-computer-local-inference)** -- ~1,300-line pure-C inference engine (solo-dev) that runs *full* frontier MoE models too big for RAM by streaming routed experts from NVMe. Demo: GLM-5.2 (744B MoE, ~40B active/token) on a 32GB laptop -- ~9.9GB dense weights resident, ~370GB of experts on disk. **Explicitly not fast** (~0.05-0.1 tok/s -- proof-of-life, not a daily driver). Watch as the "run the whole frontier OSS model locally, speed be damned" alternative to LM Studio/Ollama *distilled* variants -- interesting for offline/private one-shot reasoning where latency is irrelevant. (Cf. antirez's `ds4`, same SSD-streaming idea.)
 
+## Workbench Watch Items (2026-08)
+
+Sync-simplifying upgrades the improvement hunt confirmed are not ready yet;
+re-check occasionally.
+
+- **`uv audit`** ([astral.sh/blog/uv-audit](https://astral.sh/blog/uv-audit), 2026-06-08) -- uv-native pip-audit replacement; would delete the pip-audit dev-dependency tree. Explicitly preview/unstable as of June 2026 — adopt when stabilized.
+- **Claude Code native AGENTS.md** ([anthropics/claude-code#34235](https://github.com/anthropics/claude-code/issues/34235)) -- open enhancement, no roadmap. Landing would let `workbench sync` drop the CLAUDE.md translation surface.
+- **Exa hosted MCP** ([docs.exa.ai/reference/exa-mcp](https://docs.exa.ai/reference/exa-mcp)) -- remote Streamable HTTP endpoint at `mcp.exa.ai/mcp` could replace the stdio server and the stamp-time key-baking workaround; evaluate the auth tradeoff (OAuth vs key-in-URL) before switching.
+- **Pi Packages** ([extensions docs](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md)) -- npm/git distribution for Pi extensions/skills/themes. The real-file deployment remains the deliberate choice for owned, drift-checked config; revisit if extension count grows.
+
 ## AI Stack Rankings (personal, 2026-05)
 
 > Historical hands-on ordering, not benchmarks or active support policy. Some entries remain useful as evaluation notes.

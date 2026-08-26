@@ -10,7 +10,7 @@
     "$comment": "Exa neural search over stdio. The key is a reference here, never a literal: EXA_API_KEY is exported from ~/.zshrc.local (untracked, machine-local) and sync bakes it into the generated CLI and Desktop configs at stamp time. Sync-time expansion (not runtime) is what keeps this working in Claude Desktop, which does not expand ${VAR} itself (anthropics/claude-code#40372). If EXA_API_KEY is unset at stamp time the literal reference is written and drift flags it.",
     "type": "stdio",
     "command": "npx",
-    "args": ["-y", "exa-mcp-server"],
+    "args": ["-y", "exa-mcp-server@3.4.1"],
     "env": { "EXA_API_KEY": "${EXA_API_KEY}" },
     "targets": ["claude"]
   },

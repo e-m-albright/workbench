@@ -23,7 +23,7 @@ CODEX_APPENDIX = """\
 """
 # Vercel's skills deploy CLI, pinned so `sync` never executes whatever npm
 # happens to serve as latest. Bump deliberately: `npm view skills version`.
-SKILLS_CLI = "skills@1.5.19"
+SKILLS_CLI = "skills@1.5.23"
 # Retired capabilities: name -> why. Each mapping is both the enforcement list
 # (sync removes, drift flags) and the record of the decision — the single
 # source for anything code can turn off. Tool/approach rejections with no code
