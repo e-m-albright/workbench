@@ -46,6 +46,20 @@ not Gmail, Drive, or artifacts:
 - Reusable automation mechanics may live here; workflows coupled to private
   notes or venture context stay in `notes`.
 
+## Privacy (public repo)
+
+This repo is public. Before committing, `git grep -niI` for private-project
+names or personal absolute paths and ensure tracked files return nothing.
+
+- Never reference a private project by name in tracked files — use generic
+  phrasing ("a private project", "the private layer").
+- No hardcoded `/Users/<name>/...` home paths — use `~` / `$HOME`.
+- Test fixtures use neutral placeholders (`octocat/hello-world`), never real
+  private repository names.
+- Keep it neutral — no employment or status signals.
+- Caveat: prior git *history* may still contain previously-scrubbed content;
+  true removal needs a history rewrite (filter-repo/BFG) plus a force push.
+
 ## Process
 
 - Plan non-trivial changes before implementation.

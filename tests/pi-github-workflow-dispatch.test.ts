@@ -9,7 +9,7 @@ const module = await import("../agents/pi/extensions/github-workflow-dispatch");
 const { buildDispatchArgs, confirmationText, newestRunUrl, validateDispatch } = module;
 
 const dispatch = {
-	repository: "e-m-albright/evan",
+	repository: "octocat/hello-world",
 	workflow: "digest.yml",
 	ref: "main",
 	inputs: [
@@ -25,7 +25,7 @@ describe("GitHub workflow dispatch", () => {
 			"run",
 			"digest.yml",
 			"--repo",
-			"e-m-albright/evan",
+			"octocat/hello-world",
 			"--ref",
 			"main",
 			"--field",
@@ -37,7 +37,7 @@ describe("GitHub workflow dispatch", () => {
 
 	test("shows every outward-facing parameter in the confirmation", () => {
 		const text = confirmationText(dispatch);
-		expect(text).toContain("Repository: e-m-albright/evan");
+		expect(text).toContain("Repository: octocat/hello-world");
 		expect(text).toContain("Workflow: digest.yml");
 		expect(text).toContain("Ref: main");
 		expect(text).toContain("date=2026-08-10");

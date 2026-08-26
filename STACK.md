@@ -80,7 +80,9 @@ Dotfiles and Workbench are public and must never contain credentials, personal
 records, conversations, generated agent memory, or private operational state.
 The private layer's domains, providers, schedules, integrations, schemas,
 locations, and identities are not described in the public repositories beyond
-the summary above. Public CI never has access to the private repository.
+the summary above and the minimal read-surface pointers (vault entry points
+and `notes` CLI verbs) that Workbench's `AGENTS.md` documents so agents route
+to the vault instead of searching external services. Public CI never has access to the private repository.
 
 ## Reuse
 
