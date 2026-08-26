@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -31,14 +30,22 @@ RETIRED_SUBAGENTS = {
         " with no isolated-context benefit the skill lacks — the same overlap"
         " rationale that retired legacy-modernizer"
     ),
+    "debugger": "the systematic-debugging skill owns root-cause investigation",
     "docs-scribe": (
         "ordinary documentation updates gain too little from an isolated"
         " context beyond project rules and the project-files skill"
     ),
+    "error-detective": "the systematic-debugging skill can analyze supplied logs and traces",
     "legacy-modernizer": (
         "planning, execution, testing, and dependency skills already cover"
         " incremental modernization without another overlapping trigger"
     ),
+    "performance-engineer": (
+        "performance work does not recur enough to justify a permanently deployed specialist"
+    ),
+    "security-auditor": "the portable security-review skill owns deep security audits",
+    "shellcheck-reviewer": "project-native ShellCheck gates own shell verification",
+    "test-writer": "the portable testing skill owns test design and TDD guidance",
 }
 RETIRED_SKILLS = {
     "agentic-e2e-debugging": (
@@ -67,6 +74,10 @@ RETIRED_PI_EXTENSIONS = {
     "git-status.ts": (
         "renamed to footer.ts — the file is the whole Pi footer (context,"
         " quota, cost, model), and git state is a minority of it"
+    ),
+    "transcript-reader.ts": (
+        "retired 2026-08-26 after native fullscreen made the custom transcript"
+        " navigator unnecessary for the owner's workflow"
     ),
 }
 RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
@@ -209,11 +220,6 @@ def _string_array(path: Path) -> list[str]:
     if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
         raise WorkbenchError(f"expected a string array: {path}")
     return raw
-
-
-def _frontmatter_field(text: str, key: str) -> str | None:
-    match = re.search(rf"^{key}:\s*([^\n]+)$", text, re.MULTILINE)
-    return match.group(1).strip() if match else None
 
 
 def _installed_plugins(vendor: str, output: str) -> dict[str, bool]:

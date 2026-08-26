@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, VERSION } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 
 const RESET = "\x1b[0m";
@@ -25,6 +25,10 @@ function mixColor(position: number): readonly [number, number, number] {
 	];
 }
 
+export function welcomeLabel(version: string): string {
+	return `Pi ${version} · Workbench managed`;
+}
+
 function gradient(line: string): string {
 	if (process.env.NO_COLOR) return line;
 	const width = Math.max(1, line.length - 1);
@@ -45,7 +49,10 @@ export default function (pi: ExtensionAPI) {
 			dispose() {},
 			invalidate() {},
 			render(width: number): string[] {
-				return PI_LINES.map((line) => truncateToWidth(gradient(line), width));
+				return [
+					...PI_LINES.map((line) => truncateToWidth(gradient(line), width)),
+					truncateToWidth(welcomeLabel(VERSION), width),
+				];
 			},
 		}));
 	});

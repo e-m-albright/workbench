@@ -294,6 +294,27 @@ class WorkbenchTests(unittest.TestCase):
             )
             self.assertNotIn("EXTERNAL codex skill: converge", external)
 
+    def test_lint_rejects_retired_canonical_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            agents = Path(raw)
+            extension = agents / "pi/extensions/retired.ts"
+            extension.parent.mkdir(parents=True)
+            extension.write_text("retired")
+            specialist = agents / "subagents/retired.md"
+            specialist.parent.mkdir(parents=True)
+            specialist.write_text("retired")
+
+            with (
+                patch.object(lint_mod, "AGENTS", agents),
+                patch.object(lint_mod, "ROOT", agents),
+                patch.object(lint_mod, "RETIRED_PI_EXTENSIONS", {"retired.ts": "reason"}),
+                patch.object(lint_mod, "RETIRED_SUBAGENTS", {"retired": "reason"}),
+            ):
+                errors = lint_mod._retired_source_errors()
+
+            self.assertEqual(len(errors), 2)
+            self.assertTrue(all("retired source remains canonical" in item for item in errors))
+
     def test_skill_frontmatter_validation_rejects_malformed_yaml(self) -> None:
         with self.assertRaises(core.WorkbenchError):
             lint_mod._frontmatter_mapping(
@@ -440,29 +461,20 @@ class WorkbenchTests(unittest.TestCase):
             sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
             self.assertTrue(backup.exists(), "second sync must not delete the kept backup")
 
-    def test_codex_subagents_render_as_native_toml(self) -> None:
-        source = core.AGENTS / "subagents/debugger.md"
-
-        rendered = codex._render_codex_subagent(source)
-        parsed = tomllib.loads(rendered)
-
-        self.assertEqual(parsed["name"], "debugger")
-        self.assertIn("root-cause", parsed["description"])
-        self.assertIn("debug", parsed["developer_instructions"].lower())
-
-    def test_sync_codex_replaces_markdown_subagents_and_prunes_retired(self) -> None:
+    def test_sync_removes_retired_subagents_and_preserves_external_agents(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            destination = Path(raw) / ".codex/agents"
-            destination.mkdir(parents=True)
-            (destination / "debugger.md").write_text("stale")
-            (destination / "docs-scribe.md").write_text("retired")
+            for vendor, suffix in (("claude", ".md"), ("codex", ".toml")):
+                destination = Path(raw) / vendor / "agents"
+                destination.mkdir(parents=True)
+                retired = destination / f"debugger{suffix}"
+                retired.write_text("retired")
+                external = destination / f"external{suffix}"
+                external.write_text("external")
 
-            sync._sync_subagents("codex", destination)
+                sync._remove_retired_subagents(destination)
 
-            self.assertFalse(list(destination.glob("*.md*")))
-            self.assertFalse((destination / "docs-scribe.toml").exists())
-            parsed = tomllib.loads((destination / "debugger.toml").read_text())
-            self.assertEqual(parsed["name"], "debugger")
+                self.assertFalse(retired.exists())
+                self.assertTrue(external.exists())
 
     def test_check_detects_managed_file_content_drift(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -769,37 +781,18 @@ js_repl = false
                 output.getvalue(),
             )
 
-    def test_check_subagents_flags_retired_leftovers_as_drift(self) -> None:
+    def test_check_agents_flags_retired_and_reports_external(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             destination = Path(raw)
-            (destination / "docs-scribe.toml").write_text('name = "docs-scribe"\n')
+            (destination / "debugger.toml").write_text('name = "debugger"\n')
+            (destination / "external.toml").write_text('name = "external"\n')
             findings: list[str] = []
             external: list[str] = []
 
-            drift_mod._check_subagents("codex", destination, findings, external)
+            drift_mod._check_agents("codex", destination, findings, external)
 
-            self.assertIn("DRIFT retired codex subagent still present: docs-scribe", findings)
-            self.assertNotIn("EXTERNAL codex subagent: docs-scribe", external)
-
-    def test_codex_subagents_render_read_only_sandbox_for_non_writing_tools(
-        self,
-    ) -> None:
-        template = "---\nname: example\ndescription: Example subagent.\n{tools}---\n\nBody.\n"
-        with tempfile.TemporaryDirectory() as raw:
-            restricted_path = Path(raw) / "restricted.md"
-            restricted_path.write_text(template.format(tools="tools: Read, Grep, Glob, Bash\n"))
-            writer_path = Path(raw) / "writer.md"
-            writer_path.write_text(template.format(tools="tools: Read, Edit\n"))
-            unrestricted_path = Path(raw) / "unrestricted.md"
-            unrestricted_path.write_text(template.format(tools=""))
-
-            restricted = tomllib.loads(codex._render_codex_subagent(restricted_path))
-            writer = tomllib.loads(codex._render_codex_subagent(writer_path))
-            unrestricted = tomllib.loads(codex._render_codex_subagent(unrestricted_path))
-
-        self.assertEqual(restricted["sandbox_mode"], "read-only")
-        self.assertNotIn("sandbox_mode", writer)
-        self.assertNotIn("sandbox_mode", unrestricted)
+            self.assertIn("DRIFT retired codex agent still present: debugger", findings)
+            self.assertIn("EXTERNAL codex agent: external", external)
 
     def test_status_palette_matches_between_statusline_and_pi_footer(self) -> None:
         """The bash statusline and the Pi footer render one visual grammar."""

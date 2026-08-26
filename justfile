@@ -30,7 +30,7 @@ fmt-ts mode='write':
 [group('quality')]
 lint-shell:
     git ls-files -z '*.sh' | xargs -0 shellcheck -S warning
-    shellcheck -S warning bin/workbench bin/wf
+    shellcheck -S warning bin/workbench
 
 # Format Python sources. `just fmt --check` (or `just fmt check`) verifies only.
 [group('quality')]

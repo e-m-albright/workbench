@@ -1,6 +1,6 @@
 # Pi tutorial
 
-Snapshot: Pi 0.81.1, reviewed 2026-07-21.
+Snapshot: Pi 0.84.3, reviewed 2026-08-26.
 
 Native references live in the installed `@earendil-works/pi-coding-agent` package
 under `README.md` and `docs/`. Workbench decisions live in
@@ -48,9 +48,7 @@ Editor movement follows familiar shell bindings: Ctrl+A/End, Ctrl+E, Ctrl+B,
 Ctrl+F, Ctrl+W, Ctrl+U, Ctrl+K, Ctrl+Y, and Alt+Y. Custom bindings live in
 `~/.pi/agent/keybindings.json`; `/reload` applies changes.
 
-Ghostty's Command-Up/Down prompt-zone navigation is terminal behavior, not a Pi
-keybinding. Pi emits OSC 133 zones, but semantic jumping remains unverified in the
-current setup. Do not claim it works until the controlled test passes.
+Managed settings use fullscreen mode. Pi owns the viewport, Ctrl+Shift+F searches the transcript, and Ctrl+Shift+Up/Down jump between user-prompt markers. Fullscreen intentionally renders the same transcript, so short sessions look almost identical to regular mode. It does not provide final-answer landmarks or compact work summaries; the former custom reader was retired because those additions did not earn their code surface.
 
 ## Session commands
 
@@ -123,13 +121,13 @@ content.
 | Addition | Purpose |
 |---|---|
 | Activity title | Spinner, Git-root project, deterministic thread label, active tool |
-| Welcome mark | Visible confirmation that managed Pi configuration loaded |
+| Welcome mark | Visible confirmation that managed Pi configuration loaded, plus the authoritative installed Pi version |
 | Footer | Git state, model, thinking, context, tokens, cost, speed, compaction, quota |
 | Permission policy | Blocks protected paths, risky shell effects, and non-allowlisted MCP calls |
 | Safe Git | Adds approval gates around destructive history operations |
 | Presets | Switches coherent model/tool/behavior profiles; `plan` is read-only planning with a required plan contract |
 | Consult | Explicit independent second opinion (`/consult`, `--fable` for adversarial) |
-| Worker | One worktree-isolated delegate (`/worker`); parent reviews the diff and owns the merge |
+| Worker | One model-callable, worktree-isolated delegate; `dev` may delegate, review, and discard without per-use approval. `/worker` remains a manual entrypoint. |
 | Google read-only | Owned Gmail/Calendar tools (`/google-auth`, `/google-status`); direct REST, read-only scopes |
 | Strava read-only | Owned activity tools (`/strava-auth`, `/strava-status`); free personal API |
 | Native Agent Browser | Structured wrapper around the trusted Agent Browser CLI |
@@ -148,7 +146,7 @@ Currently absent on purpose:
 - Fast-mode controls whose provider state cannot be observed reliably
 - completion notifications without observed missed completions
 - visible request-ledger ceremony
-- a private transcript viewport implementation
+- a custom transcript reader beyond native fullscreen
 - a broad Pi Web UI or public network listener
 - a permanent subagent roster or concurrent writers
 - wholesale replacement of native read/edit/search tools with hashline machinery

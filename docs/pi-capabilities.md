@@ -7,7 +7,7 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, transcript reader, branded welcome, custom footer, consult (second opinion), permission policy, presets (including read-only plan mode), safe-git, worker (one worktree-isolated delegate), owned read-only Google and Strava connectors, a confirmed Apple Notes bridge whose writes are restricted to `Agents`, and a bounded Apple Contacts CLI used by private projection workflows. The pinned package wraps the existing Agent Browser CLI.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome with the installed Pi version, custom footer, consult (second opinion), permission policy, presets (including read-only plan mode), safe-git, worker (one autonomous worktree-isolated delegate), owned read-only Google and Strava connectors, a confirmed Apple Notes bridge whose writes are restricted to `Agents`, and a bounded Apple Contacts CLI used by private projection workflows. The pinned package wraps the existing Agent Browser CLI.
 
 ## Delta over vanilla Pi
 
@@ -18,13 +18,12 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Workbench deploy + drift | Infrastructure | One public source of truth for settings, providers, presets, policy, extensions, and shared skills; `workbench sync pi` / `workbench drift pi` |
 | Custom footer (`footer.ts`) | Extension | Git state, model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
 | Activity title (`activity-title.ts`) | Extension | Terminal-tab spinner, repository, deterministic first-prompt session name, active tool |
-| Transcript reader (`transcript-reader.ts`) | Extension | `/reader` or Ctrl+Shift+R opens a read-only prompt/work/answer navigator at the newest completed answer; work is summarized and expandable while the standard Pi transcript remains available |
-| Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded |
+| Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded, including the authoritative installed Pi version |
 | Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, protected read/write paths, remote-MCP default-deny, self-modification protection |
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
 | Presets (`presets.ts` + JSON) | Extension | `plan` (read-only, plan contract), `sources` (connector reads only, no shell/edit — the prompt-injection containment mode), `read`, `safe-auto`, `dev` |
 | Consult (`consult.ts`) | Extension | `/consult` second opinion via Claude, Codex, or Fable |
-| Worker (`worker.ts`) | Extension | `/worker` — one worktree-isolated child Pi; parent-owned review and merge |
+| Worker (`worker.ts`) | Extension | Model-callable `worker` tool plus `/worker`: autonomously delegate, review, and discard one worktree-isolated child Pi; parent-owned adoption and verification |
 | Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Notes (`apple-notes.ts` + notes-layer CLI) | Extension | Reads unshared, unlocked notes; confirmed create/append only in unshared `Agents`; Claude Code and Codex can use the same macOS-only CLI through shell |
@@ -49,6 +48,8 @@ without deleting them. Authentication, trust decisions, sessions, and model cach
 
 ## Prompt navigation
 
+Managed settings use Pi 0.84.3's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
+
 Pi (verified on 0.84.3) emits OSC 133 semantic zones around user and final assistant messages,
 and Ghostty defines `jump_to_prompt` actions for navigating those zones. In the
 current Ghostty session, however, Command-Up/Down behaved as top/bottom scrolling
@@ -61,14 +62,11 @@ Workbench also sets `/tree` to its `user-only` filter and keeps double-Escape bo
 to opening it. Up/Down previews prior prompts and Escape returns without changing
 context; Enter intentionally rewinds and branches.
 
-For reading rather than branching, `/reader` or Ctrl+Shift+R opens the managed
-Transcript Reader. It groups the active branch into prompt, compact work, and final
-answer sections, opens at the newest completed answer, and moves between turns with
-`[` / `]`. `p`, `a`, and `g` jump to the prompt, current answer, and newest answer;
-`w` expands progress notes. It uses only the public session and custom-component APIs,
-never changes the active branch or editor, and leaves the standard Pi transcript as
-the full-detail fallback. Paseo owns its mobile rendering, so this TUI extension does
-not add the same controls to the Paseo App Store client.
+## Bounded orchestration
+
+The model-callable `worker` tool is the Pi harness's answer to one independent parallel implementation thread. It creates a separate Git worktree, runs one child Pi, forbids commit, push, dependency installation, and merge, and leaves adoption to the parent. In the `dev` preset the model may delegate without user approval, review and adopt useful changes, verify them in the parent checkout, and discard the worktree. `/worker <task>`, `/worker-status`, and `/worker-done` remain manual controls.
+
+This does not provide workflow fleets, background schedules, or autonomous merging. `/consult` covers read-only independent judgment, while Claude Code remains the explicit route for exceptional coordinated finder/verifier fleets.
 
 ## Connector access
 

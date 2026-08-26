@@ -8,12 +8,7 @@ import tomllib
 from collections.abc import Iterable
 from pathlib import Path
 
-from workbench.codex import (
-    _render_codex_subagent,
-    expected_codex_rules_md,
-    merge_codex_config,
-    merge_codex_rules,
-)
+from workbench.codex import expected_codex_rules_md, merge_codex_config, merge_codex_rules
 from workbench.core import (
     AGENTS,
     DATA_REL,
@@ -105,29 +100,18 @@ def _check_pi_native_skills(skill_root: Path, findings: list[str], external: lis
             external.append(f"EXTERNAL pi skill: {name}")
 
 
-def _check_subagents(
-    vendor: str, destination: Path, findings: list[str], external: list[str]
-) -> None:
-    expected: dict[str, str] = {}
-    for source in (AGENTS / "subagents").glob("*.md"):
-        if vendor == "claude":
-            expected[source.name] = source.read_text()
-        else:
-            expected[f"{source.stem}.toml"] = _render_codex_subagent(source)
-    for name, content in expected.items():
-        _compare_text(content, destination / name, f"{vendor} subagent {name}", findings)
-    if destination.exists():
-        suffix = ".md" if vendor == "claude" else ".toml"
-        for deployed in destination.glob(f"*{suffix}"):
-            if deployed.name in expected:
-                continue
-            if deployed.stem in RETIRED_SUBAGENTS:
-                findings.append(f"DRIFT retired {vendor} subagent still present: {deployed.stem}")
-            else:
-                external.append(f"EXTERNAL {vendor} subagent: {deployed.stem}")
-        if vendor == "codex":
-            for stale in destination.glob("*.md*"):
-                findings.append(f"DRIFT codex non-native subagent: {stale.name}")
+def _check_agents(vendor: str, destination: Path, findings: list[str], external: list[str]) -> None:
+    if not destination.exists():
+        return
+    native_suffix = ".md" if vendor == "claude" else ".toml"
+    for deployed in destination.iterdir():
+        if not deployed.is_file():
+            continue
+        name = deployed.name.split(".", 1)[0]
+        if name in RETIRED_SUBAGENTS:
+            findings.append(f"DRIFT retired {vendor} agent still present: {name}")
+        elif deployed.suffix == native_suffix:
+            external.append(f"EXTERNAL {vendor} agent: {deployed.stem}")
 
 
 def _plugin_inventory(vendor: str, home: Path) -> dict[str, bool] | None:
@@ -185,7 +169,7 @@ def _check_claude(home: Path, data: Path, findings: list[str], external: list[st
     else:
         for key in desktop_defaults.keys() - live_preferences.keys():
             findings.append(f"DRIFT Claude Desktop preference missing: {key}")
-    _check_subagents("claude", home / ".claude/agents", findings, external)
+    _check_agents("claude", home / ".claude/agents", findings, external)
     return _settings(claude_root).get("mcpServers", {})
 
 
@@ -285,7 +269,7 @@ def _check_codex(home: Path, findings: list[str], external: list[str]) -> object
         "Codex command rules",
         findings,
     )
-    _check_subagents("codex", home / ".codex/agents", findings, external)
+    _check_agents("codex", home / ".codex/agents", findings, external)
     return parsed.get("mcp_servers", {})
 
 

@@ -22,9 +22,9 @@ small zero-risk fixes may land on a branch and be noted in the report.)
    and the directory tree. Understand what the repo is *for* and what its
    stated philosophy is — findings are judged against the repo's own goals,
    not a generic ideal.
-2. **Sweep in parallel.** Dispatch one subagent per lens group below, all in
-   a single message so they run concurrently (Explore, security-auditor,
-   performance-engineer, or general-purpose as fits each lens). Give each agent the whole repo as scope and instruct it to be
+2. **Sweep in parallel.** When the harness supports bounded delegation, dispatch one
+   independent read-only agent per lens group below in a single concurrent batch.
+   Use general-purpose agents with explicit lens prompts rather than a permanent specialist roster. Give each agent the whole repo as scope and instruct it to be
    exhaustive within its lens: read the real code, follow every lead, and
    report everything it finds — filtering happens at the ranking stage, not
    inside the sweep. Research-lens agents must use current web sources.
@@ -86,8 +86,8 @@ small zero-risk fixes may land on a branch and be noted in the report.)
 - Consistency with sibling repos (dotfiles / workbench / notes):
   conventions, CLI patterns, or rules that drifted apart — which repo has
   it right, and does anything live in the wrong repo?
-- Agent ergonomics: is AGENTS.md accurate and sufficient? Are skills,
-  rules, or subagent definitions stale, missing, or contradicted by code?
+- Agent ergonomics: is AGENTS.md accurate and sufficient? Are skills or
+  rules stale, missing, or contradicted by code?
 
 ## Report
 

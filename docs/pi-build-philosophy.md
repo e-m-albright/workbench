@@ -6,7 +6,7 @@ owns the current operational inventory. [`experiments.md`](experiments.md) owns
 active time-boxed experiments. [`decisions/tombstones.md`](decisions/tombstones.md)
 owns rejected approaches that should stay absent.
 
-Last reviewed: 2026-08-01.
+Last reviewed: 2026-08-26.
 
 ## Goal
 
@@ -105,11 +105,10 @@ read-only adapter named under Source connectors, not a fork.
 | Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, uploads, destructive Git, and risky shell mutations before execution. | These are not containment. Keep tests aligned with real failure modes. |
 | Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded. |
 | Owned Google read-only connector | `google-readonly.ts` implements Gmail/Calendar search and read directly against `googleapis.com` with loopback OAuth (PKCE), read-only scopes, and 0600 token storage. Replaces the generic adapter route so no third-party dependency tree sits in the token path. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; credential files are on the protected read list; tools are read-only by construction. |
-| Bounded worktree worker | `/worker` delegates one task to a child Pi in an isolated git worktree — the smallest validated slice of the subagent research track. | One worker at a time; child may not commit, push, or install; parent reviews the diff and owns the merge. Remove if delegation does not save time on repeated decomposable work. |
+| Bounded worktree worker | The `worker` tool lets the parent model autonomously delegate, review, and discard one isolated implementation task; `/worker` remains a manual entrypoint. | No per-use confirmation. One worker at a time; child may not commit, push, install, or merge. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save time or protect context. |
 | Plan preset | `/preset plan` gives a read-only planning stance with a required scope/non-goals/steps/verification contract before switching to dev. | A preset plus instructions, no machinery. Remove if unused. |
 | Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, and artifact metadata. | Pin the version, use temporary sessions by default, keep optional web-search credentials disabled, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
-| Transcript Reader | Recurring scrollback friction justified a bounded read-only overlay: `/reader` or Ctrl+Shift+R groups each turn into prompt, compact work, and final answer and opens at the newest completed answer. | Uses only public session/custom-component APIs, never changes branch/editor state, keeps normal Pi as the full-detail fallback, and does not claim to alter Paseo's client UI. Remove if native semantic navigation becomes reliable and strictly better. |
 
 ## Explicitly absent
 
@@ -117,6 +116,7 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 
 | Capability | Decision | Why absent | Revisit when |
 |---|---|---|---|
+| Native fullscreen transcript | Adopted | Pi 0.84.3 provides viewport scrolling, search, selection, links, and prompt jumps without owned extension code. | Keep `tuiMode: fullscreen`; accept that final-answer landmarks and compact work summaries are absent unless recurring friction justifies a new upstream-first evaluation. |
 | Fast-mode control or display | Rejected | The Codex subscription route does not expose reliable state; priority service changes usage economics; thinking level is not Fast mode. Silent custom inference would be misleading. | Pi exposes authoritative provider-route state and the owner wants the cost tradeoff. |
 | Completion notifications | Rejected | They interrupt flow and duplicate visible terminal state. | Long unattended runs become common and missed completions are observed. |
 | Visible request ledger on every multipart prompt | Retired | It added ceremony and awkward tone without preventing a demonstrated omission. | Internal reconciliation repeatedly drops independent requests. |
@@ -125,10 +125,12 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 | Oh My Pi migration | Rejected | Its batteries-included fork bundles a large tool, runtime, memory, browser, subagent, collaboration, and editor surface that conflicts with the compact upstream-first goal. | Several independently validated capabilities require coordinated core changes that extensions cannot provide. |
 | Hashline tool-suite replacement | Deferred, not adopted | Hash anchors provide stale-line verification and compact edit references, but exact-text Edit already fails loudly. No comparative model benchmark or independent evaluation was found, and the available package replaces most core filesystem tools plus Bash output. | Telemetry shows stale edit failures or material read/edit token waste; a narrow controlled trial beats exact replacement. |
 | LSP, AST, or semantic index by default | Deferred | The July 2026 telemetry trial found no repeated local-code reads or symbol-navigation bottleneck; broad repository orientation and post-mutation verification were the actual weak points. | Repeated definitions, references, or diagnostics friction appears in ordinary work and a bounded trial can measure it. |
-| Persistent subagent fleet | Rejected for now | A roster and parallel writers add coordination, trust, and reconciliation cost. `/consult` covers independent review. | Two or more independent threads recur and bounded delegation measurably reduces latency or protects context. |
+| Persistent subagent fleet | Rejected for now | A roster and parallel writers add coordination, trust, and reconciliation cost. The autonomous `worker` tool covers one isolated implementation thread and `/consult` covers independent review. | Two or more independent threads recur and bounded delegation measurably reduces latency or protects context. |
 | Automatic parallel writers | Rejected | Shared-checkout mutation races and unclear ownership are worse than sequential work. | Every writer is isolated in a worktree with explicit ownership and parent verification. |
 | `pi-mcp-adapter` MCP proxy | Removed 2026-07-22 | Every routed server moved to owned connectors (Google, Strava) or a project-scoped pinned `mcp-remote` (Granola); an idle proxy carrying ~200 transitive packages earned nothing. The permission policy's remote-MCP default-deny stays as dormant defense. | A remote MCP server earns adoption that a small owned client cannot serve |
 | `pi-web-access` | Deferred | Useful search/fetch coverage, but it combines multiple providers, automatic repository cloning, browser-cookie access, local-video upload, and several fallback egress paths in one 7 MB package. | Existing retrieval repeatedly blocks work and a constrained configuration can prove provider and data-flow boundaries. |
+| Background scheduler, routines, or durable goals inside Pi | Rejected | Process continuity, scheduled automation, and long-lived objectives are separate concerns owned by Paseo, the operating system, CI, private automation, or hosted harnesses. Cursor Automations reinforces the value of event triggers and scoped tools, not the value of embedding a scheduler in the interactive harness. | A recurring workflow cannot be expressed safely by those owners and specifically requires Pi session state. |
+| Persistent cross-session agent memory | Rejected | Durable knowledge belongs in repository documentation and temporary handoffs are explicit. An opaque memory backend would add hidden context and another private state store. | Repeated loss survives the existing documentation and handoff workflow, with a bounded retrieval design that can be inspected and deleted. |
 | Broad community package bundle | Rejected | Permanent metadata and arbitrary-code surface grow faster than proven value. | Each package independently passes the selection rules. |
 | Duplicate diff approval UI | Rejected | Git diff, precise Edit failures, tests, and review skills already provide the verification loop. | A recurring bad patch bypasses those layers and a preview gate would have caught it. |
 
@@ -156,8 +158,6 @@ Working policy:
 
 - **Footer tightening:** legend terseness pass and ctx-severity threshold tuning
   once the annotations bed in.
-- **Multi-session awareness:** read-only listing of live Pi sessions (pid, cwd,
-  model, ctx%, cost) across terminals; cheaper than tabs, fits tmux.
 - **Speed-based model comparison:** record per-model tok/s and cost history from
   the footer data to inform model choice.
 - **Private preset:** a preset or binding that pins source-data sessions to a
@@ -165,16 +165,9 @@ Working policy:
 
 ### Prompt navigation
 
-- **Built 2026-08-01:** the managed Transcript Reader uses Pi's public session and
-  custom-component APIs rather than terminal scrollback control or private renderer
-  internals. It opens at the newest completed answer, groups turns deterministically,
-  and preserves normal Pi as the full-detail view.
-- **Native path still worth testing:** if Ghostty's OSC 133 navigation becomes
-  reliable across fresh, compacted, and resumed sessions, compare it against the
-  reader and remove whichever path is redundant.
-- **Paseo boundary:** the App Store client owns its transcript rendering. Answer-start
-  buttons, sticky turn orientation, and work-card collapse must be implemented there,
-  not simulated by a Pi TUI extension.
+- **Adopted in Pi 0.84.3:** managed settings use native fullscreen. It owns the viewport and supports search, selection, links, and jumps between user-prompt markers.
+- **Accepted limit:** fullscreen does not jump to final answers or summarize work. The custom Transcript Reader was retired because those additions did not earn their code and test surface.
+- **Paseo boundary:** the mobile client owns its transcript rendering; terminal navigation does not change Paseo.
 
 ### Code intelligence
 
@@ -202,9 +195,7 @@ Working policy:
 
 ### Interactive shell, subagents, and worktrees
 
-- **First slice built 2026-07-22:** `/worker` (see Adopted) covers the "one
-  mutating worker in an isolated worktree with parent-owned review" test using
-  ~200 owned lines instead of the community package.
+- **First slice built 2026-07-22, made autonomous 2026-08-26:** the `worker` tool covers one mutating worker in an isolated worktree with parent-owned review. The `dev` preset permits the model to delegate without asking, inspect and adopt the result, verify it in the parent checkout, and discard the worker. `/worker` remains available for explicit use.
 - **Candidate for the rest:** https://github.com/nicobailon/pi-interactive-shell
   (PTY overlay, background sessions, attach/dismiss) remains unadopted.
 - **Evidence to expand:** `/worker` repeatedly saves time or context on
@@ -226,10 +217,11 @@ Working policy:
 
 ### Remote and phone access
 
-- **Candidate:** the existing community Pi Web UI, audited before use.
-- **Preferred boundary:** loopback service exposed through Tailscale Serve, or SSH
-  into a terminal session. Never expose Pi directly to the public network.
-- **Evidence threshold:** a real recurring phone workflow, not feature curiosity.
+- **Adopted stack:** Paseo is the sole agent-aware phone surface for Pi, Claude Code, and Codex. Its daemon binds directly to the Tailscale interface with the relay disabled.
+- **Deliberate absence:** there is no phone shell, terminal multiplexer, browser terminal, or Mission Control session manager. The owner does not need terminal connectivity from the phone, and Paseo owns agent process continuity.
+- **Productivity integration:** the private Notes web surface and Paseo may both use Tailscale, but remain separate applications and trust boundaries.
+- **Build threshold:** do not build a replacement viewer until Paseo fails a concrete workflow and an existing cross-harness client cannot satisfy it. Normalizing three harness protocols remains product-sized work.
+- **Boundary:** never expose an agent directly to the public network.
 
 ### Source connectors
 

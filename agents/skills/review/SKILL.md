@@ -24,7 +24,7 @@ This skill is read-only: it produces the findings and the report card. It never 
 
 **When NOT to use:**
 - **`systematic-debugging`** — when something is *already* broken and you need the root cause. This skill reviews changes that (as far as anyone knows) work.
-- **`security-review`** — when you want a dedicated, exhaustive security pass. This skill covers high-frequency security misses inline; the security skill (or the `security-auditor` subagent, where isolated agents exist) owns the deep audit.
+- **`security-review`** — when you want a dedicated, exhaustive security pass. This skill covers high-frequency security misses inline; the security skill owns the deep audit.
 - **`code-health`** — for structural grading and cleanup of existing code outside a pending change; this skill is scoped to a diff/branch/PR about to merge.
 
 ## Workflow

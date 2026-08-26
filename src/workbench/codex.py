@@ -1,63 +1,18 @@
-"""Codex-native rendering and merging: TOML config, command rules, subagents."""
+"""Codex-native rendering and merging for configuration and command rules."""
 
 from __future__ import annotations
 
 import json
 import tomllib
 from collections.abc import Mapping
-from pathlib import Path
 
-from workbench.core import AGENTS, CODEX_APPENDIX, WorkbenchError, _frontmatter_field
+from workbench.core import AGENTS, CODEX_APPENDIX, WorkbenchError
 from workbench.mcp import merge_mcp
 
 
 def expected_codex_rules_md() -> str:
     """Canonical ~/.codex/AGENTS.md content, shared by sync and drift."""
     return (AGENTS / "shared/rules.md").read_text().rstrip() + CODEX_APPENDIX
-
-
-def _subagent_fields(path: Path) -> tuple[str, str, str, list[str] | None]:
-    content = path.read_text()
-    parts = content.split("---", 2)
-    if len(parts) != 3 or parts[0].strip():
-        raise WorkbenchError(f"invalid subagent frontmatter: {path}")
-    frontmatter, body = parts[1], parts[2].strip()
-    name = _frontmatter_field(frontmatter, "name")
-    description = _frontmatter_field(frontmatter, "description")
-    if not name or not description or not body:
-        raise WorkbenchError(f"incomplete subagent: {path}")
-    raw_tools = _frontmatter_field(frontmatter, "tools")
-    tools = (
-        [tool.strip() for tool in raw_tools.split(",") if tool.strip()]
-        if raw_tools is not None
-        else None
-    )
-    return name, description, body, tools
-
-
-# Claude write-capable tools whose absence from a `tools:` restriction marks
-# a subagent as read-only for Codex rendering purposes.
-_WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
-
-
-def _render_codex_subagent(path: Path) -> str:
-    name, description, instructions, tools = _subagent_fields(path)
-    lines = [
-        f"name = {json.dumps(name)}",
-        f"description = {json.dumps(description)}",
-    ]
-    # Codex agent TOML has no per-tool allowlist equivalent to Claude's
-    # `tools:` frontmatter, but its subagent schema does accept `sandbox_mode`
-    # with "read-only" | "workspace-write" (verified against the codex
-    # 0.144.4 binary: the subagent frontmatter parser enumerates
-    # model_reasoning_effort, sandbox_mode, developer_instructions). Render
-    # read-only sandboxing when the source restricts tools to a
-    # non-writing set.
-    if tools is not None and not (_WRITE_TOOLS & set(tools)):
-        lines.append('sandbox_mode = "read-only"')
-    lines.append(f"developer_instructions = {json.dumps(instructions)}")
-    lines.append("")
-    return "\n".join(lines)
 
 
 def _toml_value(value: object) -> str:

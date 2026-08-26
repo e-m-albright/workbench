@@ -4,7 +4,7 @@ The portable intelligence and engineering-guidance layer for my development
 environment.
 
 Workbench is where I version the behavior I want Pi, Claude Code, and Codex to
-share: agent rules, skills, specialist agents, prompts, safety policy,
+share: agent rules, skills, prompts, safety policy,
 engineering doctrine, and reusable project-health tools. It turns those canonical
 sources into each harness's native configuration and verifies the live result.
 
@@ -41,7 +41,7 @@ Workbench gives me one place to answer four questions:
 3. **Has live configuration drifted?** `workbench drift` compares the deployed
    files and installed plugins directly with the repository.
 4. **What engineering judgment should carry between projects?** The playbook,
-   health kit, and review prompts preserve reusable decisions without coupling
+   health kit, and review skills preserve reusable decisions without coupling
    them to a particular codebase.
 
 ```text
@@ -54,7 +54,7 @@ Workbench gives me one place to answer four questions:
           │               │               │
          Pi          Claude Code         Codex
   rules, settings,   rules, settings,   rules, TOML,
-  skills, extensions skills, agents     skills, agents
+  skills, extensions skills, plugins    skills, plugins
           │               │               │
           └───────────────┼───────────────┘
                           │
@@ -69,8 +69,8 @@ not store a snapshot of the machine and compare against that stale observation.
 
 | Concern | Owner |
 | --- | --- |
-| Agent rules, skills, prompts, subagents, MCP declarations, hooks, and permissions | **Workbench** |
-| Engineering doctrine, stack guidance, review rubrics, and portable health tooling | **Workbench** |
+| Agent rules, skills, prompts, MCP declarations, hooks, and permissions | **Workbench** |
+| Engineering doctrine, stack guidance, review skills, and portable health tooling | **Workbench** |
 | Fresh-Mac setup, packages, shell, Git, terminal, editor, and macOS configuration | [`dotfiles`](https://github.com/e-m-albright/dotfiles) |
 | Project architecture, domain rules, tests, and project-specific infrastructure policy | The individual project |
 | Private notes, CRM data, conversations, personal automation instances, and generated operational state | Private `notes` repository |
@@ -88,7 +88,6 @@ vocabulary, and safety policy.
 - One shared instruction file for Pi, Claude Code, and Codex, with a small Codex
   appendix where the harnesses genuinely differ.
 - Reusable skills installed for all three harnesses.
-- Shared Markdown specialist agents translated into native Codex TOML agents.
 - Vendor-native hooks, permission rules, sandbox defaults, and status lines.
 - Declarative plugin installation for Claude and Codex.
 - A shared MCP registry that preserves intentional external additions and
@@ -98,8 +97,8 @@ vocabulary, and safety policy.
 
 - `playbook/` records durable engineering principles, stack preferences, and
   researched technology guidance.
-- `health/` provides deterministic project checks, adoption contracts, and
-  advisory review rubrics.
+- `health/` provides deterministic project-check patterns and adoption contracts;
+  advisory review behavior lives in the relevant skills.
 - `agents/prompts/` contains reusable prompts that do not warrant an always-on
   skill.
 - `docs/decisions/tombstones.md` prevents rejected tools and approaches from
@@ -168,18 +167,6 @@ workbench sync all --no-skills --no-plugins
 
 `just deploy` chains sync and drift so a deploy is verified in one command.
 
-### Launch a workflow skill
-
-`bin/wf` starts a from-zero workflow skill in a fresh Claude session:
-
-```bash
-wf --list
-wf review src/
-wf improvement-hunt
-```
-
-Lint verifies every starter maps to a skill in `agents/skills/`.
-
 ### Validate repository sources
 
 ```bash
@@ -218,8 +205,7 @@ agent configuration; Just recipes develop and validate this repository.
 ## What `sync` Manages
 
 `sync` deploys each harness's managed subset: global instructions, configuration,
-command policy, extensions or hooks, skills, specialist agents, plugins, and MCP
-servers where supported. The per-harness file map and drift semantics live in
+command policy, extensions or hooks, skills, plugins, and MCP servers where supported. The per-harness file map and drift semantics live in
 [`docs/managed-surfaces.md`](docs/managed-surfaces.md).
 
 ## Repository Tour
@@ -231,17 +217,15 @@ agents/
 ├── codex/               Codex rules, hooks, status line, and plugins
 ├── pi/                  Pi settings, models, presets, permission policy, and extensions
 ├── skills/              reusable on-demand workflows
-├── subagents/           shared specialist-agent source documents
 └── prompts/             reusable prompts below the skill threshold
 
 playbook/                engineering doctrine, stack guidance, and research
-health/                  portable deterministic checks and review rubrics
+health/                  portable deterministic project-check patterns
 docs/decisions/          durable architectural decisions and tombstones
 src/workbench/           Typer + Rich deployment and verification CLI
 pyproject.toml           uv-managed project (Typer, Rich; pytest/Ruff/Pyright dev gate)
 tests/                   deterministic CLI, sync, drift, guard-hook, and Pi extension tests
 bin/workbench            relocatable shell launcher (execs via uv)
-bin/wf                   fresh-session skill launcher (review, release, ...)
 ```
 
 ## Extending Workbench

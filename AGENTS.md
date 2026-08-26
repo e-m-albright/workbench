@@ -42,8 +42,8 @@ not Gmail, Drive, or artifacts:
   (`RETIRED_*` in `src/workbench/core.py`, `_*_disabled` in the MCP registry).
 - Prefer native vendor configuration and small scripts. Do not create a platform
   where a file copy or documented command is sufficient.
-- Deterministic health checks may gate changes. Stochastic assessments are
-  advisory and must record evidence, rubric version, and model provenance.
+- Deterministic health checks may gate changes. Stochastic assessments from
+  review skills are advisory and must record evidence, rubric version, and model provenance.
 - Reusable automation mechanics may live here; workflows coupled to private
   notes or venture context stay in `notes`.
 

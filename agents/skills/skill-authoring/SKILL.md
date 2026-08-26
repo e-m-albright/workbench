@@ -1,6 +1,6 @@
 ---
 name: skill-authoring
-description: Author or refactor portable Workbench skills and subagents — reliable triggers, progressive disclosure, spec compliance. Use for "make this a skill", skill refactors, trigger problems, SKILL.md or subagent authoring in this repo.
+description: Author or refactor portable Workbench skills — reliable triggers, progressive disclosure, and spec compliance. Use for "make this a skill", skill refactors, trigger problems, or SKILL.md authoring in this repo.
 metadata:
   source_url: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
   source_commit: d211d437443a7b2496a3dad9575e7dddd724c585
@@ -14,14 +14,14 @@ Create new skills and improve existing ones. The high-level loop:
 
 - Decide what the skill should do and roughly how
 - Write a draft
-- Run the skill on 2-3 realistic test prompts (manually or via subagent)
+- Run the skill on 2-3 realistic test prompts in fresh sessions
 - Read the outputs critically; rewrite
 - Repeat until it works
 
 Your job is to figure out where the user is in the loop and meet them there. They might be at "I want to make a skill for X" — start at the beginning. They might already have a draft — go straight to test/iterate.
 
 This skill is the meta-skill. It complements:
-- **[Skill format](references/skill-format.md)** — the convention spec for this repo (frontmatter, body, source attribution, tool restrictions). [Agent format](references/agent-format.md) covers subagents.
+- **[Skill format](references/skill-format.md)** — the convention spec for this repo (frontmatter, body, source attribution, tool restrictions).
 - **`workbench lint`** — the validator. Run it after every edit to confirm spec compliance.
 
 ## Creating a skill
@@ -38,7 +38,7 @@ Confirm with the user:
 
 ### Step 2 — Write the SKILL.md
 
-Use the canonical layout (full conventions: [Skill format](references/skill-format.md); for authoring subagents instead, see [Agent format](references/agent-format.md)):
+Use the canonical layout (full conventions: [Skill format](references/skill-format.md)):
 
 ```
 skill-name/

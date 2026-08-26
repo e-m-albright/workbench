@@ -40,10 +40,10 @@ Negative cases must be **near-misses** — share keywords with the skill but act
 
 ## Manual validation
 
-If you don't have an eval runner, just do it manually:
-1. Spawn a subagent with the skill loaded; give it a test prompt.
-2. Spawn another subagent **without** the skill; same prompt.
+If you don't have an eval runner, test manually in two fresh sessions:
+1. Invoke the skill explicitly and give the first session a test prompt.
+2. Give the second session the same prompt without invoking the skill.
 3. Compare outputs.
-4. Read both transcripts — note where the skill helped, where it confused the agent, where rote instructions made the agent waste time.
+4. Read both transcripts — note where the skill helped, where it confused the agent, and where rote instructions wasted time.
 
 Alternatively, just describe each test case to yourself and see what Claude with the skill produces vs. what Claude without the skill produces. Less rigorous; works fine for low-stakes iteration.

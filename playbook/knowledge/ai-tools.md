@@ -11,17 +11,16 @@ Pi, Claude Code, and Codex are the first-class coding-agent targets. Pi is the
 primary interactive harness; Codex and Claude Code remain specialist fallbacks
 for capabilities such as OS sandboxing, cloud execution, and hosted review.
 
-- Workbench owns portable rules, skills, prompts, subagent definitions, hooks,
-  permissions policy, MCP declarations, and deployment translation.
+- Workbench owns portable rules, skills, prompts, hooks, permissions policy,
+  MCP declarations, and deployment translation.
 - Dotfiles owns installing vendor applications and CLIs on a fresh Mac, plus
   invoking Workbench reconciliation.
 - Each project owns its context, language conventions, commands, and tests in
   `AGENTS.md` and native project files.
 
-The source stays vendor-neutral where the concepts are shared. Deployment is
-vendor-native where formats differ: Claude subagents are Markdown, while Codex
-subagents are TOML. Do not force identical output formats merely to make the
-source tree look symmetric.
+The source stays vendor-neutral where the concepts are shared. Workbench does
+not deploy a permanent specialist-agent roster; bounded delegation uses each
+harness's native mechanism when isolated context materially helps.
 
 ## Desktop applications and connectors
 

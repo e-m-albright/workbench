@@ -42,7 +42,8 @@ it into a test, linter rule, dependency constraint, or deterministic budget.
 4. Run an advisory review when design judgment is useful.
 5. Delete health machinery that no longer catches real regressions.
 
-The workbench provides patterns and review rubrics. It does not require every
+The workbench provides deterministic patterns here and advisory review through
+its review, security-review, and code-health skills. It does not require every
 project to install a shared framework.
 
 For projects that adopt the bundled suppression ratchet, copy

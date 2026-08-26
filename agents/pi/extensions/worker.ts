@@ -1,28 +1,33 @@
 /**
  * worker — one bounded, worktree-isolated delegate for Pi
  *
- * /worker <task> runs a single child Pi in print mode inside a fresh git
- * worktree, so the delegate can mutate files without touching the parent
- * checkout. The child is instructed to leave its changes uncommitted; the
- * parent (you) reviews the diff and decides what merges. This is deliberately
- * the smallest useful slice of "subagents": one worker at a time, no roster,
- * no autonomous merge or push, parent-owned verification.
- *
- * Commands:
- *   /worker <task>        start the delegate (blocks until it finishes)
- *   /worker-status        show the active or last worker and review commands
- *   /worker-done [--force] remove the worker's worktree and branch
- *
- * Optional settings (~/.pi/agent/settings.json):
- *   { "worker": { "timeoutMs": 900000 } }
+ * The model-callable `worker` tool may delegate, review, and discard one child
+ * worktree without a confirmation prompt. The `/worker` commands expose the
+ * same lifecycle to the user. The child never commits, pushes, installs, or
+ * merges; the parent remains responsible for reviewing, adopting, and verifying
+ * useful changes before cleanup.
  */
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Type, type Static } from "typebox";
 
 const DEFAULT_TIMEOUT_MS = 900_000;
-const MAX_NOTIFY_CHARS = 6000;
+const MAX_RESULT_CHARS = 6000;
+
+const workerToolSchema = Type.Object({
+	action: Type.String({
+		enum: ["delegate", "review", "discard"],
+		description:
+			"delegate starts one independent implementation task; review inspects its result; discard removes it after adoption or rejection",
+	}),
+	task: Type.Optional(
+		Type.String({ description: "Complete, bounded implementation task. Required for delegate." }),
+	),
+});
+
+export type WorkerToolInput = Static<typeof workerToolSchema>;
 
 export function workerSlug(task: string, stamp: string): string {
 	const words = task
@@ -55,8 +60,8 @@ export function reviewInstructions(dir: string, branch: string): string {
 		`Worktree: ${dir}`,
 		`Branch: ${branch}`,
 		`Review:  git -C ${dir} diff`,
-		`Adopt:   git -C ${dir} diff | git apply   (from the main checkout)`,
-		`Discard: /worker-done --force`,
+		"Adopt useful changes in the parent checkout, then verify them there.",
+		"Cleanup: call the worker tool with action=discard, or use /worker-done --force.",
 	].join("\n");
 }
 
@@ -67,15 +72,19 @@ interface WorkerState {
 	finished: boolean;
 }
 
+interface WorkerResponse {
+	text: string;
+	isError?: boolean;
+}
+
 function truncate(text: string): string {
 	const clean = text.trim();
-	if (clean.length <= MAX_NOTIFY_CHARS) return clean;
-	return `${clean.slice(0, MAX_NOTIFY_CHARS)}\n\n… truncated.`;
+	if (clean.length <= MAX_RESULT_CHARS) return clean;
+	return `${clean.slice(0, MAX_RESULT_CHARS)}\n\n… truncated.`;
 }
 
 function timeoutMs(ctx: ExtensionContext): number {
-	// Unofficial settings surface (no public getSettings on ExtensionContext yet);
-	// keep this cast identical across extensions so a Pi API change breaks them uniformly.
+	// Unofficial settings surface (no public getSettings on ExtensionContext yet).
 	const settings =
 		(
 			ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
@@ -88,133 +97,152 @@ export default function workerExtension(pi: ExtensionAPI) {
 	let active: WorkerState | undefined;
 
 	async function repoRoot(ctx: ExtensionContext): Promise<string | undefined> {
-		const result = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd: ctx.cwd, timeout: 5000 });
+		const result = await pi.exec("git", ["rev-parse", "--show-toplevel"], {
+			cwd: ctx.cwd,
+			timeout: 5000,
+		});
 		const root = result.stdout.trim();
 		return result.code === 0 && root ? root : undefined;
 	}
 
+	async function reviewWorker(): Promise<WorkerResponse> {
+		if (!active) return { text: "No worker this session.", isError: true };
+		const state = active.finished ? "finished" : "running";
+		const status = await pi.exec("git", ["status", "--porcelain"], {
+			cwd: active.dir,
+			timeout: 10_000,
+		});
+		const stat = await pi.exec("git", ["diff", "--stat"], {
+			cwd: active.dir,
+			timeout: 10_000,
+		});
+		return {
+			text: [
+				`Worker ${state}: ${active.task}`,
+				status.stdout.trim() ? `Changes:\n${stat.stdout.trim() || status.stdout.trim()}` : "No file changes.",
+				reviewInstructions(active.dir, active.branch),
+			].join("\n\n"),
+		};
+	}
+
+	async function delegate(task: string, ctx: ExtensionContext): Promise<WorkerResponse> {
+		const boundedTask = task.trim();
+		if (!boundedTask) return { text: "delegate requires a non-empty task.", isError: true };
+		if (active) {
+			return {
+				text: `A worker already exists on ${active.branch}. Review and discard it before delegating another task.`,
+				isError: true,
+			};
+		}
+		const root = await repoRoot(ctx);
+		if (!root) return { text: "worker needs a git repository.", isError: true };
+
+		const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 12);
+		const slug = workerSlug(boundedTask, stamp);
+		const branch = `worker/${slug}`;
+		const dir = join(root, "..", `${slug}.worktree`);
+		if (existsSync(dir)) return { text: `Worktree path already exists: ${dir}`, isError: true };
+
+		const add = await pi.exec("git", ["worktree", "add", "-b", branch, dir, "HEAD"], {
+			cwd: root,
+			timeout: 30_000,
+		});
+		if (add.code !== 0) {
+			return {
+				text: `git worktree add failed:\n${truncate(add.stderr || add.stdout)}`,
+				isError: true,
+			};
+		}
+
+		active = { dir, branch, task: boundedTask, finished: false };
+		const run = await pi.exec("pi", ["-p", "--no-session", buildWorkerPrompt(boundedTask, branch)], {
+			cwd: dir,
+			timeout: timeoutMs(ctx),
+		});
+		active.finished = true;
+		const review = await reviewWorker();
+		if (run.code !== 0) {
+			return {
+				text: `Worker failed (exit ${run.code}).\n${truncate(run.stderr || run.stdout)}\n\n${review.text}`,
+				isError: true,
+			};
+		}
+		return {
+			text: [`Worker finished on ${branch}.`, truncate(run.stdout), review.text].join("\n\n"),
+		};
+	}
+
+	async function discard(ctx: ExtensionContext, force: boolean): Promise<WorkerResponse> {
+		if (!active) return { text: "No worker this session.", isError: true };
+		if (!active.finished) return { text: "Worker is still running.", isError: true };
+		const root = await repoRoot(ctx);
+		if (!root) return { text: "worker needs a git repository.", isError: true };
+
+		const status = await pi.exec("git", ["status", "--porcelain"], {
+			cwd: active.dir,
+			timeout: 10_000,
+		});
+		if (status.code === 0 && status.stdout.trim() && !force) {
+			return {
+				text: `Worktree has uncommitted changes. Review first, then force cleanup.\n${reviewInstructions(active.dir, active.branch)}`,
+				isError: true,
+			};
+		}
+
+		const removeArgs = ["worktree", "remove", ...(force ? ["--force"] : []), active.dir];
+		const removed = await pi.exec("git", removeArgs, { cwd: root, timeout: 30_000 });
+		if (removed.code !== 0) {
+			return {
+				text: `git worktree remove failed:\n${truncate(removed.stderr || removed.stdout)}`,
+				isError: true,
+			};
+		}
+		await pi.exec("git", ["branch", "-D", active.branch], { cwd: root, timeout: 10_000 });
+		const text = `Removed ${active.dir} and ${active.branch}.`;
+		active = undefined;
+		return { text };
+	}
+
+	pi.registerTool({
+		name: "worker",
+		label: "Worker",
+		description:
+			"Autonomously manage one worktree-isolated Pi delegate. Use delegate only for substantial independent implementation work that can proceed in parallel. Review and adopt useful changes in the parent checkout, verify them, then discard the worker. Do not use for small tasks or coupled edits. No user confirmation is required.",
+		parameters: workerToolSchema,
+		async execute(_toolCallId, input, _signal, _onUpdate, ctx) {
+			let response: WorkerResponse;
+			if (input.action === "delegate") response = await delegate(input.task ?? "", ctx);
+			else if (input.action === "review") response = await reviewWorker();
+			else response = await discard(ctx, true);
+			return {
+				content: [{ type: "text", text: response.text }],
+				details: active ? { ...active } : {},
+				isError: response.isError,
+			};
+		},
+	});
+
 	pi.registerCommand("worker", {
 		description: "Delegate one task to a child Pi in an isolated git worktree: /worker <task>",
 		handler: async (args, ctx) => {
-			const task = args.trim();
-			if (!task) {
-				ctx.ui.notify("Usage: /worker <task>", "warning");
-				return;
-			}
-			if (active && !active.finished) {
-				ctx.ui.notify(`A worker is already running on ${active.branch}. One worker at a time.`, "warning");
-				return;
-			}
-			const root = await repoRoot(ctx);
-			if (!root) {
-				ctx.ui.notify("/worker needs a git repository.", "warning");
-				return;
-			}
-
-			const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 12);
-			const slug = workerSlug(task, stamp);
-			const branch = `worker/${slug}`;
-			const dir = join(root, "..", `${slug}.worktree`);
-			if (existsSync(dir)) {
-				ctx.ui.notify(`Worktree path already exists: ${dir}`, "warning");
-				return;
-			}
-
-			const add = await pi.exec("git", ["worktree", "add", "-b", branch, dir, "HEAD"], {
-				cwd: root,
-				timeout: 30_000,
-			});
-			if (add.code !== 0) {
-				ctx.ui.notify(`git worktree add failed:\n${truncate(add.stderr || add.stdout)}`, "warning");
-				return;
-			}
-
-			active = { dir, branch, task, finished: false };
-			ctx.ui.notify(`Worker started on ${branch}\n${dir}`, "info");
-
-			const run = await pi.exec("pi", ["-p", "--no-session", buildWorkerPrompt(task, branch)], {
-				cwd: dir,
-				timeout: timeoutMs(ctx),
-			});
-			active.finished = true;
-
-			const status = await pi.exec("git", ["status", "--porcelain"], { cwd: dir, timeout: 10_000 });
-			const stat = await pi.exec("git", ["diff", "--stat"], { cwd: dir, timeout: 10_000 });
-			const changed = status.stdout.trim();
-
-			if (run.code !== 0) {
-				ctx.ui.notify(
-					`Worker failed (exit ${run.code}).\n${truncate(run.stderr || run.stdout)}\n\n${reviewInstructions(dir, branch)}`,
-					"warning",
-				);
-				return;
-			}
-			ctx.ui.notify(
-				[
-					`Worker finished on ${branch}.`,
-					"",
-					truncate(run.stdout),
-					"",
-					changed ? `Changes:\n${stat.stdout.trim() || changed}` : "No file changes.",
-					"",
-					reviewInstructions(dir, branch),
-				].join("\n"),
-				"info",
-			);
+			const response = await delegate(args, ctx);
+			ctx.ui.notify(response.text, response.isError ? "warning" : "info");
 		},
 	});
 
 	pi.registerCommand("worker-status", {
-		description: "Show the active or last /worker delegate",
+		description: "Show the active or last worker delegate",
 		handler: async (_args, ctx) => {
-			if (!active) {
-				ctx.ui.notify("No worker this session.", "info");
-				return;
-			}
-			const state = active.finished ? "finished" : "running";
-			ctx.ui.notify(
-				`Worker ${state}: ${active.task}\n${reviewInstructions(active.dir, active.branch)}`,
-				"info",
-			);
+			const response = await reviewWorker();
+			ctx.ui.notify(response.text, response.isError ? "warning" : "info");
 		},
 	});
 
 	pi.registerCommand("worker-done", {
 		description: "Remove the worker worktree and branch: /worker-done [--force]",
 		handler: async (args, ctx) => {
-			if (!active) {
-				ctx.ui.notify("No worker this session.", "info");
-				return;
-			}
-			if (!active.finished) {
-				ctx.ui.notify("Worker is still running.", "warning");
-				return;
-			}
-			const force = args.trim() === "--force";
-			const root = await repoRoot(ctx);
-			if (!root) return;
-
-			const status = await pi.exec("git", ["status", "--porcelain"], { cwd: active.dir, timeout: 10_000 });
-			if (status.code === 0 && status.stdout.trim() && !force) {
-				ctx.ui.notify(
-					`Worktree has uncommitted changes. Review first, then /worker-done --force to discard.\n${reviewInstructions(active.dir, active.branch)}`,
-					"warning",
-				);
-				return;
-			}
-
-			const removeArgs = ["worktree", "remove", ...(force ? ["--force"] : []), active.dir];
-			const removed = await pi.exec("git", removeArgs, { cwd: root, timeout: 30_000 });
-			if (removed.code !== 0) {
-				ctx.ui.notify(
-					`git worktree remove failed:\n${truncate(removed.stderr || removed.stdout)}`,
-					"warning",
-				);
-				return;
-			}
-			await pi.exec("git", ["branch", "-D", active.branch], { cwd: root, timeout: 10_000 });
-			ctx.ui.notify(`Removed ${active.dir} and ${active.branch}.`, "info");
-			active = undefined;
+			const response = await discard(ctx, args.trim() === "--force");
+			ctx.ui.notify(response.text, response.isError ? "warning" : "info");
 		},
 	});
 }

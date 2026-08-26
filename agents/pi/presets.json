@@ -44,12 +44,13 @@
       "bash",
       "edit",
       "write",
+      "worker",
       "apple_notes_list_folders",
       "apple_notes_search",
       "apple_notes_get",
       "apple_notes_create",
       "apple_notes_append"
     ],
-    "instructions": "You are in DEV MODE. Make focused code changes when asked. The permission policy still blocks mutating shell commands, protected paths, dependency changes, deployments, database migrations, destructive filesystem operations, and state-changing git/GitHub commands. Use narrow read-only commands for inspection and verification."
+    "instructions": "You are in DEV MODE. Make focused code changes when asked. The permission policy still blocks mutating shell commands, protected paths, dependency changes, deployments, database migrations, destructive filesystem operations, and state-changing git/GitHub commands. Use narrow read-only commands for inspection and verification. Autonomously call the worker tool for one substantial independent implementation task when isolated parallel work would materially help; no user approval is required. Do not delegate small tasks, coupled changes, or multiple concurrent writers. Review and adopt useful worker changes in the parent checkout, verify them there, then discard the worker."
   }
 }

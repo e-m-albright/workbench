@@ -4,10 +4,7 @@ Tombstones record evaluated tools and approaches that should remain absent from
 the active workbench. They prevent accidental reintroduction and repeated
 evaluation. Reconsider one only when its stated trigger becomes true.
 
-This file covers only decisions with no code off-switch. Retirements that code
-enforces live with their enforcement: `RETIRED_SUBAGENTS` / `RETIRED_SKILLS` in
-`src/workbench/core.py` and the `_*_disabled` entries in
-`agents/shared/mcp-servers.json`, each carrying its own reason.
+This file covers decisions with no Workbench code off-switch and cross-repository architecture choices whose lesson belongs with agent-tool research. Workbench retirements that code enforces live with their enforcement: `RETIRED_SUBAGENTS` / `RETIRED_SKILLS` in `src/workbench/core.py` and the `_*_disabled` entries in `agents/shared/mcp-servers.json`, each carrying its own reason. Host package retirements remain enforced in the adjacent host repository's package manifest.
 
 | Capability | Status | Reason | Revisit when |
 |---|---|---|---|
@@ -31,5 +28,29 @@ enforces live with their enforcement: `RETIRED_SUBAGENTS` / `RETIRED_SKILLS` in
 | Permanent Pi subagent fleet | Rejected | A roster and parallel writers add coordination and trust cost while explicit consult covers independent review | Bounded delegation repeatedly saves time, with worktree isolation and parent-owned verification |
 | Universal ceremony gates (Superpowers-style) | Rejected | Firing a mandatory brainstorm→plan→review pipeline on every task burns tokens on ceremony a one-line fix does not need; discipline gates on complexity, not existence | Selective gating demonstrably lets consequential changes ship unplanned |
 | Standalone wrapper CLI (GSD-style) | Rejected | Owning the execution environment for programmatic context management means maintaining a second harness that trails vendor releases; native skills plus fresh subagent contexts cover context rot | Vendor harnesses stop exposing enough context control for a recurring workflow |
-| Large agent rosters (OMC-style) | Rejected | Dozens of installed specialists create Oh-My-Zsh syndrome: easy to install everything, hard to know what is active; a small subagent set with obvious triggers stays legible | A recurring task class needs a specialist the small roster genuinely cannot express |
+| Permanent specialist-agent roster | Retired 2026-08-26 | Even a small installed roster duplicated portable review, security, testing, and debugging skills while requiring vendor-specific rendering, sync, drift, and lint machinery; bounded task-specific delegation preserves isolated context without permanent definitions | A recurring task class repeatedly needs stable specialist instructions that a skill plus explicit delegation cannot express |
 | Numeric code-shape rules as always-on prose | Rejected | Max-line and helper-count limits in global instructions are advice an agent may or may not weigh; they belong in deterministic project gates (linters, ratchets) | A shape regression recurs that no project-native gate can encode |
+| Cursor Automations runtime | Rejected 2026-08-26; patterns retained | Scheduled and repository-event triggers, scoped tools, confidence-gated mutation, safe no-op outcomes, reruns after pull request changes, adversarial trigger handling, template distribution, and bounded deduplication state are useful. Adopting Cursor or embedding its scheduler in Pi would add a hosted control plane and product coupling when CI and the private automation layer already own execution. | A recurring workflow specifically requires Cursor's hosted runtime and cannot be expressed safely through existing automation owners |
+
+## Terminal continuity, mobile access, and process runners
+
+These approaches were tried or evaluated as answers to process continuity, session discovery, or phone access. They are not interchangeable: transport, process survival, and touch-friendly agent presentation are separate jobs. The adopted boundary is Tailscale for private transport, Paseo for coding-agent continuity and presentation, launchd for the Paseo daemon, project services for project processes, and CI or operating-system scheduling for unattended work.
+
+| Approach | Status and lesson | Revisit when |
+|---|---|---|
+| Termius, SSH, and Mosh phone shell | Retired after hands-on use. Roaming shell transport did not make terminal transcripts or approvals usable on a phone, and arbitrary shell access exceeded the actual need. | A recurring non-agent phone-shell workflow appears. |
+| Zellij sessions and layouts | Retired after hands-on use. Attach/detach worked, but layouts and multiplayer were not used enough to justify a permanent multiplexer. | An arbitrary local process must survive terminal closure and cannot be owned by launchd or a project service. |
+| Zellij resurrection | Retired after implementation. Serialized layouts did not restore process state; exited-session discovery, pruning, and lifecycle rules added more complexity than continuity. | Reliable process restoration exists and a concrete workflow needs it. |
+| Zellij web and Tailscale Serve | Retired after hands-on use. A browser terminal required another daemon, token lifecycle, publication path, and small-screen terminal UI while remaining inferior to an agent-aware client. | Paseo fails a reproduced workflow and arbitrary browser-terminal access is explicitly required. |
+| tmux | Retired after installation and evaluation as the simpler Zellij replacement. It reduced multiplexer complexity but still had no remaining job once phone-shell access was dropped and Paseo owned agent runs. | A measured local process-continuity need appears. |
+| cmux | Retired after comparison with the local terminal/session stack. It did not improve comprehension enough to justify another terminal workspace, and Paseo removed the mobile session-manager requirement. | Multiple simultaneous local agent sessions become hard to understand with Paseo and ordinary terminals. |
+| Mission Control Textual TUI | Retired after implementation. Session previews, process-to-session matching, resurrection, attach/create/kill actions, and keyboard navigation made a launcher, not a cross-harness transcript viewer. | Cross-session visibility becomes recurring friction and an existing agent-aware client cannot provide it. |
+| Session wrapper CLI | Retired after implementation. Managed names, project association, lifecycle commands, and previews created a second process model around tools that already own sessions. | A non-agent workflow requires a durable session abstraction. |
+| Pi-specific remote shortcut and phone PWA | Retired after use. A Pi-only surface could not satisfy the requirement to control Pi, Claude Code, and Codex uniformly. | One harness deliberately becomes the exclusive mobile environment. |
+| Open WebUI Computer | Retired after trial. A general browser-hosted computer surface was much broader than agent control. | A recurring remote-computer workflow cannot be served by native screen sharing. |
+| Standalone Paseo CLI | Retired after protocol drift caused a stale daemon/client pairing. Use the CLI bundled with Paseo.app so the desktop and daemon versions remain aligned. | Paseo guarantees independent CLI compatibility and the separate package supplies a necessary capability. |
+| Generic background-process manager inside Pi | Rejected. The shell, launchd, project task runners, project service definitions, CI, and Paseo already have narrow ownership. Adding supervision to Pi would mix interactive reasoning with process lifecycle. | A recurring process cannot be represented by any existing narrow owner and specifically requires Pi session state. |
+| Conductor, AgentHub, agent inboxes, and similar fleet control planes | Rejected for the current workflow. They optimize concurrent agent volume and hide more execution state than the one-parent, bounded-delegation model permits. | Repeated measured work shows that bounded delegation is limited by cross-session coordination rather than task decomposition. |
+| Yazelix and sesh | Rejected as extensions of retired foundations. Yazelix compounds Zellij into a terminal IDE; sesh adds a picker around tmux. | Their underlying multiplexer earns a concrete job again. |
+
+Do not retain one of these as a speculative fallback. A fallback needs a reproduced failure and a narrower owner than the retired system.

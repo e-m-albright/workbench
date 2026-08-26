@@ -4,6 +4,7 @@
   "defaultThinkingLevel": "medium",
   "doubleEscapeAction": "tree",
   "treeFilterMode": "user-only",
+  "tuiMode": "fullscreen",
   "shellCommandPrefix": "shopt -s expand_aliases\neval \"$(grep '^alias ' $HOME/code/public/dotfiles/shell/.zshrc)\"",
   "defaultPreset": "dev",
   "safeGit": {

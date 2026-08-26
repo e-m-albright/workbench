@@ -3,7 +3,7 @@
 **Status:** OPEN / ongoing survey. Not an active build — a tracked view of the
 coding-agent tooling landscape and where our own harness ambitions sit.
 
-**Last surveyed:** 2026-07-25 · **Next review cue:** when a tracked tool ships a
+**Last surveyed:** 2026-08-26 · **Next review cue:** when a tracked tool ships a
 step-change, or roughly quarterly.
 
 **Project this belongs to:** *own our coding surface.* The install-manifest side
@@ -24,7 +24,7 @@ wiring a minimal harness like Pi to a Kimi K2/K3-class open model we control.
 
 This is explicitly **not** a bet on agent velocity for its own sake.
 
-## Current stance (2026-07-21)
+## Current stance (2026-08-26)
 
 **Decision: use Pi as the primary interactive trial; retain Codex and Claude Code
 as specialist fallbacks.** Do not uninstall either yet. Rationale:
@@ -42,7 +42,36 @@ as specialist fallbacks.** Do not uninstall either yet. Rationale:
   for a week without an error. Full migration requires Workbench to deploy and
   verify Pi declaratively, not another hand-maintained link farm.
 - **No armies/factories of agents.** Large fleets of concurrent agents remain the
-  wrong bet. One-to-a-few observable agents, max.
+  wrong default. One-to-a-few observable agents is the local ceiling; use a
+  vendor's verified fleet only for an exceptional exhaustive review.
+
+### August capability review
+
+The major proprietary harnesses have converged on hooks, skills, plugins,
+subagents, cloud sessions, schedules, remote clients, and specialized review.
+That convergence does not create a Pi parity requirement. It makes model access,
+orchestration quality, distribution, and trust boundaries the meaningful
+choices.
+
+Current Workbench dispositions:
+
+- **Bounded orchestration:** the model-callable `worker` tool is Pi's implementation answer: one worktree-isolated mutating delegate with parent review. The `dev` preset may delegate, review, and discard without per-use approval. `/worker` remains a manual entrypoint; this is not autonomous fan-out.
+- **Independent judgment:** `/consult` and the review skills cover the normal
+  second-opinion need. Claude Code is the deliberate escape hatch for coordinated
+  finder/verifier fleets.
+- **Native Pi 0.84.3:** fullscreen transcript search, prompt jumping, selection,
+  deferred tool loading, parallel tool execution, stronger RPC/SDK session
+  control, and project trust reduce the list of custom features worth owning.
+- **Editing and code intelligence:** hash anchors, Language Server Protocol
+  refactors, and Debug Adapter Protocol control remain evidence-gated. The prior
+  local trial found no ordinary symbol-navigation bottleneck, and exact-text Edit
+  already rejects stale matches.
+- **Automation:** schedules, hosted routines, durable goals, artifacts, and cloud
+  execution belong to vendor or automation surfaces rather than a larger local Pi
+  core.
+- **Memory:** durable facts stay in repository documentation; temporary handoffs
+  remain explicit. Do not add an opaque cross-session memory service.
+- **Mobile:** Paseo over Tailscale is the sole cross-harness phone surface. Phone terminal access is not required, so Zellij, tmux, Mosh, and the Mission Control session manager were retired rather than retained as a second path.
 
 ### Guiding principles
 
@@ -119,7 +148,11 @@ agent loop and lean into the concurrency-as-progress framing we're skeptical of.
 
 ---
 
-## Capability matrix — deep-profiled set (2026-07-20)
+## Historical capability snapshot — deep-profiled set (2026-07-20)
+
+This table is retained as a dated research snapshot, not a maintained parity
+matrix. Current decisions live above and in `docs/pi-build-philosophy.md`; the
+cross-vendor matrix format was retired because fast vendor churn made it drift.
 
 Legend: **●** native / first-class · **◐** partial / limited / via-IDE ·
 **◈** only by building or installing an extension · **○** absent (by design or unbuilt).
@@ -219,6 +252,7 @@ opinionated fork instead of a small core you own.
 
 ### Pi UI surface experiments
 
+- **Native fullscreen mode (Pi 0.84.3)** — adopted as the managed default. It owns the viewport and adds transcript search, scrolling, text selection, links, and previous/next user-prompt jumps. It intentionally renders the same transcript, so a short session looks almost identical to regular mode. The custom `/reader` was retired; its final-answer landmarks and compact work summaries did not earn the extension surface.
 - **[@firstpick/pi-package-webui](https://pi.dev/packages/@firstpick/pi-package-webui)**
   — **interesting, but don't migrate now.** Third-party, MIT-licensed local
   browser companion by Firstp1ck. It runs Pi through RPC and adds multi-tab
@@ -310,9 +344,7 @@ and **inference hosts** (run the weights on their own accelerated infra).
 
 ## Open questions / to-do (tracked)
 
-- [ ] **Pi browser UI:** deferred. Re-open only if multi-session browser tabs or
-      phone/remote access become concrete needs; then audit
-      `@firstpick/pi-package-webui` before installing.
+- [ ] **Cross-harness mobile control:** Paseo over Tailscale is adopted. Do not build a replacement until Paseo fails a concrete workflow and an existing cross-harness client cannot satisfy it. A Pi-only browser UI cannot meet the requirement.
 - [ ] **Deep-profile the additions** to matrix parity: Open Interpreter, Aider,
       Gemini CLI, Cline, Cursor (agent surface), plus Conductor/cmux positioning
       detail.

@@ -14,7 +14,7 @@ Read this first, because it sets honest expectations. Code quality has four sour
 So the portfolio is two tiers, and a real "health pass" needs both:
 
 - **Tier A — form (behavior-preserving refactor lenses):** make it well-structured, idiomatic, legible, minimal.
-- **Tier B — function / safety / speed (non-behavior-preserving):** find defects, vulnerabilities, and bottlenecks. Use `review` and `systematic-debugging`; when isolated specialist context is useful, delegate to the `security-auditor` or `performance-engineer` subagent. **Robustness comes from Tier B plus real test coverage, never from Tier A alone.**
+- **Tier B — function / safety / speed (non-behavior-preserving):** find defects, vulnerabilities, and bottlenecks. Use `review`, `security-review`, and `systematic-debugging`; when isolated context is useful, delegate a bounded independent pass without relying on a permanent specialist roster. **Robustness comes from Tier B plus real test coverage, never from Tier A alone.**
 
 State this to the user when they ask for "unimpeachable" code: the book guarantees form; correctness and safety rest on Tier B and tests.
 
@@ -43,7 +43,7 @@ Lenses have a natural order that minimizes rework:
 5. **clarify** — readability and navigation pass.
 6. **style** — the capstone elegance pass, once the code is correct, clear, and structured. Aesthetic only; never a substitute for the structural lenses above it.
 7. **ratchet** — encode objective wins in the project's native deterministic gates when a stable signal exists.
-8. **Tier B** — `review`, `systematic-debugging`, and optional security or performance subagents for the pillars refactoring cannot reach.
+8. **Tier B** — `review`, `security-review`, `systematic-debugging`, and bounded independent performance review for the pillars refactoring cannot reach.
 
 Don't run all seven blindly — let the Tier-A routing table and the scorecard pick where effort actually pays (churn × complexity hotspots).
 
@@ -61,7 +61,7 @@ Generative, structural refactoring on a weekly cron, auto-merged, is an anti-pat
 - **Safe unattended (weekly):** the `scorecard`/audit **detection** run that opens an issue or draft PR (never auto-merge); **ratchet enforcement** in CI (block regressions); deterministic codemods from the tidy lens.
 - **Interactive / human-gated:** deepen, align, prune, purify, the engine's structural moves, and all of Tier B. These are judgment- and conflict-heavy; they need a human and the arbitration rules above.
 
-The review prompts under `health/reviews/` are available on demand. Automation is optional; deterministic project gates remain the default guardrail.
+The review and security-review skills provide advisory assessment on demand. Automation is optional; deterministic project gates remain the default guardrail.
 
 ## See also
 - Shared guidance: [playbook/engineering-philosophy.md](../../../playbook/engineering-philosophy.md) (12 principles), [playbook/knowledge/engineering-gates.md](../../../playbook/knowledge/engineering-gates.md) (ratchet mechanics), and [health/README.md](../../../health/README.md) (the adoption boundary).

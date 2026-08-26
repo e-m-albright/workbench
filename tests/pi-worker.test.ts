@@ -17,10 +17,11 @@ describe("Pi worker delegate", () => {
 		expect(prompt).toContain("tests or checks");
 	});
 
-	test("review instructions keep merge decisions with the parent", () => {
+	test("review instructions keep adoption and cleanup with the parent", () => {
 		const text = reviewInstructions("/tmp/x.worktree", "worker/x");
 		expect(text).toContain("git -C /tmp/x.worktree diff");
-		expect(text).toContain("/worker-done --force");
+		expect(text).toContain("Adopt useful changes in the parent checkout");
+		expect(text).toContain("action=discard");
 		expect(text).not.toContain("git push");
 	});
 });

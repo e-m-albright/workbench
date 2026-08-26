@@ -5,7 +5,7 @@ description: Run a read-only security review of a diff, branch, or codebase — 
 
 # Security Review
 
-A portable, evidence-first security review. Read-only: produce a findings report; never apply fixes unless explicitly asked afterward. Under Claude Code, the `security-auditor` subagent can run this in isolated context; this skill is the vendor-neutral path and the only security lens under Codex.
+A portable, evidence-first security review. Read-only: produce a findings report; never apply fixes unless explicitly asked afterward. Use this skill directly under every harness; a large audit may delegate bounded independent checks without requiring a permanently deployed specialist.
 
 ## Scope first
 

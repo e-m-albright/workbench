@@ -18,15 +18,13 @@ notes      private knowledge and operating layer
 ### 1. [`dotfiles`](https://github.com/e-m-albright/dotfiles) — host foundation
 
 Turns a fresh Mac into the working host: packages, shell, terminal, editors,
-Git, macOS preferences, privacy utilities, and remote session
-control. Owns the `dotfiles` Typer CLI and Mission Control TUI. It installs
-Workbench and delegates agent configuration to it.
+Git, macOS preferences, privacy utilities, and Tailscale-direct Paseo access. Owns the `dotfiles` Typer CLI. It installs Workbench and delegates agent configuration to it.
 
 ### 2. `workbench` (this repository) — agent intelligence and standards
 
-Owns portable coding-agent behavior (rules, skills, specialist agents, MCP and
-plugin declarations, safety hooks) and reusable engineering doctrine (playbook,
-health kit, review rubrics). `workbench sync` deploys canonical sources into
+Owns portable coding-agent behavior (rules, skills, MCP and plugin declarations,
+safety hooks) and reusable engineering doctrine (playbook, health kit, review
+skills). `workbench sync` deploys canonical sources into
 each vendor's native configuration; `workbench drift` verifies the live result.
 Workbench assumes a host provisioned by Dotfiles but runs from a standalone
 checkout as well.
@@ -43,8 +41,8 @@ intentionally not published; neither public repository requires it.
 | Concern | Owner |
 | --- | --- |
 | Fresh-Mac setup, packages, shell, terminal, editors, macOS configuration, remote access | `dotfiles` |
-| Agent rules, skills, prompts, subagents, MCP/plugin declarations, hooks, permissions | `workbench` |
-| Engineering doctrine, stack guidance, review rubrics, portable health tooling | `workbench` |
+| Agent rules, skills, prompts, MCP/plugin declarations, hooks, permissions | `workbench` |
+| Engineering doctrine, stack guidance, review skills, portable health tooling | `workbench` |
 | Project architecture, domain rules, tests, project-specific policy | The individual project |
 | Private knowledge, personal automation instances, generated operational state | Private `notes` |
 | OAuth grants, credentials, vendor-generated memory | Live vendor state, never Git |

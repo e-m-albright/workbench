@@ -7,12 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from workbench.codex import (
-    _render_codex_subagent,
-    expected_codex_rules_md,
-    merge_codex_config,
-    merge_codex_rules,
-)
+from workbench.codex import expected_codex_rules_md, merge_codex_config, merge_codex_rules
 from workbench.core import (
     AGENTS,
     CLAUDE_SANDBOX,
@@ -126,24 +121,10 @@ def _sync_skills(vendor: str, home: Path) -> None:
         _replace_tree(source, root / name)
 
 
-def _sync_subagents(vendor: str, destination: Path) -> None:
-    destination.mkdir(parents=True, exist_ok=True)
-    if vendor == "codex":
-        for stale in destination.glob("*.md*"):
-            stale.unlink()
+def _remove_retired_subagents(destination: Path) -> None:
     for name in RETIRED_SUBAGENTS:
         for suffix in (".md", ".md.bak", ".toml", ".toml.bak"):
-            retired = destination / f"{name}{suffix}"
-            if retired.exists():
-                retired.unlink()
-    for source in sorted((AGENTS / "subagents").glob("*.md")):
-        if vendor == "claude":
-            copy_file(source, destination / source.name)
-        else:
-            write_text(
-                destination / f"{source.stem}.toml",
-                _render_codex_subagent(source),
-            )
+            _remove_deployed_path(destination / f"{name}{suffix}")
 
 
 def managed_claude_settings(data: Path) -> dict[str, Any]:
@@ -201,7 +182,7 @@ def sync_claude(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> Non
     write_json(claude_root, root_settings, mode=0o600)
 
     _sync_claude_desktop(home)
-    _sync_subagents("claude", claude_home / "agents")
+    _remove_retired_subagents(claude_home / "agents")
     if deploy_skills:
         _sync_skills("claude", home)
     if deploy_plugins:
@@ -245,7 +226,7 @@ def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None
         # Codex records trust against each hook's hash, so a changed hooks.json
         # is skipped until re-trusted — drift's byte comparison cannot see that.
         print("NOTE codex hooks changed; run /hooks in Codex to re-trust them")
-    _sync_subagents("codex", codex_home / "agents")
+    _remove_retired_subagents(codex_home / "agents")
     if deploy_skills:
         _sync_skills("codex", home)
     if deploy_plugins:

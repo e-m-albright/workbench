@@ -93,11 +93,12 @@ fnm); candidates below are watch-only. Evaluation bar: API parity %, independent
 
 ## Terminal Stack
 
-> Currently installed via `brew.sh`: ghostty, helix, yazi, ripgrep, fd, fzf, zoxide. Pending evaluation below.
+> Host installation state is owned by the dotfiles package manifest. This section records evaluation posture, including installed tools that may now be retirement candidates.
 
 - **[Warp](https://www.warp.dev/)** -- Terminal explicitly designed for **multi-agent dev**. Supports Codex, OpenCode, Gemini CLI as first-class threads with vertical tabs, configurable per-agent metadata (branch, worktree, PR), unified notification center. Send inline comments/snippets/files directly to a running agent session. Evaluate when juggling multiple Claude Code instances across worktrees becomes painful in plain Ghostty.
-- **[Yazelix](https://github.com/luccahuguet/yazelix)** -- Reproducible terminal IDE bundling **Yazi + Zellij + Helix** with an AI-aware layout. Would require installing Zellij. Aspirational target for fully-terminal IDE workflow.
-- **[Zellij](https://zellij.dev/)** -- Modern tmux alternative. Discoverable keybindings, YAML/KDL layouts, plugin system. Prerequisite for Yazelix.
+- **[Yazelix](https://github.com/luccahuguet/yazelix)** -- Reproducible terminal IDE bundling **Yazi + Zellij + Helix** with an AI-aware layout. No longer an aspiration: the Zellij layer has not earned regular use, so adding a larger terminal-IDE bundle would compound the wrong surface.
+- **[Zellij](https://zellij.dev/)** -- **Retired 2026-08-26.** Its web client, layouts, multiplayer attachment, and serialized resurrection were not used. Paseo owns agent continuity and the phone experience; there is no remaining phone-shell requirement.
+- **tmux** -- **Retired 2026-08-26.** Do not introduce a terminal multiplexer without a demonstrated local process-continuity need. It is not part of the Paseo mobile path.
 - **[Atuin](https://atuin.sh/)** -- Command history in SQLite with full-screen fuzzy search on the up-arrow + cross-machine sync. Evaluate as a `Ctrl-R` upgrade.
 - **[Lazygit](https://github.com/jesseduffield/lazygit)** -- TUI for git, faster than CLI for hunk staging, rebasing, diffs. **Especially valuable alongside AI agents** -- file-level diff view gives precise control over every AI-touched line before committing.
 - **[Lazydocker](https://github.com/jesseduffield/lazydocker)** -- Same TUI pattern for containers.
@@ -109,7 +110,7 @@ fnm); candidates below are watch-only. Evaluation bar: API parity %, independent
 - **[Starship](https://starship.rs/)** -- Fast cross-shell prompt surfacing git, k8s context, exec time, language versions. Cross-platform.
 
 > **Starship — EVALUATED 2026-06-04, WATCH (not adopting).** Hands-on trial: installed, built a config mirroring the hand-rolled `amuse` zsh theme *exactly*, then a "personality" config (language/tool versions, `❯`, ops modules). Verdict: marginal value for this workflow. The features that justify the dependency are contextual-safety modules that stay **dark** here — no `aws`/`gcloud`/`terraform` installed, **0** kube contexts, **1** SSH host. Language versions are low-signal when you don't juggle toolchains, and the daily prompt is near-identical to what's already hand-rolled in `shell/amuse.zsh-theme`. Async git is the only real engine win and a decently big polyglot work repo didn't hitch. **Revisit if** the workflow shifts to multi-cluster / multi-account ops (`⎈ context`, `☁ aws-profile` are genuine prod-safety wins) or many remote shells (hostname-on-SSH). **Spin-off win banked regardless:** the A/B drove real `amuse` upgrades — richer git (ahead/behind, staged/unstaged/untracked counts), command duration, exit codes, and worktree / `cc:` profile context. Uninstalled; trial configs removed.
-- **[sesh](https://github.com/joshmedeski/sesh)** -- Session picker fusing tmux + zoxide + fzf. One-keystroke project jump from anywhere.
+- **[sesh](https://github.com/joshmedeski/sesh)** -- **Rejected with the tmux retirement.** A picker around a multiplexer has no job when the underlying multiplexer has no job. Revisit only if tmux first earns a concrete local continuity workflow.
 - **[fish](https://fishshell.com/)** -- Shell with sane defaults + autosuggestions without a plugin manager. Alternative to zsh+plugins.
 
 ## Editors / Terminals
@@ -205,7 +206,7 @@ Distinguish **model selection** (choose a cheaper/capable model for the task) fr
 - **[Claude in Chrome (beta)](https://code.claude.com/docs/en/chrome)** -- Anthropic's official Chrome extension + `claude --chrome` / `/chrome` slash command for browser automation: live debugging, design verification, form filling, data extraction, authenticated-app interaction. Requires Chrome/Edge, extension v1.0.36+, Claude Code v2.0.73+, direct Anthropic plan. **Anthropic-specific alternative to Agent Browser or Playwright MCP** for browser-tied workflows.
 - **[everything-claude-code (affaan-m)](https://github.com/affaan-m/everything-claude-code)** -- "Harness performance system" bundling 60+ agents, 228+ skills, rules, hooks, and MCP configurations for Claude Code, Cursor, OpenCode, etc. Installable as Claude Code plugin or manually. **Mine for patterns** before adopting wholesale -- the agents/skills are uneven quality and the bundle is large.
 - **[awesome-agent-skills (VoltAgent)](https://github.com/VoltAgent/awesome-agent-skills)** -- Curated index of 1,100+ agent skills from official teams (Anthropic, Google, Vercel, Stripe) and community contributors. Targets Claude Code, Codex, Gemini CLI, Cursor. Browse before writing a new skill from scratch.
-- **[AgentHub (jamesrochabrun)](https://github.com/jamesrochabrun/AgentHub)** -- Native macOS app (SwiftUI) for managing Claude Code and Codex CLI sessions: real-time monitoring, parallel terminal execution, integrated diffs, worktree creation, GitHub PR/issue browsing. Worth a look when juggling many parallel agent sessions exceeds tmux's ergonomics.
+- **[AgentHub (jamesrochabrun)](https://github.com/jamesrochabrun/AgentHub)** -- **Rejected for the current workflow.** Its SwiftUI monitoring, parallel terminal execution, diffs, worktrees, and GitHub surface optimize a fleet control plane. Paseo plus one parent and bounded delegation is deliberately smaller. Revisit only if measured cross-session coordination friction, rather than raw concurrency, becomes the limiting problem.
 - **[Anthropic Academy (Skilljar)](https://anthropic.skilljar.com/)** -- Anthropic's official training portal with 20+ courses on Claude tools, API, MCP, agent skills, and AI fluency. Skim for non-obvious capabilities -- this is "how Anthropic wants you to use Claude," authoritative.
 
 ### Agent frameworks -- build-your-own-agent SDKs (2026-07 survey)
@@ -383,6 +384,7 @@ There is **no fully-managed vendor-agnostic agent cron.** Choices: (a) **vendor 
 - **Zed**: no scheduler/routines (interactive editor; hooks are editor-event-only, don't fire for agent tasks).
 - **Pi**: no built-in scheduler *either*, but has the headless surfaces (`pi -p`, `--mode rpc`, SDK) to be driven by **cron / GitHub Actions / a VPS** — the agnostic path. `0 9 * * * cd /repo && pi --tools read,grep,find,ls,edit -p "$(cat nightly.md)"`.
 - **Goose** has a real built-in `goose schedule` (cron) if a batteries-included open option is wanted.
+- **Cursor Automations review (2026-08-26):** the useful capabilities are scheduled and repository-event triggers, template-distributed workflow definitions, declared tool scopes, reruns when pull requests change, confidence-gated mutation, explicit safe no-op outcomes, adversarial treatment of trigger content, and a small workflow-specific deduplication ledger. The public critical-bug template uses persistent `MEMORIES.md` only for open or rejected findings; reviewer workflows can reassess prior decisions as pull requests change. **Verdict:** mine these patterns, do not adopt Cursor or build a scheduler into Pi. Put recurring instances in GitHub Actions or the private automation layer. Keep model risk ratings advisory; do not copy automatic low-risk approval. The full research record and primary sources are in [Agent Capability Patterns](knowledge/agent-capability-patterns.md#12-cursor-automations-patterns).
 - **Bottom line:** Zed + Pi *can* do scheduled runs — via Pi headless + your own trigger. The price of agnostic is hosting the runner.
 
 ### Research sources (2026-05-25)
@@ -465,6 +467,16 @@ Open questions to chase next round: Render pricing + principles, Railway scaling
 
 ## Remote Access
 
+### Cross-harness mobile agent control
+
+The requirement is to start or continue Pi, Claude Code, and Codex sessions from a phone with a uniformly readable transcript and usable approvals.
+
+- **Paseo over Tailscale** is the adopted and sole phone surface. The daemon runs locally, binds to the tailnet interface, and keeps the relay disabled.
+- **Zellij web, tmux, Mosh, and Mission Control** are retired. The owner does not need terminal connectivity from the phone, and a second continuity or presentation path only adds code and operations.
+- **The private Notes web surface** may also use Tailscale, but remains a separate productivity application rather than an agent-session transport.
+
+**Current recommendation (2026-08-26):** keep the mobile stack to Paseo plus Tailscale. If Paseo fails a concrete workflow, evaluate existing cross-harness clients before building; Pi-only web interfaces do not meet the requirement.
+
 ### BitBang (watch)
 
 [BitBang CLI](https://github.com/richlegrand/bitbang-cli) is an interesting
@@ -489,16 +501,9 @@ ciphertext, not payloads. The important limits are:
 - This is a young, pre-1.0 project. The latest release was `0.4.7`, published
   2026-07-31; only the latest release is supported, the macOS binaries are not
   notarized, and the security policy says the project has a very small team.
-- It does not yet replace the current workflow. BitBang's terminal is a new
-  shell; sharing and resuming an already-running terminal session is still on
-  its roadmap. Tailscale + Paseo + Zellij remains the better trusted-device,
-  persistent-session stack.
+- It does not serve the current workflow. The owner does not need phone terminal access; Paseo over Tailscale already owns agent continuity and mobile control.
 
-**Disposition:** keep BitBang on the radar as a low-setup break-glass or temporary
-sharing tool. Re-evaluate for daily phone access after terminal-session sharing
-ships and the project has had more time to stabilize. If trialed before then,
-use a non-sensitive test account, pin a release, inspect the installer, and serve
-only the narrow capability required.
+**Disposition:** out for daily phone access. Re-evaluate only for a concrete temporary shell-sharing need. If trialed, use a non-sensitive test account, pin a release, inspect the installer, and serve only the narrow capability required.
 
 Primary sources: [CLI documentation](https://github.com/richlegrand/bitbang-cli),
 [trustless-signaling design](https://github.com/richlegrand/bitbang/blob/main/trustless-signaling.md),

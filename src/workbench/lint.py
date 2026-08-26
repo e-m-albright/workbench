@@ -9,7 +9,14 @@ from pathlib import Path
 
 import yaml
 
-from workbench.core import AGENTS, ROOT, WorkbenchError, load_json
+from workbench.core import (
+    AGENTS,
+    RETIRED_PI_EXTENSIONS,
+    RETIRED_SUBAGENTS,
+    ROOT,
+    WorkbenchError,
+    load_json,
+)
 
 # Single source for the skill-description context budget; the test suite
 # imports these rather than re-deriving the rule.
@@ -63,8 +70,20 @@ def _markdown_link_errors(root: Path) -> list[str]:
     return errors
 
 
+def _retired_source_errors() -> list[str]:
+    paths = [
+        *(AGENTS / "pi/extensions" / name for name in RETIRED_PI_EXTENSIONS),
+        *(AGENTS / "subagents" / f"{name}.md" for name in RETIRED_SUBAGENTS),
+    ]
+    return [
+        f"retired source remains canonical: {path.relative_to(ROOT)}"
+        for path in paths
+        if path.exists()
+    ]
+
+
 def lint() -> int:
-    errors: list[str] = []
+    errors = _retired_source_errors()
     description_chars = 0
     for path in sorted(AGENTS.rglob("*.json")):
         try:
@@ -110,28 +129,6 @@ def lint() -> int:
         if not rule_pattern.fullmatch(stripped):
             errors.append(f"invalid Codex rule syntax: {rules_path.relative_to(ROOT)}:{number}")
 
-    for subagent in sorted((AGENTS / "subagents").glob("*.md")):
-        content = subagent.read_text()
-        try:
-            frontmatter = _frontmatter_mapping(content, subagent)
-        except WorkbenchError as exc:
-            errors.append(str(exc))
-            continue
-        name = frontmatter.get("name")
-        description = frontmatter.get("description")
-        tools = frontmatter.get("tools")
-        if not isinstance(name, str) or name != subagent.stem:
-            errors.append(f"subagent name/path mismatch: {subagent.relative_to(ROOT)}")
-        if not isinstance(description, str) or not description:
-            errors.append(f"missing subagent description: {subagent.relative_to(ROOT)}")
-        if tools is not None and not isinstance(tools, str):
-            errors.append(
-                f"subagent tools must be a comma-separated string: {subagent.relative_to(ROOT)}"
-            )
-        closing = content.find("\n---\n", 4)
-        if closing < 0 or not content[closing + 5 :].strip():
-            errors.append(f"missing subagent body: {subagent.relative_to(ROOT)}")
-
     names: set[str] = set()
     for skill in sorted((AGENTS / "skills").glob("*/SKILL.md")):
         content = skill.read_text()
@@ -166,17 +163,6 @@ def lint() -> int:
             f"skill descriptions exceed {DESCRIPTION_BUDGET}-char context budget: "
             f"{description_chars}"
         )
-
-    # bin/wf's STARTERS array is a hand-listed subset of skills; a renamed or
-    # retired skill must fail here rather than silently breaking the launcher.
-    wf_text = (ROOT / "bin/wf").read_text()
-    starters_match = re.search(r"STARTERS=\(\n(.*?)\)", wf_text, re.DOTALL)
-    if not starters_match:
-        errors.append("bin/wf: STARTERS array not found")
-    else:
-        for starter in starters_match.group(1).split():
-            if not (AGENTS / "skills" / starter / "SKILL.md").exists():
-                errors.append(f"bin/wf starter without a skill: {starter}")
 
     for script in sorted(AGENTS.rglob("*.sh")):
         result = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
