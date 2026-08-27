@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildWorkerPrompt, reviewInstructions, workerSlug } from "../agents/pi/extensions/worker";
+import { buildWorkerPrompt, reviewInstructions, workerSlug } from "../agents/pi/extensions/worker-core";
 
 describe("Pi worker delegate", () => {
 	test("derives a bounded branch slug from the task", () => {
