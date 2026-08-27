@@ -1,11 +1,15 @@
 ---
 name: testing
-description: Design and implement tests, including vertical-slice TDD, test tiers, placement, markers, and affectedness. Use for "add tests", "what should I test", regression coverage, or red-green-refactor work.
+description: Design, implement, or audit tests, including TDD, test tiers, placement, affectedness, flakes, weak assertions, and suite feedback. Use for "add tests", "what should I test", regression coverage, or test-suite health.
 ---
 
 # Testing Process
 
 For ordinary coverage and test selection, use this file. When the user explicitly asks for test-driven development or the change benefits from a vertical red-green-refactor loop, read [tdd.md](references/tdd.md) and load its supporting references only as needed.
+
+When the user asks whether an existing suite is flaky, slow, weak, misleading,
+or incomplete, use the read-only [test-suite health](references/test-suite-health.md)
+audit instead of treating the request as ordinary test implementation.
 
 ## Detect conventions first
 

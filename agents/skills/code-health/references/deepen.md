@@ -33,7 +33,7 @@ This skill is _informed_ by the project's domain model. The domain language give
 
 Read the project's domain glossary and any ADRs in the area you're touching first. The glossary may be a standalone `DOMAIN.md`/`DOMAIN-MAP.md`, or — for a small domain — a `## Domain Language` section inside `AGENTS.md`. Check both. (When you add a term and the inline section outgrows ~30 lines or a second bounded context appears, graduate it to a standalone `DOMAIN.md` and leave a pointer in `AGENTS.md`.)
 
-Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics — explore organically and note where you experience friction:
+For a large scope, delegate a bounded read-only exploration when the active harness supports it; otherwise walk the codebase directly. Don't follow rigid heuristics — explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow** — interface nearly as complex as the implementation?

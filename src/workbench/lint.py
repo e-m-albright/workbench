@@ -21,7 +21,7 @@ from workbench.core import (
 # Single source for the skill-description context budget; the test suite
 # imports these rather than re-deriving the rule.
 PER_SKILL_DESCRIPTION_LIMIT = 280
-DESCRIPTION_BUDGET = 5_500
+DESCRIPTION_BUDGET = 5_800
 
 
 def _frontmatter_mapping(text: str, path: Path) -> dict[str, object]:

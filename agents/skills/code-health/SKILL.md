@@ -43,9 +43,9 @@ Lenses have a natural order that minimizes rework:
 5. **clarify** — readability and navigation pass.
 6. **style** — the capstone elegance pass, once the code is correct, clear, and structured. Aesthetic only; never a substitute for the structural lenses above it.
 7. **ratchet** — encode objective wins in the project's native deterministic gates when a stable signal exists.
-8. **Tier B** — `review`, `security-review`, `systematic-debugging`, and bounded independent performance review for the pillars refactoring cannot reach.
+8. **Tier B** — compose focused passes from `review`, `security-review`, `systematic-debugging`, and bounded independent performance review for the pillars refactoring cannot reach. Keep their evidence and rubrics intact rather than recreating abbreviated versions here.
 
-Don't run all seven blindly — let the Tier-A routing table and the scorecard pick where effort actually pays (churn × complexity hotspots).
+Don't run all seven blindly — let the Tier-A routing table, project-owned metrics, churn, and observed comprehension friction identify where effort actually pays.
 
 ## Keeping lenses from fighting
 
@@ -58,7 +58,7 @@ The lenses genuinely contradict (dedup↔decouple, deepen↔prune, DDD-richness�
 
 Generative, structural refactoring on a weekly cron, auto-merged, is an anti-pattern — empirically it produces cosmetic churn with no measured health gain and a review backlog. So:
 
-- **Safe unattended (weekly):** the `scorecard`/audit **detection** run that opens an issue or draft PR (never auto-merge); **ratchet enforcement** in CI (block regressions); deterministic codemods from the tidy lens.
+- **Safe unattended (weekly):** deterministic project-health detection that opens an issue or draft PR (never auto-merge); **ratchet enforcement** in CI (block regressions); deterministic codemods from the tidy lens.
 - **Interactive / human-gated:** deepen, align, prune, purify, the engine's structural moves, and all of Tier B. These are judgment- and conflict-heavy; they need a human and the arbitration rules above.
 
 The review and security-review skills provide advisory assessment on demand. Automation is optional; deterministic project gates remain the default guardrail.

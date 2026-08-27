@@ -4,7 +4,7 @@
 
 The **deletion lens** — worse-is-better, YAGNI, "the best code is no code." Every other lens can add (abstraction, types, comments, structure); this one only asks **what can be removed without losing behavior the system actually needs?** It's the counterweight that keeps the portfolio from accreting, and it's grounded by the GitClear finding that AI assistants overwhelmingly *add* and rarely consolidate.
 
-It is codebase-scoped and deletion-first — distinct from the built-in `/simplify` (which cleans the current diff) and from `form-tidy` (which restructures). Prune's success metric is honest and visible: **net lines and surface area go down**, achieved by real removal, never by compressing, comment-stripping, or type laundering.
+It is codebase-scoped and deletion-first — distinct from the built-in `/simplify` (which cleans the current diff) and from `tidy` (which restructures). Prune's success metric is honest and visible: **net lines and surface area go down**, achieved by real removal, never by compressing, comment-stripping, or type laundering.
 
 ## When to reach for it
 
@@ -25,8 +25,8 @@ The code is bloated: defensive checks the types make impossible, abstractions wi
 
 ## Antagonists
 
-- **vs `form-deepen` / `form-align` / `form-purify`:** they add structure; you remove it. Tiebreak: **delete first, then deepen/model what genuinely remains** — it's cheaper to add structure to less code than to restructure code you were about to delete.
-- **vs `form-clarify`:** comments and structural indexes are lines too. Tiebreak: keep the *why* comments and navigation aids; cut redundant restating and ceremony.
+- **vs `deepen` / `align` / `purify`:** they add structure; you remove it. Tiebreak: **delete first, then deepen/model what genuinely remains** — it's cheaper to add structure to less code than to restructure code you were about to delete.
+- **vs `clarify`:** comments and structural indexes are lines too. Tiebreak: keep the *why* comments and navigation aids; cut redundant restating and ceremony.
 - **vs DRY:** sometimes the smallest code keeps a little duplication rather than a shared abstraction. Tiebreak: prefer duplication over the wrong abstraction (Metz); abstract only at the rule of three with a stable shape.
 
 A deletion that reverses a recorded "keep this for reason X" ADR must be surfaced, not silently re-done.

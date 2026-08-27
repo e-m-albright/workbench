@@ -1,6 +1,14 @@
 # Project Health
 
-Workbench separates objective regression prevention from judgment.
+Workbench treats project health as three related questions:
+
+- **Capability health:** does the project own the right capabilities?
+- **Repository health:** is its operating layer truthful, current, and efficient?
+- **Code health:** is its implementation maintainable, reliable, secure, and fast?
+
+The `project-health-review` skill composes all three for an explicit
+whole-project assessment. Workbench separates objective regression prevention
+from judgment within and across these layers.
 
 ## Deterministic Floor
 
@@ -43,8 +51,9 @@ it into a test, linter rule, dependency constraint, or deterministic budget.
 5. Delete health machinery that no longer catches real regressions.
 
 The workbench provides deterministic patterns here and advisory review through
-its review, security-review, and code-health skills. It does not require every
-project to install a shared framework.
+its capability-health, repository-health, code-health, review, and
+security-review skills. It does not require every project to install a shared
+framework.
 
 For projects that adopt the bundled suppression ratchet, copy
 `baseline.example.json` to `docs/health/<scope>/baselines.json`, narrow its

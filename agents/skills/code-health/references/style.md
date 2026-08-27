@@ -2,7 +2,7 @@
 
 > **Canon** — the aesthetic enforcement of Principle 5 (*Simplicity is the goal*), Principle 2 (*Type the domain, not the plumbing*), Principle 3 (*One source of truth per concept*) and the kernel's "write code that reads like the surrounding code." Behavior-preserving (Tier A); safety verified by tests, "better" gated by taste and recorded. See [health/README.md](../../../../health/README.md).
 
-The **aesthetic pole** of the portfolio. The other form lenses make code *correct* (Tier B), *deep* (form-deepen), *legible to a newcomer* (form-clarify), *minimal* (form-prune), *testable* (form-purify), *tidy* (form-tidy). This one does the last thing, the thing none of them name: it makes code **elegant** — the work of a senior, grumpy, aesthetically uncompromising principal who reads your already-passing, already-clear code and is still not satisfied.
+The **aesthetic pole** of the portfolio. Tier B establishes correctness, safety, and speed; the other form lenses make code *deep* (deepen), *legible to a newcomer* (clarify), *minimal* (prune), *testable* (purify), and *tidy* (tidy). This one does the last thing, the thing none of them name: it makes code **elegant** — the work of a senior, grumpy, aesthetically uncompromising principal who reads your already-passing, already-clear code and is still not satisfied.
 
 Its standard is not "match the average neighbor." Its standard is **the best code that could exist here** — and it uses the surrounding code and `playbook/stacks/` taste as the *floor* it must clear, never the ceiling it settles for.
 
@@ -41,7 +41,7 @@ Read the target aloud as the grumpy principal. Mark every wince against the ten 
 For each finding, show the **before → after** and name what it buys (which dimension, which Canon ID). Then turn the same harshness on your *own* rewrite:
 - **Does it pay?** A change that only swaps one defensible choice for another preferred one is *fussiness*, not craft — drop it. Taste is not the same as preference; only ship the change a great engineer would defend, not merely accept.
 - **Does it preserve behavior?** This is Tier A. If a test can't confirm it, it's not safe yet — write the test or don't make the change.
-- **Does it fight a sibling lens?** Elegance can over-collapse (hurting form-clarify's legibility) or over-extract (the wrong abstraction). When consistency-with-corpus and elegance disagree, **elegance wins but records why** (an ADR), so the next pass doesn't undo it. When the local idiom is *itself* the ugliness, elevate it and flag the systemic pattern — don't propagate it.
+- **Does it fight a sibling lens?** Elegance can over-collapse (hurting clarify's legibility) or over-extract (the wrong abstraction). When consistency-with-corpus and elegance disagree, **elegance wins but records why** (an ADR), so the next pass doesn't undo it. When the local idiom is *itself* the ugliness, elevate it and flag the systemic pattern — don't propagate it.
 
 ### 4. Graduate the systemic ones
 

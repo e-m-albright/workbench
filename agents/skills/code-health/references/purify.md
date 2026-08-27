@@ -21,9 +21,9 @@ A function mixes a database/network/filesystem call with the decision logic; tes
 
 ## Antagonists
 
-- **vs `form-prune`/YAGNI:** introducing ports, adapter seams, and richer types adds structure. Tiebreak: **only isolate effects where entanglement actually blocks testing or reasoning** — don't add a port for a single in-process call (one adapter is a hypothetical seam; two is a real one).
-- **vs `form-tidy`:** extracting a pure core is a bigger move than a mechanical transform; sequence the mechanical tidies first to make the extraction obvious.
-- **vs `form-deepen`:** strongly aligned — a pure core *is* a deep module. Use `form-deepen`'s vocabulary for the interface.
+- **vs `prune`/YAGNI:** introducing ports, adapter seams, and richer types adds structure. Tiebreak: **only isolate effects where entanglement actually blocks testing or reasoning** — don't add a port for a single in-process call (one adapter is a hypothetical seam; two is a real one).
+- **vs `tidy`:** extracting a pure core is a bigger move than a mechanical transform; sequence the mechanical tidies first to make the extraction obvious.
+- **vs `deepen`:** strongly aligned — a pure core *is* a deep module. Use `deepen`'s vocabulary for the interface.
 
 ## Sources
 - Bernhardt, *Functional Core, Imperative Shell*; Cockburn, *Hexagonal Architecture* (ports & adapters); Wlaschin, *Parse, Don't Validate* / *Domain Modeling Made Functional* (make illegal states unrepresentable); Ousterhout, *define errors out of existence*; "humble object" (Feathers).

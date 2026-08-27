@@ -2,7 +2,7 @@
 
 > **Canon** — enacts Principle 5 (*Simplicity is the goal*) via named, behavior-preserving transforms. See [health/README.md](../../../../health/README.md).
 
-The **mechanical, behavior-preserving execution lens** (Fowler's *Refactoring*, Beck's *Tidy First?*). Where `form-deepen` decides *what* design to pursue, `form-tidy` is how you safely make a specific structural change *now*: pick a named transform, apply it in tiny steps, keep the tests green, commit it separately.
+The **mechanical, behavior-preserving execution lens** (Fowler's *Refactoring*, Beck's *Tidy First?*). Where `deepen` decides *what* design to pursue, `tidy` is how you safely make a specific structural change *now*: pick a named transform, apply it in tiny steps, keep the tests green, commit it separately.
 
 It's the most schedulable lens because the transforms are deterministic and behavior-preserving — but it's also the easiest to over-apply, so it carries explicit antagonist guards.
 
@@ -34,9 +34,9 @@ Tidy *before* a feature only when it makes that feature quicker, smaller, or saf
 
 ## Antagonists (decide, don't let the last edit win)
 
-- **vs `form-deepen` (Ousterhout):** aggressive Extract-Function can shatter a deep module into shallow ones with entangled interfaces ("lasagna code" — the documented Ousterhout-vs-Clean-Code tension). Tiebreak: **extract for a real seam or genuine reuse, not to hit a line target.** If the extracted pieces only ever call each other in order, you made it worse.
-- **vs `form-prune`:** extracting duplication competes with deleting it. Tiebreak: if a caller can just *lose* the code, delete it (form-prune) before abstracting it (form-tidy).
-- **vs `form-clarify`:** a transform that's mechanically cleaner can read worse. Tiebreak: if the named transform reduces readability, it's not a tidy — skip it.
+- **vs `deepen` (Ousterhout):** aggressive Extract-Function can shatter a deep module into shallow ones with entangled interfaces ("lasagna code" — the documented Ousterhout-vs-Clean-Code tension). Tiebreak: **extract for a real seam or genuine reuse, not to hit a line target.** If the extracted pieces only ever call each other in order, you made it worse.
+- **vs `prune`:** extracting duplication competes with deleting it. Tiebreak: if a caller can just *lose* the code, delete it with prune before abstracting it with tidy.
+- **vs `clarify`:** a transform that's mechanically cleaner can read worse. Tiebreak: if the named transform reduces readability, it's not a tidy — skip it.
 
 When a tidy would reverse a decision recorded in the ADR log, stop and surface it rather than flip-flopping.
 

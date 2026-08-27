@@ -24,8 +24,8 @@ Names feel off, the same word means different things in different places, API/DB
 
 ## Antagonists
 
-- **vs `form-prune`/YAGNI:** DDD richness (value objects, aggregates, explicit boundaries) reads as ceremony to a minimalist. Tiebreak: **apply richness only in the core/complex subdomain; keep supporting and generic subdomains plain.** Don't model a CRUD table like an aggregate.
-- **vs `form-deepen`:** mostly aligned — depth + domain naming reinforce each other. Conflict only if a "correct" boundary forces a shallow module; then prefer the deeper shape and reopen the boundary as an ADR.
+- **vs `prune`/YAGNI:** DDD richness (value objects, aggregates, explicit boundaries) reads as ceremony to a minimalist. Tiebreak: **apply richness only in the core/complex subdomain; keep supporting and generic subdomains plain.** Don't model a CRUD table like an aggregate.
+- **vs `deepen`:** mostly aligned — depth + domain naming reinforce each other. Conflict only if a "correct" boundary forces a shallow module; then prefer the deeper shape and reopen the boundary as an ADR.
 
 When an alignment move contradicts a recorded ADR, surface it for reopening rather than re-litigating silently.
 
