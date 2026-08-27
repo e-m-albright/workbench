@@ -156,8 +156,8 @@ class WorkbenchTests(unittest.TestCase):
     def test_banner_uses_lichen_enamel_truecolor_gradient_on_terminals(self) -> None:
         rendered = render.gradient_banner(color=True)
 
+        self.assertTrue(rendered.startswith("\033[38;2;57;78;82m"))
         self.assertIn("\033[38;2;238;230;189m", rendered)
-        self.assertIn("\033[38;2;57;78;82m", rendered)
         self.assertTrue(rendered.endswith("\033[0m"))
 
     def test_bare_just_uses_dotfiles_heading_convention(self) -> None:

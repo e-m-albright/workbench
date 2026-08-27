@@ -75,7 +75,7 @@ def gradient_banner(*, color: bool | None = None) -> str:
     for line in lines:
         parts: list[str] = []
         for column, character in enumerate(line):
-            red, green, blue = _gradient_color(column / max(1, width - 1), LICHEN_ENAMEL_STOPS)
+            red, green, blue = _gradient_color(1 - column / max(1, width - 1), LICHEN_ENAMEL_STOPS)
             parts.append(f"\033[38;2;{red};{green};{blue}m{character}")
         rendered.append("".join(parts) + "\033[0m")
     return "\n".join(rendered)
