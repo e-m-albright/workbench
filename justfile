@@ -93,6 +93,11 @@ typecheck-pi:
     if [[ "$pkg" == "$resolved" ]]; then
         pkg="$(dirname "$(dirname "$resolved")")"
     fi
+    deps="$pkg/node_modules"
+    if [[ ! -d "$deps/typebox" ]]; then
+        # Bun's global installer hoists Pi dependencies beside the package.
+        deps="$(dirname "$(dirname "$pkg")")"
+    fi
     cfg="{{justfile_directory()}}/.pi-tsconfig.generated.json"
     trap 'rm -f "$cfg"' EXIT
     cat > "$cfg" <<EOF
@@ -104,11 +109,11 @@ typecheck-pi:
         "target": "es2022",
         "module": "esnext",
         "moduleResolution": "bundler",
-        "typeRoots": ["$pkg/node_modules/@types"],
+        "typeRoots": ["$deps/@types"],
         "paths": {
           "@earendil-works/pi-coding-agent": ["$pkg/dist/index.d.ts"],
-          "@earendil-works/*": ["$pkg/node_modules/@earendil-works/*/dist/index.d.ts"],
-          "typebox": ["$pkg/node_modules/typebox/build/index.d.mts"]
+          "@earendil-works/*": ["$deps/@earendil-works/*/dist/index.d.ts"],
+          "typebox": ["$deps/typebox/build/index.d.mts"]
         }
       },
       "include": ["{{justfile_directory()}}/agents/pi/extensions/*.ts"]
