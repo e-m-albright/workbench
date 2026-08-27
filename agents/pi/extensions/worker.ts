@@ -12,7 +12,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
-import { buildWorkerPrompt, reviewInstructions, workerSlug } from "./worker-core";
+import { buildWorkerPrompt, reviewInstructions, workerSlug } from "./lib/worker-core";
 
 const DEFAULT_TIMEOUT_MS = 900_000;
 const MAX_RESULT_CHARS = 6000;

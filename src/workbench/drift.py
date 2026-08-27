@@ -226,6 +226,13 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
         else:
             external.append(f"EXTERNAL Pi extension: {name}")
 
+    expected_helpers = {path.name: path for path in (AGENTS / "pi/extensions/lib").glob("*.ts")}
+    deployed_helpers = {path.name: path for path in (pi_home / "extensions/lib").glob("*.ts")}
+    for name, source in expected_helpers.items():
+        _compare(source, pi_home / "extensions/lib" / name, f"Pi extension helper {name}", findings)
+    for name in sorted(deployed_helpers.keys() - expected_helpers.keys()):
+        external.append(f"EXTERNAL Pi extension helper: {name}")
+
 
 def _check_codex(home: Path, findings: list[str], external: list[str]) -> object:
     """Verify Codex-managed state; returns the live MCP mapping."""

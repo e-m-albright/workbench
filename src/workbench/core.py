@@ -79,6 +79,11 @@ RETIRED_PI_EXTENSIONS = {
         "retired 2026-08-26 after native fullscreen made the custom transcript"
         " navigator unnecessary for the owner's workflow"
     ),
+    "worker-core.ts": (
+        "moved to extensions/lib/ — Pi loads every top-level extensions/*.ts as"
+        " an extension, so a plain helper module without a factory export"
+        " aborted startup"
+    ),
 }
 RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
 VENDORS = ("claude", "codex", "pi")

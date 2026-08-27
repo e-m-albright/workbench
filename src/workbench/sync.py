@@ -321,5 +321,9 @@ def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
         _remove_deployed_path(destination / "extensions" / name)
     for extension in sorted((source / "extensions").glob("*.ts")):
         _replace_pi_file(extension, destination / "extensions" / extension.name)
+    # Helper modules live one level down: Pi loads every top-level extensions/*.ts
+    # as an extension, and ignores a subdirectory with no index or manifest.
+    for helper in sorted((source / "extensions/lib").glob("*.ts")):
+        _replace_pi_file(helper, destination / "extensions/lib" / helper.name)
     if deploy_skills:
         _sync_pi_skills(home)
