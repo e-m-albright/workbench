@@ -136,7 +136,7 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertRegex(result.stdout, r"OK \d+ skills")
 
-    def test_bare_launcher_renders_branded_complete_command_tree(self) -> None:
+    def test_bare_launcher_renders_branded_native_command_list(self) -> None:
         result = subprocess.run(
             [str(core.ROOT / "bin/workbench")],
             capture_output=True,
@@ -149,9 +149,9 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn("Usage: workbench [OPTIONS] COMMAND [ARGS]...", result.stdout)
         self.assertIn("Options", result.stdout)
         self.assertIn("Configuration — deploy, verify, and validate", result.stdout)
-        self.assertIn("sync [claude|codex|pi|all]", result.stdout)
-        self.assertIn("drift [claude|codex|pi|all]", result.stdout)
-        self.assertIn("--no-skills", result.stdout)
+        self.assertIn("sync", result.stdout)
+        self.assertIn("drift", result.stdout)
+        self.assertNotIn("--no-skills", result.stdout)
 
     def test_banner_uses_lichen_enamel_truecolor_gradient_on_terminals(self) -> None:
         rendered = render.gradient_banner(color=True)
@@ -201,7 +201,7 @@ class WorkbenchTests(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(f"workbench {command}", result.stdout)
-                self.assertIn("Arguments and options", result.stdout)
+                self.assertIn("Options", result.stdout)
                 self.assertIn(expected, result.stdout)
                 self.assertNotIn("usage: workbench", result.stderr)
 
@@ -216,7 +216,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("╭─ Error", result.stderr)
         self.assertIn("is not one of 'claude', 'codex',", result.stderr)
-        self.assertIn("workbench sync [claude|codex|pi|all]", result.stderr)
+        self.assertIn("Usage: workbench sync [OPTIONS]", result.stderr)
         self.assertNotIn("usage: workbench", result.stderr)
 
     def test_unknown_command_has_visual_registry_error(self) -> None:
@@ -230,7 +230,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("╭─ Error", result.stderr)
         self.assertIn("No such command 'other'", result.stderr)
-        self.assertIn("Configuration", result.stderr)
+        self.assertIn("Try 'workbench --help' for help.", result.stderr)
         self.assertNotIn("usage: workbench", result.stderr)
 
     def test_skill_sync_replaces_stale_trees_and_removes_retired_skills(self) -> None:

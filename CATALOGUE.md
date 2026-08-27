@@ -10,7 +10,7 @@ Counts are physical lines in tracked files in the current working tree, includin
 
 | Capability | Implementation/guidance | Tests | Config/data | Total | Posture |
 |---|---:|---:|---:|---:|---|
-| Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | 1,692 | 889 | 265 | 2,846 | Core deployment engine |
+| Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | 1,566 | 889 | 265 | 2,720 | Core deployment engine |
 | Pi extensions and direct connector adapters | 3,213 | 317 | 171 | 3,701 | Core local runtime layer |
 | Shared rules, safety hooks, permission policy, and launchers | 439 | 213 | 223 | 875 | Core trust boundary |
 | Reusable skills and their references | 4,720 | 0 | 0 | 4,720 | Core portable workflow library; contract checks live in the shared deployment-engine tests |
