@@ -23,13 +23,17 @@ class WorkbenchTests(unittest.TestCase):
         env = os.environ.copy()
         env["NO_COLOR"] = "1"
         env.pop("FORCE_COLOR", None)
-        return subprocess.run(
+        result = subprocess.run(
             [str(core.ROOT / "bin/workbench"), *args],
             capture_output=True,
             text=True,
             check=False,
             env=env,
         )
+        ansi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+        result.stdout = ansi.sub("", result.stdout)
+        result.stderr = ansi.sub("", result.stderr)
+        return result
 
     def run_hook(self, name: str, payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
