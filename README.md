@@ -1,4 +1,4 @@
-# Workbench
+# <img src="assets/brand/icon.svg" alt="" width="48" /> Workbench
 
 The portable intelligence and engineering-guidance layer for my development
 environment.
