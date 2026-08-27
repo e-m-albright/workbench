@@ -19,6 +19,18 @@ from workbench import lint as lint_mod
 
 
 class WorkbenchTests(unittest.TestCase):
+    def run_cli(self, *args: str) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env["NO_COLOR"] = "1"
+        env.pop("FORCE_COLOR", None)
+        return subprocess.run(
+            [str(core.ROOT / "bin/workbench"), *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+
     def run_hook(self, name: str, payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             ["bash", str(core.AGENTS / "shared/hooks" / name)],
@@ -137,12 +149,7 @@ class WorkbenchTests(unittest.TestCase):
             self.assertRegex(result.stdout, r"OK \d+ skills")
 
     def test_bare_launcher_renders_branded_native_command_list(self) -> None:
-        result = subprocess.run(
-            [str(core.ROOT / "bin/workbench")],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        result = self.run_cli()
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("██╗    ██╗", result.stdout)
@@ -173,12 +180,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn("[deployment]", result.stdout)
 
     def test_sync_help_explains_targets_and_optional_installers(self) -> None:
-        result = subprocess.run(
-            [str(core.ROOT / "bin/workbench"), "sync", "--help"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        result = self.run_cli("sync", "--help")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("claude|codex|pi|all", result.stdout)
@@ -193,12 +195,7 @@ class WorkbenchTests(unittest.TestCase):
         }
         for command, expected in expectations.items():
             with self.subTest(command=command):
-                result = subprocess.run(
-                    [str(core.ROOT / "bin/workbench"), command, "--help"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
+                result = self.run_cli(command, "--help")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(f"workbench {command}", result.stdout)
                 self.assertIn("Options", result.stdout)
@@ -206,12 +203,7 @@ class WorkbenchTests(unittest.TestCase):
                 self.assertNotIn("usage: workbench", result.stderr)
 
     def test_invalid_target_has_visual_contextual_error(self) -> None:
-        result = subprocess.run(
-            [str(core.ROOT / "bin/workbench"), "sync", "other"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        result = self.run_cli("sync", "other")
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("╭─ Error", result.stderr)
@@ -220,12 +212,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertNotIn("usage: workbench", result.stderr)
 
     def test_unknown_command_has_visual_registry_error(self) -> None:
-        result = subprocess.run(
-            [str(core.ROOT / "bin/workbench"), "other"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        result = self.run_cli("other")
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("╭─ Error", result.stderr)
