@@ -31,7 +31,14 @@ WORKBENCH_BANNER = """\
 ╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗██████╔╝███████╗██║ ╚████║╚██████╗██║  ██║
  ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝
 """
-RUBY_STOPS = ((255, 184, 194), (230, 57, 86), (165, 9, 47), (101, 0, 24))
+LICHEN_ENAMEL_STOPS = (
+    (238, 230, 189),
+    (196, 197, 133),
+    (140, 160, 111),
+    (101, 126, 104),
+    (80, 102, 95),
+    (57, 78, 82),
+)
 
 USAGE_ROOT = "workbench [OPTIONS] COMMAND [ARGS]..."
 DESCRIPTION = (
@@ -57,7 +64,7 @@ def _gradient_color(
 
 
 def gradient_banner(*, color: bool | None = None) -> str:
-    """Render the Workbench wordmark with a horizontal ruby gradient."""
+    """Render the Workbench wordmark with the Lichen Enamel gradient."""
     lines = WORKBENCH_BANNER.rstrip().splitlines()
     if color is None:
         color = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
@@ -68,7 +75,7 @@ def gradient_banner(*, color: bool | None = None) -> str:
     for line in lines:
         parts: list[str] = []
         for column, character in enumerate(line):
-            red, green, blue = _gradient_color(column / max(1, width - 1), RUBY_STOPS)
+            red, green, blue = _gradient_color(column / max(1, width - 1), LICHEN_ENAMEL_STOPS)
             parts.append(f"\033[38;2;{red};{green};{blue}m{character}")
         rendered.append("".join(parts) + "\033[0m")
     return "\n".join(rendered)
