@@ -13,12 +13,12 @@ Counts are physical lines in tracked files in the current working tree, includin
 | Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | 1,566 | 889 | 265 | 2,720 | Core deployment engine |
 | Pi extensions and direct connector adapters | 3,213 | 317 | 171 | 3,701 | Core local runtime layer |
 | Shared rules, safety hooks, permission policy, and launchers | 439 | 213 | 223 | 875 | Core trust boundary |
-| Reusable skills and their references | 5,413 | 0 | 0 | 5,413 | Core portable workflow library; contract checks live in the shared deployment-engine tests |
+| Reusable skills and their references | 5,435 | 0 | 0 | 5,435 | Core portable workflow library; contract checks live in the shared deployment-engine tests |
 | Temporary handoff workflow | 276 | 99 | 0 | 375 | Active; explicit private state |
 | Reusable prompts | 83 | 0 | 0 | 83 | Small supporting surface |
-| Engineering playbook | 7,512 | 0 | 0 | 7,512 | Active reference; review for staleness |
+| Engineering playbook | 7,566 | 0 | 0 | 7,566 | Active reference; review for staleness |
 | Project-health kit | 74 | 0 | 0 | 74 | Small adoption contract |
-| Capability, experiment, and decision documentation | 650 | 0 | 0 | 650 | Active head-state and tombstones |
+| Capability, experiment, and decision documentation | 656 | 0 | 0 | 656 | Active head-state and tombstones |
 
 ## Capability map
 

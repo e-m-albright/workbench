@@ -4,6 +4,17 @@
 
 Guiding idea: **gate the delta, not the backlog.** Grandfather existing debt, block regressions, ratchet the ceiling down over time. This is what makes discipline adoptable on a real codebase instead of a greenfield fantasy.
 
+## Standards maturity
+
+Promote a standard through explicit stages: **proposed → advisory → measured →
+deterministic and blocking where expressible → retired**. Record its scope,
+rationale, owner, and exception path before enforcement. Observation should
+establish usefulness and false-positive behavior before a rule blocks work.
+Prefer tests, types, linters, and policy checks for deterministic requirements;
+contextual model judgments remain advisory unless measured evidence justifies a
+narrow blocking use. Retire standards when their premise expires or their
+maintenance cost no longer earns its place.
+
 ## 1. The baselines ratchet
 
 A single `baselines.json` records a **ceiling** for every health metric: per-file and per-extension line ceilings, and **counts** of escape hatches — `# type: ignore`, `# noqa`, `#[allow(...)]`, `@ts-expect-error`, `except Exception`, `dict[str, Any]`, `cast(...)`, skipped tests, bare TODOs, `#[cfg(test)]`-in-src. A gate fails any commit where `actual > ceiling`.
@@ -25,6 +36,12 @@ The non-obvious half is the **monotonic guard**: a second gate enforces that a c
 One implementation per concept. When a new version replaces an old one, **delete the old and give the new one the unversioned name, in the same change.** No `FooV2` beside `Foo`, no `transcript_v2` column beside `transcript`, no backward-compat re-export shim. A policy script scans staged additions for versioned identifiers (`*V[1-9]`, `*Legacy`, `*Deprecated`, `*_v[1-9]`) and fails the commit. Allowed: external-protocol versions (`api_version`, `/api/v1/`), frozen migration baselines, and `New` meaning "newly added" (only flagged when paired with `*Old`/`*V1`). Parallel versions require explicit authorization plus a roadmap entry naming the collapse date.
 
 Generalized smell: **whenever you catch yourself proposing "we'll also maintain X alongside Y," stop.** Parallel artifacts drift. The same instinct rejects "keep two baselines" and "build a separate manifest of contract surfaces" — the answer lives inline with the code or in one canonical place generated from a single source of truth.
+
+### Structural oracles
+
+Functional tests prove required behavior, not necessarily maintainable placement. When architecture carries a real invariant, encode a **structural oracle** that tests the shape of the change: permitted dependency directions, module ownership, public contract names, boundary validation, generated-source freshness, or the absence of a competing registry. Prefer an import-layer test or small repository-native linter over a prose rule that a reviewer may miss.
+
+The [Needle in the Repo](https://arxiv.org/abs/2603.27745) preprint found behaviorally correct edits that still violated targeted maintainability constraints, with dependency control and responsibility decomposition performing worst. Its controlled benchmark is not a production effect-size estimate. It is evidence for a familiar engineering conclusion: if architecture is load-bearing, make it executable. Keep model-based structural review advisory unless the invariant can be expressed deterministically.
 
 ## 3. CI calls task-runner recipes; YAML holds zero logic
 

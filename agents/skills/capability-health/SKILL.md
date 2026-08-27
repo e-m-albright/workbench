@@ -24,6 +24,15 @@ and documentation.
 Assess capabilities at the level a user or maintainer would recognize. Do not
 mistake every module, adapter, or configuration file for a capability.
 
+## Admission and maturation
+
+Start from a recurring bottleneck, not a desirable-looking feature. Before
+adding or expanding a capability, name the friction it removes, the cheapest
+golden path that addresses it, the supported escape hatch, and who will absorb
+its maintenance. Define the evidence that would justify promotion, broader
+scope, or retirement. A recurring customization is evidence to investigate,
+not automatic proof that the platform should own it.
+
 ## Workflow
 
 1. **Map actual capabilities.** Read the feature map, README, command surface,

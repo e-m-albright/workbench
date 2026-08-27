@@ -46,11 +46,12 @@ The strongest finding across every comparison: **the workflow matters more than 
 4. **Layer deterministic + probabilistic.** Lint + SAST (SonarQube, Semgrep, Ruff, mypy, ESLint, golangci-lint) for deterministic checks. AI reviewer for logic, intent, edge cases. Both, not either.
 5. **Multi-agent review (parallel specialists).** Anthropic's Claude Code Review, Qodo, Greptile all do this. Separate agents for security, performance, correctness, style -> dedupe -> rank. Better than one generalist.
 6. **Verification / false-positive filter step.** Don't post raw model output. Second pass: "is this finding actually correct given the surrounding code?" Macroscope's precision and Claude Code Review's quality both depend on this.
-7. **Risk-tiered review.** Dependabot version bump != agent-generated auth refactor. Auto-merge low risk; human sign-off on high risk.
-8. **Standard PR template that captures AI involvement.** Addy Osmani's pattern: What/why (1-2 sentences), proof it works (tests, manual steps, screenshots/logs), risk + AI role (which parts were AI-generated), review focus (1-2 areas for human input).
-9. **Generate tests as part of the review.** Have the AI reviewer write the test that would have caught the bug — turns review into regression prevention.
-10. **Ad-hoc pre-push review.** Before opening a PR, paste the diff into Claude/GPT/Gemini for a 30-second sanity check. Costs nothing.
-11. **Hard line on human accountability.** AI is first pass. **A human owns the merge.** Across every serious analysis, the same point.
+7. **Scope repository review invariants.** Put only consequential, non-obvious checks in `AGENTS.md`: state the invariant and safe path, locate service-specific guidance in the nearest nested file, and test one violation, one valid exception, and one unrelated change. Keep mechanical formatting in CI. OpenAI reports materially better custom-finding recall from this pattern, but the evaluation is first-party and should not be treated as a universal effect size.
+8. **Risk-tiered review.** Dependabot version bump != agent-generated auth refactor. Auto-merge low risk; human sign-off on high risk.
+9. **Standard PR template that captures AI involvement.** Addy Osmani's pattern: What/why (1-2 sentences), proof it works (tests, manual steps, screenshots/logs), risk + AI role (which parts were AI-generated), review focus (1-2 areas for human input).
+10. **Generate tests as part of the review.** Have the AI reviewer write the test that would have caught the bug — turns review into regression prevention.
+11. **Ad-hoc pre-push review.** Before opening a PR, paste the diff into Claude/GPT/Gemini for a 30-second sanity check. Costs nothing.
+12. **Hard line on human accountability.** AI is first pass. **A human owns the merge.** Across every serious analysis, the same point.
 
 ## The Convergent Stack (What Most Serious Teams End Up With)
 
@@ -95,6 +96,7 @@ Lives in your repo, no per-seat lock-in, evolves with the codebase. Tradeoff: yo
 ## Resources
 
 - [Bringing Code Review to Claude Code (Anthropic)](https://claude.com/blog/code-review)
+- [Custom Code Review rules for Codex (OpenAI)](https://developers.openai.com/blog/custom-code-review-rules-for-codex)
 - [CodeRabbit](https://coderabbit.ai) / [Bugbot](https://cursor.com/bugbot) / [Greptile](https://greptile.com) / [Graphite](https://graphite.com) / [Macroscope](https://macroscope.com) / [Qodo](https://qodo.ai)
 - Addy Osmani's Substack (industry stats roll-up): https://addyosmani.substack.com/
 - See also: [`../tools-to-evaluate.md`](../tools-to-evaluate.md) for watch-only tools.

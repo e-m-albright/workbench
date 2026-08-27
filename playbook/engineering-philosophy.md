@@ -111,6 +111,14 @@ These are the failure modes to watch when reviewing agent (or your own) output:
 - **External field names as domain vocabulary** — leaking an API's naming into the core instead of the project's ubiquitous language.
 - **End-to-end-only testability** — logic that can't be unit-tested because it wasn't separated from its effects.
 
+### Evidence: passing tests do not prove maintainable evolution
+
+Dex Horthy argues that short reinforcement-learning and benchmark loops reward task completion more readily than long-term program design. His practical response is to align product intent, architecture, types, interfaces, and one vertical slice before scaling implementation. This is a source position, not proof that every task needs a design document; the planning threshold should still follow consequence and coordination cost.
+
+The 2026 [Needle in the Repo](https://arxiv.org/abs/2603.27745) preprint gives controlled evidence for the underlying risk. Across 23 model and harness configurations, 13.3% of evaluated outcomes passed all functional tests while failing the targeted structural oracle. Dependency control and responsibility decomposition were the weakest dimensions. The benchmark uses small designed repositories rather than long-lived production systems, so its percentages should not be generalized directly. Its durable lesson is narrower: verification must include architecture and maintainability properties when those properties matter.
+
+Source: Dex Horthy, [Harness Engineering is not Enough: Why Software Factories Fail](https://www.youtube.com/watch?v=Ib5GBkD555M).
+
 ## Software 3.0: what stays human
 
 Agents are the new interpreter — the context window is where the program lives now. That shifts *where* the human adds value, not *whether*. These name what does not transfer to the agent (distilled from Karpathy's "agentic engineering" talk and Mario Zechner's *Building Pi in a World of Slop*).
@@ -146,6 +154,10 @@ There is no "sufficiently detailed spec" that removes the thinking — a spec pr
 ### Own the context
 
 The context window is the program; anything mutating it outside your explicit view — injected reminders, silently rewritten tool definitions, output pruned to save tokens — breaks observability and your ability to reason about a failure. Magic you can't see is technical debt. This is why the workbench favors a small, inspectable core over a heavy harness with hidden behavior.
+
+This stance is consistent with two complementary 2026 reports. Anthropic says it removed more than 80% of Claude Code's system prompt for newer models without measurable loss on its own coding evaluations, replacing repeated rules and examples with judgment, expressive interfaces, and progressively disclosed skills. O'Reilly's Hugo Bowne-Anderson calls the broader pattern the "Kirby effect": harness features encode temporary assumptions about model limitations and should be revisited as those assumptions expire. Both are first-party or practitioner reports rather than independent general benchmarks. Use them as a prompt to simplify, not as permission to remove durable safety boundaries.
+
+Sources: Anthropic, [The new rules of context engineering for Claude 5 generation models](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models); Hugo Bowne-Anderson, [Stop Overengineering Your Agent Harness](https://www.oreilly.com/radar/stop-overengineering-your-agent-harness/).
 
 ## How agents should use this
 

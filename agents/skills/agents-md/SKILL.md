@@ -37,6 +37,18 @@ Rules of thumb:
 - Global process/voice rules already live in the user's global instructions — don't repeat them per-project.
 - A large domain glossary graduates to `DOMAIN.md`, referenced from AGENTS.md, so the always-loaded file stays lean.
 
+### Review invariants
+
+Treat project instructions as review guidance only when they capture a consequential, non-obvious invariant that reviewers would otherwise explain repeatedly. Formatting and other mechanical checks belong in deterministic tooling.
+
+- State the invariant and the safe alternative, not only a prohibition.
+- Keep repository-wide invariants at the root and put service or directory-specific guidance in the nearest nested `AGENTS.md`.
+- Describe durable outcomes rather than current function names that will rot.
+- Before retaining a new rule, test one violating change, one valid exception, and one unrelated change. The rule should catch the first without creating noise on the others.
+- Remove or narrow rules that do not change review behavior or repeatedly produce false positives.
+
+Source: OpenAI, [Custom Code Review rules for Codex](https://developers.openai.com/blog/custom-code-review-rules-for-codex).
+
 ## 4. Set up the symlinks
 
 ```bash

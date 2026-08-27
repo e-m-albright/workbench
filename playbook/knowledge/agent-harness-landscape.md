@@ -89,6 +89,20 @@ Current Workbench dispositions:
   the agent loop (agent inboxes, orchestrators) are off the table while they hide
   more than they reveal.
 
+### Evidence update: minimum viable harness
+
+Recent sources point in the same direction without proving one universal recipe:
+
+- OpenAI's greenfield software-factory case study credits repository legibility, short map-like instructions, executable architecture constraints, isolated environments, and direct access to tests, logs, traces, and the UI. Its million-line, first-party internal experiment is evidence that those conditions can support high autonomy, not that an established personal codebase should copy the factory or relax merge boundaries.
+- Anthropic reports removing more than 80% of Claude Code's system prompt for newer models without measurable loss on its own evaluations. The transferable practice is to delete duplicated guidance, prefer expressive interfaces, and progressively disclose specialized workflows. Safety policy remains explicit and enforced.
+- Hugo Bowne-Anderson frames harness scope through action complexity and context complexity. Add memory, compaction, subagents, or hooks only when a real task occupies the part of that matrix that needs them, then reconsider the machinery as models improve.
+- A 2026 study of 2,853 public repositories found context files were usually the only adopted configuration mechanism, with `AGENTS.md` emerging as the cross-tool convention. This is an adoption baseline, not evidence that advanced mechanisms never help.
+- METR's February 2026 update says current developer uplift is likely better than its early-2025 slowdown result, but selection effects prevent a reliable estimate. Its separate transcript analysis finds high time savings on selected Claude Code tasks, especially with concurrency, while explicitly treating those numbers as soft upper bounds on productivity.
+
+The decision rule remains: start from repository context, native tools, deterministic gates, and one observable execution loop. Add a harness feature only for a named recurring failure with a removal path and measurable verification. Do not use vendor throughput as a proxy for owner value or maintainability.
+
+Sources: OpenAI, [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/); Anthropic, [The new rules of context engineering for Claude 5 generation models](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models); O'Reilly, [Stop Overengineering Your Agent Harness](https://www.oreilly.com/radar/stop-overengineering-your-agent-harness/); Galster et al., [Harness Engineering for Agentic AI Coding Tools](https://arxiv.org/abs/2602.14690); METR, [developer productivity experiment update](https://metr.org/blog/2026-02-24-uplift-update/) and [transcript-analysis note](https://metr.org/notes/2026-02-17-exploratory-transcript-analysis-for-estimating-time-savings-from-coding-agents/).
+
 ---
 
 ## How to read the landscape — tiers
