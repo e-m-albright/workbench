@@ -44,6 +44,24 @@
 | Validation | **validator** | — | Derive-based struct validation |
 | Columnar analytics | **arrow + parquet + datafusion** | — | In-process OLAP/columnar in Rust — the Polars/DuckDB equivalent on the Rust side |
 
+### Phase 2c — AI/ML and Python interop
+
+The useful frame is not "Rust replaces Python for AI" — it does not, and research stays in Python. Rust is replacing the C and C++ layer Python has always sat on top of. Hugging Face `tokenizers`, Pydantic's core, and Polars are all Rust already. Reach for Rust at the three points where Python's global interpreter lock, object memory overhead, or deployment footprint actually costs something: hot-path preprocessing, production inference, and edge or embedded targets Python cannot reach.
+
+| Need | Pick | Avoid | Notes |
+|------|------|-------|-------|
+| Python extension modules | **PyO3 + maturin** (+ **rayon** for parallelism) | hand-written CPython C API, cffi | The main event. Move a hot path to Rust without leaving Python; `rayon` inside the extension sidesteps the GIL entirely. `maturin develop` installs into the active venv. This is how tokenizers, Polars, and Pydantic are built |
+| DataFrames / ETL | **Polars** | Pandas for production pipelines | Lazy query plan, parallel execution, no per-row Python overhead. Usable from Python or Rust |
+| Production inference of a Python-trained model | **ort** (ONNX Runtime bindings) + **ndarray** | reimplementing the model | Train in PyTorch, export ONNX, serve from Rust. Note `ort` has no stable release — the 2.0 line has been in release candidates since 2024 (rc.13, 2026-07). Widely used regardless; pin the exact rc |
+| Deep learning, inference-focused | **Candle** (Hugging Face) | — | Minimal and deployment-oriented; runs Llama, Mistral, Whisper; safetensors and HF hub native |
+| Deep learning, full training in Rust | **Burn** | — | Backend-agnostic across CPU, CUDA, ROCm, Metal, Vulkan, and WebGPU by changing one Cargo feature. `no_std` core reaches bare-metal embedded. Choose it when Python genuinely cannot go there — embedded, WASM, single-binary |
+| Classical ML | **linfa** | — | The scikit-learn analogue. Check maintenance before adopting: 0.8.1 was the latest as of 2026-08 and had not been updated since 2025-12 |
+| Columnar analytics in-process | **arrow + parquet + datafusion** | — | See Phase 2b above |
+
+**Default pattern.** Prototype, experiment, and train in Python. Move measured hot paths to Rust with PyO3. Take production inference fully into Rust with ONNX plus `ort` when the deployment footprint justifies it. Use Burn or Candle only when the target is somewhere Python cannot follow.
+
+**Adopt on measurement, not on principle.** Every entry above is a rewrite of code that already works. Profile first and let the number justify the crate. Versions and download counts here were checked against crates.io on 2026-08-27; benchmark ratios quoted in blog posts and videos tend to be attached to releases several versions stale, so re-verify before citing one.
+
 ### Testing & quality
 
 | Need | Pick | Avoid | Notes |

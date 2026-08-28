@@ -31,6 +31,7 @@ Project-specific context and rules belong in the project's hand-written `AGENTS.
 - **Verify before claiming success.** Run the relevant tests, builds, linters, or direct checks and report the evidence. Distinguish verified results from inference.
 - **Debug systematically.** Reproduce the failure, form a hypothesis, test it, fix the root cause, and add focused regression coverage when tests exist.
 - **Build on bedrock.** Prefer root-cause fixes over suppressions such as `# noqa`, `type: ignore`, or `@ts-expect-error`.
+- **Do not over-weight development cost in technical decisions.** Models estimate effort from human-authored training data, so they price options in human days and weeks and systematically overstate what building well costs them. That bias pushes toward the cheap option, which is often the low-quality, unscalable, or hard-to-maintain one. Judge a design on correctness, clarity, and durability first, and treat your own implementation time as cheaper than it feels.
 - **Keep one active implementation.** When a replacement lands, remove the superseded path rather than retaining competing `*_v2` or `*_legacy` versions.
 - **Honor quality gates.** Satisfy the purpose of tests, coverage, types, lint, and review rather than weakening their ability to detect failures.
 - **Mark intentional ceilings.** When a deliberately simple design has a known limit, leave one concise comment naming the limit and the upgrade path.
