@@ -1,23 +1,25 @@
 {
   "providers": {
-    "lm-studio": {
-      "baseUrl": "http://localhost:1234/v1",
+    "omlx": {
+      "baseUrl": "http://localhost:8000/v1",
       "api": "openai-completions",
-      "apiKey": "lm-studio",
+      "apiKey": "omlx",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsStrictMode": true
+      },
       "models": [
         {
-          "id": "qwen3.6-35b-a3b",
-          "name": "Qwen 3.6 35B-A3B MLX (daily driver, ~77 tok/s, thinking)",
-          "contextWindow": 262144,
-          "maxTokens": 32000,
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-          "_launch": true
-        },
-        {
-          "id": "gemma-4-e4b-it-mlx",
-          "name": "Gemma 4 E4B MLX (vision, ~49 tok/s, no thinking)",
-          "contextWindow": 131072,
-          "maxTokens": 16000,
+          "id": "Qwen3.6-35B-A3B-oQ4e-mtp",
+          "name": "Qwen 3.6 35B-A3B optimized MLX 4-bit + MTP (private agent, ~51-80 tok/s)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 32768,
+          "maxTokens": 32768,
+          "compat": {
+            "thinkingFormat": "qwen-chat-template"
+          },
           "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
         }
       ]

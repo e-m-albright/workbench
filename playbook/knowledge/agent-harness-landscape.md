@@ -321,40 +321,12 @@ re-derive it.
 
 ---
 
-## Inference providers — open-model hosting watch (2026-07-21)
+## Open-model inference
 
-The supply side of the "Pi + open model" bet: who serves Kimi-class open weights,
-and who is reputable. Two distinct layers — **routers** (no GPUs of their own)
-and **inference hosts** (run the weights on their own accelerated infra).
-
-### Router layer
-
-| Provider | What it is | Reputation / take |
-|---|---|---|
-| **OpenRouter** | Aggregator/proxy, ~zero own inference. One OpenAI-compatible key; routes each request to an underlying host (or the model owner's API when weights aren't public) by price/latency/uptime. Takes ~5% on credits. | The pragmatic default for a personal agent. You trade an extra hop + a middleman seeing your traffic for provider portability with zero config churn. Prompts pass *through* them to the host; logging is off by default but it's still a party in the path. |
-
-### Inference hosts (own accelerated compute)
-
-| Provider | Tier | Reputation / take |
-|---|---|---|
-| **Together AI** | Serious infra | Broadest open-model catalog, reliable, good docs, well-funded. Solid default if going direct. Kimi K2.6 at ~$1.20/M in. |
-| **Fireworks AI** | Serious infra | Fast, engineering-strong (ex-Meta PyTorch team), competitive pricing. |
-| **Baseten** | Serious infra | Aggressive on Kimi-family latency/pricing (~$0.95/M in for K2.6). More "deploy your model" platform DNA; first-class open-weight serving. |
-| **Groq / Cerebras** | Raw speed | Custom silicon, spectacular tok/s on small-to-mid models. Trillion-param MoEs are a stretch for their memory architecture — don't expect K3-class there soon. |
-| **DeepInfra / Novita** | Budget | Cheapest (K2.6 from ~$0.75/M in). A step down in polish/SLA; fine for a personal agent, not for anything that matters. |
-| **Moonshot direct** (platform.kimi.ai) | Model owner | Cheapest first-party access to K3, and the *only* source until weights are public. Chinese company holding keys + traffic — fine for code experiments, mind the privacy line. |
-
-### Kimi K3 status snapshot (2026-07-21)
-
-- Released 2026-07-16, API-first; **open weights land 2026-07-27** (2.8T MoE, MXFP4).
-- Debuted #1 on Frontend Code Arena; early days — leaderboards are launch-week
-  and frontend-weighted. K2.6 remains the proven agentic workhorse at ~¼ the price.
-- Until weights drop, K3 = Moonshot's API only (direct or via OpenRouter,
-  ~$3/$15 per M, capacity-constrained). Expect Together/Baseten/Fireworks/DeepInfra
-  to serve it within days-to-weeks after 07-27, then prices fall and routing
-  through OpenRouter picks the winner automatically.
-- **Self-hosting K3 is off the table** for our hardware class (2.8T params);
-  the local path stays Qwen-scale — see [local-llm-stack.md](https://github.com/e-m-albright/dotfiles/blob/main/docs/local-llm-stack.md).
+The model, runtime, router, managed-host, and serverless-GPU landscape now lives in
+[open-model-inference.md](open-model-inference.md). This page owns agent harnesses;
+it should refer to that comparison rather than preserving another volatile provider
+or model ranking.
 
 ## Open questions / to-do (tracked)
 
@@ -362,10 +334,10 @@ and **inference hosts** (run the weights on their own accelerated infra).
 - [ ] **Deep-profile the additions** to matrix parity: Open Interpreter, Aider,
       Gemini CLI, Cline, Cursor (agent surface), plus Conductor/cmux positioning
       detail.
-- [ ] **Local + open model path:** revisit wiring a minimal harness (Pi / Oh My Pi)
-      to a self-hosted Kimi K2/K3-class model for privacy/control. Blocked on the
-      open-weights landscape maturing; ties into `local-llm-stack.md`. Re-check
-      after 2026-07-27 (K3 weights drop) — see the provider watch above.
+- [ ] **Local + open model path:** Pi now has explicit frontier/private/auto
+      routing and oMLX is under local acceptance testing. Finish the measured A/B,
+      tool-loop verification, and privacy-router evaluation before calling the path
+      adopted; see [open-model-inference.md](open-model-inference.md).
 - [ ] **Re-verify churny facts** before any decision: model IDs (Amp/Codex change
       weekly), Oh My Pi LOC/stars, "Amp subagent messaging", Pi subagent "parallel
       mode". All flagged as fast-moving.

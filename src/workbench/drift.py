@@ -13,6 +13,7 @@ from workbench.core import (
     AGENTS,
     DATA_REL,
     RETIRED_PI_EXTENSIONS,
+    RETIRED_PI_PROVIDERS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
     ROOT,
@@ -195,6 +196,12 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
         "Pi permission policy",
         findings,
     )
+    _compare(
+        AGENTS / "pi/inference-router.json",
+        pi_home / "inference-router.json",
+        "Pi inference router",
+        findings,
+    )
     findings.extend(
         _managed_value_errors(
             _settings(pi_home / "settings.json"),
@@ -214,7 +221,10 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
         findings.extend(_managed_value_errors(actual, expected, f"Pi {filename}"))
         if isinstance(actual, dict) and isinstance(expected, dict):
             for name in sorted(actual.keys() - expected.keys()):
-                external.append(f"EXTERNAL Pi {filename} entry: {name}")
+                if filename == "models.json" and name in RETIRED_PI_PROVIDERS:
+                    findings.append(f"DRIFT retired Pi provider still present: {name}")
+                else:
+                    external.append(f"EXTERNAL Pi {filename} entry: {name}")
 
     expected_extensions = {path.name: path for path in (AGENTS / "pi/extensions").glob("*.ts")}
     deployed_extensions = {path.name: path for path in (pi_home / "extensions").glob("*.ts")}

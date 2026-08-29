@@ -111,7 +111,7 @@ Phase 3 — SCALE / RESEARCH
 
 ### Local model experimentation
 
-Run models locally via **LM Studio (MLX)** or **llama.cpp** for an OpenAI-compatible endpoint, then point the `openai` SDK or `httpx` at `http://localhost:<port>/v1`.
+Run models locally through **oMLX** on Apple Silicon, with LM Studio and llama.cpp as compatibility fallbacks, then point the `openai` SDK or `httpx` at `http://localhost:<port>/v1`. The current model and provider ranking lives in [open-model-inference.md](../../knowledge/open-model-inference.md).
 
 ## Code patterns
 

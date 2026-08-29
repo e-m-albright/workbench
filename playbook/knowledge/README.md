@@ -3,9 +3,11 @@
 Durable, opinionated knowledge that isn't tied to one language stack. Reference material an agent consults on demand; reviewed and updated as the field moves.
 
 - [ai-tools.md](ai-tools.md) — AI frameworks, evals, coding-assistant landscape
+- [ai-interface-design-tools.md](ai-interface-design-tools.md) — design-first generators, design-to-code bridges, free trials, and anti-anchoring evaluation
 - [ai-coding-frameworks.md](ai-coding-frameworks.md) — agent meta-framework notes
 - [ai-code-review.md](ai-code-review.md) — AI PR-reviewer landscape and the workflow tactics that matter more than the tool
 - [llm-evals-observability.md](llm-evals-observability.md) — eval framework & observability platform comparison (Promptfoo, Langfuse, Logfire, pydantic-evals, Phoenix, …)
+- [open-model-inference.md](open-model-inference.md) — current open-weight model ranking, local runtimes, routers, managed inference hosts, and serverless GPU platforms
 - [agent-capability-patterns.md](agent-capability-patterns.md) — emerging harness capabilities: advisor strategy, monitors, managed runtimes, visual builders
 - [token-efficiency.md](token-efficiency.md) — token efficiency, task decomposition, model routing
 - [browser-tooling.md](browser-tooling.md) — tiered browser/UI automation tools

@@ -37,6 +37,11 @@ gacp() {
     git push
 }
 
+# Pi privacy routes. Plain `pi` remains the explicit frontier path.
+unfunction pif 2>/dev/null
+piv() { pi --route private "$@"; }
+pia() { pi --route auto "$@"; }
+
 # co: Codex with reasoning profiles and judgment-based approvals
 # Usage: co [-q|--quick|-d|--deep] [codex args...]
 # Default: configured model at medium effort; on-request approval; workspace-write sandbox

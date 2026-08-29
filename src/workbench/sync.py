@@ -13,6 +13,7 @@ from workbench.core import (
     CLAUDE_SANDBOX,
     DATA_REL,
     RETIRED_PI_EXTENSIONS,
+    RETIRED_PI_PROVIDERS,
     RETIRED_PI_STATE_PATHS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
@@ -253,7 +254,13 @@ def sync_rules(home: Path, vendor: str) -> None:
         raise WorkbenchError(f"unsupported vendor for rules sync: {vendor}")
 
 
-def _merge_pi_object(source: Path, destination: Path, *, nested_key: str | None = None) -> None:
+def _merge_pi_object(
+    source: Path,
+    destination: Path,
+    *,
+    nested_key: str | None = None,
+    retired_nested_keys: set[str] | None = None,
+) -> None:
     desired = _settings(source)
     existing = _settings(destination)
     if nested_key:
@@ -261,7 +268,12 @@ def _merge_pi_object(source: Path, destination: Path, *, nested_key: str | None 
         existing_nested = existing.get(nested_key, {})
         if not isinstance(desired_nested, dict) or not isinstance(existing_nested, dict):
             raise WorkbenchError(f"Pi {nested_key} must be JSON objects")
-        desired = {**existing, **desired, nested_key: {**existing_nested, **desired_nested}}
+        retained = {
+            key: value
+            for key, value in existing_nested.items()
+            if key not in (retired_nested_keys or set())
+        }
+        desired = {**existing, **desired, nested_key: {**retained, **desired_nested}}
     else:
         desired = {**existing, **desired}
     if destination.is_symlink():
@@ -314,8 +326,14 @@ def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
         _remove_deployed_path(home / path)
     _replace_pi_file(AGENTS / "shared/rules.md", destination / "AGENTS.md")
     _merge_pi_object(source / "settings.json", destination / "settings.json")
-    _merge_pi_object(source / "models.json", destination / "models.json", nested_key="providers")
+    _merge_pi_object(
+        source / "models.json",
+        destination / "models.json",
+        nested_key="providers",
+        retired_nested_keys=set(RETIRED_PI_PROVIDERS),
+    )
     _merge_pi_object(source / "presets.json", destination / "presets.json")
+    _replace_pi_file(source / "inference-router.json", destination / "inference-router.json")
     _replace_pi_file(source / "permission-policy.json", destination / "permission-policy.json")
     for name in RETIRED_PI_EXTENSIONS:
         _remove_deployed_path(destination / "extensions" / name)

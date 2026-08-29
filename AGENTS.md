@@ -6,8 +6,8 @@ Workbench is a public, personal development-intelligence repository. It
 owns portable agent configuration, engineering guidance, and project-health
 tools. Reusable automation mechanics may live here when one earns its place
 (none do today); private workflow instances stay in their owning private layer.
-`CATALOGUE.md` is the maintained feature map; update it when a capability is
-added, removed, materially expanded, split, or consolidated.
+`CATALOGUE.md` is a timestamped capability-health snapshot, refreshed on demand
+rather than maintained during routine implementation.
 
 The adjacent public host repository owns fresh-Mac setup, packages,
 shell/editor configuration, drift reconciliation, and remote-host access.

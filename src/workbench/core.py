@@ -85,6 +85,12 @@ RETIRED_PI_EXTENSIONS = {
         " aborted startup"
     ),
 }
+RETIRED_PI_PROVIDERS = {
+    "lm-studio": (
+        "replaced 2026-08-28 by the open-source oMLX runner after local inference"
+        " returned with multi-model routing and prefix-cache requirements"
+    ),
+}
 RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
 VENDORS = ("claude", "codex", "pi")
 VENDOR_CHOICES = (*VENDORS, "all")

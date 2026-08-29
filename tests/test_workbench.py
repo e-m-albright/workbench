@@ -559,7 +559,14 @@ class WorkbenchTests(unittest.TestCase):
             (duplicate / "SKILL.md").write_text("stale duplicate\n")
             (pi_home / "settings.json").write_text(json.dumps({"externalSetting": True}))
             (pi_home / "models.json").write_text(
-                json.dumps({"providers": {"external-provider": {"models": []}}})
+                json.dumps(
+                    {
+                        "providers": {
+                            "external-provider": {"models": []},
+                            "lm-studio": {"models": []},
+                        }
+                    }
+                )
             )
             (pi_home / "presets.json").write_text(json.dumps({"external-preset": {}}))
             (pi_home / "extensions/external.ts").write_text("export default () => {};\n")
@@ -576,6 +583,7 @@ class WorkbenchTests(unittest.TestCase):
             presets = json.loads((pi_home / "presets.json").read_text())
             self.assertTrue(settings["externalSetting"])
             self.assertIn("external-provider", models["providers"])
+            self.assertNotIn("lm-studio", models["providers"])
             self.assertIn("external-preset", presets)
             self.assertTrue((pi_home / "extensions/external.ts").exists())
             self.assertFalse(retired.exists())
@@ -584,6 +592,10 @@ class WorkbenchTests(unittest.TestCase):
             self.assertFalse((pi_home / "skills" / canonical_name).exists())
             self.assertTrue((home / ".agents/skills" / canonical_name / "SKILL.md").exists())
             self.assertFalse((pi_home / "settings.json").is_symlink())
+            self.assertEqual(
+                (pi_home / "inference-router.json").read_text(),
+                (core.AGENTS / "pi/inference-router.json").read_text(),
+            )
             self.assertEqual((pi_home / "sessions").stat().st_mode & 0o777, 0o700)
             self.assertEqual(session.stat().st_mode & 0o777, 0o600)
             self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 0)
