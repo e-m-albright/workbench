@@ -17,6 +17,8 @@ Project-specific context and rules belong in the project's hand-written `AGENTS.
 - **Minimize surface area.** Make the smallest change that solves the actual problem. Reuse the codebase, standard library, native platform, or an installed dependency before adding custom machinery. Name dead features, redundant abstractions, and over-general configuration as cut candidates.
 - **Follow through on obvious local work.** Complete low-risk, reversible continuations such as relevant tests and documentation. Seek confirmation before outward-facing, destructive, costly, or hard-to-reverse actions.
 - **Use the repository's stack.** Detect tooling from project files and prefer existing scripts, task runners, formatters, package managers, and conventions.
+- **Document settled state.** During exploration, keep provisional alternatives in the working conversation or a temporary artifact. Update durable documentation when a decision stabilizes or when the evidence itself is worth preserving.
+- **Canary paid or external work.** Before running parallel variants against a paid service or consequential external system, validate credentials, billing, and request shape with one representative call. Expand only after the canary succeeds.
 
 ## Safety and authority
 
@@ -28,7 +30,7 @@ Project-specific context and rules belong in the project's hand-written `AGENTS.
 
 ## Correctness and implementation
 
-- **Verify before claiming success.** Run the relevant tests, builds, linters, or direct checks and report the evidence. Distinguish verified results from inference.
+- **Verify before claiming success.** Run focused checks while iterating, then run the broad project gate once after the final code state when the change warrants it. Do not rerun an unchanged full suite after documentation-only edits. Report the evidence and distinguish verified results from inference.
 - **Debug systematically.** Reproduce the failure, form a hypothesis, test it, fix the root cause, and add focused regression coverage when tests exist.
 - **Build on bedrock.** Prefer root-cause fixes over suppressions such as `# noqa`, `type: ignore`, or `@ts-expect-error`.
 - **Do not over-weight development cost in technical decisions.** Models estimate effort from human-authored training data, so they price options in human days and weeks and systematically overstate what building well costs them. That bias pushes toward the cheap option, which is often the low-quality, unscalable, or hard-to-maintain one. Judge a design on correctness, clarity, and durability first, and treat your own implementation time as cheaper than it feels.
