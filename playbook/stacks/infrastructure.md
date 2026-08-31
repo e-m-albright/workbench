@@ -491,7 +491,7 @@ Both work well. Pick one and stick with it.
 | **Search** | Meilisearch (self-hosted) | Orama (browser) |
 | **Auth** | Better Auth (self-hosted) | Clerk (managed) |
 | **Email** | Resend | Postmark |
-| **Analytics** | Umami (self-hosted) | Plausible |
+| **Analytics** | Plausible Cloud | Umami (self-hosted) |
 | **Payments** | Stripe | LemonSqueezy (MoR) |
 
 ### Avoid

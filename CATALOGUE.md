@@ -18,7 +18,7 @@ Counts are physical lines in tracked files at snapshot time, including comments 
 | Reusable skills and their references | 5,435 | 0 | 0 | 5,435 | Core portable workflow library; contract checks live in the shared deployment-engine tests |
 | Temporary handoff workflow | 276 | 99 | 0 | 375 | Active; explicit private state |
 | Reusable prompts | 83 | 0 | 0 | 83 | Small supporting surface |
-| Engineering playbook | 8,126 | 0 | 0 | 8,126 | Active reference; review for staleness |
+| Engineering playbook | 8,147 | 0 | 0 | 8,147 | Active reference; review for staleness |
 | Project-health kit | 74 | 0 | 0 | 74 | Small adoption contract |
 | Capability, experiment, and decision documentation | 656 | 0 | 0 | 656 | Active head-state and tombstones |
 

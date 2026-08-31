@@ -15,6 +15,23 @@ component grammar. A useful zero-to-one trial supplies only the product brief,
 representative synthetic data, required states, accessibility constraints, and
 the emotional job of the interface.
 
+## Early hands-on aesthetic signal
+
+Owner-reported on 2026-08-28, based only on initial design instinct and perceived
+visual beauty:
+
+1. **Magic Patterns** appears strongest so far.
+2. **Figma** is acceptable.
+3. **v0** appears somewhat weaker than Figma.
+4. **Google Stitch** appears weakest of these four.
+
+Treat this as low-confidence directional evidence, not a product ranking. The
+trials were not controlled for prompt, model, number of iterations, or output
+format, and they do not establish code quality, responsive behavior, state
+coverage, accessibility, design-system coherence, or long-term editability. Use
+the signal to spend the next free design round on Magic Patterns and independent
+untried tools rather than repeatedly testing Stitch.
+
 ## Recommended trial set
 
 Run the same blind brief through several independent generators rather than
@@ -26,24 +43,26 @@ asking one tool for many nominal themes.
 | 1 | [Flowstep](https://flowstep.ai/) | Infinite editable canvas, multi-screen generation, reference inputs, Figma copy, and React/TypeScript/Tailwind export. Design-first rather than an application host. | Free plan with limited messages, multi-screen work, and projects; no card required. |
 | 1 | [Banani](https://www.banani.co/) | Editable multi-screen web/mobile prototypes from prompts or product requirements, manual token editing, Figma/code export, and MCP handoff. Built by a small design-focused team. | 12 monthly credits plus 3 daily credits; private projects; no card required. Figma/code export is paid, but MCP is available on all plans. |
 | 1 | [Superdesign](https://superdesign.dev/) | Prompt-to-design exploration, a large remixable prompt library, quick natural-language iteration, code export, and an agent-oriented mode. Strong candidate for broad visual references and independent composition. | Free to start; no public quota table was found. |
-| 1 | [Google Stitch](https://stitch.withgoogle.com/) | Fast web/mobile generation, easy edits, design ownership, and code export. Useful as an independent model family and for rapid breadth. | Public beta with “Try now”; Google does not publish a stable pricing table on the product page. |
-| 1 | [Figma design agent](https://help.figma.com/hc/en-us/articles/37998629035799-Work-with-the-Figma-agent-in-design-files) | Editable zero-to-one layouts and remixing inside the canonical design canvas. Strongest choice when a human wants precise manual follow-through. | Available on all plans and free during beta, subject to monthly limits. Start in a blank file with no connected library. |
+| 2 | [Google Stitch](https://stitch.withgoogle.com/) | Fast web/mobile generation, easy edits, design ownership, and code export. Keep as an independent model-family check, but early hands-on output was aesthetically weaker than the other tested tools. | Public beta with “Try now”; Google does not publish a stable pricing table on the product page. |
+| 1 | [Figma design agent](https://help.figma.com/hc/en-us/articles/37998629035799-Work-with-the-Figma-agent-in-design-files) | Editable zero-to-one layouts and remixing inside the canonical design canvas. Strongest choice when a human wants precise manual follow-through; early hands-on aesthetic output was acceptable rather than exceptional. | Available on all plans and free during beta, subject to monthly limits. Start in a blank file with no connected library. |
 | 2 | [Paper](https://paper.design/) | Web-standards design canvas with read-write MCP, agents and humans sharing one surface, code/data connections, and an unusually generous collaboration model. | Free plan: unlimited viewers/editors, 100 MCP calls per week, limited image generation. |
 | 2 | [pen.dev](https://www.pen.dev/) | Agent-driven vector canvas, open `.pen` format in Git, parallel screen generation, design kits, Figma copy/paste, and read-write MCP. Particularly interesting for reproducible design artifacts. | Currently free. For unbiased exploration, use a blank temporary project rather than an existing repository or brand kit. |
-| 2 | [Magic Patterns](https://www.magicpatterns.com/) | Product-oriented prompt-to-UI concepts and interactive prototypes, closer to application design than site generation. | 100 monthly credits. |
+| 1 | [Magic Patterns](https://www.magicpatterns.com/) | Product-oriented prompt-to-UI concepts and interactive prototypes, closer to application design than site generation. The strongest early hands-on aesthetic result and therefore the current baseline to beat. | 100 monthly credits. |
 | 2 | [Visily](https://www.visily.ai/) | Screens, components, diagrams, themes, prototypes, and low/high-fidelity switching. Useful for flows and structural breadth. | 300 AI credits per month and two editable boards. |
 | 3 | [Uizard](https://uizard.io/) | Accessible prompt-to-mockup, screenshot, and wireframe workflows. Useful as another independent visual opinion, but the free allowance is too small for a tournament. | Three AI generations per month, two projects, up to five screens per project. |
 | 3 | [Komposo](https://www.komposo.ai/) | Conversational editable design and multi-screen planning with Figma/code export on paid plans. More site- and reference-oriented than the first-priority tools. | Ten one-time credits and one project. |
 
 ### Suggested free sequence
 
-1. Generate four directions in UX Pilot, Flowstep, Banani, Superdesign, and
-   Stitch without references or current-product context.
-2. Use Figma or Paper for human comparison, annotation, and recombination only
-   after the independent results exist.
-3. Expand the top three into one dense screen, one prose-heavy screen, one
+1. Generate comparable directions in Magic Patterns, UX Pilot, Flowstep,
+   Banani, and Superdesign without references or current-product context.
+2. Use Figma as an editable baseline and Paper or pen.dev for comparison,
+   annotation, and recombination after the independent results exist.
+3. Use Stitch only as an occasional independent check unless new prompts or
+   product changes materially improve its aesthetic output.
+4. Expand the top three into one dense screen, one prose-heavy screen, one
    relationship/detail screen, and mobile.
-4. Move only the winner into a code-aware design tool or app builder.
+5. Move only the winner into a code-aware design tool or app builder.
 
 This sequence should yield more genuine diversity than one generator producing
 100 variations from a shared hidden scaffold.
@@ -72,7 +91,7 @@ is weak.
 
 | Tool | Free evaluation path | Use |
 |---|---|---|
-| [v0](https://v0.app/pricing) | $5 monthly credits and seven messages per day. | Best-known path from a selected concept to working React and visual edits. |
+| [v0](https://v0.app/pricing) | $5 monthly credits and seven messages per day. | Best-known path from a selected concept to working React and visual edits. Early hands-on aesthetic output was slightly weaker than Figma, so do not use it as the visual taste benchmark. |
 | [Bolt](https://bolt.new/pricing) | 300,000 tokens per day and one million per month. | Generous full-stack interactive prototype allowance. |
 | [Lovable](https://lovable.dev/pricing) | Free grants; the pricing page does not state a fixed grant count. | Complete hosted application prototypes; design-system features are paid. |
 | [Replit Agent](https://replit.com/pricing) | Free Starter access changes frequently and its pricing page may be bot-gated. Verify in-product. | Full application build and hosting, not independent visual discovery. |

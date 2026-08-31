@@ -3,7 +3,7 @@
 **Status:** OPEN / ongoing survey. Not an active build — a tracked view of the
 coding-agent tooling landscape and where our own harness ambitions sit.
 
-**Last surveyed:** 2026-08-26 · **Next review cue:** when a tracked tool ships a
+**Last surveyed:** 2026-08-28 · **Next review cue:** when a tracked tool ships a
 step-change, or roughly quarterly.
 
 **Project this belongs to:** *own our coding surface.* The install-manifest side
@@ -24,10 +24,11 @@ wiring a minimal harness like Pi to a Kimi K2/K3-class open model we control.
 
 This is explicitly **not** a bet on agent velocity for its own sake.
 
-## Current stance (2026-08-26)
+## Current stance (2026-08-28)
 
-**Decision: use Pi as the primary interactive trial; retain Codex and Claude Code
-as specialist fallbacks.** Do not uninstall either yet. Rationale:
+**Decision: use Pi as the primary interactive trial for trusted repository work;
+retain Codex and Claude Code as specialist fallbacks.** Do not uninstall either
+yet. Rationale:
 
 - **Subscription economics are no longer a blocker.** Pi can use ChatGPT-backed
   `openai-codex` auth while retaining its transparent, provider-neutral surface.
@@ -37,7 +38,9 @@ as specialist fallbacks.** Do not uninstall either yet. Rationale:
   already carry across harnesses.
 - **Codex still owns several hard capabilities:** OS sandboxing, cloud/async
   agents, GitHub PR review, first-class MCP, and some provider-specific controls.
-  Keep it installed for those jobs while Pi earns the rest.
+  Keep it installed for those jobs while Pi earns the rest. A website summary,
+  downloaded archive, or unfamiliar repository is untrusted input; any execution
+  it motivates belongs in an explicitly sandboxed harness, not Pi.
 - **Maintenance tax remains real.** The Jul 15 move left Pi config symlinks broken
   for a week without an error. Full migration requires Workbench to deploy and
   verify Pi declaratively, not another hand-maintained link farm.
@@ -68,7 +71,12 @@ Current Workbench dispositions:
   already rejects stale matches.
 - **Automation:** schedules, hosted routines, durable goals, artifacts, and cloud
   execution belong to vendor or automation surfaces rather than a larger local Pi
-  core.
+  core. Durable workflows should use ordinary typed control flow with explicit
+  side-effect boundaries and version-pinned runs, not a second visual graph.
+- **MCP:** cross-service composition is the value, but the current registry already
+  centralizes installation without concentrating runtime credentials. Do not add
+  an aggregator until real M-by-N client/server pressure outweighs its larger blast
+  radius and context surface.
 - **Memory:** durable facts stay in repository documentation; temporary handoffs
   remain explicit. Do not add an opaque cross-session memory service.
 - **Mobile:** Paseo over Tailscale is the sole cross-harness phone surface. Phone terminal access is not required, so Zellij, tmux, Mosh, and the Mission Control session manager were retired rather than retained as a second path.

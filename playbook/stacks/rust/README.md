@@ -62,6 +62,16 @@ The useful frame is not "Rust replaces Python for AI" — it does not, and resea
 
 **Adopt on measurement, not on principle.** Every entry above is a rewrite of code that already works. Profile first and let the number justify the crate. Versions and download counts here were checked against crates.io on 2026-08-27; benchmark ratios quoted in blog posts and videos tend to be attached to releases several versions stale, so re-verify before citing one.
 
+### Shared Rust core for polyglot products
+
+Temporal's SDK team uses a shared Rust core so multiple language SDKs do not independently reimplement the same protocol and workflow state machine. The pattern is valuable when several clients must preserve identical, complicated semantics: put invariant-heavy logic, protocol handling, and deterministic state transitions in Rust, then keep each language binding thin and idiomatic.
+
+The boundary is the cost. Foreign-function interfaces make memory ownership, cancellation, callbacks, errors, and asynchronous runtimes explicit integration problems. Use coarse, versioned calls rather than exposing Rust's object model across the boundary; translate into each host language's native futures, exceptions, and data types; and run one conformance suite against every binding. WebAssembly may eventually simplify some targets, but it does not erase host-runtime differences.
+
+Do not introduce a shared core merely because several languages exist. Start when duplicated implementations have already created semantic drift or the core state machine is expensive enough to justify one implementation plus binding complexity.
+
+Source: Spencer Judge, [Rust at the Core: Scaling Polyglot SDKs with a Shared Engine](https://www.infoq.com/presentations/rust-polyglot-sdk/), QCon San Francisco 2025 / InfoQ 2026.
+
 ### Testing & quality
 
 | Need | Pick | Avoid | Notes |

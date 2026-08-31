@@ -185,6 +185,7 @@ await resend.emails.send({
 
 - **Better Auth**: Default. Self-hosted, full control, TypeScript-first, excellent SvelteKit integration.
 - **Clerk**: When you don't want to manage auth infrastructure.
+- **Clerk for delegated agents**: Clerk now supports OAuth-protected MCP servers through Client ID Metadata Documents or Dynamic Client Registration, consent and scopes, and authenticated Agent Task sessions that act on a user's behalf. This makes Clerk the stronger managed candidate when an application needs user-delegated agent access, not merely sign-in. Keep permissions narrow and inspect the session lifecycle before adopting; several AI-facing capabilities remain beta.
 
 ### Better Auth Setup
 
@@ -211,22 +212,21 @@ export const auth = betterAuth({
 
 | Category | Primary Pick | Alternative | Notes |
 |----------|-------------|-------------|-------|
-| **Privacy-First** | Umami | Plausible | Both self-hostable. Umami: free. Plausible: polished. |
-| **Product Analytics** | PostHog | — | When you need funnels, feature flags, session replay. |
+| **Privacy-First** | Plausible Cloud | Umami (self-hosted) | Plausible is the managed default; Umami is the free, self-hosted option. |
+| **Product Analytics** | PostHog | — | When you need feature flags, experiments, or session replay. |
 
-### Self-Hosting Umami
+### Plausible
 
-```yaml
-# docker-compose.yml
-services:
-  umami:
-    image: ghcr.io/umami-software/umami:postgresql-latest
-    environment:
-      DATABASE_URL: postgresql://user:pass@db:5432/umami
-      DATABASE_TYPE: postgresql
-    ports:
-      - "3000:3000"
-```
+Use Plausible Cloud by default for public websites that need traffic, campaign,
+and conversion analytics. It provides a focused dashboard, custom events,
+revenue attribution, Google Search Console integration, and EU-hosted,
+cookieless data processing. Managed hosting is preferable here because web
+analytics is supporting infrastructure, not a product capability worth
+operating.
+
+Use Umami instead when self-hosting or its free hosted tier is a project
+constraint. Graduate to PostHog only when the product needs behavioral tooling
+such as feature flags, experiments, or session replay.
 
 ---
 

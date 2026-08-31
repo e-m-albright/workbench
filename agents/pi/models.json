@@ -15,7 +15,7 @@
           "name": "Qwen 3.6 35B-A3B optimized MLX 4-bit + MTP (private agent, ~51-80 tok/s)",
           "reasoning": true,
           "input": ["text", "image"],
-          "contextWindow": 32768,
+          "contextWindow": 262144,
           "maxTokens": 32768,
           "compat": {
             "thinkingFormat": "qwen-chat-template"

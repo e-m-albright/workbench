@@ -33,9 +33,10 @@
       ]
     },
     {
-      "name": "network download, upload, or remote script execution",
+      "name": "shell network retrieval, upload, or remote script execution",
+      "$comment": "Dedicated browser and connector tools own external reads. Blocking curl and wget closes the common prompt-injection transition from passive content into shell-driven downloads; this remains a guardrail, not network containment.",
       "patterns": [
-        "\\bcurl\\b.*(?:\\|\\s*(?:ba)?sh\\b|--output\\b|--remote-name\\b|--upload-file\\b|--request\\s+(?:POST|PUT|PATCH|DELETE)\\b|--data(?:-binary|-raw|-urlencode)?\\b|--form\\b|--header\\b|--cookie\\b|--json\\b|(?:^|\\s)-[A-Za-z]*[doOTXHb]\\b)",
+        "\\bcurl\\b",
         "\\bwget\\b",
         "(?:^|[;&|()\\s])(?:1?>|>>)\\s*\\S+"
       ]

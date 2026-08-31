@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { readFileSync } from "node:fs";
 
 mock.module("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
 const {
@@ -25,6 +26,17 @@ const config: RouterConfig = {
 	},
 	privatePathFragments: ["/code/private/"],
 };
+
+describe("Pi local model configuration", () => {
+	test("advertises the full context window exposed by oMLX", () => {
+		const models = JSON.parse(readFileSync(new URL("../agents/pi/models.json", import.meta.url), "utf8"));
+		const localModel = models.providers.omlx.models.find(
+			(model: { id: string }) => model.id === "Qwen3.6-35B-A3B-oQ4e-mtp",
+		);
+
+		expect(localModel).toMatchObject({ contextWindow: 262144, maxTokens: 32768 });
+	});
+});
 
 describe("Pi inference router policy", () => {
 	test("keeps private workspaces local without asking a classifier", () => {

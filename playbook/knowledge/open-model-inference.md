@@ -117,6 +117,12 @@ tok/s in the Pi harness, not merely in a short raw-server benchmark.
 - **Dense 27B-32B models:** they often fit at 4-bit but are memory-bandwidth-bound
   around 10-25 tokens per second on this hardware.
 
+### Server-class open-model signals
+
+GLM-5.2 and Nemotron 3 Ultra strengthen the hosted or self-managed side of the barbell without changing the laptop decision. GLM-5.2 is a 753-billion-parameter mixture-of-experts model with a one-million-token context window and MIT-licensed weights; Artificial Analysis placed it at the top of its open-weight intelligence index in June 2026, but it used substantially more output tokens than peers. Nemotron 3 Ultra is roughly 550 billion total parameters with 55 billion active per token. CodeRabbit found review quality near its baseline and competitive latency, but frequent retries for malformed or incomplete structured output. The reusable lesson is to measure time and cost to a validated completion, including retries, rather than compare one-shot intelligence or token speed alone. Neither model is a local M4 Pro candidate.
+
+Sources: [Simon Willison on GLM-5.2](https://simonwillison.net/2026/Jun/17/glm-52/) and [CodeRabbit on Nemotron 3 Ultra](https://www.coderabbit.ai/blog/nemotron-3-ultra-release).
+
 ## Open-weight model families
 
 “Open weight” means downloadable weights. It does not by itself mean an

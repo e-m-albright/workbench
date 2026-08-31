@@ -11,14 +11,14 @@
 | Package manager | **uv** | pip (slow), Poetry (complex) |
 | Python version | **3.14** | older versions |
 | Lint + format | **Ruff** (one tool) | Black + isort + flake8 (three tools) |
-| Type checker | **ty** (Astral) — advisory; **Pyright strict** blocking | mypy (slower) |
+| Type checker | **Pyright strict** blocking; **ty** advisory; **Pyrefly** watch | mypy (slower) |
 | Task runner | **Just** | Make (arcane) |
 | Git hooks | **Lefthook** | Husky, pre-commit |
 | Logging | **structlog** | stdlib `logging`, Loguru |
 
 Ruff target stays `py313` until Ruff supports 3.14.
 
-**Type checker, in practice:** `ty` is the direction (Rust-fast, Astral-made) but is pre-1.0. Until it reaches 1.0 with strict-mode parity (notably overload/generic inference), run **Pyright strict as the blocking gate** and `ty` advisory alongside. Flip ty to blocking once it clears that bar. Pyright's Node dependency is the price of a mature strict checker today.
+**Type checker, in practice:** Keep **Pyright strict as the blocking gate**. `ty` remains the Astral-aligned advisory candidate but is pre-1.0. [Pyrefly](https://pyrefly.org/blog/v1.0/) is now a second credible Rust-native candidate: Meta declared it production-ready at 1.0, uses it on Instagram and PyTorch, and ships one CLI and language server with built-in Pydantic and Django support, coverage reporting, and migration from Pyright configuration. Those are first-party claims and compatibility matters more than benchmark speed. Before replacing Pyright, run both candidates over a representative strict project and compare missed errors, false positives, library behavior, editor latency, and suppression burden. Promote one only when it clears that gate; do not carry three permanent checkers.
 
 ### Phase 2 — when needed
 

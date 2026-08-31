@@ -15,6 +15,8 @@ contextual model judgments remain advisory unless measured evidence justifies a
 narrow blocking use. Retire standards when their premise expires or their
 maintenance cost no longer earns its place.
 
+Instrument the advisory stage. Record the finding type, affected file, eventual accept-or-reject decision, false positives, and the prompt or policy version that produced it. Aggregate trends can reveal a confusing component interface, a degraded reviewer prompt, or a rule mature enough to encode deterministically. Promote recurring, unambiguous findings into a test or linter rather than asking the model to rediscover them forever. Honeycomb's Lattice Watch is one concrete implementation of this loop: deterministic lint first, contextual model review second, telemetry across pull requests, and deploy markers when the reviewing prompt changes.
+
 ## 1. The baselines ratchet
 
 A single `baselines.json` records a **ceiling** for every health metric: per-file and per-extension line ceilings, and **counts** of escape hatches — `# type: ignore`, `# noqa`, `#[allow(...)]`, `@ts-expect-error`, `except Exception`, `dict[str, Any]`, `cast(...)`, skipped tests, bare TODOs, `#[cfg(test)]`-in-src. A gate fails any commit where `actual > ceiling`.
@@ -140,6 +142,7 @@ Hard-won traps from large agentic refactors. Most are judgment, not gates, so th
 - **Malformed frontmatter deploys as *nothing*** — the one that IS gated. `npx skills` silently drops a skill whose YAML is invalid, so a typo'd skill deploys as simply gone. `just lint-agents` (`workbench lint`) at pre-commit + CI catches it before deploy.
 - **Arbitrate audit findings; don't mass-execute.** Scheduled/audit output is a worklist to triage, not a script to run — *schedule the finding, gate the fixing*.
 - **Stage only your own paths.** When an owner edits in parallel, `git add <explicit paths>` — never `git add -A`, which sweeps their untracked work into your commit.
+- **Replace stateful systems in three phases.** Run the new path in shadow mode and compare row counts, checksums, latency, and resource use without serving its output. Then use reverse shadow: make the new path authoritative while the old path remains ready for rollback. Remove the compatibility layer only after a stable cleanup period. Meta used this sequence to move petabyte-scale change-data-capture pipelines without a one-way cutover.
 
 ## See also
 

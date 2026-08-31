@@ -176,6 +176,19 @@ dev, CI, and eventually lightweight self-hosted production:
 | **Talos Linux** | Immutable, API-managed OS + K8s | Worth a mention for a fully declarative, SSH-less node OS — steeper learning curve, strongest security posture. |
 | **Managed (EKS/GKE/AKS)** | Not operating the control plane at all | Offloads etcd/control-plane ops entirely; the default once cost/complexity of self-hosting stops paying for itself. |
 
+### Multi-tenant platform stack to recognize
+
+A specialized platform-engineering stack pairs **k3s**, **Cilium**, **Kamaji**, and **Capsule**:
+
+- **k3s** provides a lightweight management cluster.
+- **Kamaji** runs separate Kubernetes control planes for tenants inside that cluster rather than provisioning a full cluster per tenant.
+- **Capsule** enforces tenant boundaries, quotas, and delegated administration within shared Kubernetes infrastructure.
+- **Cilium** supplies networking, network policy, service connectivity, and observability. Kamaji UI can provide an operator surface above the tenant control planes.
+
+This is not a better default application stack. It is a pattern for a company that must offer many teams or customers isolated Kubernetes control planes while sharing underlying infrastructure. Revisit only if the product itself becomes a multi-tenant platform or internal developer platform; it adds control-plane, networking, tenancy, upgrade, and incident-response responsibilities that a small application deployment does not need.
+
+Source: [Modern Kubernetes Platform Engineering](https://medium.com/write-a-catalyst/modern-kubernetes-platform-engineering-d6a9fd96b9bf), 2026. The article is a practitioner architecture proposal, not comparative evidence that this stack is cheaper or more reliable than managed clusters.
+
 ## 7. Adjacent tools worth knowing, briefly
 
 - **Ansible** — configuration management (Day 1/2: install packages, push
