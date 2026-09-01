@@ -52,9 +52,15 @@ RETIRED_SKILLS = {
         "its browser/service/commit workflow overlapped systematic-debugging"
         " plus browser-tooling and assumed authority that does not generalize"
     ),
+    "context-session-breakdown": (
+        "the compatibility window has closed; handoff and reflect own its two former intents"
+    ),
     "converge": (
         "its metric engine, language packs, and prescriptive loop overlapped"
         " the code-health lenses and project-owned gates"
+    ),
+    "improvement-hunt": (
+        "the compatibility window has closed; project-health-review is the sole comprehensive audit"
     ),
     "migration-writer": (
         "a Goose/Drizzle/sqlc stack skill deployed globally — the exact"

@@ -63,6 +63,7 @@ check:
     just lint
     just lint-shell
     just fmt-ts check
+    just check-documents
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,17 @@ typecheck-pi:
 [group('documents')]
 call-script-template output='artifacts/call-script-template':
     bash agents/templates/documents/render-examples.sh "{{output}}"
+
+# Verify that the maintained document template renders as standalone HTML.
+[group('documents')]
+check-documents:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    output="$(mktemp -d)"
+    trap 'find "$output" -depth -delete' EXIT
+    bash agents/templates/documents/render-examples.sh "$output"
+    test -s "$output/index.html"
+    grep -q '<!doctype html>' "$output/index.html"
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 

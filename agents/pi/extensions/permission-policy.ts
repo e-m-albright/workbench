@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import { join, normalize, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
@@ -203,6 +203,10 @@ function block(reason: string) {
 	return { block: true, reason };
 }
 
+function hardenSessionFile(sessionFile: string | undefined): void {
+	if (sessionFile) chmodSync(sessionFile, 0o600);
+}
+
 export function policyBlockReason(
 	toolName: string,
 	input: unknown,
@@ -266,6 +270,10 @@ export default function permissionPolicyExtension(pi: ExtensionAPI) {
 				"info",
 			);
 		},
+	});
+
+	pi.on("session_start", async (_event, ctx) => {
+		hardenSessionFile(ctx.sessionManager.getSessionFile());
 	});
 
 	pi.on("tool_call", async (event, ctx) => {

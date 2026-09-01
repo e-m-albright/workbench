@@ -7,7 +7,7 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome with the installed Pi version, custom footer, consult (second opinion), permission policy, presets (including read-only plan mode), safe-git, worker (one autonomous worktree-isolated delegate), owned read-only Google and Strava connectors, a confirmed Apple Notes bridge whose writes are restricted to `Agents`, and a bounded Apple Contacts CLI used by private projection workflows. The pinned package wraps the existing Agent Browser CLI.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome, custom footer, consult, permission policy, presets, safe-git, privacy-first inference routing, one worktree-isolated worker, confirmed GitHub workflow dispatch, read-only Google and Strava connectors, and an Apple Notes bridge whose writes require confirmation and remain restricted to `Agents`. The pinned package wraps the existing Agent Browser CLI; machine-local Apple bridge CLIs remain outside this repository.
 
 ## Delta over vanilla Pi
 
@@ -49,14 +49,6 @@ without deleting them. Authentication, trust decisions, sessions, and model cach
 ## Prompt navigation
 
 Managed settings use Pi 0.84.3's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
-
-Pi (verified on 0.84.3) emits OSC 133 semantic zones around user and final assistant messages,
-and Ghostty defines `jump_to_prompt` actions for navigating those zones. In the
-current Ghostty session, however, Command-Up/Down behaved as top/bottom scrolling
-rather than semantic navigation; effective-config inspection did not establish a
-working binding. Compaction may remove old transcript content, but it does not
-explain the observed key behavior. Treat terminal-native navigation as promising
-but unverified until a controlled fresh-session probe passes.
 
 Workbench also sets `/tree` to its `user-only` filter and keeps double-Escape bound
 to opening it. Up/Down previews prior prompts and Escape returns without changing
@@ -100,13 +92,10 @@ client handles it).
 
 Workbench pins `pi-agent-browser-native` 0.2.71 around the existing Agent Browser
 CLI. It adds structured tool results, bounded context spills, secret redaction,
-stale-reference guards, session recovery, and artifact metadata. A live
-`example.com` open/snapshot smoke passed. Its doctor still flags the machine's
-Agent Browser 0.31.1 against the wrapper's 0.32.2 baseline; Dotfiles already
-declares 0.32.2, but the global dependency update is blocked by the harness and
-must be run manually. It does not justify using authenticated browser profiles by default;
-temporary sessions stay the safe baseline. Optional search credentials remain
-disabled.
+stale-reference guards, session recovery, and artifact metadata. The wrapper's
+required CLI baseline belongs in its package contract; transient machine install
+state belongs in live drift or doctor output, not this document. Authenticated
+browser profiles remain opt-in, and temporary sessions stay the safe baseline.
 
 ## Build candidates
 
@@ -122,8 +111,9 @@ layers: an effect-aware path/command policy and safe-git approval gates. Read an
 write path rules are separate, so installed dependency documentation and harmless
 filenames such as `token-efficiency.md` remain readable while credential files
 stay blocked and dependency trees remain write-protected. Read-only GitHub API
-and public `curl` output are allowed; mutations, downloads, uploads, remote script
-execution, destructive Git, and shell filesystem mutation remain blocked.
+calls are allowed, while shell network retrieval, mutations, downloads, uploads,
+remote script execution, destructive Git, and shell filesystem mutation remain
+blocked.
 
 Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
 
@@ -144,6 +134,9 @@ Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
 - `just typecheck-pi` typechecks every extension against the installed Pi API.
 - Pi has no active MCP client or remote-tool allowlist. Gmail, Calendar, Strava,
   and Apple Notes access is provided by the bounded owned connectors above.
+- On every session start, the permission-policy extension sets the active transcript
+  to owner-only mode (`0600`). This preserves ordinary session history and resume
+  behavior while removing group and other mode bits.
 
 Known limits are recorded as named residual risks in
 [`pi-build-philosophy.md`](pi-build-philosophy.md): GET-based exfiltration,

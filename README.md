@@ -130,8 +130,9 @@ just check
 
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
-[Bun](https://bun.sh) (runs local connector CLIs and the Pi extension tests),
-and the installed Pi/Claude/Codex CLIs. Workbench stages and atomically replaces its local skill copies;
+[Bun](https://bun.sh) for Pi extension tests, and the installed Pi/Claude/Codex
+CLIs. [Pandoc](https://pandoc.org/) is required only to render and verify the
+maintained call-script document template. Workbench stages and atomically replaces its local skill copies;
 Pi and Codex discover one shared real-file deployment under `~/.agents/skills`, avoiding duplicate Pi skill
 warnings without a network-backed skill installer.
 
@@ -172,6 +173,7 @@ workbench sync all --no-skills --no-plugins
 just check       # format, lint, types, tests, and source validation
 just test        # deterministic unit tests only
 just lint        # skills, links, JSON, TOML, and shell syntax
+just check-documents  # render-smoke the maintained call-script template
 ```
 
 ### Understand an unexpected live item

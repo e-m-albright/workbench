@@ -1,10 +1,20 @@
 import { describe, expect, mock, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+	chmodSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	statSync,
+	symlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 mock.module("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
-const { policyBlockReason } = await import("../agents/pi/extensions/permission-policy");
+const { default: permissionPolicyExtension, policyBlockReason } = await import(
+	"../agents/pi/extensions/permission-policy"
+);
 
 const cwd = "/tmp/example";
 const policy = JSON.parse(
@@ -16,6 +26,25 @@ function reason(tool: string, input: Record<string, unknown>): string | undefine
 }
 
 describe("Pi permission policy", () => {
+	test("keeps a newly created session private without preventing owner reads", async () => {
+		const base = mkdtempSync(join(tmpdir(), "wb-session-mode-"));
+		const session = join(base, "session.jsonl");
+		writeFileSync(session, '{"type":"session"}\n');
+		chmodSync(session, 0o644);
+
+		let sessionStart: ((event: unknown, ctx: unknown) => Promise<void>) | undefined;
+		permissionPolicyExtension({
+			registerCommand() {},
+			on(event: string, handler: (event: unknown, ctx: unknown) => Promise<void>) {
+				if (event === "session_start") sessionStart = handler;
+			},
+		} as never);
+		await sessionStart?.({}, { sessionManager: { getSessionFile: () => session } });
+
+		expect(statSync(session).mode & 0o777).toBe(0o600);
+		expect(readFileSync(session, "utf8")).toContain('"type":"session"');
+	});
+
 	test("allows harmless documentation reads regardless of path wording", () => {
 		expect(reason("read", { path: "node_modules/pkg/README.md" })).toBeUndefined();
 		expect(reason("read", { path: "playbook/knowledge/token-efficiency.md" })).toBeUndefined();

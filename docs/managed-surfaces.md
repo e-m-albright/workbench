@@ -9,7 +9,7 @@ reference.
 | CLI presence | `pi` on `PATH` | Checked when managing plugins | Checked when managing plugins |
 | Global instructions | `~/.pi/agent/AGENTS.md` | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
 | Harness configuration | `~/.pi/agent/{settings,models,presets}.json` | `~/.claude/settings.json`, `~/.claude.json` | `~/.codex/config.toml` |
-| Desktop configuration | None | Claude Desktop MCPs and managed preferences | ChatGPT connector plugins through the Codex plugin CLI |
+| Desktop configuration | None | Claude Desktop MCPs and seeded preference defaults | ChatGPT connector plugins through the Codex plugin CLI |
 | Command policy | `~/.pi/agent/permission-policy.json` plus permission-policy and safe-git extensions | Claude permissions and sandbox settings | `~/.codex/rules/default.rules` |
 | Extensions / hooks | `~/.pi/agent/extensions/*.ts` | Claude settings plus shared runtime scripts | `~/.codex/hooks.json` plus shared runtime scripts |
 | Shared local CLIs | native Pi tools; `apple-notes`/`apple-contacts` are owned and deployed by a machine-local private layer | the same CLIs via shell | the same CLIs via shell |
@@ -29,12 +29,18 @@ additions are likewise external; sync removes only explicitly retired Workbench 
 are deployed as real files rather than repository symlinks so moving a checkout
 cannot silently disable the harness.
 
+Claude Desktop preference defaults fill missing keys but preserve explicit owner
+choices; drift therefore checks key presence rather than exact preference values.
+MCP entries remain exact managed values.
+
 Plugin IDs are version-controlled and drift-checked. Marketplace installation
 resolves the vendor's current plugin content, so identity is declarative but the
 artifact itself is not reproducibly pinned. OAuth consent and account sessions remain interactive vendor state; credentials,
 session transcripts, trust decisions, and OAuth grants never belong in
-Workbench. Sync sets Pi session directories to `0700` and transcript files to
-`0600` without reading or changing their contents.
+Workbench. Sync repairs Pi session directories to `0700` and existing transcript files to
+`0600` without reading or changing their contents. The permission-policy extension
+also sets the active transcript to `0600` on each session start so newly created
+files do not wait for the next sync.
 
 ## Drift semantics
 

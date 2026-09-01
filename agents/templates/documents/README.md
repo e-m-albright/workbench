@@ -16,12 +16,16 @@ Markdown remains the canonical source. The standalone HTML file is its generated
 
 ## Render a call script
 
-From the Workbench repository:
+Install Pandoc, then run from the Workbench repository:
 
 ```bash
 just call-script-template
 open artifacts/call-script-template/index.html
 ```
+
+`just check-documents` renders the maintained example into a temporary directory
+and verifies that Pandoc produced standalone HTML. The full `just check` gate and
+CI both include this smoke test.
 
 To render a different source file:
 

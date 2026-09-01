@@ -20,23 +20,6 @@ gcmw() {
     printf '%s\n' "$msg" | git commit -F -
 }
 
-# gacp: stage everything, commit, and push in one shot.
-# Usage: gacp            -> generate the message via Claude (gcmw), then push
-#        gacp "message"  -> use the given message, then push
-gacp() {
-    git add -A
-    if git diff --staged --quiet; then
-        echo "gacp: nothing to commit." >&2
-        return 1
-    fi
-    if [[ -n "$*" ]]; then
-        git commit -m "$*" || return 1
-    else
-        gcmw || return 1
-    fi
-    git push
-}
-
 # Pi privacy routes. Plain `pi` remains the explicit frontier path.
 unfunction pif 2>/dev/null
 piv() { pi --route private "$@"; }
@@ -112,29 +95,19 @@ cc() {
 # All cc flags work: ccc -wa, ccc -p, ccc --yolo, etc.
 ccc() { cc --chrome "$@"; }
 
-# ccr: Claude Code Review
-# Usage: ccr              — review current branch changes vs main (uses /review-pr)
-#        ccr 2277         — review PR #2277 (uses /code-review)
-#        ccr <url>        — review PR at URL (uses /code-review)
+# ccr: Claude Code read-only review
+# Usage: ccr              — review current branch changes vs origin/main
+#        ccr 2277         — review PR #2277
+#        ccr <url>        — review PR at URL
 ccr() {
     local target="$1"
-
-    if [[ -z "$target" ]]; then
-        # Local branch review: use pr-review-toolkit's 6 specialized agents
-        # (comments, tests, error handling, types, code quality, simplification)
-        claude --settings "$HOME/.claude/profiles/scout.json" -- \
-            "Fetch and merge origin/main first, then run /review-pr"
-    else
-        # PR review: use code-review plugin (5 parallel agents, confidence
-        # scoring, posts structured GitHub comment)
-        if [[ "$target" =~ ^https?:// ]]; then
-            claude --settings "$HOME/.claude/profiles/scout.json" -- \
-                "Run /code-review on this PR: ${target}"
-        else
-            claude --settings "$HOME/.claude/profiles/scout.json" -- \
-                "Run /code-review on PR #${target}"
-        fi
+    local scope="the current branch against the existing origin/main ref"
+    if [[ -n "$target" ]]; then
+        scope="PR ${target}"
     fi
+
+    claude --settings "$HOME/.claude/profiles/scout.json" -- \
+        "Perform a read-only review of ${scope}. Do not fetch, merge, checkout, edit files, or post GitHub comments. Report findings only."
 }
 
 # cca: Claude Code Address feedback

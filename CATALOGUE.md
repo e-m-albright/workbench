@@ -2,25 +2,39 @@
 
 Timestamped map of maintained agent-intelligence capabilities in this repository.
 
-**Snapshot:** 2026-08-29. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
+**Snapshot:** 2026-09-01. Refresh the map and scale snapshot on demand during an explicit capability-health review, not during routine implementation.
 
-## Counting method
+## Scale snapshot
 
-Counts are physical lines in tracked files at snapshot time, including comments and blank lines. Implementation includes Python, TypeScript, shell, agent rules, prompts, and executable skill instructions. Tests are separate. Config/data includes vendor JSON/TOML, permission declarations, and project automation. The playbook, health kit, and decision documents are counted as maintained guidance rather than executable source. Attribution is file-based; shared files stay in a shared platform bucket.
+Counts are physical lines in the named source trees, including comments and blank
+lines. They measure maintenance surface without forcing shared files into an
+arbitrary capability bucket or counting one file twice.
+
+| Source tree | Files | Lines | What it owns |
+|---|---:|---:|---|
+| `src/workbench/` plus `bin/workbench` | 10 | 1,644 | Deployment, drift, lint, rendering, MCP, and Codex merge |
+| `agents/pi/extensions/` | 14 | 3,665 | Pi runtime extensions and connector adapters |
+| `agents/skills/` | 70 | 5,516 | Portable workflows, references, and small supporting scripts |
+| `agents/templates/` | 4 | 471 | Reusable owner-facing document templates |
+| `playbook/` | 40 | 8,485 | Engineering doctrine, stack guidance, and research |
+| `health/` | 2 | 74 | Portable deterministic health patterns |
+| `docs/` | 6 | 668 | Current operational state, experiments, and decisions |
+| `tests/` | 15 | 1,926 | Python and Pi behavior tests plus shared test data |
 
 ## Registry
 
-| Capability | Implementation/guidance | Tests | Config/data | Total | Posture |
-|---|---:|---:|---:|---:|---|
-| Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | 1,596 | 901 | 265 | 2,762 | Core deployment engine |
-| Pi extensions and direct connector adapters | 3,556 | 442 | 190 | 4,188 | Core local runtime layer |
-| Shared rules, safety hooks, permission policy, and launchers | 444 | 213 | 224 | 881 | Core trust boundary |
-| Reusable skills and their references | 5,435 | 0 | 0 | 5,435 | Core portable workflow library; contract checks live in the shared deployment-engine tests |
-| Temporary handoff workflow | 276 | 99 | 0 | 375 | Active; explicit private state |
-| Reusable prompts | 83 | 0 | 0 | 83 | Small supporting surface |
-| Engineering playbook | 8,147 | 0 | 0 | 8,147 | Active reference; review for staleness |
-| Project-health kit | 74 | 0 | 0 | 74 | Small adoption contract |
-| Capability, experiment, and decision documentation | 656 | 0 | 0 | 656 | Active head-state and tombstones |
+| Capability | Posture |
+|---|---|
+| Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | Core deployment engine |
+| Pi extensions and direct connector adapters | Core local runtime layer |
+| Shared rules, safety hooks, permission policy, and launchers | Core trust boundary |
+| Reusable skills and their references | Core portable workflow library |
+| Temporary handoff workflow | Active; explicit private state |
+| Reusable prompts | Small supporting surface |
+| Owner document templates | Small supporting surface; Pandoc-backed render contract |
+| Engineering playbook | Active reference; review for staleness |
+| Project-health kit | Small adoption contract |
+| Capability, experiment, and decision documentation | Active head-state and tombstones |
 
 ## Capability map
 
@@ -60,7 +74,18 @@ Counts are physical lines in tracked files at snapshot time, including comments 
 - Agent instruction and skill authoring.
 - Adversarial assessment, Paseo operations, Pi guidance, handoffs, and reflection.
 
-**Assessment:** Keep, with aggressive deduplication. Skills should remain triggers and workflows that point to canonical doctrine. The health family separates portfolio value, repository operations, and implementation quality; `project-health-review` composes them without duplicating their rubrics. Merge overlapping skills when they prescribe the same sequence or output contract; do not duplicate project-specific workflow instances here.
+**Assessment:** Keep, with aggressive deduplication. Skills should remain triggers and workflows that point to canonical doctrine. The health family separates portfolio value, repository operations, and implementation quality; `project-health-review` composes them without duplicating their rubrics. The deprecated `improvement-hunt` and `context-session-breakdown` aliases were removed after their migration window closed. Merge overlapping skills when they prescribe the same sequence or output contract; do not duplicate project-specific workflow instances here.
+
+### Owner document templates
+
+- A Notes-style call-script template renders canonical Markdown into a standalone
+  HTML reading view for live conversations and rehearsal.
+- Pandoc is an explicit optional dependency; `just check-documents` verifies the
+  maintained example and runs in CI.
+
+**Assessment:** Keep small. Add a template only for a recurring document job with
+a distinct retrieval or interaction need; do not grow this into a general document
+application or maintain duplicate Markdown and HTML prose.
 
 ### Engineering playbook and health kit
 

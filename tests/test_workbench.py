@@ -343,6 +343,19 @@ class WorkbenchTests(unittest.TestCase):
     def test_repository_markdown_links_resolve(self) -> None:
         self.assertEqual(lint_mod._markdown_link_errors(core.ROOT), [])
 
+    def test_claude_desktop_preferences_are_seeded_without_overwriting_owner_choices(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
+            desktop.parent.mkdir(parents=True)
+            desktop.write_text(json.dumps({"preferences": {"sidebarMode": "projects"}}))
+
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+
+            preferences = json.loads(desktop.read_text())["preferences"]
+            self.assertEqual(preferences["sidebarMode"], "projects")
+            self.assertTrue(preferences["coworkScheduledTasksEnabled"])
+
     def test_sync_claude_preserves_unmanaged_settings(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
@@ -796,6 +809,14 @@ js_repl = false
 
             self.assertIn("DRIFT retired codex agent still present: debugger", findings)
             self.assertIn("EXTERNAL codex agent: external", external)
+
+    def test_agent_launchers_preserve_read_only_review_and_explicit_staging(self) -> None:
+        launchers = (core.AGENTS / "shared/shell/agent-launchers.zsh").read_text()
+
+        self.assertNotIn("gacp()", launchers)
+        self.assertNotIn("git add -A", launchers)
+        self.assertNotIn("Fetch and merge origin/main", launchers)
+        self.assertIn("read-only review", launchers)
 
     def test_status_palette_matches_between_statusline_and_pi_footer(self) -> None:
         """The bash statusline and the Pi footer render one visual grammar."""

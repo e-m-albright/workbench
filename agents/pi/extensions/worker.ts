@@ -162,10 +162,20 @@ export default function workerExtension(pi: ExtensionAPI) {
 				isError: true,
 			};
 		}
-		await pi.exec("git", ["branch", "-D", active.branch], { cwd: root, timeout: 10_000 });
-		const text = `Removed ${active.dir} and ${active.branch}.`;
+		const branch = active.branch;
+		const dir = active.dir;
+		const deleted = await pi.exec("git", ["branch", "-D", branch], { cwd: root, timeout: 10_000 });
 		active = undefined;
-		return { text };
+		if (deleted.code !== 0) {
+			return {
+				text: [
+					`Removed ${dir}, but branch deletion failed for ${branch}.`,
+					truncate(deleted.stderr || deleted.stdout),
+				].join("\n"),
+				isError: true,
+			};
+		}
+		return { text: `Removed ${dir} and ${branch}.` };
 	}
 
 	pi.registerTool({
