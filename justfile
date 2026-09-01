@@ -121,6 +121,13 @@ typecheck-pi:
     EOF
     bunx --package typescript@7.0.2 tsc -p "$cfg"
 
+# ── Documents ────────────────────────────────────────────────────────────────
+
+# Render the reusable Notes-style call-script HTML template.
+[group('documents')]
+call-script-template output='artifacts/call-script-template':
+    bash agents/templates/documents/render-examples.sh "{{output}}"
+
 # ── Dependencies ──────────────────────────────────────────────────────────────
 
 # pip-audit dependency vulnerabilities.
