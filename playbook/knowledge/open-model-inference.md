@@ -4,6 +4,8 @@ Canonical comparison of open-weight model families, local runtimes, routing laye
 managed inference hosts, and serverless GPU platforms. This page owns the current
 ranking and provider taxonomy. Host-specific measurements and setup details remain
 in the [local Apple Silicon runbook](https://github.com/e-m-albright/dotfiles/blob/main/docs/local-llm-stack.md).
+Embedding models and private-corpus provider choices live in the separate
+[embedding-retrieval guide](embedding-retrieval.md).
 
 **Snapshot:** 2026-08-29. Model availability, throughput, and prices move quickly;
 re-check the linked primary source before spending money or changing a default.

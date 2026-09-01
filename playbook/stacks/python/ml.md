@@ -55,10 +55,15 @@ Phase 3 — SCALE / RESEARCH
 
 | Category | Pick | When |
 |----------|------|------|
-| RAG framework | **LLMWare** | default — local/on-device, privacy-first, 300+ models |
-| Alternative | **Cognita** | modular, API-driven, production-focused (TrueFoundry) |
-| Embeddings API | **JinaAI** | multilingual, 8K context, task-specific adapters |
-| Alternative | **Nomic** | when you also want data viz/exploration (Atlas platform) |
+| Retrieval baseline | **Database full-text search** | Start exact, local, and inspectable. Add embeddings only after a labeled evaluation shows recurring misses. |
+| Hybrid retrieval | **Direct lexical + dense rank fusion** | Prefer a small application-owned pipeline before adopting a RAG framework. |
+| Local embeddings | **oMLX-supported model** | BGE-M3 or ModernBERT is the conservative Apple Silicon path. Validate the exact runtime before using another MLX model. |
+| Hosted embeddings | **Choose from the embedding guide** | Provider convenience is secondary to retrieval quality and the corpus's training, retention, and deletion boundary. |
+
+The current local and hosted decision matrix lives in
+[embedding-retrieval.md](../../knowledge/embedding-retrieval.md). Do not preserve
+a universal embedding-provider default here; the right choice depends on corpus
+sensitivity, modality, existing credentials, and measured retrieval quality.
 
 ### GPU cloud
 

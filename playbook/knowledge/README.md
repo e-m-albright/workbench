@@ -8,6 +8,7 @@ Durable, opinionated knowledge that isn't tied to one language stack. Reference 
 - [ai-code-review.md](ai-code-review.md) — AI PR-reviewer landscape and the workflow tactics that matter more than the tool
 - [llm-evals-observability.md](llm-evals-observability.md) — eval framework & observability platform comparison (Promptfoo, Langfuse, Logfire, pydantic-evals, Phoenix, …)
 - [open-model-inference.md](open-model-inference.md) — current open-weight model ranking, local runtimes, routers, managed inference hosts, and serverless GPU platforms
+- [embedding-retrieval.md](embedding-retrieval.md) — semantic-retrieval trigger, local embedding compatibility, hosted-provider data boundaries, and evaluation protocol
 - [agent-capability-patterns.md](agent-capability-patterns.md) — emerging harness capabilities: advisor strategy, monitors, managed runtimes, visual builders
 - [token-efficiency.md](token-efficiency.md) — token efficiency, task decomposition, model routing
 - [browser-tooling.md](browser-tooling.md) — tiered browser/UI automation tools
