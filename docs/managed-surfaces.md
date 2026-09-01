@@ -39,8 +39,9 @@ artifact itself is not reproducibly pinned. OAuth consent and account sessions r
 session transcripts, trust decisions, and OAuth grants never belong in
 Workbench. Sync repairs Pi session directories to `0700` and existing transcript files to
 `0600` without reading or changing their contents. The permission-policy extension
-also sets the active transcript to `0600` on each session start so newly created
-files do not wait for the next sync.
+also sets the active transcript to `0600` on each session start. If Pi has not created
+the file yet during session rebinding, it retries before the first model turn so new
+transcripts do not wait for the next sync.
 
 ## Drift semantics
 

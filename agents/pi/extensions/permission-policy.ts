@@ -204,7 +204,15 @@ function block(reason: string) {
 }
 
 function hardenSessionFile(sessionFile: string | undefined): void {
-	if (sessionFile) chmodSync(sessionFile, 0o600);
+	if (!sessionFile) return;
+	try {
+		chmodSync(sessionFile, 0o600);
+	} catch (error) {
+		// Pi can expose the target path before creating it while rebinding a session.
+		// Retry at the first model turn, when the transcript has been persisted.
+		if ((error as { code?: string }).code === "ENOENT") return;
+		throw error;
+	}
 }
 
 export function policyBlockReason(
@@ -273,6 +281,10 @@ export default function permissionPolicyExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
+		hardenSessionFile(ctx.sessionManager.getSessionFile());
+	});
+
+	pi.on("before_agent_start", async (_event, ctx) => {
 		hardenSessionFile(ctx.sessionManager.getSessionFile());
 	});
 

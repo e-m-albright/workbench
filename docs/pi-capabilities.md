@@ -135,8 +135,10 @@ Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
 - Pi has no active MCP client or remote-tool allowlist. Gmail, Calendar, Strava,
   and Apple Notes access is provided by the bounded owned connectors above.
 - On every session start, the permission-policy extension sets the active transcript
-  to owner-only mode (`0600`). This preserves ordinary session history and resume
-  behavior while removing group and other mode bits.
+  to owner-only mode (`0600`). If Pi exposes the transcript path before creating the
+  file during session rebinding, the extension retries before the first model turn.
+  This preserves ordinary session history and resume behavior while removing group
+  and other mode bits.
 
 Known limits are recorded as named residual risks in
 [`pi-build-philosophy.md`](pi-build-philosophy.md): GET-based exfiltration,

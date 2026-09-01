@@ -45,6 +45,28 @@ describe("Pi permission policy", () => {
 		expect(readFileSync(session, "utf8")).toContain('"type":"session"');
 	});
 
+	test("tolerates session file creation races and hardens on the first turn", async () => {
+		const base = mkdtempSync(join(tmpdir(), "wb-session-race-"));
+		const session = join(base, "session.jsonl");
+
+		let sessionStart: ((event: unknown, ctx: unknown) => Promise<void>) | undefined;
+		let beforeAgentStart: ((event: unknown, ctx: unknown) => Promise<void>) | undefined;
+		permissionPolicyExtension({
+			registerCommand() {},
+			on(event: string, handler: (event: unknown, ctx: unknown) => Promise<void>) {
+				if (event === "session_start") sessionStart = handler;
+				if (event === "before_agent_start") beforeAgentStart = handler;
+			},
+		} as never);
+
+		await sessionStart?.({}, { sessionManager: { getSessionFile: () => session } });
+		writeFileSync(session, '{"type":"session"}\n');
+		chmodSync(session, 0o644);
+		await beforeAgentStart?.({}, { sessionManager: { getSessionFile: () => session } });
+
+		expect(statSync(session).mode & 0o777).toBe(0o600);
+	});
+
 	test("allows harmless documentation reads regardless of path wording", () => {
 		expect(reason("read", { path: "node_modules/pkg/README.md" })).toBeUndefined();
 		expect(reason("read", { path: "playbook/knowledge/token-efficiency.md" })).toBeUndefined();
