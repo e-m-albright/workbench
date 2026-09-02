@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { resolveAgentDir } from "./lib/agent-dir";
 
 export type RouteMode = "frontier" | "private" | "auto";
 export type Route = "frontier" | "private";
@@ -86,7 +86,7 @@ function mergeConfig(base: RouterConfig, override: Partial<RouterConfig>): Route
 }
 
 function loadConfig(cwd: string): RouterConfig {
-	const global = mergeConfig(DEFAULT_CONFIG, readConfig(join(getAgentDir(), "inference-router.json")));
+	const global = mergeConfig(DEFAULT_CONFIG, readConfig(join(resolveAgentDir(), "inference-router.json")));
 	return mergeConfig(global, readConfig(join(cwd, ".pi", "inference-router.json")));
 }
 

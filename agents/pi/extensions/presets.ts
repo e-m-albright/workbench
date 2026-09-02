@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { resolveAgentDir } from "./lib/agent-dir";
 
 type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
@@ -28,7 +28,7 @@ function readPresets(path: string): PresetsConfig {
 
 function loadPresets(cwd: string): PresetsConfig {
 	return {
-		...readPresets(join(getAgentDir(), "presets.json")),
+		...readPresets(join(resolveAgentDir(), "presets.json")),
 		...readPresets(join(cwd, ".pi", "presets.json")),
 	};
 }

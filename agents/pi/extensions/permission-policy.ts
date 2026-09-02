@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import { join, normalize, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { resolveAgentDir } from "./lib/agent-dir";
 
 interface DenyCommandRule {
 	name: string;
@@ -62,7 +62,7 @@ function readPolicyFile(path: string): PermissionPolicy {
 }
 
 function loadPolicy(cwd: string): LoadedPermissionPolicy {
-	const globalPolicy = readPolicyFile(join(getAgentDir(), "permission-policy.json"));
+	const globalPolicy = readPolicyFile(join(resolveAgentDir(), "permission-policy.json"));
 	const projectPolicy = readPolicyFile(join(cwd, ".pi", "permission-policy.json"));
 	const legacyPaths = [...(globalPolicy.protectedPaths ?? []), ...(projectPolicy.protectedPaths ?? [])];
 
