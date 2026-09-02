@@ -116,15 +116,18 @@ def _replace_tree(source: Path, destination: Path) -> None:
     _remove_deployed_path(backup)
 
 
+def _sync_skill_tree(root: Path) -> None:
+    for name in RETIRED_SKILLS:
+        _remove_deployed_path(root / name)
+    for name, source in _canonical_skills().items():
+        _replace_tree(source, root / name)
+
+
 def _sync_skills(vendor: str, home: Path) -> None:
     if vendor not in {"claude", "codex"}:
         raise WorkbenchError(f"unsupported skill target: {vendor}")
     root = home / (".claude/skills" if vendor == "claude" else ".agents/skills")
-    canonical = _canonical_skills()
-    for name in RETIRED_SKILLS:
-        _remove_deployed_path(root / name)
-    for name, source in canonical.items():
-        _replace_tree(source, root / name)
+    _sync_skill_tree(root)
 
 
 def _remove_retired_subagents(destination: Path) -> None:
@@ -295,18 +298,12 @@ def _remove_deployed_path(path: Path) -> None:
 
 def _sync_pi_skills(home: Path) -> None:
     """Deploy shared skills once where Pi and Codex both discover them."""
-    shared_destination = home / ".agents/skills"
-    pi_destination = home / ".pi/agent/skills"
-    shared_destination.mkdir(parents=True, exist_ok=True)
-    pi_destination.mkdir(parents=True, exist_ok=True)
     canonical = _canonical_skills()
+    _sync_skill_tree(home / ".agents/skills")
     for name in sorted(set(canonical) | set(RETIRED_SKILLS)):
-        _remove_deployed_path(shared_destination / name)
         # Older Workbench versions copied shared skills here too. Pi discovers
         # both roots, so retaining those copies produces a collision warning.
-        _remove_deployed_path(pi_destination / name)
-    for name, source in canonical.items():
-        shutil.copytree(source, shared_destination / name)
+        _remove_deployed_path(home / ".pi/agent/skills" / name)
 
 
 def _harden_pi_session_permissions(destination: Path) -> None:
