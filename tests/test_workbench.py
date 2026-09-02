@@ -818,6 +818,19 @@ js_repl = false
         self.assertNotIn("Fetch and merge origin/main", launchers)
         self.assertIn("read-only review", launchers)
 
+    def test_gcai_uses_a_fast_model_and_only_staged_changes(self) -> None:
+        launchers = (core.AGENTS / "shared/shell/agent-launchers.zsh").read_text()
+
+        self.assertIn("gcai()", launchers)
+        self.assertNotIn("gcmw()", launchers)
+        gcai = launchers.split("# Pi privacy routes", maxsplit=1)[0]
+        self.assertIn("git diff --staged", gcai)
+        self.assertIn("--model openai-codex/gpt-5.3-codex-spark --no-extensions", gcai)
+        self.assertIn('"$HOME/code/private/"*', gcai)
+        self.assertIn("--route private", gcai)
+        self.assertIn("--no-session --no-context-files", gcai)
+        self.assertNotIn("git push", gcai)
+
     def test_status_palette_matches_between_statusline_and_pi_footer(self) -> None:
         """The bash statusline and the Pi footer render one visual grammar."""
         statusline = (core.AGENTS / "claude/statusline.sh").read_text()
