@@ -25,6 +25,6 @@ jobs:
           version: "3.10"
       - name: Install Pi so typecheck-pi runs instead of skipping
         # Pinned so CI is deterministic; bump alongside the host install.
-        run: bun install -g @earendil-works/pi-coding-agent@0.84.3
+        run: bun install -g @earendil-works/pi-coding-agent@0.84.4
       - name: Deterministic quality gate
         run: just check
