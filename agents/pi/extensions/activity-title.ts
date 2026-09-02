@@ -182,6 +182,25 @@ export default function activityTitle(pi: ExtensionAPI) {
 		renderTitle(ctx);
 	});
 
+	pi.on("session_info_changed", async (event, ctx) => {
+		thread = event.name;
+		renderTitle(ctx);
+	});
+
+	pi.registerCommand("rename", {
+		description: "Rename this session and update the live title immediately",
+		handler: async (args, ctx) => {
+			const name = args.trim();
+			if (!name) {
+				ctx.ui.notify("Usage: /rename <name>", "warning");
+				return;
+			}
+			pi.setSessionName(name);
+			thread = pi.getSessionName() ?? name;
+			renderTitle(ctx, timer ? (FRAMES[frameIndex % FRAMES.length] ?? "π") : "π");
+		},
+	});
+
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!ctx.sessionManager.getSessionName()) {
 			thread = deriveThreadTitle(event.prompt);

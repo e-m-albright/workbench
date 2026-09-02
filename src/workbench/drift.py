@@ -22,7 +22,12 @@ from workbench.core import (
     _string_array,
 )
 from workbench.mcp import _desktop_mcp, active_mcp, retired_mcp_names
-from workbench.sync import _canonical_hooks, _canonical_shell_fragments, managed_claude_settings
+from workbench.sync import (
+    _canonical_hooks,
+    _canonical_shell_fragments,
+    _canonical_skills,
+    managed_claude_settings,
+)
 
 
 def _digest(path: Path) -> str:
@@ -60,7 +65,7 @@ def _managed_value_errors(actual: object, expected: object, label: str) -> list[
 
 
 def _check_skills(skill_root: Path, vendor: str, findings: list[str], external: list[str]) -> None:
-    canonical = {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    canonical = _canonical_skills()
     deployed = {path.parent.name: path.parent for path in skill_root.glob("*/SKILL.md")}
     for name, source_root in canonical.items():
         if name not in deployed:
@@ -90,7 +95,7 @@ def _check_skills(skill_root: Path, vendor: str, findings: list[str], external: 
 
 def _check_pi_native_skills(skill_root: Path, findings: list[str], external: list[str]) -> None:
     """Pi-native skills may be external, but shared copies are duplicate drift."""
-    canonical = {path.parent.name for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    canonical = _canonical_skills()
     deployed = {path.parent.name for path in skill_root.glob("*/SKILL.md")}
     for name in sorted(deployed):
         if name in canonical:

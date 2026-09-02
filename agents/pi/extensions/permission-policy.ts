@@ -199,6 +199,35 @@ export function commandDenyReason(command: string, rules: DenyCommandRule[]): st
 	return undefined;
 }
 
+const DENY_ALTERNATIVES: Record<string, string> = {
+	"filesystem mutation command":
+		"Use workspace_files for rename, copy, or directory creation; use write or edit for file contents.",
+	"shell network retrieval, upload, or remote script execution":
+		"Use agent_browser or agent_browser_web_search for external reads and a dedicated confirmed tool for mutations.",
+	"inline interpreter escape hatch":
+		"Use read/edit/write for bounded changes, or add a reviewed script file and execute that file directly.",
+	"destructive or history-changing git":
+		"Use the safe Git workflow and obtain the required user confirmation instead of retrying the shell command.",
+	"mutating GitHub CLI command":
+		"Use github_workflow_dispatch for confirmed workflow runs; other GitHub mutations require an explicit supported tool.",
+	"dependency installation or removal":
+		"Use the repository's existing setup recipe or ask the user to approve the exact dependency change.",
+};
+
+export function formatCommandDenial(reason: string, command = ""): string {
+	if (
+		reason === "shell network retrieval, upload, or remote script execution" &&
+		/(?:^|[;&|()\s])(?:1?>|>>)(?![=])\s*\S+/i.test(command) &&
+		!/(?:\bcurl\b|\bwget\b)/i.test(command)
+	) {
+		return `Command blocked by policy: ${reason}. Use write or edit instead of shell redirection.`;
+	}
+	const alternative = DENY_ALTERNATIVES[reason];
+	return alternative
+		? `Command blocked by policy: ${reason}. ${alternative}`
+		: `Command blocked by policy: ${reason}`;
+}
+
 function block(reason: string) {
 	return { block: true, reason };
 }
@@ -222,7 +251,7 @@ export function policyBlockReason(
 	policy: LoadedPermissionPolicy,
 ): string | undefined {
 	const readTools = new Set(["read", "grep", "find", "ls"]);
-	const writeTools = new Set(["write", "edit"]);
+	const writeTools = new Set(["write", "edit", "workspace_files"]);
 	const protectedPaths = readTools.has(toolName)
 		? policy.protectedReadPaths
 		: writeTools.has(toolName)
@@ -251,7 +280,7 @@ export function policyBlockReason(
 	const protectedPath = protectedPathMention(cwd, command, policy.protectedReadPaths);
 	if (protectedPath) return `Command mentions protected path: ${protectedPath}`;
 	const denied = commandDenyReason(command, policy.denyCommands);
-	if (denied) return `Command blocked by policy: ${denied}`;
+	if (denied) return formatCommandDenial(denied, command);
 	if (policy.defaultAction === "deny") return "Command blocked by default-deny policy";
 	return undefined;
 }
@@ -285,6 +314,10 @@ export default function permissionPolicyExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (_event, ctx) => {
+		hardenSessionFile(ctx.sessionManager.getSessionFile());
+	});
+
+	pi.on("message_end", async (_event, ctx) => {
 		hardenSessionFile(ctx.sessionManager.getSessionFile());
 	});
 

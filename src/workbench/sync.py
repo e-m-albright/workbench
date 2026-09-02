@@ -59,6 +59,11 @@ def _canonical_shell_fragments() -> dict[str, Path]:
     return {f.name: f for f in sorted((AGENTS / "shared/shell").glob("*.zsh"))}
 
 
+def _canonical_skills() -> dict[str, Path]:
+    """Skill name -> canonical source tree, shared by sync and drift."""
+    return {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
+
+
 def _install_runtime_files(home: Path) -> Path:
     data = home / DATA_REL
     for name, fragment in _canonical_shell_fragments().items():
@@ -115,7 +120,7 @@ def _sync_skills(vendor: str, home: Path) -> None:
     if vendor not in {"claude", "codex"}:
         raise WorkbenchError(f"unsupported skill target: {vendor}")
     root = home / (".claude/skills" if vendor == "claude" else ".agents/skills")
-    canonical = {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    canonical = _canonical_skills()
     for name in RETIRED_SKILLS:
         _remove_deployed_path(root / name)
     for name, source in canonical.items():
@@ -294,7 +299,7 @@ def _sync_pi_skills(home: Path) -> None:
     pi_destination = home / ".pi/agent/skills"
     shared_destination.mkdir(parents=True, exist_ok=True)
     pi_destination.mkdir(parents=True, exist_ok=True)
-    canonical = {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    canonical = _canonical_skills()
     for name in sorted(set(canonical) | set(RETIRED_SKILLS)):
         _remove_deployed_path(shared_destination / name)
         # Older Workbench versions copied shared skills here too. Pi discovers

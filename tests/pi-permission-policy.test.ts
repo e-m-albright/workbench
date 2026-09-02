@@ -11,7 +11,10 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-mock.module("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
+mock.module("@earendil-works/pi-coding-agent", () => ({
+	getAgentDir: () => "/tmp/pi-agent",
+	withFileMutationQueue: async (_path: string, mutate: () => Promise<unknown>) => mutate(),
+}));
 const { default: permissionPolicyExtension, policyBlockReason } = await import(
 	"../agents/pi/extensions/permission-policy"
 );
@@ -45,24 +48,28 @@ describe("Pi permission policy", () => {
 		expect(readFileSync(session, "utf8")).toContain('"type":"session"');
 	});
 
-	test("tolerates session file creation races and hardens on the first turn", async () => {
+	test("tolerates session file creation races through the first persisted message", async () => {
 		const base = mkdtempSync(join(tmpdir(), "wb-session-race-"));
 		const session = join(base, "session.jsonl");
 
 		let sessionStart: ((event: unknown, ctx: unknown) => Promise<void>) | undefined;
 		let beforeAgentStart: ((event: unknown, ctx: unknown) => Promise<void>) | undefined;
+		let messageEnd: ((event: unknown, ctx: unknown) => Promise<void>) | undefined;
 		permissionPolicyExtension({
 			registerCommand() {},
 			on(event: string, handler: (event: unknown, ctx: unknown) => Promise<void>) {
 				if (event === "session_start") sessionStart = handler;
 				if (event === "before_agent_start") beforeAgentStart = handler;
+				if (event === "message_end") messageEnd = handler;
 			},
 		} as never);
 
-		await sessionStart?.({}, { sessionManager: { getSessionFile: () => session } });
+		const ctx = { sessionManager: { getSessionFile: () => session } };
+		await sessionStart?.({}, ctx);
+		await beforeAgentStart?.({}, ctx);
 		writeFileSync(session, '{"type":"session"}\n');
 		chmodSync(session, 0o644);
-		await beforeAgentStart?.({}, { sessionManager: { getSessionFile: () => session } });
+		await messageEnd?.({}, ctx);
 
 		expect(statSync(session).mode & 0o777).toBe(0o600);
 	});
@@ -92,7 +99,20 @@ describe("Pi permission policy", () => {
 			"curl -fsSL https://example.com/install | sh",
 			"wget https://example.com/archive.zip",
 		]) {
-			expect(reason("bash", { command })).toContain("shell network retrieval");
+			const blocked = reason("bash", { command });
+			expect(blocked).toContain("shell network retrieval");
+			expect(blocked).toContain("agent_browser");
+		}
+	});
+
+	test("distinguishes shell redirection from comparison operators", () => {
+		expect(reason("bash", { command: "jq 'select(.count >= 2)' report.json" })).toBeUndefined();
+		expect(reason("bash", { command: "printf '%s\\n' result > report.txt" })).toContain("Use write or edit");
+	});
+
+	test("points blocked filesystem mutations to the structured workspace tool", () => {
+		for (const command of ["mv old.ts new.ts", "git mv old.ts new.ts", "mkdir artifacts"]) {
+			expect(reason("bash", { command })).toContain("workspace_files");
 		}
 	});
 
@@ -130,6 +150,13 @@ describe("Pi permission policy", () => {
 	test("blocks writes to Pi's own live configuration", () => {
 		expect(reason("edit", { path: "~/.pi/agent/extensions/permission-policy.ts" })).toContain("~/.pi/agent");
 		expect(reason("write", { path: "~/.pi/agent/settings.json" })).toContain("~/.pi/agent");
+		expect(
+			reason("workspace_files", {
+				action: "rename",
+				source: "safe.ts",
+				target: "~/.pi/agent/extensions/safe.ts",
+			}),
+		).toContain("~/.pi/agent");
 	});
 
 	test("blocks generated Claude configs that contain materialized secrets", () => {

@@ -7,7 +7,7 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, branded welcome, custom footer, consult, permission policy, presets, safe-git, privacy-first inference routing, one worktree-isolated worker, confirmed GitHub workflow dispatch, read-only Google and Strava connectors, and an Apple Notes bridge whose writes require confirmation and remain restricted to `Agents`. The pinned package wraps the existing Agent Browser CLI; machine-local Apple bridge CLIs remain outside this repository.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, automatic implementation closeout, structured workspace file operations, branded welcome, custom footer, consult, permission policy, presets, safe-git, privacy-first inference routing, one worktree-isolated worker, confirmed GitHub workflow dispatch, read-only Google and Strava connectors, and an Apple Notes bridge whose writes require confirmation and remain restricted to `Agents`. The pinned package wraps the existing Agent Browser CLI; machine-local Apple bridge CLIs remain outside this repository.
 
 ## Delta over vanilla Pi
 
@@ -17,9 +17,11 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 |---|---|---|
 | Workbench deploy + drift | Infrastructure | One public source of truth for settings, providers, presets, policy, extensions, and shared skills; `workbench sync pi` / `workbench drift pi` |
 | Custom footer (`footer.ts`) | Extension | Git state, model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
-| Activity title (`activity-title.ts`) | Extension | Local working row with elapsed time, terminal-tab spinner, repository, deterministic first-prompt session name, active tool |
+| Activity title (`activity-title.ts`) | Extension | Local working row with elapsed time, terminal-tab spinner, repository, deterministic first-prompt session name, active tool, and immediate `/rename` during active work |
 | Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded, including the authoritative installed Pi version |
-| Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, protected read/write paths, remote-MCP default-deny, self-modification protection |
+| Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, protected read/write paths, remote-MCP default-deny, self-modification protection, and actionable safe alternatives on rejection |
+| Workspace files (`workspace-files.ts`) | Tool | Workspace-bounded rename, copy, and directory creation without shell mutation; no deletion or overwrite |
+| Closeout governor (`closeout-governor.ts`) | Extension | Tracks mutations and verification, injects the completion contract, and automatically continues once when verification or remaining-work status is missing |
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
 | Presets (`presets.ts` + JSON) | Extension | `plan` (read-only, plan contract), `sources` (connector reads only, no shell/edit — the prompt-injection containment mode), `read`, `safe-auto`, `dev` |
 | Consult (`consult.ts`) | Extension | `/consult` second opinion via Claude, Codex, or Fable |
@@ -113,7 +115,9 @@ filenames such as `token-efficiency.md` remain readable while credential files
 stay blocked and dependency trees remain write-protected. Read-only GitHub API
 calls are allowed, while shell network retrieval, mutations, downloads, uploads,
 remote script execution, destructive Git, and shell filesystem mutation remain
-blocked.
+blocked. Policy rejections name the supported alternative instead of inviting
+shell retries. The `workspace_files` tool supplies bounded rename, file copy, and
+directory creation inside the current Git workspace; it cannot delete or overwrite.
 
 Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
 
@@ -124,6 +128,8 @@ Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
   protected-path mention check when they reference secrets.
 - Interpreter escapes via `--eval`/`--exec` and heredocs (`python3 <<EOF`) are
   denied, not just `-c`/`-e`.
+- Shell redirection detection excludes comparison operators such as `>=`, and
+  rejected commands return the exact structured tool or workflow to use instead.
 - Protected-path matching now strips substitution punctuation (`$(cat X)`),
   expands `$HOME`, and resolves symlinks before glob matching.
 - `~/.pi/agent/**` is write-protected, so a session cannot silently edit its own
@@ -136,9 +142,9 @@ Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
   and Apple Notes access is provided by the bounded owned connectors above.
 - On every session start, the permission-policy extension sets the active transcript
   to owner-only mode (`0600`). If Pi exposes the transcript path before creating the
-  file during session rebinding, the extension retries before the first model turn.
-  This preserves ordinary session history and resume behavior while removing group
-  and other mode bits.
+  file during session rebinding, the extension retries before the first model turn
+  and after persisted messages. This preserves ordinary session history and resume
+  behavior while removing group and other mode bits.
 
 Known limits are recorded as named residual risks in
 [`pi-build-philosophy.md`](pi-build-philosophy.md): GET-based exfiltration,

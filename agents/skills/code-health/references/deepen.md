@@ -25,7 +25,7 @@ Key principles:
 - **The interface is the test surface.**
 - **One adapter = hypothetical seam. Two adapters = real seam.**
 
-This skill is _informed_ by the project's domain model. The domain language gives names to good seams; ADRs record decisions the skill should not re-litigate.
+This skill is _informed_ by the project's domain model. The domain language gives names to good seams; ADRs record decisions the skill should not re-litigate. In a repository-wide minimum-surface mandate, use the [contraction cycle](contraction.md): prune first, then use this lens only where a deeper seam reduces what callers must know.
 
 ## Process
 
@@ -39,6 +39,8 @@ For a large scope, delegate a bounded read-only exploration when the active harn
 - Where are modules **shallow** — interface nearly as complex as the implementation?
 - Where have pure functions been extracted just for testability, but the real bugs hide in how they're called (no **locality**)?
 - Where do tightly-coupled modules leak across their seams?
+- Where is one contract or canonical state copied into multiple maintained representations?
+- Where does a miscellaneous facade merely collect unrelated behavior already owned elsewhere?
 - Which parts of the codebase are untested, or hard to test through their current interface?
 
 Apply the **deletion test** to anything you suspect is shallow: would deleting it concentrate complexity, or just move it? A "yes, concentrates" is the signal you want.
@@ -50,7 +52,8 @@ Present a numbered list of deepening opportunities. For each candidate:
 - **Files** — which files/modules are involved
 - **Problem** — why the current architecture is causing friction
 - **Solution** — plain English description of what would change
-- **Benefits** — explained in terms of locality and leverage, and also in how tests would improve
+- **Benefits** — explained in terms of locality and leverage, how tests would improve, and which maintained interfaces or representations disappear
+- **Contraction proof** — whether lines truly vanish, temporarily rise for a smaller interface, or merely move elsewhere
 
 **Use DOMAIN.md vocabulary for the domain and this skill's glossary for the architecture.** If `DOMAIN.md` defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
 

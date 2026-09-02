@@ -24,6 +24,7 @@ describe("Pi preset taint guard", () => {
 	test("identifies acting presets by shell/edit/write tools", () => {
 		expect(presetCanAct({ tools: ["read", "grep", "bash"] })).toBe(true);
 		expect(presetCanAct({ tools: ["read", "grep", "edit", "write"] })).toBe(true);
+		expect(presetCanAct({ tools: ["workspace_files"] })).toBe(true);
 		expect(presetCanAct({ tools: ["apple_notes_create"] })).toBe(true);
 		expect(presetCanAct({ tools: ["read", "grep", "gmail_search_threads"] })).toBe(false);
 		expect(presetCanAct({})).toBe(false);
@@ -34,6 +35,7 @@ describe("Pi preset taint guard", () => {
 		const presets = JSON.parse(readFileSync(path, "utf8")) as {
 			dev: { tools: string[]; instructions: string };
 		};
+		expect(presets.dev.tools).toContain("workspace_files");
 		expect(presets.dev.tools).toContain("worker");
 		expect(presets.dev.instructions).toContain("Autonomously call the worker tool");
 		expect(presets.dev.instructions).toContain("no user approval is required");

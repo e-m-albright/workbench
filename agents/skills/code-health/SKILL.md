@@ -1,6 +1,6 @@
 ---
 name: code-health
-description: Diagnose and improve code structure through lenses for pruning, domain alignment, module depth, effect isolation, refactoring, clarity, and style. Use for code-health audits, cleanup, simplification, or a named lens.
+description: Diagnose and improve code structure through lenses for pruning, domain alignment, module depth, effect isolation, refactoring, clarity, and style. Use for code-health audits, cleanup, simplification, contraction cycles, "fewest lines without hacks," or a named lens.
 ---
 
 # Code Health
@@ -31,6 +31,12 @@ State this to the user when they ask for "unimpeachable" code: the book guarante
 | "can only test end-to-end", tame side effects, illegal states | **[purify](references/purify.md)** | testability · structural |
 
 For a **single area**, route to one lens. For a **full pass**, sequence them (next section).
+
+## Codebase contraction
+
+When the mandate is to reach the fewest maintained lines without cryptic compression, use the **[contraction cycle](references/contraction.md)**. It composes `prune`, `align`, and `deepen`: scout deletion and sediment first, then reduce architectural surface. Measure tests, generated code, migrations, configuration, and application code separately so the metric cannot reward moving complexity or weakening proof.
+
+Start read-only and rank a short list with evidence, payoff, risk, and required verification. If another agent is actively changing an area, treat it as occupied and defer it rather than auditing a moving target.
 
 ## Full-pass sequence
 

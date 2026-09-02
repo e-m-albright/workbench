@@ -73,6 +73,10 @@ RETIRED_SKILLS = {
     ),
 }
 RETIRED_PI_EXTENSIONS = {
+    "change-directory.ts": (
+        "agents can work across repositories directly; changing the session root"
+        " mid-conversation added lifecycle complexity without useful capability"
+    ),
     "discovery-telemetry.ts": (
         "the five-day telemetry trial answered its question; the collector"
         " was retired with the lesson preserved in tombstones.md"

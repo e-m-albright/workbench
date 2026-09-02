@@ -62,26 +62,34 @@ test("activity line keeps total elapsed time fixed at the right edge", () => {
 
 test("runs derive activity locally and replace the generic working row", async () => {
 	const handlers = new Map<string, (event: any, ctx: any) => Promise<void>>();
+	const commands = new Map<string, any>();
 	let registeredTool = false;
+	let sessionName = "activity test";
 	const pi = {
 		on: (name: string, handler: (event: any, ctx: any) => Promise<void>) => handlers.set(name, handler),
+		registerCommand: (name: string, command: any) => commands.set(name, command),
 		registerTool: () => {
 			registeredTool = true;
 		},
+		setSessionName: (name: string) => {
+			sessionName = name;
+		},
+		getSessionName: () => sessionName,
 		exec: async () => ({ code: 1, stdout: "" }),
 	};
 	activityTitle(pi as any);
 
 	let widgetFactory: any;
+	const titles: string[] = [];
 	const workingVisibility: boolean[] = [];
 	const ctx = {
 		cwd: "/tmp/project",
 		sessionManager: {
 			getEntries: () => [],
-			getSessionName: () => "activity test",
+			getSessionName: () => sessionName,
 		},
 		ui: {
-			setTitle: () => {},
+			setTitle: (title: string) => titles.push(title),
 			setWorkingVisible: (visible: boolean) => workingVisibility.push(visible),
 			setWidget: (_key: string, content: any) => {
 				widgetFactory = content;
@@ -90,8 +98,18 @@ test("runs derive activity locally and replace the generic working row", async (
 	};
 
 	expect(registeredTool).toBe(false);
+	await handlers.get("session_start")?.({}, ctx);
+	sessionName = "My renamed session";
+	await handlers.get("session_info_changed")?.({ name: sessionName }, ctx);
+	expect(titles.at(-1)).toBe("π project | My renamed session");
+
 	await handlers.get("before_agent_start")?.({ prompt: "Build useful activity visibility" }, ctx);
 	await handlers.get("agent_start")?.({}, ctx);
+	expect(titles.at(-1)).toBe("⠋ project | My renamed session · Working on Build useful activity visibility");
+
+	await commands.get("rename").handler("Live title", ctx);
+	expect(sessionName).toBe("Live title");
+	expect(titles.at(-1)).toBe("⠋ project | Live title · Working on Build useful activity visibility");
 
 	const component = widgetFactory(
 		{ requestRender: () => {} },

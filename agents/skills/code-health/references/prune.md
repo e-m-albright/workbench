@@ -4,7 +4,7 @@
 
 The **deletion lens** — worse-is-better, YAGNI, "the best code is no code." Every other lens can add (abstraction, types, comments, structure); this one only asks **what can be removed without losing behavior the system actually needs?** It's the counterweight that keeps the portfolio from accreting, and it's grounded by the GitClear finding that AI assistants overwhelmingly *add* and rarely consolidate.
 
-It is codebase-scoped and deletion-first — distinct from the built-in `/simplify` (which cleans the current diff) and from `tidy` (which restructures). Prune's success metric is honest and visible: **net lines and surface area go down**, achieved by real removal, never by compressing, comment-stripping, or type laundering.
+It is codebase-scoped and deletion-first — distinct from the built-in `/simplify` (which cleans the current diff) and from `tidy` (which restructures). Prune's success metric is honest and visible: **net lines and surface area go down**, achieved by real removal, never by compressing, comment-stripping, or type laundering. For a repository-wide minimum-surface mandate, follow the [contraction cycle](contraction.md); this lens owns its deletion phase.
 
 ## When to reach for it
 
@@ -19,7 +19,10 @@ The code is bloated: defensive checks the types make impossible, abstractions wi
    - **Pass-through layers** — modules that only delegate (fail the deletion test); inline them.
    - **Competing versions** — `*V2`/`*_legacy`/shims kept "just in case"; delete the loser (no competing versions).
    - **Unused features** — behind dead flags or with no callers/usage; remove with the owner's confirmation.
-2. **Confirm it's truly unused** before deleting — check call sites, dynamic dispatch, reflection, external consumers, and public API surface. A wrong deletion is a behavior change. Lean on the type system and a full test run.
+   - **Sedimentary layers** — completed migrations, compatibility ingress, recurring bootstrap code, and successive CSS/configuration/design passes whose later declarations supersede earlier ones.
+   - **Duplicated representations** — handwritten copies of contracts or schemas that can be projected transparently from one canonical source.
+   - **State hidden in startup** — mutable domain data re-seeded during startup or connection setup, especially when it can overwrite supported writes.
+2. **Confirm it's truly unused** before deleting — check call sites, dynamic dispatch, reflection, external consumers, persisted-state compatibility, and public API surface. A wrong deletion is a behavior change. Lean on the type system and a full test run.
 3. **Delete in safe, reviewable steps**, each verified green; separate deletion commits (git keeps history — deleting confidently is the point).
 4. **Report the reduction** — LOC removed, surface area removed. This is the one place celebrating the number is legitimate, because it was earned by real removal.
 

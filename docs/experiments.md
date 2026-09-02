@@ -14,5 +14,5 @@ None.
 
 ## Completed
 
-- **Pi native fullscreen versus Transcript Reader (closed 2026-08-26):** adopted native fullscreen and retired the custom reader at the owner's request. Fullscreen supplies search, scrolling, selection, links, and user-prompt jumps with no extension code. It does not reproduce final-answer landmarks or compact work summaries; those differences were not valuable enough to justify the custom surface.
-- **Cross-harness mobile viewer (closed 2026-08-26):** standardized on Paseo over Tailscale for Pi, Claude Code, and Codex. The owner does not need phone terminal access, so Zellij web, tmux, Mosh, and the Mission Control session manager have no remaining job. Reconsider only if Paseo fails a concrete workflow that an existing cross-harness client cannot satisfy.
+- **Pi native fullscreen versus Transcript Reader (closed 2026-08-26):** adopted native fullscreen and retired the custom reader. The result and revisit trigger live in [`decisions/tombstones.md`](decisions/tombstones.md#retired-pi-harness-experiments).
+- **Cross-harness mobile viewer (closed 2026-08-26):** standardized on Paseo over Tailscale. The retired Pi-specific and terminal variants live in [`decisions/tombstones.md`](decisions/tombstones.md#terminal-continuity-mobile-access-and-process-runners).
