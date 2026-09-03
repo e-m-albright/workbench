@@ -64,16 +64,17 @@ Selection is *what* to reach for. Idioms below are *how* to use them. Detect the
 
 ### Version floors
 
-Deno >=2.8, Vite >=8.0, Svelte >=5.0, SvelteKit >=2.0, Astro >=4.0, Tailwind >=4.0, Biome >=2.3.
+Deno >=2.8, pnpm >=12.0, Vite >=8.0, Svelte >=5.0, SvelteKit >=2.0, Astro >=4.0, Tailwind >=4.0, Biome >=2.3.
 
 ## Idioms
 
 ### Runtime & package management
 
 - **Deno** is the runtime, package manager, and default toolchain. Use Node via fnm only when a dependency or deployment target requires it.
-- When Node is required, use **pnpm**. npm or Yarn remain inherited-project choices, not new defaults.
+- When Node is required, use **[pnpm 12](https://pnpm.io/blog/releases/12.0)**. Its Rust rewrite keeps pnpm 11's commands, settings, lockfile format, and `node_modules` layout while materially reducing warm-install overhead. npm or Yarn remain inherited-project choices, not new defaults.
 - Prefer `deno.json` + `deno.lock` for new projects. Deno can also consume an existing `package.json` and run its scripts with `deno task`.
-- Detect the lockfile (`deno.lock`, `pnpm-lock.yaml`, …) and use the matching package manager in existing projects. A migration is an explicit project decision, never an incidental tool switch.
+- Detect the lockfile (`deno.lock`, `pnpm-lock.yaml`, …) and use the matching package manager in existing projects. A migration is an explicit project decision, never an incidental tool switch. Before moving a pnpm 11 project to 12, review the [compatibility differences](https://pnpm.io/blog/whats-different-in-pnpm-12), grep CI for the removed `pnpm install --resolution-only` flag, and expect a possible one-time lockfile diff when cyclic peer dependencies are re-resolved.
+- Pin the project's exact pnpm version. Do not adopt pnpm 12's project-aware runtime or package-manager shims by default: fnm, Deno, and the repository's declared package manager retain those ownership boundaries unless a project explicitly consolidates them.
 - **workerd** is the deployment runtime for Cloudflare Workers, not a local package-management or task-running competitor to Deno.
 
 ### Posture: thin frontend over polyglot backends

@@ -192,7 +192,6 @@ For "prove person X accessed data Y" product features (HIPAA-credible access tra
 - **[Open-WebUI Open Terminal](https://github.com/open-webui/open-terminal?ref=console.dev)** -- Terminal from the Open-WebUI project.
 - **[Microsoft FARA](https://github.com/microsoft/fara)** -- Microsoft agentic framework. Check positioning vs. Semantic Kernel / AutoGen.
 - **[Browserbase](https://www.browserbase.com/)** -- Managed headless-browser infrastructure built for AI agents. Run Playwright/Puppeteer at scale without provisioning Chromium yourself; includes session recording, stealth/anti-bot handling, and proxy management. Evaluate for any agent workflow that needs to drive a real browser (form filling, scraping, web-based tool use). Likely cheaper and more reliable than rolling our own browser pool.
-- **[Sandcastle](https://github.com/mattpocock/sandcastle)** -- TypeScript library for orchestrating "AFK" (away-from-keyboard) coding agents in isolated sandboxes. Workflow: front-load context via a grilling session with the human, then delegate execution to a sandboxed environment where the agent runs tests and fixes bugs autonomously. Pairs with vertical-slice TDD and markdown Kanban boards as agent state. Worth evaluating once we have a workflow that hits the "I trust this agent to run for an hour unattended" bar. See [Matt Pocock's video](https://www.youtube.com/watch?v=E5-QK3CDVQM).
 
 ### Model routing for coding agents (2026-07 watch)
 
@@ -374,25 +373,19 @@ open-model ranking.
 
 Findings from a deep research pass (2026-05-25). Sources at the end. Treat dollar figures and limits as accurate-as-of-late-May-2026 but volatile. We'll revisit harness benchmarking as the field matures.
 
-### Subscription vs API access — who lets you spend a subscription in an agnostic tool
+### Frontier subscriptions and provider trust
 
-The frontier field has **bifurcated**: Western incumbents wall their subsidized subscriptions into first-party clients; challengers (Chinese labs, Cerebras, OpenAI-via-partners) compete by *welcoming* third-party tools.
+The maintained comparison of coding capability, subscription portability into
+Pi, company jurisdiction, prompt handling, and current selection posture lives
+in [Frontier Coding Model Providers](knowledge/frontier-model-providers.md).
 
-| Provider | Subsidized sub exists? | Usable in 3rd-party tools (Pi / OpenCode / Zed-ACP)? | Notes |
-|---|---|---|---|
-| **Anthropic** | Yes (Max) | ❌ **Banned** (Jan/Feb 2026) — first-party Claude Code / claude.ai only | API key (metered) everywhere else. Confirmed via ToS + error strings. |
-| **Google Gemini** | Yes | ❌ Banned; **individual CLI/IDE tiers retire Jun 18 2026** → Antigravity | As/more restrictive than Anthropic. Vertex API key for 3rd-party. |
-| **OpenAI / Codex** | Yes (ChatGPT Plus/Pro) | ✅ **Officially sanctioned** (Zed native + ACP, OpenCode) — personal use | The permissive Western outlier. Zed markets this. |
-| **GitHub Copilot** | Yes | ✅ Official in OpenCode (Jan 2026) | Flat today → usage-credits Jun 1 2026. |
-| **Zhipu GLM** | Yes — **Coding Plan $18/mo** | ✅ Explicitly supports Claude Code/OpenCode/Cline/Cursor/Crush/Goose | The anti-Anthropic. GLM-5.1 ≈94.6% of Opus 4.6 on their eval. |
-| **Alibaba Qwen** | Yes — Coding Plan ~$50/mo | ✅ via subscription endpoint+key (free OAuth ended Apr 15 2026) | Pivoted from free-OAuth to sub-key-into-tools. |
-| **Cerebras Code** | Yes — $50/$200/mo | ✅ any tool, via **API key** (flat-rate hybrid) | Qwen3-Coder ~2000 t/s, no weekly limits. Best "flat + everywhere" for OSS coding. |
-| **xAI Grok** | Yes (SuperGrok) | ◑ official in OpenCode; Grok Build CLI wants $99 or API credits | Mixed, leans tolerant. |
-| **Moonshot Kimi** | Yes — coding plans ($39–$199) | ◑ OpenAI-compatible endpoint; subscription-passthrough ToS **gray/unverified** | Has its own Kimi Code CLI. |
-| **DeepSeek** | No sub (API only) | n/a — bring cheap API key | V4-Flash ~$0.14/$0.28 per M. |
-| **Mistral** | Le Chat Pro (no API) | n/a — metered API only | Consumer sub explicitly excludes API. |
-
-**Takeaways:** Anthropic isn't unique — it's the leading edge of a Western lockdown (Google is equally/more restrictive). For our barbell: **local oMLX** or, if we ever want a subscription inside an agnostic tool, **GLM Coding Plan / Cerebras / Copilot / ChatGPT** are the sanctioned paths. **Anthropic Max stays first-party** (Claude Code / Zed-ACP). Pi → Anthropic = pay-per-token API, *not* the Max subscription.
+The short conclusion is narrower than the old price-first comparison: OpenAI
+remains the primary subscription because GPT-5.6 Sol has the strongest verified
+non-Anthropic coding-agent evidence. Z.ai's $18 GLM plan is the next subscription
+to canary: the Ox Alpha preview was GLM-5.3-Flash, full GLM-5.3 is included, Pi is
+officially supported, and the API Data Processing Addendum promises no content
+storage. Confirm that the individual Coding Plan is covered before privileged
+use. A paid Google Gemini API project remains the cleaner metered review route.
 
 ### Harness benchmarking — the scaffold moves a fixed model 10–17 points
 

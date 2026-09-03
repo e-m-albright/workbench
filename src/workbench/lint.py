@@ -70,6 +70,25 @@ def _markdown_link_errors(root: Path) -> list[str]:
     return errors
 
 
+def _knowledge_index_errors(root: Path) -> list[str]:
+    knowledge = root / "playbook/knowledge"
+    index = knowledge / "README.md"
+    if not index.exists():
+        return ["knowledge index missing: playbook/knowledge/README.md"]
+
+    linked: set[Path] = set()
+    for match in re.finditer(r"\[[^]]+\]\(([^)]+)\)", index.read_text()):
+        raw = match.group(1).split("#", 1)[0].strip().strip("<>")
+        if raw and "://" not in raw and not raw.startswith("mailto:"):
+            linked.add((knowledge / raw).resolve())
+
+    return [
+        f"knowledge document missing from index: {path.relative_to(root)}"
+        for path in sorted(knowledge.rglob("*.md"))
+        if path != index and path.resolve() not in linked
+    ]
+
+
 def _retired_source_errors() -> list[str]:
     paths = [
         *(AGENTS / "pi/extensions" / name for name in RETIRED_PI_EXTENSIONS),
@@ -169,6 +188,7 @@ def lint() -> int:
         if result.returncode:
             errors.append(result.stderr.strip())
     errors.extend(_markdown_link_errors(ROOT))
+    errors.extend(_knowledge_index_errors(ROOT))
     for error in errors:
         print(f"ERROR {error}")
     if errors:

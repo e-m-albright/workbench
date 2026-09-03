@@ -2,7 +2,7 @@
 
 Timestamped map of maintained agent-intelligence capabilities in this repository.
 
-**Snapshot:** 2026-09-01. Refresh the map and scale snapshot on demand during an explicit capability-health review, not during routine implementation.
+**Snapshot:** 2026-09-03. Refresh the map and scale snapshot on demand during an explicit capability-health review, not during routine implementation.
 
 ## Scale snapshot
 
@@ -12,14 +12,14 @@ arbitrary capability bucket or counting one file twice.
 
 | Source tree | Files | Lines | What it owns |
 |---|---:|---:|---|
-| `src/workbench/` plus `bin/workbench` | 10 | 1,644 | Deployment, drift, lint, rendering, MCP, and Codex merge |
-| `agents/pi/extensions/` | 14 | 3,665 | Pi runtime extensions and connector adapters |
-| `agents/skills/` | 70 | 5,516 | Portable workflows, references, and small supporting scripts |
+| `src/workbench/` plus `bin/workbench` | 10 | 1,675 | Deployment, drift, lint, rendering, MCP, and Codex merge |
+| `agents/pi/extensions/` | 17 | 4,046 | Pi runtime extensions and connector adapters |
+| `agents/skills/` | 73 | 5,760 | Portable workflows, references, and small supporting scripts |
 | `agents/templates/` | 4 | 471 | Reusable owner-facing document templates |
-| `playbook/` | 40 | 8,485 | Engineering doctrine, stack guidance, and research |
+| `playbook/` | 47 | 9,587 | Engineering doctrine, stack guidance, and research |
 | `health/` | 2 | 74 | Portable deterministic health patterns |
-| `docs/` | 6 | 668 | Current operational state, experiments, and decisions |
-| `tests/` | 15 | 1,926 | Python and Pi behavior tests plus shared test data |
+| `docs/` | 6 | 693 | Current operational state, experiments, and decisions |
+| `tests/` | 18 | 2,234 | Python and Pi behavior tests plus shared test data |
 
 ## Registry
 

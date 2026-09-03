@@ -1,5 +1,8 @@
 # Workbench development and deployment tasks. Run `just` for grouped help.
 
+# Bun's installer uses this directory, which non-interactive shells may omit.
+export PATH := env_var('HOME') + '/.bun/bin:' + env_var('PATH')
+
 # ── Quality ───────────────────────────────────────────────────────────────────
 
 # Validate skills, local links, JSON, TOML, and shell syntax.

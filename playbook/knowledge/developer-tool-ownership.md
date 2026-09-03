@@ -2,7 +2,7 @@
 
 Developer tooling is consolidating into vertically integrated platforms that want to own the path from writing code through review, deployment, observability, model evaluation, and production infrastructure.
 
-**Snapshot:** September 2, 2026. “Owned” means a completed acquisition. An announced agreement, team hire, license, investment, sponsorship, and open-source stewardship are different relationships even when they create effective influence. Product roles and selection guidance for the most contested web stack live in the [Vercel and Cloudflare stack watch](../stacks/vercel-cloudflare.md).
+**Snapshot:** September 3, 2026. “Owned” means a completed acquisition. An announced agreement, team hire, license, investment, sponsorship, and open-source stewardship are different relationships even when they create effective influence. Product roles and selection guidance for the most contested web stack live in the [Vercel and Cloudflare stack watch](../stacks/vercel-cloudflare.md).
 
 ## Practical posture
 
@@ -29,10 +29,10 @@ Developer tooling is consolidating into vertically integrated platforms that wan
 | **IBM** | Red Hat, OpenShift, Ansible, and HashiCorp's Terraform, Vault, Consul, and Nomad | Linux, hybrid cloud, infrastructure as code, secrets, and scheduling under one parent. |
 | **Cisco** | Splunk and Isovalent, including Cilium and Tetragon stewardship | Networking, security, observability, and cloud-native networking. |
 | **Databricks** | MosaicML, Tabular, Neon, and the lakehouse platform | Model training, table formats, databases, and data infrastructure. |
-| **NVIDIA** | CUDA, networking, Run:ai, Bright Computing, Excelero, Deci, Brev.dev, Shoreline.io, OctoAI assets, the reported Gretel transaction, and related investments | More acquisitive than it first appears, but focused on making accelerated computing easier to consume rather than owning every application. |
+| **NVIDIA** | CUDA, networking, Run:ai, Bright Computing, Excelero, Deci, Brev.dev, Shoreline.io, OctoAI assets, the reported Gretel transaction, related investments, and a definitive agreement to acquire **Hugging Face** announced 2026-09-03 | The pending Hugging Face deal would move NVIDIA from bottleneck-adjacent infrastructure into model, dataset, and application distribution. Do not treat Hugging Face as NVIDIA-owned until the transaction closes. |
 | **Google / Alphabet** | Android Studio, Go, Dart, Flutter, Angular, Bazel, TensorFlow, JAX, Kubernetes lineage, Firebase, Cloud Run, Colab, Kaggle, Gemini Code Assist, Jules, and Firebase Studio | Google mostly builds and distributes developer infrastructure directly. Its recent Windsurf move used licensing and hiring rather than buying the surviving product. |
 | **Datadog** | Application and infrastructure observability, Metaplane, Eppo | Operational telemetry expanded into data quality and product experimentation. |
-| **Hugging Face** | Hub, models, datasets, Spaces, inference, and XetHub storage | Model distribution plus the storage substrate beneath it. |
+| **Hugging Face** | Hub, models, datasets, Spaces, inference, and XetHub storage; NVIDIA acquisition agreement pending | Model distribution plus the storage substrate beneath it. It remains transaction-pending rather than already NVIDIA-owned. |
 | **Docker** | Docker Desktop, Hub, Compose, Build Cloud, Testcontainers, model tooling, and agent sandboxes | The local container boundary is becoming an agent execution and governance surface. |
 | **GitLab** | Source, review, continuous integration, security, planning, registry, deployment controls, and Duo agents | The notable integrated alternative built mainly as one product rather than assembled in the current acquisition wave. |
 
@@ -57,6 +57,12 @@ Sources: [SpaceX acquisition filing](https://app.edgar.tools/filing/1181412/0001
 Stripe [agreed to acquire OpenRouter on 2026-08-19](https://stripe.com/newsroom/news/stripe-agrees-to-acquire-openrouter). The announcement described more than 400 models from more than 80 providers and positioned model routing as the cost side of the same economic infrastructure Stripe already supplies for revenue. This is strategically coherent, but the transaction should remain labeled as an agreement until completion is verified.
 
 OpenRouter's value depends on being a credible multi-model neutral layer. Watch whether routing remains driven by user-selected price, performance, availability, and data policies rather than Stripe bundling; whether non-Stripe billing remains practical; and whether all model traffic becomes part of a broader financial and application telemetry profile. The direct comparison with Vercel and Cloudflare is maintained in the [stack watch](../stacks/vercel-cloudflare.md#model-gateways-vercel-cloudflare-and-openrouter).
+
+## NVIDIA and Hugging Face
+
+NVIDIA [agreed to acquire Hugging Face on 2026-09-02](https://www.sec.gov/Archives/edgar/data/1045810/000104581026000078/nvda-20260902.htm), and [announced the agreement publicly on 2026-09-03](https://blogs.nvidia.com/blog/nvidia-to-acquire-hugging-face/). NVIDIA describes approximately $11.9 billion of acquisition consideration plus approximately $1.0 billion of employee retention awards. The transaction remains subject to regulatory approvals and other closing conditions, so this map labels it as a definitive agreement rather than completed ownership.
+
+If it closes, the deal gives NVIDIA control of a central distribution surface for open models, datasets, applications, and inference. NVIDIA says Hugging Face will remain open to multiple models, clouds, frameworks, and accelerators. The strategic test is whether those neutrality commitments survive in product defaults, pricing, governance, telemetry, and support for competing hardware.
 
 ## Vercel
 
@@ -169,7 +175,7 @@ References: [Oxlint documentation](https://oxc.rs/docs/guide/usage/linter.html),
 
 The premise is partly wrong: NVIDIA has bought many targeted complements. Recent moves include Run:ai for graphics-processing-unit scheduling, Bright Computing for cluster management, Excelero for storage, Deci for inference optimization, Brev.dev for development environments, Shoreline.io for cloud operations, and OctoAI assets for model serving. Reporting also described a Gretel transaction for synthetic data, but NVIDIA did not provide the same clear first-party announcement used for Run:ai, so treat that item as reported rather than independently confirmed here. Mellanox remains the major earlier acquisition that gave NVIDIA networking as well as compute.
 
-NVIDIA nevertheless has reasons not to own the whole developer stack:
+The Hugging Face agreement is a major exception to NVIDIA's earlier bottleneck-adjacent pattern: it would give NVIDIA ownership of a model and dataset distribution hub used across competing clouds and accelerators. NVIDIA nevertheless has reasons not to own the whole developer stack:
 
 1. **Neutrality sells chips.** NVIDIA benefits when every cloud, model laboratory, framework, and application standardizes on CUDA and its hardware. Competing with all of those customers at the application layer could weaken that position.
 2. **The bottleneck is already valuable.** Control of accelerators, CUDA, networking, and optimized libraries captures enormous value without the lower margins and support burden of every end-user product.
@@ -229,6 +235,7 @@ Vercel and Svelte demonstrate why the fourth category matters. SpaceX and Cursor
 7. Watch whether Weights & Biases preserves cross-cloud neutrality under CoreWeave.
 8. Watch whether Google turns its scattered developer estate into one coherent Gemini-centered platform.
 9. Watch whether OpenRouter preserves broad provider neutrality, data-policy routing, and deployment independence if Stripe's acquisition closes.
+10. Watch whether Hugging Face preserves multi-cloud, multi-framework, and competing-accelerator neutrality if NVIDIA's acquisition closes.
 
 ## Caveats
 
