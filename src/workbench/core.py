@@ -48,6 +48,10 @@ RETIRED_SUBAGENTS = {
     "test-writer": "the portable testing skill owns test design and TDD guidance",
 }
 RETIRED_SKILLS = {
+    "dep-audit": (
+        "renamed and expanded as dependency-upgrades, which owns both read-only"
+        " audits and requested upgrade execution"
+    ),
     "agentic-e2e-debugging": (
         "its browser/service/commit workflow overlapped systematic-debugging"
         " plus browser-tooling and assumed authority that does not generalize"

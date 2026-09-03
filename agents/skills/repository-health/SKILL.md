@@ -64,10 +64,10 @@ Feature-map drift may be reported here, but portfolio decisions route to
 
 ### Dependency and supply-chain maintenance
 
-Route lockfile vulnerability, version, unused-dependency, and license analysis
-to `dep-audit`. Inspect pinning, installer provenance, abandoned dependencies,
-and update ownership. Route exploitability and trust-boundary questions to
-`security-review`; do not duplicate its rubric here.
+Route lockfile vulnerability, version, and upgrade analysis to
+`dependency-upgrades`. Inspect pinning, installer provenance, abandoned
+dependencies, license risk, and update ownership. Route exploitability and
+trust-boundary questions to `security-review`; do not duplicate its rubric here.
 
 ### Test-suite health
 
