@@ -19,7 +19,9 @@ The most capable production stacks combine one from each category. No single too
 
 **What it is**: Open-source CLI + library for LLM eval and red-teaming. YAML-driven configs, runs locally, stores results in your repo. Used by OpenAI and Anthropic internally.
 
-**Maturity**: High. 15k+ GitHub stars, active development, strong community. Now maintained/backed by OpenAI (as of early 2026).
+**Maturity**: High. 15k+ GitHub stars, active development, strong community. OpenAI announced an agreement to acquire Promptfoo on March 9, 2026; do not describe the transaction as completed without newer evidence.
+
+**Current posture**: Run a bounded trial when the next agent-security evaluation needs red-team coverage. Keep providers, test cases, assertions, and results in the repository, and verify that non-OpenAI models remain first-class as the acquisition develops.
 
 | Dimension | Details |
 |---|---|
@@ -34,7 +36,7 @@ The most capable production stacks combine one from each category. No single too
 | **Self-hosted** | Entirely local by default. No cloud dependency. |
 | **Pricing** | Free, open-source (MIT) |
 
-**Unique strengths**: Security/red-teaming is best-in-class. YAML config is version-controllable. Zero vendor lock-in. Perfect for pre-deploy testing.
+**Unique strengths**: Security and red-teaming are the main differentiators. YAML configuration and local result files are version-controllable and reduce lock-in. Provider neutrality is valuable but must be rechecked under OpenAI ownership rather than assumed.
 
 **Key limitation**: No production monitoring. No centralized dashboard for experiment tracking across runs. Results are local files.
 

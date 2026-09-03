@@ -1,6 +1,6 @@
 # Browser Tooling for AI Agents
 
-> **Last reviewed**: 2026-07-30 - removed PinchTab after the standby experiment produced no unique use case; Agent Browser gained the visible, persistent, and diagnostic capabilities that had motivated the overlap.
+> **Last reviewed**: 2026-09-02 - retained the local Agent Browser plus Playwright stack after reviewing Cloudflare Browser Run and experimental WebMCP; their useful properties become selection criteria rather than a new standing service.
 
 A tiered system for inspecting, testing, and debugging UIs from an AI agent. Pick the cheapest tier that does the job. **The endorsed stack is Playwright for deterministic code plus Agent Browser for agent-driven exploration and supervised interaction.** No browser MCP servers are loaded.
 
@@ -106,6 +106,14 @@ const data = await stagehand.page.extract({ instruction: 'get the order total' }
 
 ---
 
+## Production browser criteria
+
+Cloudflare Browser Run packages several capabilities that matter when browser automation becomes a maintained service: live inspection, human takeover and handback, direct Chrome DevTools Protocol access, session recordings, console and network evidence, and resumable sessions. These are useful requirements, not a present adoption case. The local stack already provides supervised browser visibility and diagnostics without another hosted control plane.
+
+WebMCP is an experimental browser interface through which a page declares semantic actions to an agent. It could be more stable and token-efficient than reconstructing intent from the Document Object Model. Keep it on watch until browser support, tool provenance, user consent, and authorization semantics mature. A site-advertised action is untrusted content, and an authenticated browser session must not silently lend all of its authority to that action.
+
+Adopt a hosted browser only when a recurring workload needs cross-machine availability, high concurrency, durable recordings, or human takeover that the local stack cannot supply. Respect robots controls and stop on anti-bot or CAPTCHA gates rather than treating infrastructure as a bypass.
+
 ## Common workflow
 
 1. User reports a UI bug.
@@ -132,3 +140,5 @@ For greenfield long flows, consider **Tier 5** (Stagehand) instead of Tier 1 if 
 - *Daily.co: How to make a headless robot to test WebRTC* — fake-device flags
 - *Stagehand* — Browserbase, https://github.com/browserbase/stagehand
 - *agent-browser* — Vercel Labs, https://agent-browser.dev
+- Cloudflare, [Browser Run: give your agents a browser](https://blog.cloudflare.com/browser-run-for-ai-agents/), 2026-04-15
+- Cloudflare, [Give any website a WebMCP interface](https://blog.cloudflare.com/webmcp/), 2026-08-06

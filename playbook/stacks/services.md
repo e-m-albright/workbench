@@ -4,6 +4,8 @@
 
 > **Note**: This is a menu, not a mandate. Most projects need only 2-3 services.
 > A simple app needs hosting + database. Add services as requirements emerge.
+>
+> Vercel and Cloudflare now span several categories below. Use the dedicated [Vercel and Cloudflare stack watch](vercel-cloudflare.md) for their complete product roles, ownership ties, and cross-category selection guidance.
 
 ---
 
@@ -271,6 +273,7 @@ such as feature flags, experiments, or session replay.
 | **Go background jobs** | River | asynq | Postgres-backed, transactional enqueue. A queue, not full durable execution. |
 | **TS event-driven** | Inngest | Trigger.dev | Inngest: light self-host (single binary). Trigger.dev: more of a platform (registry + object storage). |
 | **Heavy-duty** | Temporal | Restate (watch) | Cross-language, mission-critical scale. The cluster (Cassandra/ES) is real ops burden — reach for it only when correctness-at-scale demands it. |
+| **Platform-native** | Vercel Workflows / Cloudflare Workflows | — | Watch when the application already lives on that platform; compare portability and state export with DBOS, Inngest, and Temporal. |
 
 ### When to Use What
 

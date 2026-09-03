@@ -23,7 +23,7 @@ Selection is *what* to reach for. Idioms below are *how* to use them. Detect the
 | Full-stack app | **SvelteKit 2** | Next.js (React bloat, Vercel-coupled), Nuxt (Vue) |
 | Content site | **Astro** | Gatsby (stagnant), Hugo (non-JS) |
 | Vite build layer | **Vite 8** | Direct bundler configuration without a concrete need |
-| UI components | **shadcn-svelte + Bits UI** | Chakra/MUI (React-only, heavy) |
+| UI components | **shadcn-svelte + Bits UI** | Chakra/MUI (React-only, heavy). Original shadcn/ui creator shadcn works on Vercel's AI team; the Svelte port is a separate project. |
 | ORM | **Drizzle** | Prisma (heavy engine and slower iteration) |
 | Database | **PostgreSQL** | SQLite (lacks concurrent writes) |
 | Auth | **Better Auth** (Lucia for lightweight) | Auth0 (complex), NextAuth (React-only) |
@@ -34,7 +34,7 @@ Selection is *what* to reach for. Idioms below are *how* to use them. Detect the
 | i18n (SvelteKit) | **Paraglide JS 2.0** | i18next (runtime overhead) |
 | Unit testing | **Deno test** for pure Deno; **Vitest** for Vite apps and components | Replacing Deno test merely for uniformity |
 | E2E testing | **Playwright** (+ `@axe-core/playwright` for a11y) | Cypress (heavier) |
-| LLM client | **Vercel AI SDK** (`ai` + `@ai-sdk/svelte`) | provider-locked SDKs — AI SDK is provider-agnostic with first-class streaming |
+| LLM client | **Vercel AI SDK** (`ai` + `@ai-sdk/svelte`) | Provider-locked SDKs. AI SDK provides provider adapters, streaming UI, structured output, tools, agent loops, runtime context, and harness adapters. TanStack AI is the closest composable TypeScript alternative; Mastra and LangGraph are larger agent runtimes. |
 | Typed API contract | **SvelteKit remote functions** in-app; **oRPC** for external clients | tRPC (use only if you need it; oRPC also emits OpenAPI) |
 
 ### Phase 3 — at scale
@@ -98,7 +98,7 @@ When the data/auth/jobs layer lives in backend services (Rust/Python/Go), the Sv
 - **[Vite+](https://voidzero.dev/posts/announcing-vite-plus) is beta and watch-only**. It is credible for Node-centric Vite monorepos, but `vp env`, package installation, `vp run`, and `vp check` create a competing Node/package/task control plane. Revisit at 1.0 or when Deno integration becomes credible.
 - **Vite Task is watch-only** until a monorepo demonstrates a need for its caching and dependency scheduling beyond Just and native project tasks.
 
-[VoidZero joined Cloudflare on 2026-06-04](https://voidzero.dev/posts/voidzero-cloudflare). Vite, Vitest, Rolldown, Oxc, and Vite+ remain MIT-licensed under their existing project leadership. The acquisition improves funding durability while increasing ecosystem-concentration risk; adopt individual tools on merit rather than treating the suite as one endorsement.
+[VoidZero joined Cloudflare on 2026-06-04](https://voidzero.dev/posts/voidzero-cloudflare). Vite, Vitest, Rolldown, Oxc, Oxlint, Oxfmt, and Vite+ remain open source under their existing project leadership. The acquisition improves funding durability while increasing ecosystem-concentration risk. Keep Biome as the broad formatter and linter today; keep Oxlint and the other VoidZero products on explicit watch for migration-worthy rules, compatibility, or performance. Adopt individual tools on merit rather than treating the suite as one endorsement. See the [Vercel and Cloudflare stack watch](../vercel-cloudflare.md) for product roles and ownership ties.
 
 ### Types
 
@@ -193,7 +193,7 @@ export const selectUserSchema = createSelectSchema(users);
 Not adopted — evaluation notes, argue before pulling in.
 
 - **[Effect](https://effect.website) (effect.ts)** — a full functional effect-system + standard library for TypeScript (the `Effect<A, E, R>` type: typed success, **typed error channel**, and a dependency/context `R`). Ships schema, dependency injection, structured concurrency, retries/scheduling, resource safety, streams, observability. Think ZIO-for-TS. **Why it's interesting to us:** it directly targets pain points we already legislate by hand — typed errors instead of `try/catch` discipline, `Schema` overlapping **Zod**, discriminated-union state overlapping the **Effect** type, and built-in retry/concurrency/OTel overlapping our Phase-2/3 picks. **The tension:** it's a *paradigm*, not a drop-in — high learning curve, all-or-nothing gravity (code tends to become "Effect code"), and it cuts against our "simplicity over ceremony / fundamentals over frameworks" lean. **Evaluate when:** a service has genuinely complex error/concurrency/resource orchestration where the type-level guarantees earn their weight — not for thin SSR proxies or CRUD. Start with `@effect/schema` in isolation (as a Zod alternative) before adopting the runtime. Verify current API against effect.website — the ecosystem moves fast.
-- **[TanStack](https://tanstack.com)** (Tanner Linsley's family) — headless, type-safe, framework-agnostic libraries. **Svelte-supported (Svelte 5 runes):** **Query** (server-state cache/mutations), **Table** + **Virtual** (headless data grids + virtualization), **Form** (headless form state), **DB** (reactive client store: collections, live queries, optimistic mutations). ⚠️ **Router and Start (the meta-framework) are React/Solid only — not Svelte.** **Fit to us:** in the thin-SSR-proxy posture, server state is loaded server-side so **Query** earns its keep mainly in client-heavy / realtime UIs; **Table + Virtual** are the strongest pulls (data grids are painful to hand-roll). Not a suite to adopt wholesale — reach for the individual library when the need is concrete.
+- **[TanStack](tanstack.md)** (Tanner Linsley's family) — headless, type-safe libraries selected package by package rather than as a suite. Query, Table, Virtual, Form, DB, and AI support Svelte use cases; Router and Start are React/Solid choices. The dedicated map explains each package, its alternatives, and concrete adoption triggers.
 - **The rest of the named ecosystem (quick classifier)** — you'll keep hearing these; the filter is *headless + framework-agnostic + solves a pain we actually have → evaluate; React-coupled → skip for our Svelte stack.*
   - *Validation:* **Zod** is the de-facto standard (our pick). **[Valibot](https://valibot.dev)** (tiny, tree-shakeable) and **[ArkType](https://arktype.io)** (fastest) are alternatives; the 2026 **[Standard Schema](https://standardschema.dev)** spec (from the Zod/Valibot/ArkType authors) makes them interchangeable — relevant since our tooling speaks Zod.
   - *Type-safe API:* **[tRPC](https://trpc.io)** (end-to-end types, no codegen) and **[Hono](https://hono.dev)** (edge web framework) — largely **N/A in our polyglot-backend posture**; only relevant when the backend is TypeScript.
@@ -208,6 +208,8 @@ Not adopted — evaluation notes, argue before pulling in.
 
 ## See also
 
+- [tanstack.md](tanstack.md) — TanStack package map, alternatives, and AI tooling layers
+- [frameworks/README.md](frameworks/README.md) — full-stack web framework selection with ownership and deployment ties
 - [frameworks/sveltekit.md](frameworks/sveltekit.md) — SvelteKit 2 + Svelte 5 patterns
 - [frameworks/astro.md](frameworks/astro.md) — Astro content sites and islands
 - [../../engineering-philosophy.md](../../engineering-philosophy.md) — universal code-health principles

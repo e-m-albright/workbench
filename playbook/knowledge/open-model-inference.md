@@ -258,11 +258,11 @@ product and runs supported models on Cloudflare infrastructure. Saying simply
 
 | Provider | Owns model GPUs? | Current take |
 |---|---:|---|
-| [OpenRouter](https://openrouter.ai/) | Mostly no | **Pragmatic hosted-model aggregator.** One API, model/provider failover, and routing controls; another party still sees the traffic. |
+| [OpenRouter](https://openrouter.ai/) | Mostly no | **Broad hosted-model aggregator.** More than 400 models across more than 80 providers at the time of Stripe's announcement, with detailed price, speed, availability, and data-policy routing. Stripe agreed to acquire it on 2026-08-19; do not describe the deal as completed without newer evidence. |
 | [LiteLLM](https://github.com/BerriAI/litellm) | No | **Self-hosted gateway reference.** Broad provider normalization, budgets, fallback, and routing; too much infrastructure for the current personal stack. |
-| [Vercel AI Gateway](https://vercel.com/ai-gateway) | No | Strong application gateway when already using Vercel; no reason to add it solely for Pi. |
+| [Vercel AI Gateway](https://vercel.com/ai-gateway) | No | Competitive application gateway with hundreds of models, fallback, budgets, usage controls, and bring-your-own-key support. Strongest with AI SDK or Vercel; OpenRouter remains broader and more deployment-neutral. |
 | [Portkey](https://portkey.ai/) | No | Mature gateway and observability control plane; organization-oriented rather than needed locally. |
-| [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) | No, for the gateway product | Observability, caching, retries, fallback, and provider routing; attractive when the application already lives on Cloudflare. |
+| [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) | No, for the gateway product | Observability, caching, rate limits, retries, fallback, and provider routing; attractive when the application already lives on Cloudflare. See the [Vercel and Cloudflare stack watch](../stacks/vercel-cloudflare.md#model-gateways-vercel-cloudflare-and-openrouter) for the direct gateway comparison. |
 | Workbench Pi router | No | **Active policy layer.** Explicit frontier/private/auto modes with a local classifier and sticky privacy boundary. |
 
 Plain `pi` remains the explicit frontier path. Workbench deploys only the two

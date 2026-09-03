@@ -1,0 +1,43 @@
+{
+  "skill_name": "document-design",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Turn the attached synthetic renewal analysis into a standalone HTML decision brief for a technical executive. The recommendation is to renew for one year, usage grew 34% year over year, the proposed price rises 11%, and two reliability incidents remain unresolved. Preserve the supplied comparison table, assumptions, dates, and caveats. The reader should understand the recommendation in under a minute and still be able to audit the evidence. Check desktop at 1440x900 and mobile at 390x844.",
+      "expected_output": "A standalone, responsive HTML decision brief with a fast decision path and complete audit path.",
+      "files": [],
+      "expectations": [
+        "The recommendation, decisive evidence, and unresolved risk are clear in the first viewport",
+        "All supplied numbers, units, dates, assumptions, and caveats survive unchanged",
+        "The comparison table receives the available evidence width and remains usable on mobile",
+        "The page has one material-specific organizing move rather than a generic hero and card grid",
+        "Semantic structure, focus visibility, contrast, and responsive overflow pass review"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create a rehearsal-ready call script from a synthetic partnership meeting brief. The conversation must establish the other person's priorities, test one operating hypothesis, surface two proof stories only if relevant, and close on a concrete next step. Keep the Markdown canonical and render the existing Workbench call-script HTML view. The script must be quickly scannable during a live call without turning every paragraph into a card.",
+      "expected_output": "Canonical Markdown plus a rendered call-script view using the maintained Workbench template.",
+      "files": [],
+      "expectations": [
+        "The existing call-script renderer is reused rather than replaced",
+        "The opening frame, questions, optional evidence, cautions, and close are distinguishable during live use",
+        "The document does not duplicate the same mutable prose in Markdown and generated HTML",
+        "Collapsed navigation, mobile behavior, light and dark themes, and print output remain usable"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Build a standalone HTML benchmark report from synthetic latency results for three systems across four workloads. Preserve sample sizes, p50 and p95 units, the hardware description, and the warning that the test does not measure production reliability. Lead with the relationship the data actually supports, provide exact lookup below, and do not use color to imply a winner. Check desktop at 1440x900 and mobile at 390x844.",
+      "expected_output": "A responsive evidence-led benchmark report with honest comparison geometry and exact tables.",
+      "files": [],
+      "expectations": [
+        "The leading claim does not exceed what the benchmark establishes",
+        "Comparisons share one visible basis and exact values remain available",
+        "Sample sizes, units, environment, and reliability caveat are adjacent to the evidence they qualify",
+        "The visual hierarchy remains legible without color and survives narrow screens",
+        "Decorative charts, redundant summaries, and generic metric-card grids are absent"
+      ]
+    }
+  ]
+}

@@ -12,16 +12,17 @@
 
 ## Languages
 
-Each language is a directory: `README.md` (selection + idioms + patterns) and a `frameworks/` subdir.
+Start with the [programming-language landscape](languages.md) for the five-tier selection map. Each adopted language then has a directory with `README.md` for selection, idioms, and patterns and a `frameworks/` subdirectory.
 
 - [**python/**](python/README.md) — + [ml.md](python/ml.md) (data/ML) · frameworks: [fastapi](python/frameworks/fastapi.md)
-- [**typescript/**](typescript/README.md) — frameworks: [sveltekit](typescript/frameworks/sveltekit.md), [astro](typescript/frameworks/astro.md)
+- [**typescript/**](typescript/README.md) — [full-stack framework landscape](typescript/frameworks/README.md) · adopted guides: [sveltekit](typescript/frameworks/sveltekit.md), [astro](typescript/frameworks/astro.md)
 - [**golang/**](golang/README.md) — frameworks: [chi](golang/frameworks/chi.md)
 - [**rust/**](rust/README.md) — frameworks: [axum](rust/frameworks/axum.md), [tauri](rust/frameworks/tauri.md)
 
 ## Cross-cutting
 
 - [services.md](services.md) — hosting / db / auth / payments / queues / durable execution / realtime / observability picks (self-host-first)
+- [vercel-cloudflare.md](vercel-cloudflare.md) — product-by-product watch of the converging Vercel and Cloudflare web and agent stacks
 - [infrastructure.md](infrastructure.md) — Docker, IaC, dev-env tooling, observability topology + footguns, build discipline
 - [security.md](security.md) — supply-chain & secrets (gitleaks, dependency auditing, secrets management)
 - [data-stores.md](data-stores.md) — embedded/agent-written data stores: SQLite+DuckDB default, rejected "agent memory" engines, graduation triggers

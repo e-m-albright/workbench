@@ -20,7 +20,18 @@ For new or substantially redesigned UI:
 5. Build the real workflow, including empty, loading, error, partial, overflow, offline, and responsive states that apply.
 6. Verify visually in the browser at desktop and mobile sizes.
 
-Do not require new `PRODUCT.md` or `DESIGN.md` files merely to begin. Use them when the project already owns them or the user explicitly wants durable design context.
+Do not require new `PRODUCT.md` or `DESIGN.md` files merely to begin. Use them when the project already owns them or when repeated corrections have earned durable project-specific design context.
+
+## Separate discovery from convergence
+
+These phases need different context:
+
+- **Discovery** searches for a new structural and visual direction. Withhold current screenshots, tokens, components, and named competitor interfaces when they would anchor every proposal to the existing grammar. Supply the user jobs, representative content, required states, accessibility constraints, and desired qualities instead. Compare materially different information architectures before judging polish.
+- **Convergence** makes a chosen direction coherent with a real product. Read the project's design context, tokens, components, routes, and representative shipped screens. Reuse those mechanics instead of inventing a parallel system, while preserving the selected hierarchy and interaction model.
+
+Do not load brand context and then claim the resulting variants are independent discovery. Conversely, do not keep production implementation artificially detached from the system it must join.
+
+Use `document-design` for reports, proposals, briefs, benchmarks, and standalone HTML reading views. Use `presentation-design` for decks.
 
 ## When to Use
 
