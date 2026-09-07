@@ -12,7 +12,6 @@ describe("Pi preset taint guard", () => {
 			"calendar_list_events",
 			"strava_get_activity",
 			"apple_notes_get",
-			"granola_tool",
 		]) {
 			expect(isConnectorTool(tool)).toBe(true);
 		}

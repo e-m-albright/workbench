@@ -152,8 +152,8 @@ the Codex subscription, OpenRouter, Google, Anthropic, or a local model).
 
 Working policy:
 
-- For sessions that read Gmail/Calendar/Granola content, prefer the provider
-  already holding that data (Google models for Google data) or a local model.
+- For sessions that read Gmail or Calendar content, prefer the provider already
+  holding that data (Google models for Google data) or a local model.
   Pi's per-session model switching makes this a one-keystroke choice, which is a
   capability Claude Code and Codex do not offer.
 - Claude and Codex connectors send the same source data to Anthropic or OpenAI
@@ -250,10 +250,9 @@ Working policy:
 - **Revocation:** delete the token file under the credential root and revoke the
   grant at https://myaccount.google.com/permissions (Google) or
   https://www.strava.com/settings/apps (Strava).
-- **Granola:** stays on its pinned `mcp-remote` route in the notes project — the
-  only remaining MCP path. Granola's local cache is encrypted (`cache-v6.json.enc`),
-  so a local file reader is not viable without reverse-engineering; the hosted
-  MCP endpoint is the vendor-supported read path.
+- **Granola retired 2026-09-05:** its project-scoped `mcp-remote` route, shared
+  MCP declaration, and Codex plugin declaration were removed. The operational
+  tombstone lives in `agents/shared/mcp-servers.json`.
 
 ## Community watchlist
 

@@ -237,6 +237,48 @@ optional router / API gateway
 agent harness or application
 ```
 
+### Model-specific silicon watch: Taalas
+
+**Concept worth tracking, not an adoption candidate yet.** Taalas builds
+model-specific inference silicon: instead of repeatedly moving model weights from
+external memory through a general-purpose accelerator, it embodies much of a
+particular model's computation in the hardware. This trades programmability for
+potentially exceptional latency and energy efficiency. The durable idea is broader
+than one vendor: sufficiently stable, high-volume inference workloads may justify
+turning a model into an application-specific integrated circuit.
+
+Taalas' HC1 demonstrator runs Llama 3.1 8B on a 53-billion-transistor TSMC 6 nm
+chip. Taalas reports 17,000 generated tokens per second per user from a 2.5 kW
+server. Treat that as a vendor result, not an independent comparison: Taalas ran
+its own HC1 and NVIDIA measurements, while some competing-system figures came from
+Artificial Analysis. The company also says its “Hardcore Models” support
+fine-tuning, so the design should not be reduced to “one immutable model for the
+entire life of the chip” without a technical account of what remains programmable.
+
+[AMD announced an agreement to acquire Taalas](https://newsroom.amd.com/news/amd-acquires-taalas-ai-inference/)
+on 2026-08-06. The transaction remained subject to closing conditions and
+regulatory approval in that announcement. AMD plans to incorporate the technology
+into its accelerator roadmap and pair system-level solutions with Instinct GPUs.
+That hybrid plan is more credible than replacing general-purpose accelerators:
+fixed silicon can serve stable hot paths while GPUs retain flexibility for model
+changes and unsupported operations.
+
+Watch for evidence on:
+
+- independent end-to-end latency, throughput, power, and cost measurements at
+  useful context lengths and concurrency levels
+- exactly which weights, operations, context limits, adapters, and fine-tunes can
+  change without manufacturing new silicon
+- time and cost from a frozen checkpoint to production chips, including mask cost,
+  yield, packaging, and minimum economic volume
+- useful service life as model families, architectures, and safety requirements
+  change
+- acquisition close and the first disclosed integration with AMD Instinct systems
+
+Sources: [Taalas HC1 product page](https://taalas.com/products/),
+[Taalas technology overview](https://taalas.com/), and the
+[AMD acquisition announcement](https://newsroom.amd.com/news/amd-acquires-taalas-ai-inference/).
+
 ### Local and self-hosted runtimes
 
 | Runtime | Role | Current take |
@@ -276,8 +318,8 @@ pia  # automatic, conservative routing
 Auto classifies each user input until any input routes private. That transition is
 one-way for the session: later inputs remain local unless the user explicitly
 overrides the boundary. Connector data stays conservative in auto because its
-sensitivity cannot be known before retrieval. Calendar, Granola, or selected Gmail
-work may use plain `pi` in a fresh session when the user deliberately values
+sensitivity cannot be known before retrieval. Calendar or selected Gmail work may
+use plain `pi` in a fresh session when the user deliberately values
 frontier intelligence over local handling.
 
 Provider routing chooses where to run the same model. Model routing chooses which

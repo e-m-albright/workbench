@@ -31,7 +31,7 @@ session tokens, and OAuth grants never belong in dotfiles or Workbench.
 
 The expected connector split is:
 
-- ChatGPT/Codex: official plugins for Gmail, Google Calendar, and Granola.
+- ChatGPT/Codex: official plugins for Gmail and Google Calendar.
 - Claude Code/Desktop: managed MCP declarations where no equivalent managed
   plugin is part of the selected workflow.
 - External local MCPs remain explicit and are reported by `workbench drift`

@@ -1,6 +1,6 @@
 ---
 name: planning
-description: Pressure-test an idea, define scope and non-goals, and write an implementation plan when ready. Use for brainstorming, "should we build this", "grill me", "stress-test this design", architecture tradeoffs, complexity checks, or planning a multi-step change.
+description: Pressure-test ideas, define scope and non-goals, and write implementation plans. Use for brainstorming, "should we build this", "grill me", architecture tradeoffs, or planning a multi-step change.
 metadata:
   source: Promoted from the retired .ai/rules/process/planning.mdc; this skill is now the canonical home for that content.
 ---

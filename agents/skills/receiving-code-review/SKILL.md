@@ -1,6 +1,6 @@
 ---
 name: receiving-code-review
-description: Process incoming review feedback with technical rigor — verify each suggestion against the codebase before implementing, push back with reasoning when it is wrong, no performative agreement. Use when handling PR review comments, reviewer suggestions, or "fix items 1-6" feedback.
+description: Evaluate review feedback against the code before changing it, and push back when it is wrong. Use for PR comments, reviewer suggestions, or requests to "fix items 1-6".
 metadata:
   source_url: https://github.com/obra/superpowers/blob/main/skills/receiving-code-review/SKILL.md
   source_commit: b36e0829c6d0140e93cfef2ca599b1b07d4a7797

@@ -1,6 +1,6 @@
 ---
 name: review
-description: Read-only pre-merge review of a diff, branch, or PR — findings-first bug hunt plus a graded health report card. Use for "review this", "is this safe to ship", "what could break", or grading a change. Reports only; applies fixes only when the user asks afterward.
+description: Review a diff, branch, or PR for bugs and code health without changing it. Use for "review this", "is this safe to ship", "what could break", or grading a change.
 allowed-tools: Read Grep Glob Bash(git:*) Bash(gh:*) Bash(rg:*) Bash(wc:*) Agent
 metadata:
   source: Merged from premerge-review (fix-first bug hunt) and code-quality-audit (graded health rubric). Criteria live in references/bug-hunt-criteria.md and references/health-rubric.md.

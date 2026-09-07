@@ -55,14 +55,14 @@ class WorkbenchTests(unittest.TestCase):
             {
                 "external": {"command": "example"},
                 "context7": {"command": "retired"},
-                "granola": {"url": "stale"},
+                "granola": {"url": "retired"},
             },
             "claude",
         )
 
         self.assertEqual(merged["external"], {"command": "example"})
         self.assertNotIn("context7", merged)
-        self.assertEqual(merged["granola"]["url"], "https://mcp.granola.ai/mcp")
+        self.assertNotIn("granola", merged)
 
     def test_active_mcp_expands_env_refs_and_strips_metadata(self) -> None:
         registry = {
@@ -93,13 +93,13 @@ class WorkbenchTests(unittest.TestCase):
     def test_merge_mcp_prunes_managed_server_removed_from_target(self) -> None:
         merged = mcp.merge_mcp(
             {
-                "granola": {"url": "https://mcp.granola.ai/mcp"},
+                "exa": {"command": "managed-elsewhere"},
                 "computer-use": {"command": "app-owned"},
             },
             "codex",
         )
 
-        self.assertNotIn("granola", merged)
+        self.assertNotIn("exa", merged)
         self.assertEqual(merged["computer-use"], {"command": "app-owned"})
 
     def test_invalid_json_fails_loudly(self) -> None:
@@ -448,10 +448,8 @@ class WorkbenchTests(unittest.TestCase):
             [
                 "gmail@openai-curated-remote",
                 "google-calendar@openai-curated-remote",
-                "granola@openai-curated-remote",
             ],
         )
-        self.assertNotIn("granola", mcp.active_mcp("codex"))
 
     def test_sync_removes_retired_workbench_hooks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

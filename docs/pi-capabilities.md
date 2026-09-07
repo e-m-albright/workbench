@@ -77,10 +77,11 @@ Tools: `gmail_search_threads`, `gmail_get_thread`, `calendar_list_calendars`,
 `calendar_list_events` — read-only by construction, with a standing guideline
 that message and event content is untrusted data, never instructions.
 
-Pi has no MCP client installed. `pi-mcp-adapter` was removed once every source
-moved to owned connectors; the notes project's Granola tools spawn a pinned
-`mcp-remote` directly. The permission policy's remote-MCP default-deny remains
-as dormant defense should an MCP tool ever reappear.
+Pi has no MCP client installed. `pi-mcp-adapter` was removed once active source
+access moved to owned connectors, and Granola's remaining project-scoped MCP
+route was removed when the product was retired. The permission policy's
+remote-MCP default-deny remains as dormant defense should an MCP tool ever
+reappear.
 
 Strava is served by the sibling `strava-readonly.ts` extension: a personal API
 app (free; callback domain `localhost`), then `/strava-auth`. Tools:

@@ -58,7 +58,6 @@ const CONNECTOR_PREFIXES = [
 	"apple_notes_",
 	"apple_contacts_",
 	"contacts_",
-	"granola",
 	"notes_sources",
 ];
 const CLASSIFIER_REASONS = new Set<RouteReason>([

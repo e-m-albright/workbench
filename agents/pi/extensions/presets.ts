@@ -69,7 +69,7 @@ async function applyPreset(name: string, preset: Preset, pi: ExtensionAPI, ctx: 
 
 // Tool-name prefixes whose results are untrusted external content. Once one has
 // run, the session context may carry injected instructions.
-const CONNECTOR_PREFIXES = ["gmail_", "calendar_", "strava_", "apple_notes_", "granola", "notes_sources"];
+const CONNECTOR_PREFIXES = ["gmail_", "calendar_", "strava_", "apple_notes_", "notes_sources"];
 const ACTING_TOOLS = new Set([
 	"bash",
 	"edit",

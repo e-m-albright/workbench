@@ -1,6 +1,6 @@
 ---
 name: code-health
-description: Diagnose and improve code structure through lenses for pruning, domain alignment, module depth, effect isolation, refactoring, clarity, and style. Use for code-health audits, cleanup, simplification, contraction cycles, "fewest lines without hacks," or a named lens.
+description: Diagnose and improve code structure through focused health lenses. Use for code-health audits, cleanup, simplification, contraction cycles, "fewest lines without hacks," or a named lens.
 ---
 
 # Code Health
