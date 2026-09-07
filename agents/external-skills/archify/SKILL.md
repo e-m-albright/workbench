@@ -4,12 +4,12 @@ description: Create validated system diagrams as standalone interactive HTML. Us
 license: MIT
 compatibility: Requires Node.js 18 or newer. Browser-based visual checks require local Chrome or Chromium.
 metadata:
-  version: "2.17"
+  version: "2.16"
   author: tt-a1i
   based_on: Cocoon-AI/architecture-diagram-generator (MIT, v1.0)
-  source_url: https://github.com/tt-a1i/archify/blob/0b636d9f2f410ce7c617dbfd8818b775d42e9d4d/archify/SKILL.md
-  source_commit: 0b636d9f2f410ce7c617dbfd8818b775d42e9d4d
-  ported_at: 2026-09-04
+  source_url: https://github.com/tt-a1i/archify/blob/v2.16.0/archify/SKILL.md
+  source_commit: a198a3e0d03cd08eb582062a52dc4b0bd5b0aa4f
+  ported_at: 2026-09-07
   adaptations: Shortened trigger metadata, disabled update checks, and added Workbench provenance and script guidance.
 ---
 
@@ -45,7 +45,7 @@ Use this bounded path for ordinary generation. Do not read the optional Viewer R
 
 ## Updates
 
-Workbench owns this pinned installation. Do not run `scripts/check-update.mjs`; it performs a remote check and writes machine-local reminder state. Update Archify by reviewing and porting a newer upstream commit through the skill-authoring workflow.
+Workbench owns the reviewed wrapper and pins the upstream runtime in `agents/shared/external-skills.json`. Do not run `scripts/check-update.mjs`; it performs an unreviewed remote check and writes machine-local reminder state. Update Archify by reviewing a newer release, then changing its version, URL, digest, and wrapper provenance together.
 
 Do not read `renderers/shared/geometry.mjs`, renderer source, validator source, tests, or benchmarks before the first candidate. Inspect implementation only for an unsupported internal diagnostic or after two focused repairs fail.
 

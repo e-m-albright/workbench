@@ -17,13 +17,13 @@ Binary assets are reported by file count and bytes, not fake line counts. Attrib
 
 | Group | Files | Lines |
 |---|---:|---:|
-| Code - source | 35 | 6,560 |
-| Code - tests | 18 | 2,231 |
-| Text | 164 | 18,086 |
-| Generated/vendor | 78 | 115,388 |
-| **Tracked text total** | **295** | **142,265** |
+| Code - source | 36 | 7,034 |
+| Code - tests | 18 | 2,419 |
+| Text | 166 | 18,349 |
+| Generated/vendor | 1 | 621 |
+| **Tracked text total** | **221** | **28,423** |
 
-Binary assets: 3 tracked files, 227,224 bytes. The generated/vendor group is 114,767 lines of the pinned upstream Archify distribution plus the 621-line dependency lockfile. Archify is one skill, not 77 skills; Workbench currently contains 32 skills total.
+Binary assets: 3 tracked files, 227,224 bytes. Workbench contains 31 local skills and one externally managed skill. Archify's reviewed wrapper and release pin are tracked here; its checksum-verified upstream runtime lives only in the machine-local cache and deployed agent directories.
 
 ## Registry
 
@@ -32,8 +32,8 @@ Binary assets: 3 tracked files, 227,224 bytes. The generated/vendor group is 114
 | Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | Core deployment engine |
 | Pi extensions and direct connector adapters | Core local runtime layer |
 | Shared rules, safety hooks, permission policy, and launchers | Core trust boundary |
-| Reusable skills and their references | Core portable workflow library; 32 skills after repeated consolidation passes |
-| Archify diagram generation | Active trial; one vendored upstream skill with a disproportionate 114,767-line footprint |
+| Reusable skills and their references | Core portable workflow library; 31 local skills after repeated consolidation passes |
+| Archify diagram generation | Active external skill; reviewed wrapper plus checksum-pinned upstream release |
 | Temporary handoff workflow | Active; explicit private state |
 | Reusable prompts | Small supporting surface |
 | Owner document templates | Small supporting surface; Pandoc-backed render contract |
@@ -79,9 +79,9 @@ Binary assets: 3 tracked files, 227,224 bytes. The generated/vendor group is 114
 - Agent instruction, skill authoring, and public-tool discovery through `tool-radar`.
 - Adversarial assessment, Paseo operations, Pi guidance, handoffs, reflection, and validated system-diagram generation through the vendored `archify` skill.
 
-**Assessment:** Keep, with aggressive deduplication. Skills should remain triggers and workflows that point to canonical doctrine. The health family separates portfolio value, repository operations, and implementation quality; `project-health-review` composes them without duplicating their rubrics. Prior consolidation removed duplicate skills and expired aliases, so the current count is 32 rather than the 152 files under `agents/skills/`. Merge overlapping skills when they prescribe the same sequence or output contract; do not duplicate project-specific workflow instances here.
+**Assessment:** Keep, with aggressive deduplication. Skills should remain triggers and workflows that point to canonical doctrine. The health family separates portfolio value, repository operations, and implementation quality; `project-health-review` composes them without duplicating their rubrics. Prior consolidation removed duplicate skills and expired aliases. Merge overlapping skills when they prescribe the same sequence or output contract; do not duplicate project-specific workflow instances here.
 
-Archify is the exception to the usual small-skill shape. Workbench copied a complete upstream distribution from `tt-a1i/archify` and disabled its self-updater so local behavior stays reviewed, pinned, offline, and deterministic. This is vendoring, not a Workbench-owned fork, but it shifts upstream code and generated examples into this repository's maintenance surface. Before promoting the trial, evaluate replacing the copied runtime with a pinned upstream package or checkout while retaining only a small local skill wrapper and provenance lock. Do not count generated HTML examples as authored source.
+Archify is intentionally external. `agents/shared/external-skills.json` pins its official release archive and SHA-256; `agents/external-skills/archify/SKILL.md` is the small reviewed wrapper that shortens trigger metadata and disables upstream self-update behavior. `workbench sync` downloads only a missing or invalid archive, rejects unsafe ZIP contents, caches and composes the verified runtime atomically, and deploys it with ordinary skills. `workbench drift` verifies the cache, wrapper, and deployed tree without network access.
 
 ### Owner document templates
 
@@ -112,7 +112,7 @@ application or maintain duplicate Markdown and HTML prose.
 
 - Remove a local Pi extension when upstream behavior becomes equivalent.
 - Merge skills when their trigger, workflow, and output contract substantially overlap.
-- Decide whether Archify earns a vendored offline runtime after real use; otherwise retain a thin skill wrapper around a pinned upstream installation.
+- Review Archify upgrades explicitly by changing its version, release URL, checksum, and wrapper provenance together.
 - Run capability health when the catalogue drifts, upstream behavior may replace a local capability, or the skill portfolio develops overlapping contracts.
 - Run repository health when documentation, automation, dependencies, test feedback, or recurring chores accumulate maintenance drag.
 - Reserve `project-health-review` for an explicit comprehensive pass; use the narrower health skill for ordinary grooming.

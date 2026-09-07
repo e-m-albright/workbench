@@ -26,6 +26,7 @@ from workbench.core import (
     write_json,
     write_text,
 )
+from workbench.external_skills import external_skill_source, external_skills
 from workbench.mcp import _desktop_mcp, merge_mcp, retired_mcp_names
 
 
@@ -116,10 +117,18 @@ def _replace_tree(source: Path, destination: Path) -> None:
     _remove_deployed_path(backup)
 
 
-def _sync_skill_tree(root: Path) -> None:
+def _managed_skill_sources(home: Path) -> dict[str, Path]:
+    """Resolve local trees plus checksum-verified external trees; external pins win."""
+    sources = _canonical_skills()
+    for skill in external_skills():
+        sources[skill.name] = external_skill_source(home, skill)
+    return sources
+
+
+def _sync_skill_tree(root: Path, home: Path) -> None:
     for name in RETIRED_SKILLS:
         _remove_deployed_path(root / name)
-    for name, source in _canonical_skills().items():
+    for name, source in _managed_skill_sources(home).items():
         _replace_tree(source, root / name)
 
 
@@ -127,7 +136,7 @@ def _sync_skills(vendor: str, home: Path) -> None:
     if vendor not in {"claude", "codex"}:
         raise WorkbenchError(f"unsupported skill target: {vendor}")
     root = home / (".claude/skills" if vendor == "claude" else ".agents/skills")
-    _sync_skill_tree(root)
+    _sync_skill_tree(root, home)
 
 
 def _remove_retired_subagents(destination: Path) -> None:
@@ -298,9 +307,9 @@ def _remove_deployed_path(path: Path) -> None:
 
 def _sync_pi_skills(home: Path) -> None:
     """Deploy shared skills once where Pi and Codex both discover them."""
-    canonical = _canonical_skills()
-    _sync_skill_tree(home / ".agents/skills")
-    for name in sorted(set(canonical) | set(RETIRED_SKILLS)):
+    managed_names = set(_canonical_skills()) | {skill.name for skill in external_skills()}
+    _sync_skill_tree(home / ".agents/skills", home)
+    for name in sorted(managed_names | set(RETIRED_SKILLS)):
         # Older Workbench versions copied shared skills here too. Pi discovers
         # both roots, so retaining those copies produces a collision warning.
         _remove_deployed_path(home / ".pi/agent/skills" / name)

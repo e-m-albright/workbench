@@ -12,11 +12,13 @@ import yaml
 from workbench.core import (
     AGENTS,
     RETIRED_PI_EXTENSIONS,
+    RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
     ROOT,
     WorkbenchError,
     load_json,
 )
+from workbench.external_skills import OVERLAYS, ExternalSkill, external_skills
 
 # Single source for the skill-description context budget; the test suite
 # imports these rather than re-deriving the rule.
@@ -65,6 +67,11 @@ def _markdown_link_errors(root: Path) -> list[str]:
                 # rather than being skipped.
                 base = root / raw.lstrip("/") if raw.startswith("/") else path.parent / raw
                 if not base.resolve().exists():
+                    # External wrappers link into files supplied by the verified
+                    # upstream archive, which intentionally is not in this tree.
+                    external_wrappers = root / "agents/external-skills"
+                    if path.is_relative_to(external_wrappers):
+                        continue
                     relative = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
                     errors.append(f"broken local link: {relative}:{line_number}: {raw}")
     return errors
@@ -99,6 +106,23 @@ def _retired_source_errors() -> list[str]:
         for path in paths
         if path.exists()
     ]
+
+
+def _external_skill_errors(registered: list[ExternalSkill]) -> list[str]:
+    errors: list[str] = []
+    names: set[str] = set()
+    archive_identities: set[tuple[str, str]] = set()
+    for skill in registered:
+        if skill.name in names:
+            errors.append(f"duplicate external skill name: {skill.name}")
+        names.add(skill.name)
+        identity = (skill.url, skill.sha256)
+        if identity in archive_identities:
+            errors.append(f"duplicate external skill archive: {skill.url}")
+        archive_identities.add(identity)
+        if skill.name in RETIRED_SKILLS:
+            errors.append(f"retired skill remains in external registry: {skill.name}")
+    return errors
 
 
 def lint() -> int:
@@ -149,6 +173,7 @@ def lint() -> int:
             errors.append(f"invalid Codex rule syntax: {rules_path.relative_to(ROOT)}:{number}")
 
     names: set[str] = set()
+    descriptions: dict[str, str] = {}
     for skill in sorted((AGENTS / "skills").glob("*/SKILL.md")):
         content = skill.read_text()
         try:
@@ -171,12 +196,52 @@ def lint() -> int:
             errors.append(f"missing skill description: {skill.relative_to(ROOT)}")
             continue
         length = len(description_value)
-        description_chars += length
+        descriptions[name] = description_value
         if length > PER_SKILL_DESCRIPTION_LIMIT:
             errors.append(
                 f"skill description exceeds {PER_SKILL_DESCRIPTION_LIMIT} chars: {name} ({length})"
             )
 
+    external_count = 0
+    try:
+        registered = external_skills(AGENTS / "shared/external-skills.json")
+    except WorkbenchError as exc:
+        errors.append(str(exc))
+        registered = []
+    errors.extend(_external_skill_errors(registered))
+    external_names: set[str] = set()
+    for skill in registered:
+        external_count += 1
+        external_names.add(skill.name)
+        overlay = OVERLAYS / skill.name / "SKILL.md"
+        if not overlay.is_file():
+            errors.append(f"external skill wrapper missing: {overlay.relative_to(ROOT)}")
+            continue
+        try:
+            frontmatter = _frontmatter_mapping(overlay.read_text(), overlay)
+        except WorkbenchError as exc:
+            errors.append(str(exc))
+            continue
+        if frontmatter.get("name") != skill.name:
+            errors.append(f"external skill wrapper name mismatch: {skill.name}")
+        description = frontmatter.get("description")
+        if description != skill.description:
+            errors.append(f"external skill wrapper description mismatch: {skill.name}")
+            continue
+        length = len(skill.description)
+        descriptions[skill.name] = skill.description
+        if length > PER_SKILL_DESCRIPTION_LIMIT:
+            errors.append(
+                f"skill description exceeds {PER_SKILL_DESCRIPTION_LIMIT} chars: "
+                f"{skill.name} ({length})"
+            )
+    if OVERLAYS.is_dir():
+        for overlay in OVERLAYS.iterdir():
+            if overlay.is_dir() and overlay.name not in external_names:
+                errors.append(f"unregistered external skill wrapper: {overlay.relative_to(ROOT)}")
+
+    names.update(external_names)
+    description_chars = sum(map(len, descriptions.values()))
     if description_chars > DESCRIPTION_BUDGET:
         errors.append(
             f"skill descriptions exceed {DESCRIPTION_BUDGET}-char context budget: "
@@ -193,5 +258,5 @@ def lint() -> int:
         print(f"ERROR {error}")
     if errors:
         return 1
-    print(f"OK {len(names)} skills, JSON, TOML, and shell syntax")
+    print(f"OK {len(names)} skills ({external_count} external), JSON, TOML, and shell syntax")
     return 0

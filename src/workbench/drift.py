@@ -21,6 +21,7 @@ from workbench.core import (
     _settings,
     _string_array,
 )
+from workbench.external_skills import external_skills, validated_external_skill_source
 from workbench.mcp import _desktop_mcp, active_mcp, retired_mcp_names
 from workbench.sync import (
     _canonical_hooks,
@@ -38,7 +39,8 @@ def _compare(source: Path, destination: Path, label: str, findings: list[str]) -
     if not destination.exists():
         findings.append(f"DRIFT {label}: missing {destination}")
     elif _digest(source) != _digest(destination):
-        findings.append(f"DRIFT {label}: differs from {source.relative_to(ROOT)}")
+        source_label = source.relative_to(ROOT) if source.is_relative_to(ROOT) else source
+        findings.append(f"DRIFT {label}: differs from {source_label}")
 
 
 def _compare_text(expected: str, destination: Path, label: str, findings: list[str]) -> None:
@@ -64,8 +66,28 @@ def _managed_value_errors(actual: object, expected: object, label: str) -> list[
     return errors
 
 
-def _check_skills(skill_root: Path, vendor: str, findings: list[str], external: list[str]) -> None:
+def _check_skills(
+    skill_root: Path,
+    vendor: str,
+    findings: list[str],
+    external: list[str],
+    *,
+    home: Path | None = None,
+) -> None:
     canonical = _canonical_skills()
+    managed_names = set(canonical)
+    if home is not None:
+        for skill in external_skills():
+            managed_names.add(skill.name)
+            source = validated_external_skill_source(home, skill)
+            if source is None:
+                canonical.pop(skill.name, None)
+                findings.append(
+                    f"DRIFT {vendor} external skill cache invalid or missing: "
+                    f"{skill.name}@{skill.version}"
+                )
+            else:
+                canonical[skill.name] = source
     deployed = {path.parent.name: path.parent for path in skill_root.glob("*/SKILL.md")}
     for name, source_root in canonical.items():
         if name not in deployed:
@@ -86,7 +108,7 @@ def _check_skills(skill_root: Path, vendor: str, findings: list[str], external: 
             )
         for relative in sorted(deployed_files - source_files):
             findings.append(f"DRIFT {vendor} skill {name}: unexpected file {relative}")
-    for name in deployed.keys() - canonical.keys():
+    for name in deployed.keys() - managed_names:
         if name in RETIRED_SKILLS:
             findings.append(f"DRIFT retired {vendor} skill still present: {name}")
         else:
@@ -319,7 +341,7 @@ def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) ->
     for vendor in selected:
         if vendor == "pi":
             _check_pi(home, findings, external)
-            _check_skills(home / ".agents/skills", vendor, findings, external)
+            _check_skills(home / ".agents/skills", vendor, findings, external, home=home)
             _check_pi_native_skills(home / ".pi/agent/skills", findings, external)
             continue
         if vendor == "claude":
@@ -341,7 +363,7 @@ def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) ->
         for name in set(mcp) - set(expected_mcp):
             external.append(f"EXTERNAL {vendor} MCP: {name}")
 
-        _check_skills(skill_root, vendor, findings, external)
+        _check_skills(skill_root, vendor, findings, external, home=home)
         if verify_plugins:
             _check_plugins(vendor, home, findings, external)
 
