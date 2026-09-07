@@ -2,24 +2,28 @@
 
 Timestamped map of maintained agent-intelligence capabilities in this repository.
 
-**Snapshot:** 2026-09-03. Refresh the map and scale snapshot on demand during an explicit capability-health review, not during routine implementation.
+**Snapshot:** 2026-09-07. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
 
 ## Scale snapshot
 
-Counts are physical lines in the named source trees, including comments and blank
-lines. They measure maintenance surface without forcing shared files into an
-arbitrary capability bucket or counting one file twice.
+Counts are physical lines in tracked text blobs, including comments and blank lines. Tracked symlinks count as their one-line Git blob rather than duplicating their target. Every tracked file belongs to exactly one group:
 
-| Source tree | Files | Lines | What it owns |
-|---|---:|---:|---|
-| `src/workbench/` plus `bin/workbench` | 10 | 1,675 | Deployment, drift, lint, rendering, MCP, and Codex merge |
-| `agents/pi/extensions/` | 17 | 4,046 | Pi runtime extensions and connector adapters |
-| `agents/skills/` | 73 | 5,760 | Portable workflows, references, and small supporting scripts |
-| `agents/templates/` | 4 | 471 | Reusable owner-facing document templates |
-| `playbook/` | 47 | 9,587 | Engineering doctrine, stack guidance, and research |
-| `health/` | 2 | 74 | Portable deterministic health patterns |
-| `docs/` | 6 | 693 | Current operational state, experiments, and decisions |
-| `tests/` | 18 | 2,234 | Python and Pi behavior tests plus shared test data |
+- **Code - source:** executable implementation and styling maintained here.
+- **Code - tests:** executable verification, including test helpers and fixtures.
+- **Text:** documentation, instructions, configuration, prompts, and human-maintained examples.
+- **Generated/vendor:** generated dependency state or third-party code retained in the repository.
+
+Binary assets are reported by file count and bytes, not fake line counts. Attribution is file-based; these repository totals deliberately avoid speculative per-capability splitting.
+
+| Group | Files | Lines |
+|---|---:|---:|
+| Code - source | 35 | 6,560 |
+| Code - tests | 18 | 2,231 |
+| Text | 164 | 18,086 |
+| Generated/vendor | 78 | 115,388 |
+| **Tracked text total** | **295** | **142,265** |
+
+Binary assets: 3 tracked files, 227,224 bytes. The generated/vendor group is 114,767 lines of the pinned upstream Archify distribution plus the 621-line dependency lockfile. Archify is one skill, not 77 skills; Workbench currently contains 32 skills total.
 
 ## Registry
 
@@ -28,7 +32,8 @@ arbitrary capability bucket or counting one file twice.
 | Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | Core deployment engine |
 | Pi extensions and direct connector adapters | Core local runtime layer |
 | Shared rules, safety hooks, permission policy, and launchers | Core trust boundary |
-| Reusable skills and their references | Core portable workflow library |
+| Reusable skills and their references | Core portable workflow library; 32 skills after repeated consolidation passes |
+| Archify diagram generation | Active trial; one vendored upstream skill with a disproportionate 114,767-line footprint |
 | Temporary handoff workflow | Active; explicit private state |
 | Reusable prompts | Small supporting surface |
 | Owner document templates | Small supporting surface; Pandoc-backed render contract |
@@ -70,11 +75,13 @@ arbitrary capability bucket or counting one file twice.
 - Planning and plan execution.
 - Capability health, repository health, code health, and explicit whole-project health reviews.
 - Testing and test-suite health, systematic debugging, code review, security review, and dependency audits.
-- Frontend design, prototyping, project files, repository ontology, release, GitHub workflow, and workspace recovery.
-- Agent instruction and skill authoring.
-- Adversarial assessment, Paseo operations, Pi guidance, handoffs, and reflection.
+- Frontend design, prototyping, project files, repository ontology, release, GitHub workflow, workspace recovery, and document and presentation design.
+- Agent instruction, skill authoring, and public-tool discovery through `tool-radar`.
+- Adversarial assessment, Paseo operations, Pi guidance, handoffs, reflection, and validated system-diagram generation through the vendored `archify` skill.
 
-**Assessment:** Keep, with aggressive deduplication. Skills should remain triggers and workflows that point to canonical doctrine. The health family separates portfolio value, repository operations, and implementation quality; `project-health-review` composes them without duplicating their rubrics. The deprecated `improvement-hunt` and `context-session-breakdown` aliases were removed after their migration window closed. Merge overlapping skills when they prescribe the same sequence or output contract; do not duplicate project-specific workflow instances here.
+**Assessment:** Keep, with aggressive deduplication. Skills should remain triggers and workflows that point to canonical doctrine. The health family separates portfolio value, repository operations, and implementation quality; `project-health-review` composes them without duplicating their rubrics. Prior consolidation removed duplicate skills and expired aliases, so the current count is 32 rather than the 152 files under `agents/skills/`. Merge overlapping skills when they prescribe the same sequence or output contract; do not duplicate project-specific workflow instances here.
+
+Archify is the exception to the usual small-skill shape. Workbench copied a complete upstream distribution from `tt-a1i/archify` and disabled its self-updater so local behavior stays reviewed, pinned, offline, and deterministic. This is vendoring, not a Workbench-owned fork, but it shifts upstream code and generated examples into this repository's maintenance surface. Before promoting the trial, evaluate replacing the copied runtime with a pinned upstream package or checkout while retaining only a small local skill wrapper and provenance lock. Do not count generated HTML examples as authored source.
 
 ### Owner document templates
 
@@ -105,6 +112,7 @@ application or maintain duplicate Markdown and HTML prose.
 
 - Remove a local Pi extension when upstream behavior becomes equivalent.
 - Merge skills when their trigger, workflow, and output contract substantially overlap.
+- Decide whether Archify earns a vendored offline runtime after real use; otherwise retain a thin skill wrapper around a pinned upstream installation.
 - Run capability health when the catalogue drifts, upstream behavior may replace a local capability, or the skill portfolio develops overlapping contracts.
 - Run repository health when documentation, automation, dependencies, test feedback, or recurring chores accumulate maintenance drag.
 - Reserve `project-health-review` for an explicit comprehensive pass; use the narrower health skill for ordinary grooming.
