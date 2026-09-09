@@ -4,9 +4,10 @@ This is the canonical global instruction file for Pi, Claude Code, and Codex. It
 
 Project-specific context and rules belong in the project's hand-written `AGENTS.md`, with `CLAUDE.md` and `GEMINI.md` symlinked to it. Put a repository's purpose and architecture in `AGENTS.md`; move large domain glossaries to `DOMAIN.md`.
 
-## Personal operating state
+## Personal operating state and capability routing
 
-- Machine-local private routing and repository aliases live in `~/.config/workbench/private-context.md` when that file exists. Read it before handling requests about personal operating state, main repositories, productivity tools, home apps, or similar shorthand. Keep its contents private and never copy them into public repositories.
+- Machine-local private routing, repository aliases, and capability ownership live in `~/.config/workbench/private-context.md` when that file exists. Read it before handling requests about personal operating state, main repositories, productivity tools, home apps, similar shorthand, or work that may already have an owner outside the current repository. Keep its contents private and never copy them into public repositories.
+- Use that file as a routing index, not as a substitute for the owning repository's instructions. When it identifies an owner, inspect that repository's `AGENTS.md` and documented interfaces, then reuse its capability rather than duplicating the implementation elsewhere.
 - Session handoffs are temporary Markdown artifacts managed by the `handoff` skill; reflections use the separate `reflect` skill. Keep durable knowledge in the repository's real documentation, and do not use Apple Notes or the Desktop as the canonical handoff store.
 
 ## Execution
@@ -48,6 +49,7 @@ Project-specific context and rules belong in the project's hand-written `AGENTS.
 - **Use precise language.** Briefly introduce a more accurate term when it improves durable code or documentation while preserving the user's underlying goal.
 - **Match depth to the task.** Keep operational answers concise. For complex or unfamiliar topics, explain the mechanism in plain language, define necessary terms, and use concrete examples when they aid the decision.
 - **Match the document format to its reader.** Keep agent-facing instructions and canonical machine-maintained sources in Markdown. For longer owner-facing documents meant for reading, rehearsal, or review, provide an HTML view with a readable table of contents and collapsible sections by default. Generate that view from one canonical source rather than maintaining duplicate prose. For call scripts and rehearsal guides, use the reusable Notes-style Workbench call-script template instead of inventing a one-off shell. Use a lightweight front-end prototype when visual or interactive exploration is the point.
+- **Use restrained visual hierarchy.** Use one primary title. Do not add eyebrows, kickers, supertitles, subtitles, metadata strips, or labeled introductory callouts unless each communicates necessary information that is not already stated nearby. Prefer plain prose and whitespace over another heading level.
 - **Make the final answer self-contained.** Close every explicit request by answering it, acting on it, rejecting it with a reason, or naming where it was deferred. Keep substantive conclusions in the final response rather than progress narration.
 - **Show actionable lists in full.** When the user must choose or act, include every relevant title and URL. Use status or open-thread sections only when they materially improve navigation.
 - **Write direct, natural prose.** Lead with the conclusion or crux, use structure when it helps, and make every sentence earn its place.
@@ -56,5 +58,8 @@ Project-specific context and rules belong in the project's hand-written `AGENTS.
 ## Tool use
 
 - Prefer dedicated tools for structured work and file reads or edits; use shell commands for operations the dedicated tools do not cover.
+- For current public information or source discovery, use a dedicated web-search tool when available. Start with one high-signal query and allow at most one focused follow-up unless the user explicitly requests an exhaustive search and the initial results cannot support it. Do not run search variants in parallel.
+- Once a source URL is known, use the lightest direct page or text reader available. Launch a full browser only for rendered page state, JavaScript-only content, authentication, interaction, screenshots, or browser diagnostics. In Pi, `agent_browser_web_search` discovers sources and `agent_browser read <url>` reads a known source without launching Chrome.
+- Shortlist sources before opening them, batch independent extraction where supported, and stop retrieving once the evidence answers the request. Do not substitute source count for research quality.
 - Keep shell calls simple and independently reviewable. Use the project's established command style and safe Git tooling.
 - Before commits or pull requests, summarize impact and verification and confirm that the staged set matches the intended change.

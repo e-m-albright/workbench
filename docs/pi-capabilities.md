@@ -30,7 +30,7 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Notes (`apple-notes.ts` + notes-layer CLI) | Extension | Reads unshared, unlocked notes; confirmed create/append only in unshared `Agents`; Claude Code and Codex can use the same macOS-only CLI through shell |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
-| `pi-agent-browser-native` 0.2.71 | Pinned package | Structured wrapper over the Agent Browser CLI (0.32.2) |
+| `pi-agent-browser-native` 0.2.71 | Pinned package | Structured Agent Browser wrapper plus Exa-backed public web search |
 | `just typecheck-pi` | Dev gate | Typechecks extensions against the installed Pi API |
 | pi-guide skill | Skill | Versioned tutorial for native Pi plus this harness |
 
@@ -95,10 +95,15 @@ client handles it).
 
 Workbench pins `pi-agent-browser-native` 0.2.71 around the existing Agent Browser
 CLI. It adds structured tool results, bounded context spills, secret redaction,
-stale-reference guards, session recovery, and artifact metadata. The wrapper's
-required CLI baseline belongs in its package contract; transient machine install
-state belongs in live drift or doctor output, not this document. Authenticated
-browser profiles remain opt-in, and temporary sessions stay the safe baseline.
+stale-reference guards, session recovery, artifact metadata, and the
+`agent_browser_web_search` companion backed by a machine-local Exa credential.
+Use search to discover public sources, `agent_browser read <url>` to read a known
+source without launching Chrome, and a full browser only for rendered state,
+JavaScript-only content, authentication, interaction, screenshots, or diagnostics.
+Authenticated browser profiles remain opt-in, and temporary sessions stay the
+safe baseline. The wrapper's required CLI baseline belongs in its package contract;
+transient machine install state belongs in live drift or doctor output, not this
+document.
 
 ## Build candidates
 

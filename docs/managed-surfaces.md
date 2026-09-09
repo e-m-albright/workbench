@@ -19,6 +19,13 @@ reference.
 | MCP servers | None by design | Shared registry plus preserved external servers | Shared registry plus preserved external servers |
 | Generated/private state | Contents preserved and unmanaged; session filesystem permissions enforced private | Preserved vendor state | Preserved vendor state |
 
+The global instructions conditionally consult
+`~/.config/workbench/private-context.md` for machine-local repository aliases
+and capability ownership. That file is intentionally not a managed surface:
+the private layer owns it, while the Workbench CLI neither reads, copies, nor
+checks it for drift. Agents use it only to find the owning repository, then
+follow that repository's `AGENTS.md` and documented interfaces.
+
 Pi settings, models, and presets preserve unknown top-level entries while
 Workbench replaces its managed entries. Pi and Codex share one deployed copy of
 portable skills under `~/.agents/skills`, which both harnesses discover. This

@@ -19,9 +19,13 @@ AI Agent  →  agent-browser control layer  →  CDP  →  Chrome
 
 ## Decision tree
 
+**Current public information / discover sources** → **dedicated web search, then direct page reads**
+- In Pi, use `agent_browser_web_search` for discovery and `agent_browser read <url>` for a known source; the latter does not launch Chrome.
+- Start with one high-signal query and at most one focused follow-up. Shortlist sources before reading them, and stop once the evidence answers the request.
+
 **"Look at this page" / "Did the deploy work?" / smoke check / drive a flow** → **agent-browser CLI** (default)
 - `agent-browser open <url>`, then `click @e2` / `fill @e3 "…"` / snapshot. ~200–400 tokens/page.
-- First choice for almost everything an agent does in a browser.
+- First choice for page interaction and rendered-state inspection, not general web search.
 
 **Known multi-step portal or recurring read workflow** → **Playwright helper**
 - Encode fixed routes, selectors, validation, and stop-before-submit boundaries in code.

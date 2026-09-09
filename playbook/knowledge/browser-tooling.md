@@ -1,8 +1,8 @@
 # Browser Tooling for AI Agents
 
-> **Last reviewed**: 2026-09-02 - retained the local Agent Browser plus Playwright stack after reviewing Cloudflare Browser Run and experimental WebMCP; their useful properties become selection criteria rather than a new standing service.
+> **Last reviewed**: 2026-09-08 - clarified that dedicated search and direct URL reads precede full browser use for public research; retained the local Agent Browser plus Playwright stack for rendered pages and interaction.
 
-A tiered system for inspecting, testing, and debugging UIs from an AI agent. Pick the cheapest tier that does the job. **The endorsed stack is Playwright for deterministic code plus Agent Browser for agent-driven exploration and supervised interaction.** No browser MCP servers are loaded.
+A tiered system for web retrieval, inspection, testing, and debugging from an AI agent. Pick the cheapest tier that does the job. **Use dedicated search for discovery, direct URL reads for known sources, Playwright for deterministic code, and Agent Browser for rendered-page exploration and supervised interaction.** No browser MCP servers are loaded.
 
 The tools sit at different layers: Playwright is the automation framework for known workflows, production jobs, and regression tests; Agent Browser is the agent-native control CLI for unfamiliar pages and interactive diagnosis. Both ultimately control Chrome over CDP.
 
@@ -12,13 +12,20 @@ The tools sit at different layers: Playwright is the automation framework for kn
 
 | Tier | Tool | Job | Cost shape |
 |------|------|-----|-----------|
+| **0** | Dedicated web search and direct URL reader | Discover and read public sources without launching Chrome | one search, a bounded source shortlist, then direct reads |
 | **1** | Playwright tests and helpers | Regression net, stable portal workflow, deterministic scrape | implementation cost, then no model navigation cost |
-| **2** | `agent-browser` CLI | Default agent browsing / "look at this page" | ~200–400 tokens / page · no MCP tax |
+| **2** | `agent-browser` CLI | Rendered-page inspection, interaction, and diagnostics | ~200–400 tokens / page · no MCP tax |
 | **5** | Stagehand (per-project) | Long agentic flows, selector-resilient | LLM tokens / run |
 | ~~3a~~ | ~~Playwright MCP~~ | dropped — agent-browser covers it | was ~13.7k always-on |
 | ~~4~~ | ~~Chrome DevTools MCP~~ | dropped — launch ad-hoc if ever needed | was ~18k always-on |
 
 ---
+
+## Tier 0 — Search and direct reading
+
+For current public information, start with the harness's dedicated web-search tool. In Pi, `agent_browser_web_search` uses the configured Exa provider; it is a separate companion tool and does not launch Chrome. Start with one high-signal query and allow at most one focused follow-up unless exhaustive research was explicitly requested and the first results are insufficient.
+
+Once a source URL is known, read it directly. In Pi, `agent_browser read <url>` returns readable text without launching Chrome. Shortlist sources before opening them, batch independent extraction where supported, and stop when the available evidence answers the request. Escalate to Tier 2 only for rendered state, JavaScript-only content, authentication, interaction, screenshots, or browser diagnostics.
 
 ## Tier 1 — Playwright tests in CI
 

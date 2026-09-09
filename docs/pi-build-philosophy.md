@@ -6,7 +6,7 @@ owns the current operational inventory. [`experiments.md`](experiments.md) owns
 active time-boxed experiments. [`decisions/tombstones.md`](decisions/tombstones.md)
 owns rejected approaches that should stay absent.
 
-Last reviewed: 2026-08-28.
+Last reviewed: 2026-09-08.
 
 ## Goal
 
@@ -116,7 +116,7 @@ read-only adapter named under Source connectors, not a fork.
 | Owned Google read-only connector | `google-readonly.ts` implements Gmail/Calendar search and read directly against `googleapis.com` with loopback OAuth (PKCE), read-only scopes, and 0600 token storage. Replaces the generic adapter route so no third-party dependency tree sits in the token path. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; credential files are on the protected read list; tools are read-only by construction. |
 | Bounded worktree worker | The `worker` tool lets the parent model autonomously delegate, review, and discard one isolated implementation task; `/worker` remains a manual entrypoint. | No per-use confirmation. One worker at a time; child may not commit, push, install, or merge. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save time or protect context. |
 | Plan preset | `/preset plan` gives a read-only planning stance with a required scope/non-goals/steps/verification contract before switching to dev. | A preset plus instructions, no machinery. Remove if unused. |
-| Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, and artifact metadata. | Pin the version, use temporary sessions by default, keep optional web-search credentials disabled, and remove if native wrapping does not reduce browser failures or context. |
+| Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an Exa-backed companion search tool. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
 
 ## Explicitly absent
@@ -214,16 +214,24 @@ Working policy:
 
 ### Web access
 
-- **Current path:** Agent Browser and dedicated read-only connectors own external
-  retrieval; `gh` remains the structured GitHub path. Pi's permission policy blocks
-  `curl` and `wget` so a failed read cannot escalate into a shell-driven download.
+- **Current path:** The native wrapper's Exa-backed `agent_browser_web_search`
+  discovers public sources, while `agent_browser read <url>` reads a known source
+  without launching Chrome. Full Agent Browser sessions are reserved for rendered
+  state, JavaScript-only content, authentication, interaction, screenshots, and
+  diagnostics. Dedicated read-only connectors own private source retrieval, and
+  `gh` remains the structured GitHub path.
+- **Efficiency rule:** start with one high-signal search and allow at most one
+  focused follow-up unless the user explicitly requests exhaustive research and
+  the initial results are insufficient. Shortlist before reading, batch independent
+  extraction, and stop when the evidence answers the request.
+- **Guardrail:** search credentials stay machine-local. Pi's permission policy
+  blocks `curl` and `wget` so a failed read cannot escalate into a shell-driven
+  download.
 - **Candidate:** https://github.com/nicobailon/pi-web-access
 - **Next test:** log recurring cases where the current path cannot discover or
   extract sources. If a gap appears, trial search/fetch only with browser cookies,
   local file upload, video upload, automatic cloning, and unnecessary providers
   disabled.
-- **Alternative:** use the native Agent Browser wrapper's optional search only if
-  one explicitly trusted provider is configured.
 
 ### Remote and phone access
 
