@@ -105,9 +105,14 @@ describe("Pi permission policy", () => {
 		}
 	});
 
-	test("distinguishes shell redirection from comparison operators", () => {
+	test("classifies shell redirection separately and allows disposal to /dev/null", () => {
 		expect(reason("bash", { command: "jq 'select(.count >= 2)' report.json" })).toBeUndefined();
+		expect(reason("bash", { command: "printf '%s\\n' result > report.txt" })).toContain(
+			"shell file redirection",
+		);
 		expect(reason("bash", { command: "printf '%s\\n' result > report.txt" })).toContain("Use write or edit");
+		expect(reason("bash", { command: "command -v tool >/dev/null 2>/dev/null" })).toBeUndefined();
+		expect(reason("bash", { command: "command 2> errors.txt" })).toContain("shell file redirection");
 	});
 
 	test("points blocked filesystem mutations to the structured workspace tool", () => {

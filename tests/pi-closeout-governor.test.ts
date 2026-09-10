@@ -79,6 +79,21 @@ describe("Pi closeout governor", () => {
 		expect(h.sent).toHaveLength(1);
 	});
 
+	test("ignores ephemeral file writes outside implementation state", async () => {
+		const h = harness();
+		await h.handlers.get("input")?.({ source: "interactive" }, h.ctx);
+		await h.handlers.get("tool_execution_start")?.(
+			{ toolCallId: "write-temp", toolName: "write", args: { path: "/tmp/message.txt" } },
+			h.ctx,
+		);
+		await h.handlers.get("tool_execution_end")?.(
+			{ toolCallId: "write-temp", toolName: "write", isError: false },
+			h.ctx,
+		);
+		await h.handlers.get("agent_settled")?.({}, h.ctx);
+		expect(h.sent).toHaveLength(0);
+	});
+
 	test("does not follow up after verification and an explicit remaining-work statement", async () => {
 		const h = harness();
 		await h.handlers.get("input")?.({ source: "interactive" }, h.ctx);

@@ -7,7 +7,7 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, automatic implementation closeout, structured workspace file operations, branded welcome, custom footer, consult, permission policy, presets, safe-git, privacy-first inference routing, one worktree-isolated worker, confirmed GitHub workflow dispatch, read-only Google and Strava connectors, and an Apple Notes bridge whose writes require confirmation and remain restricted to `Agents`. The pinned package wraps the existing Agent Browser CLI; machine-local Apple bridge CLIs remain outside this repository.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, automatic implementation closeout, verified local clipboard copy, structured workspace file operations, branded welcome, custom footer, consult, permission policy, presets, safe-git, privacy-first inference routing, one worktree-isolated worker, confirmed GitHub workflow dispatch, read-only Google and Strava connectors, and an Apple Notes bridge whose writes require confirmation and remain restricted to `Agents`. The pinned package wraps the existing Agent Browser CLI; machine-local Apple bridge CLIs remain outside this repository.
 
 ## Delta over vanilla Pi
 
@@ -21,7 +21,8 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded, including the authoritative installed Pi version |
 | Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, protected read/write paths, remote-MCP default-deny, self-modification protection, and actionable safe alternatives on rejection |
 | Workspace files (`workspace-files.ts`) | Tool | Workspace-bounded rename, copy, and directory creation without shell mutation; no deletion or overwrite |
-| Closeout governor (`closeout-governor.ts`) | Extension | Tracks mutations and verification, injects the completion contract, and automatically continues once when verification or remaining-work status is missing |
+| Clipboard (`clipboard.ts`) | Tool | Copies approved plain text directly to the local macOS clipboard and verifies the exact value without temporary files or shell interpolation |
+| Closeout governor (`closeout-governor.ts`) | Extension | Tracks repository mutations and verification, ignores ephemeral files and clipboard changes, injects the completion contract, and automatically continues once when verification or remaining-work status is missing |
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
 | Presets (`presets.ts` + JSON) | Extension | `plan` (read-only, plan contract), `sources` (connector reads only, no shell/edit — the prompt-injection containment mode), `read`, `safe-auto`, `dev` |
 | Consult (`consult.ts`) | Extension | `/consult` second opinion via Claude, Codex, or Fable |
@@ -134,8 +135,9 @@ Hardened 2026-07-21 after an adversarial review of the guardrail regexes:
   protected-path mention check when they reference secrets.
 - Interpreter escapes via `--eval`/`--exec` and heredocs (`python3 <<EOF`) are
   denied, not just `-c`/`-e`.
-- Shell redirection detection excludes comparison operators such as `>=`, and
-  rejected commands return the exact structured tool or workflow to use instead.
+- Shell redirection is classified separately from network access, permits output
+  disposal to `/dev/null`, excludes comparison operators such as `>=`, and
+  returns the exact structured file tool to use for persistent writes.
 - Protected-path matching now strips substitution punctuation (`$(cat X)`),
   expands `$HOME`, and resolves symlinks before glob matching.
 - `~/.pi/agent/**` is write-protected, so a session cannot silently edit its own

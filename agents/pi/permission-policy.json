@@ -37,8 +37,14 @@
       "$comment": "Dedicated browser and connector tools own external reads. Blocking curl and wget closes the common prompt-injection transition from passive content into shell-driven downloads; this remains a guardrail, not network containment.",
       "patterns": [
         "\\bcurl\\b",
-        "\\bwget\\b",
-        "(?:^|[;&|()\\s])(?:1?>|>>)(?![=])\\s*\\S+"
+        "\\bwget\\b"
+      ]
+    },
+    {
+      "name": "shell file redirection",
+      "$comment": "Dedicated file tools keep writes bounded and reviewable. Discarding stdout to /dev/null remains allowed.",
+      "patterns": [
+        "(?:^|[;&|()\\s])(?:[12]?>>?|&>)(?![=])\\s*(?!/dev/null(?:\\s|$|[;&|)]))\\S+"
       ]
     },
     {

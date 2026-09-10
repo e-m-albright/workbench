@@ -204,6 +204,7 @@ const DENY_ALTERNATIVES: Record<string, string> = {
 		"Use workspace_files for rename, copy, or directory creation; use write or edit for file contents.",
 	"shell network retrieval, upload, or remote script execution":
 		"Use agent_browser or agent_browser_web_search for external reads and a dedicated confirmed tool for mutations.",
+	"shell file redirection": "Use write or edit instead of shell redirection.",
 	"inline interpreter escape hatch":
 		"Use read/edit/write for bounded changes, or add a reviewed script file and execute that file directly.",
 	"destructive or history-changing git":
@@ -214,14 +215,7 @@ const DENY_ALTERNATIVES: Record<string, string> = {
 		"Use the repository's existing setup recipe or ask the user to approve the exact dependency change.",
 };
 
-export function formatCommandDenial(reason: string, command = ""): string {
-	if (
-		reason === "shell network retrieval, upload, or remote script execution" &&
-		/(?:^|[;&|()\s])(?:1?>|>>)(?![=])\s*\S+/i.test(command) &&
-		!/(?:\bcurl\b|\bwget\b)/i.test(command)
-	) {
-		return `Command blocked by policy: ${reason}. Use write or edit instead of shell redirection.`;
-	}
+export function formatCommandDenial(reason: string): string {
 	const alternative = DENY_ALTERNATIVES[reason];
 	return alternative
 		? `Command blocked by policy: ${reason}. ${alternative}`
@@ -280,7 +274,7 @@ export function policyBlockReason(
 	const protectedPath = protectedPathMention(cwd, command, policy.protectedReadPaths);
 	if (protectedPath) return `Command mentions protected path: ${protectedPath}`;
 	const denied = commandDenyReason(command, policy.denyCommands);
-	if (denied) return formatCommandDenial(denied, command);
+	if (denied) return formatCommandDenial(denied);
 	if (policy.defaultAction === "deny") return "Command blocked by default-deny policy";
 	return undefined;
 }

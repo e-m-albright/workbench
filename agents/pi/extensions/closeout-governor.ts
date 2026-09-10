@@ -1,7 +1,9 @@
+import { tmpdir } from "node:os";
+import { isAbsolute, relative, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 export const CLOSEOUT_INSTRUCTIONS = `Closeout contract for implementation work:
-- After the last file mutation, run the narrowest appropriate verification. A successful readback is enough for prose-only changes; code needs the relevant test, type, lint, or build check.
+- After the last repository file mutation, run the narrowest appropriate verification. Ephemeral files outside the repository and local clipboard changes do not trigger implementation closeout. A successful readback is enough for prose-only changes; code needs the relevant test, type, lint, or build check.
 - Do not make the user ask whether the work is finished. Before settling, state verification evidence and explicitly state any remaining, deferred, blocked, or skipped work. Say that nothing remains when that is true.
 - If verification fails, continue fixing the root cause unless it is unrelated or requires user authority; then report the exact blocker.`;
 
@@ -67,6 +69,17 @@ export function hasCloseoutSummary(text: string): boolean {
 	return verification && remaining;
 }
 
+function inside(root: string, candidate: string): boolean {
+	const path = relative(root, candidate);
+	return path === "" || (!path.startsWith("..") && !isAbsolute(path));
+}
+
+export function isEphemeralMutationPath(path: string): boolean {
+	if (!isAbsolute(path)) return false;
+	const candidate = resolve(path);
+	return ["/tmp", "/private/tmp", tmpdir()].some((root) => inside(resolve(root), candidate));
+}
+
 function verificationForRead(state: TurnState, args: unknown): string | undefined {
 	const path = toolPath(args);
 	if (!path || !state.mutatedPaths.has(path)) return undefined;
@@ -98,8 +111,9 @@ export default function closeoutGovernor(pi: ExtensionAPI) {
 		toolArguments.delete(event.toolCallId);
 		if (event.isError) return;
 		if (["edit", "write", "workspace_files"].includes(event.toolName)) {
-			state.mutations += 1;
 			const path = toolPath(args);
+			if (path && isEphemeralMutationPath(path)) return;
+			state.mutations += 1;
 			if (path) state.mutatedPaths.add(path);
 			state.verifiedAfterMutation = false;
 			state.verificationEvidence = [];
