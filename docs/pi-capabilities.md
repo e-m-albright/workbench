@@ -26,7 +26,7 @@ Everything the managed harness adds to a stock `pi` install, in one place:
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
 | Presets (`presets.ts` + JSON) | Extension | `plan` (read-only, plan contract), `sources` (connector reads only, no shell/edit — the prompt-injection containment mode), `read`, `safe-auto`, `dev` |
 | Consult (`consult.ts`) | Extension | `/consult` second opinion via Claude, Codex, or Fable |
-| Worker (`worker.ts`) | Extension | Model-callable `worker` tool plus `/worker`: autonomously delegate, review, and discard one worktree-isolated child Pi; parent-owned adoption and verification |
+| Worker (`worker.ts`) | Extension | Model-callable `worker` tool plus `/worker`: start one worktree-isolated child Pi in the background, show elapsed progress and completion status, review live or finished work, and discard after parent-owned adoption and verification |
 | Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Notes (`apple-notes.ts` + notes-layer CLI) | Extension | Reads unshared, unlocked notes; confirmed create/append only in unshared `Agents`; Claude Code and Codex can use the same macOS-only CLI through shell |
@@ -59,9 +59,9 @@ context; Enter intentionally rewinds and branches.
 
 ## Bounded orchestration
 
-The model-callable `worker` tool is the Pi harness's answer to one independent parallel implementation thread. It creates a separate Git worktree, runs one child Pi, forbids commit, push, dependency installation, and merge, and leaves adoption to the parent. In the `dev` preset the model may delegate without user approval, review and adopt useful changes, verify them in the parent checkout, and discard the worktree. `/worker <task>`, `/worker-status`, and `/worker-done` remain manual controls.
+The model-callable `worker` tool is the Pi harness's answer to one independent parallel implementation thread. It creates a separate Git worktree, starts one child Pi in the background, and returns control to the parent after setup. A lightweight footer status reports elapsed time without polling or extra model calls; completion produces one notification. `worker review` or `/worker-status` reads the live diff or finished report on demand. The child cannot commit, push, install dependencies, or merge, and adoption remains with the parent. In the `dev` preset the model may delegate without user approval, continue disjoint parent work, review and adopt useful changes, verify them in the parent checkout, and discard the worktree. `/worker <task>`, `/worker-status`, and `/worker-done` remain manual controls.
 
-This does not provide workflow fleets, background schedules, or autonomous merging. `/consult` covers read-only independent judgment, while Claude Code remains the explicit route for exceptional coordinated finder/verifier fleets.
+This does not provide workflow fleets, background schedules, or autonomous merging. A worker must start from committed state and must not receive a task that depends on uncommitted parent files. `/consult` covers read-only independent judgment, while Claude Code remains the explicit route for exceptional coordinated finder/verifier fleets.
 
 ## Connector access
 

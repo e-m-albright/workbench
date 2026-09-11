@@ -1,27 +1,29 @@
 /**
- * worker — one bounded, worktree-isolated delegate for Pi
+ * worker — one bounded, worktree-isolated background delegate for Pi
  *
- * The model-callable `worker` tool may delegate, review, and discard one child
- * worktree without a confirmation prompt. The `/worker` commands expose the
- * same lifecycle to the user. The child never commits, pushes, installs, or
- * merges; the parent remains responsible for reviewing, adopting, and verifying
- * useful changes before cleanup.
+ * The model-callable `worker` tool may start, review, and discard one child
+ * worktree without a confirmation prompt. Delegation returns after setup while
+ * the child runs in the background. The child never commits, pushes, installs,
+ * or merges; the parent remains responsible for reviewing, adopting, and
+ * verifying useful changes before cleanup.
  */
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExecResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
 import { buildWorkerPrompt, reviewInstructions, workerSlug } from "./lib/worker-core";
 
 const DEFAULT_TIMEOUT_MS = 900_000;
 const MAX_RESULT_CHARS = 6000;
+const PROGRESS_INTERVAL_MS = 10_000;
+const STATUS_KEY = "worker";
 
 const workerToolSchema = Type.Object({
 	action: Type.String({
 		enum: ["delegate", "review", "discard"],
 		description:
-			"delegate starts one independent implementation task; review inspects its result; discard removes it after adoption or rejection",
+			"delegate starts one independent background implementation task; review inspects progress or the result; discard removes it after adoption or rejection",
 	}),
 	task: Type.Optional(
 		Type.String({ description: "Complete, bounded implementation task. Required for delegate." }),
@@ -30,11 +32,19 @@ const workerToolSchema = Type.Object({
 
 export type WorkerToolInput = Static<typeof workerToolSchema>;
 
+type WorkerStatus = "running" | "finished" | "failed";
+
 interface WorkerState {
 	dir: string;
 	branch: string;
 	task: string;
 	finished: boolean;
+	status: WorkerStatus;
+	startedAt: number;
+	finishedAt?: number;
+	result?: ExecResult;
+	abortController: AbortController;
+	progressTimer?: ReturnType<typeof setInterval>;
 }
 
 interface WorkerResponse {
@@ -58,8 +68,58 @@ function timeoutMs(ctx: ExtensionContext): number {
 	return Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
 }
 
+function elapsedMs(state: WorkerState): number {
+	return (state.finishedAt ?? Date.now()) - state.startedAt;
+}
+
+function elapsedLabel(milliseconds: number): string {
+	const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+	if (seconds < 60) return `${seconds}s`;
+	const minutes = Math.floor(seconds / 60);
+	return `${minutes}m ${seconds % 60}s`;
+}
+
+function publicState(state: WorkerState | undefined): Record<string, unknown> {
+	if (!state) return {};
+	return {
+		dir: state.dir,
+		branch: state.branch,
+		task: state.task,
+		finished: state.finished,
+		status: state.status,
+		startedAt: state.startedAt,
+		finishedAt: state.finishedAt,
+		exitCode: state.result?.code,
+	};
+}
+
 export default function workerExtension(pi: ExtensionAPI) {
 	let active: WorkerState | undefined;
+	let shuttingDown = false;
+
+	function setWorkerStatus(ctx: ExtensionContext, state: WorkerState): void {
+		if (!ctx.hasUI || shuttingDown) return;
+		const elapsed = elapsedLabel(elapsedMs(state));
+		const label =
+			state.status === "running"
+				? `worker running ${elapsed}`
+				: state.status === "finished"
+					? `worker done ${elapsed}`
+					: `worker failed ${elapsed}`;
+		ctx.ui.setStatus(STATUS_KEY, label);
+	}
+
+	function stopProgressTimer(state: WorkerState): void {
+		if (!state.progressTimer) return;
+		clearInterval(state.progressTimer);
+		state.progressTimer = undefined;
+	}
+
+	function startProgressTimer(ctx: ExtensionContext, state: WorkerState): void {
+		setWorkerStatus(ctx, state);
+		state.progressTimer = setInterval(() => setWorkerStatus(ctx, state), PROGRESS_INTERVAL_MS);
+		state.progressTimer.unref?.();
+	}
 
 	async function repoRoot(ctx: ExtensionContext): Promise<string | undefined> {
 		const result = await pi.exec("git", ["rev-parse", "--show-toplevel"], {
@@ -72,7 +132,6 @@ export default function workerExtension(pi: ExtensionAPI) {
 
 	async function reviewWorker(): Promise<WorkerResponse> {
 		if (!active) return { text: "No worker this session.", isError: true };
-		const state = active.finished ? "finished" : "running";
 		const status = await pi.exec("git", ["status", "--porcelain"], {
 			cwd: active.dir,
 			timeout: 10_000,
@@ -81,13 +140,42 @@ export default function workerExtension(pi: ExtensionAPI) {
 			cwd: active.dir,
 			timeout: 10_000,
 		});
+		const report = active.result
+			? active.status === "finished"
+				? `Worker report:\n${truncate(active.result.stdout || "(no report)")}`
+				: `Worker failed (exit ${active.result.code}).\n${truncate(active.result.stderr || active.result.stdout || "No failure output.")}`
+			: undefined;
 		return {
 			text: [
-				`Worker ${state}: ${active.task}`,
-				status.stdout.trim() ? `Changes:\n${stat.stdout.trim() || status.stdout.trim()}` : "No file changes.",
+				`Worker ${active.status} after ${elapsedLabel(elapsedMs(active))}: ${active.task}`,
+				status.stdout.trim()
+					? `Changes:\n${stat.stdout.trim() || status.stdout.trim()}`
+					: "No file changes yet.",
+				report,
 				reviewInstructions(active.dir, active.branch),
-			].join("\n\n"),
+			]
+				.filter(Boolean)
+				.join("\n\n"),
+			isError: active.status === "failed",
 		};
+	}
+
+	function finishWorker(state: WorkerState, result: ExecResult, ctx: ExtensionContext): void {
+		if (active !== state) return;
+		state.result = result;
+		state.finished = true;
+		state.finishedAt = Date.now();
+		state.status = result.code === 0 ? "finished" : "failed";
+		stopProgressTimer(state);
+		setWorkerStatus(ctx, state);
+		if (!ctx.hasUI || shuttingDown) return;
+		const elapsed = elapsedLabel(elapsedMs(state));
+		ctx.ui.notify(
+			state.status === "finished"
+				? `Worker finished after ${elapsed}. Use worker review to inspect and adopt it.`
+				: `Worker failed after ${elapsed} with exit ${result.code}. Use worker review for details.`,
+			state.status === "finished" ? "info" : "error",
+		);
 	}
 
 	async function delegate(task: string, ctx: ExtensionContext): Promise<WorkerResponse> {
@@ -119,21 +207,43 @@ export default function workerExtension(pi: ExtensionAPI) {
 			};
 		}
 
-		active = { dir, branch, task: boundedTask, finished: false };
-		const run = await pi.exec("pi", ["-p", "--no-session", buildWorkerPrompt(boundedTask, branch)], {
-			cwd: dir,
-			timeout: timeoutMs(ctx),
-		});
-		active.finished = true;
-		const review = await reviewWorker();
-		if (run.code !== 0) {
-			return {
-				text: `Worker failed (exit ${run.code}).\n${truncate(run.stderr || run.stdout)}\n\n${review.text}`,
-				isError: true,
-			};
-		}
+		const state: WorkerState = {
+			dir,
+			branch,
+			task: boundedTask,
+			finished: false,
+			status: "running",
+			startedAt: Date.now(),
+			abortController: new AbortController(),
+		};
+		active = state;
+		startProgressTimer(ctx, state);
+		void pi
+			.exec("pi", ["-p", "--no-session", buildWorkerPrompt(boundedTask, branch)], {
+				cwd: dir,
+				timeout: timeoutMs(ctx),
+				signal: state.abortController.signal,
+			})
+			.then((result) => finishWorker(state, result, ctx))
+			.catch((error: unknown) => {
+				finishWorker(
+					state,
+					{
+						code: 1,
+						killed: false,
+						stdout: "",
+						stderr: error instanceof Error ? error.message : String(error),
+					},
+					ctx,
+				);
+			});
+
 		return {
-			text: [`Worker finished on ${branch}.`, truncate(run.stdout), review.text].join("\n\n"),
+			text: [
+				`Worker started in the background on ${branch}.`,
+				"Continue independent parent work now. Use worker review later for live diff progress or the final report.",
+				reviewInstructions(dir, branch),
+			].join("\n\n"),
 		};
 	}
 
@@ -165,7 +275,9 @@ export default function workerExtension(pi: ExtensionAPI) {
 		const branch = active.branch;
 		const dir = active.dir;
 		const deleted = await pi.exec("git", ["branch", "-D", branch], { cwd: root, timeout: 10_000 });
+		stopProgressTimer(active);
 		active = undefined;
+		if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
 		if (deleted.code !== 0) {
 			return {
 				text: [
@@ -178,27 +290,32 @@ export default function workerExtension(pi: ExtensionAPI) {
 		return { text: `Removed ${dir} and ${branch}.` };
 	}
 
+	async function requireSuccess(response: Promise<WorkerResponse>): Promise<WorkerResponse> {
+		const resolved = await response;
+		if (resolved.isError) throw new Error(resolved.text);
+		return resolved;
+	}
+
 	pi.registerTool({
 		name: "worker",
 		label: "Worker",
 		description:
-			"Autonomously manage one worktree-isolated Pi delegate. Use delegate only for substantial independent implementation work that can proceed in parallel. Review and adopt useful changes in the parent checkout, verify them, then discard the worker. Do not use for small tasks or coupled edits. No user confirmation is required.",
+			"Manage one worktree-isolated Pi delegate that runs in the background. Call delegate alone for substantial implementation independent of the parent's next work, continue useful parent work, then call review in a later turn to inspect progress or adopt the result; discard after adoption or rejection. Never delegate work that depends on uncommitted parent files.",
 		parameters: workerToolSchema,
 		async execute(_toolCallId, input, _signal, _onUpdate, ctx) {
 			let response: WorkerResponse;
-			if (input.action === "delegate") response = await delegate(input.task ?? "", ctx);
-			else if (input.action === "review") response = await reviewWorker();
-			else response = await discard(ctx, true);
+			if (input.action === "delegate") response = await requireSuccess(delegate(input.task ?? "", ctx));
+			else if (input.action === "review") response = await requireSuccess(reviewWorker());
+			else response = await requireSuccess(discard(ctx, true));
 			return {
 				content: [{ type: "text", text: response.text }],
-				details: active ? { ...active } : {},
-				isError: response.isError,
+				details: publicState(active),
 			};
 		},
 	});
 
 	pi.registerCommand("worker", {
-		description: "Delegate one task to a child Pi in an isolated git worktree: /worker <task>",
+		description: "Start one child Pi in an isolated worktree: /worker <task>",
 		handler: async (args, ctx) => {
 			const response = await delegate(args, ctx);
 			ctx.ui.notify(response.text, response.isError ? "warning" : "info");
@@ -206,7 +323,7 @@ export default function workerExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("worker-status", {
-		description: "Show the active or last worker delegate",
+		description: "Show the active worker's progress or final report",
 		handler: async (_args, ctx) => {
 			const response = await reviewWorker();
 			ctx.ui.notify(response.text, response.isError ? "warning" : "info");
@@ -219,5 +336,12 @@ export default function workerExtension(pi: ExtensionAPI) {
 			const response = await discard(ctx, args.trim() === "--force");
 			ctx.ui.notify(response.text, response.isError ? "warning" : "info");
 		},
+	});
+
+	pi.on("session_shutdown", async (_event, ctx) => {
+		shuttingDown = true;
+		if (active?.status === "running") active.abortController.abort();
+		if (active) stopProgressTimer(active);
+		if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
 	});
 }

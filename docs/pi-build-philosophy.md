@@ -6,7 +6,7 @@ owns the current operational inventory. [`experiments.md`](experiments.md) owns
 active time-boxed experiments. [`decisions/tombstones.md`](decisions/tombstones.md)
 owns rejected approaches that should stay absent.
 
-Last reviewed: 2026-09-08.
+Last reviewed: 2026-09-11.
 
 ## Goal
 
@@ -114,7 +114,7 @@ read-only adapter named under Source connectors, not a fork.
 | Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, shell network retrieval, destructive Git, and risky shell mutations before execution. External reading stays on dedicated browser and connector tools. | These are not containment. Keep tests aligned with real failure modes. |
 | Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded. |
 | Owned Google read-only connector | `google-readonly.ts` implements Gmail/Calendar search and read directly against `googleapis.com` with loopback OAuth (PKCE), read-only scopes, and 0600 token storage. Replaces the generic adapter route so no third-party dependency tree sits in the token path. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; credential files are on the protected read list; tools are read-only by construction. |
-| Bounded worktree worker | The `worker` tool lets the parent model autonomously delegate, review, and discard one isolated implementation task; `/worker` remains a manual entrypoint. | No per-use confirmation. One worker at a time; child may not commit, push, install, or merge. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save time or protect context. |
+| Bounded worktree worker | The `worker` tool lets the parent model start one isolated implementation task in the background, continue disjoint work, inspect progress, and later adopt or reject the result; `/worker` remains a manual entrypoint. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and may not commit, push, install, or merge. Elapsed status uses no polling or extra model calls. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save wall-clock time or protect context. |
 | Plan preset | `/preset plan` gives a read-only planning stance with a required scope/non-goals/steps/verification contract before switching to dev. | A preset plus instructions, no machinery. Remove if unused. |
 | Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an Exa-backed companion search tool. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
@@ -127,7 +127,7 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 |---|---|---|---|
 | Native fullscreen transcript | Adopted | Pi 0.84.3 provides viewport scrolling, search, selection, links, and prompt jumps without owned extension code. | Keep `tuiMode: fullscreen`; accept that final-answer landmarks and compact work summaries are absent unless recurring friction justifies a new upstream-first evaluation. |
 | Fast-mode control or display | Rejected | The Codex subscription route does not expose reliable state; priority service changes usage economics; thinking level is not Fast mode. Silent custom inference would be misleading. | Pi exposes authoritative provider-route state and the owner wants the cost tradeoff. |
-| Completion notifications | Rejected | They interrupt flow and duplicate visible terminal state. | Long unattended runs become common and missed completions are observed. |
+| General completion notifications | Rejected | They interrupt flow and duplicate visible terminal state. The background worker is the narrow exception because its tool call has already returned; it emits one completion notification so finished work is not stranded. | Long unattended runs outside the worker become common and missed completions are observed. |
 | Visible request ledger on every multipart prompt | Retired | See the canonical experiment record in [`decisions/tombstones.md`](decisions/tombstones.md#retired-pi-harness-experiments). | Use the revisit trigger recorded there. |
 | Multi-session GUI tabs | Rejected for now | Terminal tabs and session resume cover the real need without another session manager. | Cross-session visibility becomes recurring friction that terminal titles cannot solve. |
 | Broad Pi Web UI migration | Rejected | Network-listening trust surface and GUI overlap exceed the current phone-access need. | A supervised phone workflow proves valuable and Tailscale plus SSH or an audited loopback UI is insufficient. |
@@ -204,12 +204,10 @@ Working policy:
 
 ### Interactive shell, subagents, and worktrees
 
-- **First slice built 2026-07-22, made autonomous 2026-08-26:** the `worker` tool covers one mutating worker in an isolated worktree with parent-owned review. The `dev` preset permits the model to delegate without asking, inspect and adopt the result, verify it in the parent checkout, and discard the worker. `/worker` remains available for explicit use.
-- **Candidate for the rest:** https://github.com/nicobailon/pi-interactive-shell
-  (PTY overlay, background sessions, attach/dismiss) remains unadopted.
-- **Evidence to expand:** `/worker` repeatedly saves time or context on
-  decomposable work and the missing piece is observability or backgrounding,
-  not another writer.
+- **First slice built 2026-07-22, made autonomous 2026-08-26, backgrounded 2026-09-11:** the `worker` tool covers one mutating worker in an isolated worktree with parent-owned review. The `dev` preset permits the model to delegate without asking, continue disjoint parent work while the child runs, inspect and adopt the result, verify it in the parent checkout, and discard the worker. Elapsed footer status and one completion notification provide observability without polling or extra model calls. `/worker` remains available for explicit use.
+- **Candidate for broader process control:** https://github.com/nicobailon/pi-interactive-shell
+  (PTY overlay, multiple background sessions, attach/dismiss) remains unadopted.
+- **Evidence to expand:** two or more independent implementation threads recur and one background worker is the measured bottleneck, rather than coordination or review capacity.
 - **Never adopt:** concurrent writers in one checkout or autonomous merge/push.
 
 ### Web access
