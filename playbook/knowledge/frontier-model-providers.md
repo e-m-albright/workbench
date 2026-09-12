@@ -9,7 +9,9 @@ harness ownership remains in [AI Tooling](ai-tools.md). Open-weight local
 inference remains in [Open Model Inference](open-model-inference.md).
 
 Prices, quotas, model names, and policies are volatile. Recheck primary sources
-before purchasing or sending a new class of sensitive data.
+before purchasing or sending a new class of sensitive data. The providers'
+agent, tool, media, realtime, and deployment surfaces are tracked separately in
+[Frontier AI Platform Capabilities](frontier-ai-platform-capabilities.md).
 
 ## Current conclusion
 

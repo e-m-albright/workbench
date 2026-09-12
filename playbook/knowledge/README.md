@@ -10,6 +10,7 @@ Durable, opinionated knowledge that isn't tied to one language stack. Reference 
 - [llm-evals-observability.md](llm-evals-observability.md) — eval framework & observability platform comparison (Promptfoo, Langfuse, Logfire, pydantic-evals, Phoenix, …)
 - [open-model-inference.md](open-model-inference.md) — current open-weight model ranking, local runtimes, routers, managed inference hosts, and serverless GPU platforms
 - [frontier-model-providers.md](frontier-model-providers.md) — frontier coding capability, subscription portability into Pi, company jurisdiction, prompt handling, and provider selection
+- [frontier-ai-platform-capabilities.md](frontier-ai-platform-capabilities.md) — OpenAI, Anthropic, and Google developer-platform capability map, adoption triggers, and refresh procedure
 - [embedding-retrieval.md](embedding-retrieval.md) — semantic-retrieval trigger, local embedding compatibility, hosted-provider data boundaries, and evaluation protocol
 - [knowledge-graph-tooling.md](knowledge-graph-tooling.md) — code-graph and agent-memory landscape, adoption boundaries, and lessons for existing knowledge systems
 - [agent-capability-patterns.md](agent-capability-patterns.md) — emerging harness capabilities: advisor strategy, monitors, managed runtimes, visual builders

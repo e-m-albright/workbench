@@ -58,6 +58,9 @@ Bookmarked tools and services worth investigating.
 ## Web / Frontend
 
 - **[AI interface design tools](knowledge/ai-interface-design-tools.md)** -- Current design-first generators, editable canvases, code-aware bridges, app builders, free evaluation paths, hands-on aesthetic signals, and an anti-anchoring trial protocol. Magic Patterns is the current early aesthetic baseline; the next independent round should compare it with UX Pilot, Flowstep, Banani, and Superdesign. Re-check the dated landscape before a trial rather than copying its volatile pricing into this watchlist.
+- **[SkillUI](https://github.com/amaancoderx/npxskillui)** -- **WATCH AS A PATTERN (reviewed 2026-09-12).** A small MIT command-line tool that statically extracts colors, typography, spacing, fonts, and component patterns from a URL or codebase, with an optional Playwright mode for screenshots, interaction states, animations, layout, and Document Object Model fingerprints; it packages the result as `DESIGN.md`, `SKILL.md`, `CLAUDE.md`, tokens, and visual references. The useful idea is converting observed design evidence into a reusable agent context package without model inference. Do not install on the strength of its 2.1k stars or demo: the repository has only seven commits, generated instructions are untrusted, website cloning raises provenance and design-rights questions, and its output is Claude-shaped rather than Workbench-portable. Revisit only to recover an owned project's design system or benchmark design extraction on an owned site, after source review and with generated instructions treated strictly as data.
+- **[ArrowJS](https://github.com/standardagents/arrow-js)** -- **WATCH, unimpressed (reviewed 2026-09-12).** A tiny reactive DOM runtime whose meaningful distinction is a QuickJS/WebAssembly sandbox for executing generated component logic while trusted host code renders the DOM. The broader "UI framework for coding agents" pitch does not establish an advantage over mature frameworks, and the small ecosystem, tagged-template tooling, and remaining host-bridge and resource-limit threat model outweigh the core runtime's roughly 4.7 KB Brotli size. Do not replace an established frontend stack with it. Revisit only for a concrete requirement to render previously unknown, agent-generated interfaces at runtime, and then trial the sandbox rather than the general framework. Sources: [official site](https://arrow-js.com/) and [repository](https://github.com/standardagents/arrow-js).
+- **[Blume](https://github.com/haydenbleasel/blume)** -- **WATCH (reviewed 2026-09-12).** An MIT-licensed, Markdown-first documentation framework built on Astro and Vite. Its useful bundle is content-only ownership plus static HTML, local search, raw Markdown URLs, `llms.txt`, a JSON API, and optional Model Context Protocol access; `blume eject` provides an escape into a standalone Astro project. This is more coherent than adding AI discoverability to a conventional docs template piecemeal, but it is a new single-maintainer project and Workbench does not currently need a published documentation application. Evaluate when a public project needs a real docs site for both people and agents; compare against Astro Starlight and verify generated-project transparency, upgrade behavior, accessibility, search quality, dependency footprint, and the security boundary of optional AI features. Sources: [official documentation](https://useblume.dev/docs) and [repository](https://github.com/haydenbleasel/blume).
 - **[Zero (Rocicorp)](https://zero.rocicorp.dev/)** -- General-purpose sync engine for local-first apps. Instant local reads + server reconciliation; optimistic mutations with built-in conflict resolution. Pitch: "absurdly fast" UI because data is already on-device. Worth evaluating for any product where perceived latency dominates (especially LLM-backed UIs where the model call is slow). See Scott Tolinski's video ([YouTube](https://www.youtube.com/watch?v=aV6aM3R74AQ)) for the practitioner take.
 - **[Storybook](https://storybook.js.org/)** -- Component workshop / dev environment for UI components in isolation. The de facto standard for design-system documentation, visual regression testing, and component-level interaction testing. Its preview [MCP server](https://storybook.js.org/docs/ai) exposes generated component and documentation manifests, live stories, story generation, and component tests to coding agents. That is the useful agent-ready pattern: give the model a maintained semantic map plus executable examples, not screenshots alone. The AI surface is currently React-only and preview quality. Evaluate when component count crosses ~30 and review-by-screenshot becomes a bottleneck. Pairs naturally with Chromatic for visual diffing.
 - **[Framer Motion](https://www.framer.com/motion/)** -- React animation library with a declarative API (`motion.div` + `animate` / `initial` / `exit` props). The mainstream choice for "we need animations beyond CSS transitions but don't want to wire up GSAP." Strong gesture support (drag, pan, hover) and layout animations. Evaluate for any UI where motion telegraphs state changes (loading, success, list reorder).
@@ -188,6 +191,7 @@ For "prove person X accessed data Y" product features (HIPAA-credible access tra
 
 ## AI / Dev Workflow
 
+- **[Frontier AI platform capabilities](knowledge/frontier-ai-platform-capabilities.md)** -- Dated capability map for OpenAI, Anthropic, and Google across model APIs, tools, managed agents, voice, media, evaluation, and governance. Refresh from each provider's documentation index after material launches; evaluate capabilities only when the linked adoption trigger becomes concrete.
 - **[OpenSpec](https://github.com/Fission-AI/OpenSpec/blob/main/docs/workflows.md)** -- Spec-driven dev workflow (Fission-AI). See also: [[Knowledge/Software-Engineering/Spec-Driven-Development]].
 - **[Open-WebUI Open Terminal](https://github.com/open-webui/open-terminal?ref=console.dev)** -- Terminal from the Open-WebUI project.
 - **[Microsoft FARA](https://github.com/microsoft/fara)** -- Microsoft agentic framework. Check positioning vs. Semantic Kernel / AutoGen.
@@ -237,30 +241,75 @@ Distinguish **model selection** (choose a cheaper/capable model for the task) fr
 - **[AgentHub (jamesrochabrun)](https://github.com/jamesrochabrun/AgentHub)** -- **Rejected for the current workflow.** Its SwiftUI monitoring, parallel terminal execution, diffs, worktrees, and GitHub surface optimize a fleet control plane. Paseo plus one parent and bounded delegation is deliberately smaller. Revisit only if measured cross-session coordination friction, rather than raw concurrency, becomes the limiting problem.
 - **[Anthropic Academy (Skilljar)](https://anthropic.skilljar.com/)** -- Anthropic's official training portal with 20+ courses on Claude tools, API, MCP, agent skills, and AI fluency. Skim for non-obvious capabilities -- this is "how Anthropic wants you to use Claude," authoritative.
 
-### Agent frameworks -- build-your-own-agent SDKs (2026-07 survey)
+### Agent frameworks -- build-your-own-agent SDKs (reviewed 2026-09-12)
 
-For when we *build* an agent product rather than drive a coding harness. Weighted
-picks in bold; the rest catalogued so we don't re-derive the field.
+For when we *build* an agent product rather than drive a coding harness. Language
+fit is a first-order selection constraint: do not introduce TypeScript merely to
+obtain orchestration that the Python or multi-language choices already provide.
+
+**Current selection:** Mastra remains the strongest batteries-included TypeScript
+candidate, but **Pydantic AI is now the preferred non-TypeScript canary and the
+best fit for a Python-centered application**. LangGraph remains the escalation
+path for explicit graph semantics. Microsoft Agent Framework is the serious
+multi-language enterprise contender. Agno is the closest Python match to
+Mastra's broad product surface, but earns a trial only when teams and operations
+are needed together.
+
+#### Python front runners: Pydantic AI and Agno 3.0
+
+The choice is primarily about where the framework boundary belongs. Pydantic AI
+is a typed, composable library that fits into an application-owned architecture.
+Agno is an integrated agent platform whose AgentOS owns more runtime and
+operational concerns.
+
+| Dimension | Pydantic AI | Agno 3.0 |
+| --- | --- | --- |
+| Best fit | An existing Python service that should retain its own architecture | A greenfield agent platform that needs an operations plane quickly |
+| Core model | Typed agents, dependencies, tools, outputs, capabilities, and optional Harness packages | Agents, teams, workflows, AgentOS runtime, and Control Plane |
+| Multi-agent | Subagents and typed graphs composed as needed | First-class coordinate, route, broadcast, and task team modes |
+| Workflow and durability | Python control flow or Pydantic Graph; Temporal, DBOS, Prefect, Restate, and other durable engines | Native workflow steps, scheduler, durable queue, checkpoints, cancellation, and stream reconnection |
+| State ownership | The application chooses storage and lifecycle boundaries | AgentOS schemas own sessions, runs, memory, knowledge, schedules, and evaluations |
+| Operations | OpenTelemetry, Pydantic Evals, any compatible backend, and optional Logfire | Integrated metrics, tracing, evaluation, approvals, scheduling, role-based access control, and Control Plane |
+| Interfaces | Python calls, command-line interface, web chat, realtime voice, AG-UI, Vercel streams, and experimental Agent Client Protocol | REST, server-sent events, WebSockets, Model Context Protocol, Agent-to-Agent protocol, AG-UI, Slack, Telegram, and WhatsApp |
+| Testing | Strongest typing and validation boundary; offline test model | Integrated evaluation and runtime inspection, with more framework state to fixture |
+| Lock-in | Lower; infrastructure remains replaceable | Higher; runtime data and operations adopt Agno concepts and migrations |
+| Main risk | The rapidly expanding Harness surface is newer than the typed core | Platform breadth, breaking changes, and database migration burden |
+
+Agno 3.0 is a credible production platform. Its release added per-user isolation,
+normalized run storage, durable jobs, idempotency, bounded concurrency, large
+result and media offloading, CodeMode for programmatic tool composition, and a
+governed component catalogue. The same release also required a database
+migration and made extensive breaking API changes, which demonstrates both its
+new operational depth and its ownership cost.
+
+**Decision rule:** default to Pydantic AI when agents are one capability inside a
+Python application. Prefer Agno only when teams, durable jobs, schedules,
+approvals, persistent multi-user state, several delivery interfaces, and an
+operator console are requirements rather than attractive extras. For a serious
+greenfield agent product, canary both on one representative vertical slice and
+compare framework-specific code, interruption recovery, test setup, storage
+migration burden, trace usefulness, approval handling, subsystem replacement,
+and total completed-task cost. Sources: [Pydantic AI](https://pydantic.dev/docs/ai/),
+[Pydantic capabilities](https://pydantic.dev/docs/ai/capabilities/overview/),
+[AgentOS](https://docs.agno.com/agent-os/introduction), and
+[Agno 3.0 release notes](https://github.com/agno-agi/agno/releases/tag/v3.0.0).
 
 **TypeScript**
 
-- **[Mastra](https://mastra.ai/)** -- Agents, workflows, memory, evals, observability; from the Gatsby team, YC W25. Hit 1.0 in Jan 2026; ~22k stars, 300k+ weekly npm downloads; still shipping fast (Jul 2026 "Goals": durable objectives for long-running agents with LLM-judged evals). **Weighted pick: default for any TS agent build.** Composes with, rather than replaces, the Vercel AI SDK (which stays the lower-level provider layer). Caveat: no SOC 2 as of early 2026. Native MCP support.
+- **[Mastra](https://mastra.ai/)** -- **WATCH, still promising.** Agents, workflows, memory, evaluation, observability, deployment, Studio, and native Model Context Protocol support in one TypeScript platform. Its newer open-source [Factory](https://mastra.ai/factory) adds a configurable issue-to-pull-request board across GitHub, Linear, and Slack, with specialized agents and skills for intake, triage, planning, building, review, shared sessions, and team memory. Mastra's [1 minute 41 second demo](https://www.youtube.com/watch?v=wGtTga5SR_4) claims that its internal deployment produced more than a quarter of merged pull requests in its first three weeks; the description separately claims 25-35 percent of pull requests and 50-60 percent of closed issues. Those are vendor claims with no workload, quality, intervention, or rework denominator. The staged human-gated workflow is credible; the TypeScript-only runtime and Mastra Platform dependency for initial Factory authentication, database, and sandboxes are the main fit concerns. Trial only for a real TypeScript agent product, and require completed-task quality, intervention, spend, and portability evidence rather than pull-request share.
 - **[Flue](https://flueframework.com/)** -- The Astro team's Pi-powered TypeScript framework packages sessions, tools, skills, sandboxes, persistent state, HTTP-addressable agents, durable recovery, channels, and deployment adapters. It is genuinely interesting because it turns the lightweight harness already trusted here into a programmable production runtime. It is not useful for today's interactive coding or narrow scheduled scripts: Workbench explicitly rejected owning another runtime, database, deployment model, and session abstraction without a production agent that needs them. Revisit when a recurring agent must survive restarts, retain addressable state, and serve external events; then compare Flue directly with Mastra and the narrow existing scheduler rather than adopting it for Astro or Pi affinity. Source overview: [Better Stack video](https://www.youtube.com/watch?v=n5cYS6KuyK8).
 
-**Python**
+**Python and multi-language**
 
-- **[Pydantic AI](https://ai.pydantic.dev/)** -- **Weighted pick: closest in spirit to Mastra** -- type-safe, model-agnostic, testing built in, deliberately light orchestration. Native MCP. Multi-agent orchestration still maturing.
-- **[LangGraph](https://langchain-ai.github.io/langgraph/)** -- Explicit graph-based stateful orchestration; maximum control, steepest learning curve. The "serious production workflow" default per most 2026 surveys. Native MCP. Reach for it only when the workflow genuinely needs durable multi-step state.
-- **[Agno](https://agno.com/)** -- Batteries-included agent *platform* (build/run/monitor, multi-agent teams). Opinionated; closer to Mastra's full-stack ambition than Pydantic AI.
-- **[Google ADK](https://google.github.io/adk-docs/)** -- Gemini/GCP-native; strongest for multimodal (video/voice/image) agents. Only if committed to GCP. MCP via adapters.
-- **[OpenAI Agents SDK](https://openai.github.io/openai-agents-python/)** -- Model-driven loop with built-in tracing; tight integration with OpenAI hosted tools but works with 100+ models. Native MCP.
-- **[smolagents](https://github.com/huggingface/smolagents)** (Hugging Face) -- Code-first: agents write and execute Python instead of JSON tool calls. Fastest setup for a single-agent loop; no native MCP.
-- **[AWS Strands Agents](https://strandsagents.com/)** -- AWS's model-driven SDK, Bedrock-native, OTel-first (X-Ray/CloudWatch). Same "give the model tools and get out of the way" stance as smolagents. Native MCP.
-- **[CrewAI](https://www.crewai.com/)** -- Role-based multi-agent crews. Popular but MCP only via shims; surveys increasingly rank it behind LangGraph/Pydantic AI for production.
-
-**.NET / Java-shaped enterprises**
-
-- **[Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/)** -- AutoGen + Semantic Kernel merged into one .NET + Python SDK; 1.0 GA 2026-04. The Azure-enterprise default; note as the answer to "what happened to AutoGen/SK".
+- **[Pydantic AI](https://pydantic.dev/docs/ai/)** (MIT; 19.9k GitHub stars as reviewed) -- **Preferred Python canary; now a direct Mastra competitor rather than merely a light agent loop.** The core provides typed providers, dependencies, tools, structured outputs, Model Context Protocol, evaluation, and OpenTelemetry. The newer Pydantic AI Harness composes memory, subagents, context management, filesystem and allowlisted shell access, planning, coding and research agents, an advisor, and on-demand capabilities. The same agent can run behind a web interface, command-line interface, realtime voice, or a durable queue. First-party and co-maintained integrations cover Temporal, DBOS, Prefect, and Restate, with other durable runtimes available. This is the strongest fit when Python, provider neutrality, testability, and application-owned deployment matter. Canary it before Mastra for a Python service; verify how much of the new Harness is stable versus freshly marketed surface.
+- **[LangGraph](https://langchain-ai.github.io/langgraph/)** -- Explicit graph-based stateful orchestration with durable checkpoints and maximum control, at the cost of the steepest abstraction and debugging burden. Use when cycles, resumability, branching state, and human interrupts are the actual domain model, not as the default agent loop.
+- **[Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/)** (MIT; 13.5k GitHub stars as reviewed) -- The successor to AutoGen and Semantic Kernel now spans Python, .NET, and preview Go. It provides agents, a batteries-included Harness Agent, functional and graph workflows, sequential/concurrent/handoff/group orchestration, checkpointing, time travel, human approval, middleware, Model Context Protocol, OpenTelemetry, declarative YAML agents, a development interface, and Foundry hosting. This is a credible Mastra alternative when multi-language support or enterprise governance matters. The risk is Microsoft and Azure surface area, not missing capability.
+- **[Agno 3.0](https://www.agno.com/products/sdk)** -- The closest Python analogue to Mastra's all-in-one posture: agents, teams, workflows, memory, knowledge, learning, guardrails, hooks, background work, evaluation, observability, scheduling, and FastAPI deployment through AgentOS. Its four team modes and six workflow step types are legible, but the broad platform is more opinionated than Pydantic AI. Evaluate when one product genuinely needs multi-agent teams and an operations plane; otherwise prefer the smaller typed core.
+- **[Google Agent Development Kit](https://google.github.io/adk-docs/)** -- No longer accurately described as Python-only or GCP-only: current documentation spans Python, TypeScript, Go, Java, and Kotlin, with graph workflows, evaluation, deployment, and Gemini's multimodal tools. It remains optimized for Google's ecosystem even when model and deployment choices are flexible. Evaluate first for a Gemini-heavy voice, video, Maps, or managed-agent product, not as the neutral default.
+- **[OpenAI Agents SDK](https://openai.github.io/openai-agents-python/)** -- Small Python and TypeScript agent loop with tools, handoffs, guardrails, sessions, tracing, voice, and Model Context Protocol. Prefer it when OpenAI-native capabilities are the reason for the application; Pydantic AI is the stronger neutral Python default.
+- **[smolagents](https://github.com/huggingface/smolagents)** (Hugging Face) -- Code-first Python agents that write and execute Python instead of relying only on JSON tool calls. Fast setup, but not a Mastra-shaped production platform.
+- **[AWS Strands Agents](https://strandsagents.com/)** -- AWS's model-driven SDK, Bedrock-native and OpenTelemetry-first. Consider for an AWS-centered deployment, not for framework neutrality.
+- **[CrewAI](https://www.crewai.com/)** -- Role-based multi-agent crews. Its role metaphor remains approachable, but Pydantic AI, LangGraph, Agno, and Microsoft Agent Framework now offer stronger typed, durable, or operational foundations.
 
 **Rust / Go** (crossed to production-viable in 2026)
 
