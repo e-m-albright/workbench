@@ -9,41 +9,54 @@ Act as a skeptical macOS security engineer reviewing a personal coding-agent
 configuration. This is a read-only audit: do not edit files, run destructive
 tests, install software, or modify live agent settings.
 
-Goal: determine whether this setup provides the smallest honest safety boundary
-that prevents obvious catastrophic mistakes without making normal coding work
-approval-heavy. The machine has no production databases. Database, cloud, and
-infrastructure controls should normally belong to the projects that own them.
+Goal: determine whether restricted terminal Pi, Claude Code, and Codex preserve
+the normal harness while denying access to unapproved host data and services.
+Also evaluate destructive-command defenses without making ordinary coding
+approval-heavy. Project-specific database and cloud policy belongs to its owner.
 
 Threat model:
-- accidental or misinterpreted commands from Claude Code or Codex
+- accidental commands, prompt injection, and malicious code executed by any of
+  the three restricted terminal agents or their subprocesses
+- reading unrelated files, credentials, host sessions, process arguments, and
+  private services through direct access, symlinks, plugins, or host callbacks
 - recursive force-deletion, destructive disk commands, destructive Git, and
   writes to credential files
 - bypass by flag ordering, shell wrappers, command composition, symlinks, MCP
   tools, non-shell file tools, or vendor modes that disable protections
 - configuration drift and unsupported settings that create false confidence
-- compromised tools, malicious dependencies, and deliberate hostile code are
-  out of scope unless the current design falsely claims to cover them
+- distinguish the admitted repository and provider-login exposure from a
+  boundary escape; read the accepted risks before reopening those decisions
+- OS exploits and host-authority desktop/editor/mobile integrations are outside
+  the terminal boundary; identify any claim or label suggesting otherwise
 
-Current local versions at the time of this prompt:
-- Claude Code 2.1.177
-- Codex CLI 0.144.4
+Record the current installed agent and pinned sandbox-runtime versions. Do not
+substitute historical versions from an earlier audit.
 
 Inspect at minimum:
 - ~/code/public/workbench/README.md
+- ~/code/public/workbench/docs/restricted-agents.md
+- ~/code/public/workbench/agents/shared/shell/native-sandbox.py
+- ~/code/public/workbench/agents/shared/shell/native-sandbox.mjs
+- ~/code/public/workbench/agents/shared/shell/agent-launchers.zsh
+- ~/code/public/workbench/agents/shared/sandbox/package-lock.json
 - ~/code/public/workbench/agents/claude/permissions.json
 - ~/code/public/workbench/agents/shared/hooks.json
 - ~/code/public/workbench/agents/codex/default.rules
 - ~/code/public/workbench/agents/codex/statusline.toml
 - ~/code/public/workbench/agents/shared/hooks/
 - ~/code/public/workbench/src/workbench/
-- ~/code/public/workbench/tests/test_workbench.py
+- ~/code/public/workbench/tests/test_native*.py
+- ~/code/public/workbench/tests/test_agent_launchers.py
 - ~/code/public/dotfiles/install.sh
+- ~/code/public/dotfiles/terminal/ghostty.config
 
-Also inspect the deployed ~/.claude and ~/.codex configuration read-only if it
-is available. Compare canonical and live state.
+Compare source and installed launchers and configuration read-only. Inspect
+credential structure only through synthetic fixtures; never print real tokens,
+session histories, connector content, or private file contents. Use the existing
+disposable canaries for OS-level verification, with no model request.
 
 Fact-check all vendor-specific claims against current official Claude Code and
-OpenAI Codex documentation. Distinguish clearly among:
+OpenAI Codex, Pi, and sandbox-runtime documentation. Distinguish clearly among:
 1. OS-enforced boundaries
 2. vendor sandbox/permission enforcement
 3. hook or command-pattern defense in depth

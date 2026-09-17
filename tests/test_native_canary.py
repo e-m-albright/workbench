@@ -327,6 +327,7 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
     )
     os.close(slave)
     output = b""
+    plain = ""
     try:
         deadline = time.monotonic() + 15
         declined = False
@@ -340,7 +341,20 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
                 os.write(master, b"\x1b")
                 declined = True
             plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output.decode(errors="replace"))
-            if "hosted > restricted" in plain or process.poll() is not None:
+            # A terminal frame can span reads; wait for the whole asserted footer.
+            if (
+                all(
+                    marker in plain
+                    for marker in (
+                        "hosted > restricted",
+                        "ctx ",
+                        "Workbench managed",
+                        "BOUNDARY-CANARY-PASS",
+                        "openai/gpt-4.1",
+                    )
+                )
+                or process.poll() is not None
+            ):
                 break
         text = output.decode(errors="replace")
         assert "EPERM" not in text, text

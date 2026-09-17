@@ -199,7 +199,10 @@ workbench
 │   ├── --no-plugins           skip declared-plugin installation
 │   └── --rules-only           deploy only global instruction files
 ├── drift [claude|codex|pi|all] report managed drift and external additions
-└── lint                       validate canonical repository sources
+├── lint                       validate canonical repository sources
+└── native
+    ├── prepare [--authorize]  install the restricted runtime and optional model logins
+    └── run <vendor> -- ...    launch codex, claude, pi, or a diagnostic shell
 ```
 
 Run `just` for the repository-development command list. The CLI manages live
@@ -264,11 +267,13 @@ with no code enforcement.
 Workbench is public. It must never contain credentials, personal records,
 conversations, generated memory, or private operational state.
 
-Vendor sandboxes provide the filesystem boundary. Workbench adds concise
-permission rules and PreToolUse hooks that deny sensitive-file edits, recursive
-force-deletion, destructive Git operations, and disk erasure. Database and
-infrastructure policy remains the responsibility of the project that owns those
-resources.
+The default terminal commands run the entire agent process and its children
+inside Workbench's native macOS boundary. Restricted and unrestricted launches
+share the harness; access differs. The [restricted-agent contract](docs/restricted-agents.md)
+owns filesystem and network permissions, credential exceptions, uncovered host
+interfaces, and accepted risks. Permission rules and PreToolUse hooks add
+defense in depth against destructive commands. Database and infrastructure
+policy remains the responsibility of the project that owns those resources.
 
 For an independent read-only fact-check, use the
 [`adversarial audit prompt`](docs/security/adversarial-audit-prompt.md).

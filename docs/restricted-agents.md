@@ -70,6 +70,11 @@ Keychain access, connector grants, host sessions, or credential-bearing MCP
 configuration are imported. Codex's account-backed apps feature is disabled,
 but that setting does not reduce a stolen token's provider-side scopes.
 
+Keeping ordinary provider login simple is the chosen tradeoff. A separate
+credential broker is not required for this workflow; reconsider it only if
+provider-token exposure stops being acceptable. Pi enrollment may include
+multiple provider logins from its authentication store.
+
 ## Enforced permissions
 
 | Resource | Restricted terminal policy |
@@ -135,6 +140,10 @@ Readable repository content can be sent to public destinations. Review Git
 history, ignored files, caches, recovery exports, and other retained data before
 admitting a repository; a clean working-tree diff is not a privacy review.
 Neither this boundary nor local inference determines confidentiality obligations.
+Removing old history can eliminate retired content from an active checkout, but
+the retained root snapshot remains readable. Approve that snapshot explicitly;
+preserve recovery copies outside admitted paths and account for other refs,
+reflogs, remote copies, and clones before claiming historical removal.
 
 Edits are live. An agent can damage admitted repository files or change source,
 shell configuration, hooks, or services that the owner later runs outside the
@@ -156,8 +165,9 @@ a fresh process to use the current policy.
 Unit tests cover configuration parity, credential exclusion, repository admission,
 clean environments, per-repository state, missing policy, credential enrollment,
 planted state symlinks and hardlinks, and adaptation of
-the pinned runtime. Opt-in integration tests use a disposable prepared home,
-synthetic files and host services, and a public HTTPS positive control:
+the pinned runtime. The macOS CI job runs integration tests with a disposable
+prepared home, synthetic files and host services, and a public HTTPS positive
+control. The same tests remain opt-in for local runs:
 
 ```sh
 WORKBENCH_NATIVE_CANARY_HOME=/private/tmp/example-pilot \

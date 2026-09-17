@@ -36,9 +36,35 @@ jobs:
           sudo apt-get install --yes --no-install-recommends zsh
       - name: Install Pi so typecheck-pi runs instead of skipping
         # Pinned so CI is deterministic; bump alongside the host install.
-        run: npm install -g @earendil-works/pi-coding-agent@0.84.4
+        run: npm install -g @earendil-works/pi-coding-agent@0.85.1
       - name: Deterministic quality gate
         run: just check
+
+  native-canary:
+    name: macOS restricted-agent boundary
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.20.0
+      - name: Install pinned vendor CLIs
+        # Keep optional platform binaries inside each admitted package directory.
+        run: >-
+          npm install -g --install-strategy=nested
+          @anthropic-ai/claude-code@2.1.250
+          @openai/codex@0.154.0
+          @earendil-works/pi-coding-agent@0.85.1
+      - name: Probe the real boundary with synthetic data and credentials
+        # No model prompts or provider credentials are used by these tests.
+        run: |
+          canary_home="$(mktemp -d /private/tmp/workbench-canary.XXXXXX)"
+          trap 'rm -rf "$canary_home"' EXIT
+          export WORKBENCH_NATIVE_CANARY_HOME="$canary_home"
+          uv run --locked python -c 'import os; from pathlib import Path; from workbench.native import prepare; prepare(Path(os.environ["WORKBENCH_NATIVE_CANARY_HOME"]))'
+          uv run --locked pytest tests/test_native_canary.py -q
 
   audit:
     name: Dependency audit
@@ -48,8 +74,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.20.0
       - name: pip-audit over locked dependencies
         run: just audit
+      - name: Audit the locked sandbox runtime
+        working-directory: agents/shared/sandbox
+        run: npm audit --package-lock-only --ignore-scripts
 
   gitleaks:
     name: Secret scan
