@@ -27,6 +27,10 @@ jobs:
       - uses: pandoc/actions/setup@6a25d32c172975d0c82425964800b60988e93279 # v1.1.1
         with:
           version: "3.10"
+      - name: Install launcher test shell
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends zsh
       - name: Install Pi so typecheck-pi runs instead of skipping
         # Pinned so CI is deterministic; bump alongside the host install.
         run: bun install -g @earendil-works/pi-coding-agent@0.84.4

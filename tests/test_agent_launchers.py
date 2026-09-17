@@ -56,7 +56,7 @@ def test_restricted_codex_effort_does_not_require_host_profiles(launch_home):
     assert args[-1] == "hello world"
 
 
-@pytest.mark.parametrize("alias", ["pil", "pilu", "pihu", "cou", "ccu"])
+@pytest.mark.parametrize("alias", ["pil", "pihu", "cou", "ccu"])
 def test_unrestricted_aliases_require_explicit_interactive_confirmation(launch_home, alias):
     result = invoke(launch_home, alias)
     assert result.returncode != 0
@@ -64,11 +64,22 @@ def test_unrestricted_aliases_require_explicit_interactive_confirmation(launch_h
     assert not result.stdout
 
 
-def test_retired_local_restriction_does_not_silently_broaden_authority(launch_home):
-    result = invoke(launch_home, "pilr")
-    assert result.returncode != 0
-    assert "retired" in result.stderr and "unrestricted" in result.stderr
-    assert not result.stdout
+def test_local_pi_has_one_command_even_after_reloading_an_old_shell(launch_home):
+    script = ROOT / "agents/shared/shell/agent-launchers.zsh"
+    result = subprocess.run(
+        [
+            "/bin/zsh",
+            "-f",
+            "-c",
+            f'pilr() {{ :; }}; pilu() {{ :; }}; source "{script}"; '
+            "(( $+functions[pil] && ! $+functions[pilr] && ! $+functions[pilu] ))",
+        ],
+        env={"HOME": str(launch_home), "PATH": "/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_private_commit_macro_is_text_only_and_explicitly_local(launch_home):

@@ -34,7 +34,7 @@ _wb_local_commit_message() {
     /bin/zsh -f "$HOME/.local/share/workbench/shell/agent-sandbox.zsh" pi local unrestricted "$@" --no-tools
 }
 
-unfunction pif piv pia pisu pihc piho pilo 2>/dev/null || true
+unfunction pif piv pia pisu pihc piho pilo pilr pilu 2>/dev/null || true
 
 # Pi modes combine inference location with restricted/unrestricted authority.
 _wb_agent_run() {
@@ -61,8 +61,6 @@ pih() { pi "$@"; }
 pihr() { pi "$@"; }
 pihu() { _wb_agent_run pi hosted unrestricted "$@"; }
 pil() { _wb_agent_run pi local unrestricted "$@"; }
-pilr() { echo 'pilr: restricted local mode is retired; pil is explicitly unrestricted' >&2; return 2; }
-pilu() { pil "$@"; }
 
 # co: Codex with reasoning profiles and judgment-based approvals
 # Usage: co [-q|--quick|-d|--deep] [codex args...]

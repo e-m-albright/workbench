@@ -14,9 +14,9 @@ not supported. A launch fails closed if its runtime, policy, repository, or
 sandbox validation fails; it never silently becomes unrestricted.
 
 Explicit unrestricted launchers remain available for host workflows. Local Pi
-uses `pil` or `pilu`, asks for confirmation, and has host authority. The retired
-`pilr` command refuses to start. There is no restricted tunnel to the local
-inference service, and its other consumers are unchanged.
+uses only `pil`, asks for confirmation, and has host authority. There is no
+restricted tunnel to the local inference service, and its other consumers are
+unchanged.
 
 Zed built-ins, external editor agents, Paseo providers, desktop agents, and
 direct vendor binaries are not covered by this boundary. An editor or daemon

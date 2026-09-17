@@ -113,8 +113,7 @@ operational state.
 |---|---|---|
 | `pi`, `pih`, `pihr` | Hosted | Native restricted terminal |
 | `pihu` | Hosted | Unrestricted host, with interactive confirmation |
-| `pil`, `pilu` | Local | Unrestricted host, with interactive confirmation |
-| `pilr` | None | Refuses; restricted local mode is retired |
+| `pil` | Local | Unrestricted host, with interactive confirmation |
 | `cc`, `ccr` | Claude Code's selected provider | Native restricted terminal |
 | `ccu` | Claude Code's selected provider | Unrestricted host, with interactive confirmation |
 | `co` | Codex's selected provider | Native restricted terminal |
