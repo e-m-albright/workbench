@@ -395,7 +395,7 @@ async function codexQuota(): Promise<QuotaState> {
 
 let lastSpeed: number | undefined;
 
-function renderFooter(
+export function renderFooter(
 	ctx: ExtensionContext,
 	gitState: GitState,
 	quotaState: QuotaState,
@@ -423,7 +423,7 @@ function renderFooter(
 		latestCacheHitRate = promptTokens > 0 ? (message.usage.cacheRead / promptTokens) * 100 : undefined;
 	}
 
-	const home = process.env.HOME || process.env.USERPROFILE || "";
+	const home = process.env.WORKBENCH_HOST_HOME || process.env.HOME || process.env.USERPROFILE || "";
 	let cwd = ctx.cwd;
 	if (home && cwd.startsWith(home)) cwd = `~${cwd.slice(home.length)}`;
 
@@ -431,7 +431,17 @@ function renderFooter(
 	const pathLine = gitText
 		? `${statusColor("note", "π")} ${dim(cwd)} ${gitText}`
 		: `${statusColor("note", "π")} ${dim(cwd)}`;
-	const coloredPathLine = truncateToWidth(pathLine, width, dim("..."));
+	const mode = process.env.WORKBENCH_PI_MODE;
+	const location =
+		process.env.WORKBENCH_AGENT_LOCATION ||
+		mode?.split("-")[0] ||
+		(ctx.model?.provider === "omlx" ? "local" : "hosted");
+	const authority = process.env.WORKBENCH_AGENT_AUTHORITY || mode?.split("-")[1] || "unrestricted";
+	const authorityText = `${color(location === "local" ? "#81a2be" : "#f0c674", location)} > ${color(
+		authority === "restricted" ? "#81a2be" : "#ff5050",
+		authority,
+	)}`;
+	const coloredPathLine = `${truncateToWidth(pathLine, Math.max(0, width - visibleWidth(authorityText) - 3), dim("..."))}${dim(" │ ")}${authorityText}`;
 
 	const usage = ctx.getContextUsage();
 	const contextWindow = usage?.contextWindow ?? ctx.model?.contextWindow ?? 0;
@@ -520,6 +530,8 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	const refreshQuota = async (ctx: ExtensionContext, force = false) => {
+		// Native Pi must not gain another vendor's login just to decorate its footer.
+		if (process.env.WORKBENCH_AGENT_AUTHORITY === "restricted") return;
 		if (ctx.model?.provider !== "openai-codex" || authClass(ctx) !== "subscription") return;
 		if (quotaRefreshInFlight || (!force && Date.now() - lastQuotaRefresh < 60_000)) return;
 		quotaRefreshInFlight = true;

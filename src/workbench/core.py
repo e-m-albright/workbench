@@ -147,7 +147,7 @@ RETIRED_PI_SANDBOX_PROFILES = (
     "pi-architect.sb",
     "pi-superuser.sb",
 )
-RETIRED_AGENT_SHELL_FILES = ("codex-external-sandbox.py",)
+RETIRED_AGENT_SHELL_FILES = ("codex-external-sandbox.py", "native-pi-status.mjs")
 RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
 VENDORS = ("claude", "codex", "pi")
 VENDOR_CHOICES = (*VENDORS, "all")

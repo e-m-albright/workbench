@@ -1,0 +1,12 @@
+{
+  "name": "workbench-dev",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.1.0",
+  "engines": { "node": ">=24.20.0 <25" },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.8",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}

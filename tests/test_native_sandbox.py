@@ -93,11 +93,12 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
         ".local/share/uv/python",
         ".npm-global/global",
         ".npm-global/lib/node_modules/pnpm",
-        ".bun/bin",
     ):
         assert str(home / relative) in plan["policy"]["filesystem"]["allowRead"]
         assert str(home / relative) not in plan["policy"]["filesystem"]["allowWrite"]
     assert str(home / ".npm-global/bin") in plan["env"]["PATH"].split(":")
+    assert str(home / ".bun/bin") not in plan["env"]["PATH"].split(":")
+    assert str(home / ".bun/bin") not in plan["policy"]["filesystem"]["allowRead"]
     assert plan["policy"]["filesystem"]["denyRead"][0] == "/"
     assert str(home / "code/*/private-data/**") in plan["policy"]["filesystem"]["denyWrite"]
     assert plan["command"][0] == config["agents"]["codex"]["command"][0]
@@ -144,11 +145,18 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
         with pytest.raises(ValueError, match="login link"):
             launcher.initialize_home(plan, home)
     elif vendor == "pi":
-        assert plan["env"]["PI_CODING_AGENT_DIR"] == str(store)
+        agent_dir = Path(plan["env"]["HOME"]) / ".pi/agent"
+        assert plan["env"]["PI_CODING_AGENT_DIR"] == str(agent_dir)
+        launcher.initialize_home(plan, home)
+        assert (agent_dir / "auth.json").readlink() == store / "auth.json"
+        (agent_dir / "trust.json").write_text("{}")
+        assert not (store / "trust.json").exists()
         assert "--session-dir" in plan["command"]
         assert str(store / "auth.json.lock") in plan["policy"]["filesystem"]["allowWrite"]
         assert str(store) not in plan["policy"]["filesystem"]["allowWrite"]
         assert "--no-extensions" in plan["command"]
+        assert "--extension" in plan["command"]
+        assert str(home / ".local/share/workbench/native/ui/pi-footer.ts") in plan["command"]
     else:
         assert plan["env"]["CLAUDE_SECURESTORAGE_CONFIG_DIR"] == str(store)
 

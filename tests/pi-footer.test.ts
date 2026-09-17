@@ -1,10 +1,40 @@
-import { expect, mock, test } from "bun:test";
+import { expect, vi, test } from "vitest";
 
-mock.module("@earendil-works/pi-tui", () => ({
+vi.doMock("@earendil-works/pi-tui", () => ({
 	truncateToWidth: (value: string) => value,
 	visibleWidth: (value: string) => value.replace(/\x1b\[[0-9;]*m/g, "").length,
 }));
-const { formatCodexQuota } = await import("../agents/pi/extensions/footer");
+const { formatCodexQuota, renderFooter } = await import("../agents/pi/extensions/footer");
+
+test.each([
+	[80, "restricted"],
+	[120, "restricted"],
+	[80, "unrestricted"],
+	[120, "unrestricted"],
+] as const)("footer at %i columns shows %s authority", (width, authority) => {
+	vi.stubEnv("NO_COLOR", "1");
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", authority);
+	vi.stubEnv("WORKBENCH_AGENT_LOCATION", "hosted");
+	vi.stubEnv("WORKBENCH_HOST_HOME", "/example");
+	try {
+		const ctx = {
+			cwd: "/example/code/project",
+			ui: { theme: {} },
+			sessionManager: { getEntries: () => [] },
+			getContextUsage: () => ({ percent: 0, tokens: 0, contextWindow: 272000 }),
+			model: { provider: "openai-codex", id: "model", contextWindow: 272000 },
+			modelRegistry: { isUsingOAuth: () => true },
+		} as Parameters<typeof renderFooter>[0];
+		const lines = renderFooter(ctx, { kind: "not-git" }, { kind: "unknown" }, width);
+		expect(lines).toHaveLength(2);
+		expect(lines[0]).toContain("~/code/project");
+		expect(lines[0]).toContain(`hosted > ${authority}`);
+		expect(lines[1]).toContain("ctx 0.0% 0/272k");
+		expect(lines[1]).toContain("openai-codex/model");
+	} finally {
+		vi.unstubAllEnvs();
+	}
+});
 
 test("Codex quota labels and colorizes remaining capacity", () => {
 	const previous = process.env.NO_COLOR;

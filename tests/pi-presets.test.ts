@@ -1,9 +1,9 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, vi, test } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
-mock.module("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
+vi.doMock("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
 const {
 	default: presetsExtension,
 	isConnectorTool,
@@ -29,7 +29,7 @@ describe("Pi preset taint guard", () => {
 	});
 
 	test("lets dev sessions manage one bounded worker autonomously", () => {
-		const path = resolve(import.meta.dir, "../agents/pi/presets.json");
+		const path = resolve(import.meta.dirname, "../agents/pi/presets.json");
 		const presets = JSON.parse(readFileSync(path, "utf8")) as {
 			dev: { tools: string[]; instructions: string };
 		};
@@ -43,7 +43,7 @@ describe("Pi preset taint guard", () => {
 	});
 
 	test("uses Pi's native fullscreen transcript instead of a custom reader", () => {
-		const path = resolve(import.meta.dir, "../agents/pi/settings.json");
+		const path = resolve(import.meta.dirname, "../agents/pi/settings.json");
 		const settings = JSON.parse(readFileSync(path, "utf8")) as { tuiMode?: string };
 		expect(settings.tuiMode).toBe("fullscreen");
 	});

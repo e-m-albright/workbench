@@ -1,6 +1,6 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, vi, test } from "vitest";
 
-mock.module("typebox", () => {
+vi.doMock("typebox", () => {
 	const schema = () => ({});
 	return { Type: { Object: schema, String: schema, Optional: schema, Array: schema } };
 });
@@ -58,7 +58,7 @@ describe("GitHub workflow dispatch", () => {
 
 	test("requires confirmation, dispatches once, and returns the created run URL", async () => {
 		let tool: any;
-		const exec = mock(async (_command: string, args: string[]) => {
+		const exec = vi.fn(async (_command: string, args: string[]) => {
 			if (args[0] === "workflow") return { code: 0, stdout: "", stderr: "" };
 			return {
 				code: 0,
@@ -67,7 +67,7 @@ describe("GitHub workflow dispatch", () => {
 			};
 		});
 		module.default({ registerTool: (value: any) => (tool = value), exec } as any);
-		const confirm = mock(async () => true);
+		const confirm = vi.fn(async () => true);
 
 		const result = await tool.execute("call-1", dispatch, undefined, undefined, {
 			hasUI: true,

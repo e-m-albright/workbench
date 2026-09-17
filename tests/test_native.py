@@ -21,6 +21,11 @@ def test_prepare_copies_a_protected_runtime_without_copying_credentials(tmp_path
     runtime = home / ".local/share/workbench"
     assert (runtime / "shell/native-sandbox.py").is_file()
     assert (runtime / "shell/native-sandbox.mjs").is_file()
+    assert (runtime / "native/ui/pi-footer.ts").is_file()
+    assert (runtime / "native/ui/claude-statusline.sh").is_file()
+    assert (
+        "permissions" in json.loads((runtime / "native/ui/codex.json").read_text())["status_line"]
+    )
     assert (runtime / "native/tools.json").is_file()
     assert not (home / ".codex").exists()
     assert not (home / ".pi").exists()

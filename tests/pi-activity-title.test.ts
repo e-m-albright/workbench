@@ -1,6 +1,6 @@
-import { expect, mock, test } from "bun:test";
+import { expect, vi, test } from "vitest";
 
-mock.module("@earendil-works/pi-tui", () => ({
+vi.doMock("@earendil-works/pi-tui", () => ({
 	truncateToWidth: (value: string, width: number, ellipsis = "…") =>
 		value.length <= width ? value : `${value.slice(0, Math.max(0, width - ellipsis.length))}${ellipsis}`,
 	visibleWidth: (value: string) => value.length,

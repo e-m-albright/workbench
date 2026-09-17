@@ -1,19 +1,19 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, vi, test } from "vitest";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-mock.module("@earendil-works/pi-ai", () => ({
+vi.doMock("@earendil-works/pi-ai", () => ({
 	StringEnum: (values: string[], options: Record<string, unknown>) => ({
 		type: "string",
 		enum: values,
 		...options,
 	}),
 }));
-mock.module("@earendil-works/pi-coding-agent", () => ({
+vi.doMock("@earendil-works/pi-coding-agent", () => ({
 	withFileMutationQueue: async (_path: string, mutate: () => Promise<unknown>) => mutate(),
 }));
-mock.module("typebox", () => {
+vi.doMock("typebox", () => {
 	const schema = () => ({});
 	return { Type: { Object: schema, String: schema, Optional: schema } };
 });

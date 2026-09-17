@@ -33,6 +33,7 @@ from workbench.core import (
 )
 from workbench.external_skills import external_skill_source, external_skills
 from workbench.mcp import _desktop_mcp, merge_mcp, retired_mcp_names
+from workbench.native import install_ui
 
 
 def _sync_plugins(vendor: str, home: Path) -> None:
@@ -90,6 +91,7 @@ def _canonical_skills() -> dict[str, Path]:
 
 def _install_runtime_files(home: Path) -> Path:
     data = home / DATA_REL
+    install_ui(home)
     for name, fragment in _canonical_shell_fragments().items():
         copy_file(fragment, data / "shell" / name)
     _retire_agent_runtime(home)

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { resolveAgentDir } from "../agents/pi/extensions/lib/agent-dir";
 
 describe("Pi agent directory", () => {

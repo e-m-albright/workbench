@@ -17,12 +17,11 @@ pnpm peers check
 
 Apply compatible updates with `pnpm update`, or explicitly reviewed majors with `pnpm update --latest`. Review `pnpm-workspace.yaml`, build-script approvals, minimum-release-age policy, peer output, and the lockfile diff. Use the version declared by the repository rather than Corepack or an ambient fallback.
 
-### npm, Yarn, and Bun
+### npm and Yarn
 
 ```bash
 npm outdated && npm audit
 yarn outdated
-bun outdated && bun audit
 ```
 
 Use the matching update and frozen-install commands documented by the repository. Do not generate a second lockfile with another package manager.

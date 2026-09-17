@@ -100,10 +100,14 @@ def build_plan(
     auth_files = []
     auth_env = {}
     auth_link = None
+    ui_files = []
     if vendor == "codex":
         command += [
             "-c",
-            'sandbox_mode="danger-full-access"',
+            'default_permissions="hosted > restricted"',
+            "-c",
+            'permissions={"hosted > restricted"='
+            '{filesystem={":root"="write"},network={enabled=true}}}',
             "-c",
             'approval_policy="on-request"',
             "-c",
@@ -111,15 +115,30 @@ def build_plan(
             "-c",
             "features.apps=false",
         ]
+        for key, value in tools.get("tui", {}).items():
+            command += ["-c", f"tui.{key}={json.dumps(value)}"]
         auth_files = [str(auth / "auth.json")]
         auth_link = {"path": str(agent_home / ".codex/auth.json"), "target": auth_files[0]}
         auth_env["CODEX_HOME"] = str(agent_home / ".codex")
     elif vendor == "claude":
-        command += ["--settings", '{"sandbox":{"enabled":false}}']
+        statusline = runtime / "native/ui/claude-statusline.sh"
+        command += [
+            "--settings",
+            json.dumps(
+                {
+                    "sandbox": {"enabled": False},
+                    "statusLine": {
+                        "type": "command",
+                        "command": f"/bin/bash {shlex.quote(str(statusline))}",
+                    },
+                }
+            ),
+        ]
+        ui_files = [str(statusline)]
         auth_files = [str(auth / ".credentials.json"), str(auth / ".storage-write.lock")]
         auth_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
     elif vendor == "pi":
-        # One credential path also gives every project the same refresh lock.
+        # Only auth is shared: Pi also writes trust, settings and caches in its agent dir.
         command += [
             "--session-dir",
             str(agent_home / ".pi/sessions"),
@@ -127,9 +146,13 @@ def build_plan(
             "--no-skills",
             "--no-prompt-templates",
             "--no-themes",
+            "--extension",
+            str(runtime / "native/ui/pi-footer.ts"),
         ]
+        ui_files = [str(runtime / "native/ui/pi-footer.ts")]
         auth_files = [str(auth / "auth.json"), str(auth / "auth.json.lock")]
-        auth_env["PI_CODING_AGENT_DIR"] = str(auth)
+        auth_link = {"path": str(agent_home / ".pi/agent/auth.json"), "target": auth_files[0]}
+        auth_env["PI_CODING_AGENT_DIR"] = str(agent_home / ".pi/agent")
     read = [
         "/System/Library",
         "/usr/bin",
@@ -159,8 +182,8 @@ def build_plan(
         str(home / ".npm-global/bin"),
         str(home / ".npm-global/global"),
         str(home / ".npm-global/lib/node_modules/pnpm"),
-        str(home / ".bun/bin"),
         *agent["read"],
+        *ui_files,
         str(root),
         str(agent_home),
         str(temp),
@@ -214,13 +237,16 @@ def build_plan(
             "TMPDIR": str(temp),
             "CLAUDE_CODE_TMPDIR": str(temp),
             "PATH": (
-                f"{node.parent}:{home}/.npm-global/bin:{home}/.bun/bin:"
+                f"{node.parent}:{home}/.npm-global/bin:"
                 "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
             ),
             "SHELL": "/bin/bash",
             "NODE_USE_ENV_PROXY": "1",
             "DEVELOPER_DIR": "/Library/Developer/CommandLineTools",
+            "GIT_CONFIG_NOSYSTEM": "1",
             "WORKBENCH_AGENT_AUTHORITY": "restricted",
+            "WORKBENCH_AGENT_LOCATION": "hosted",
+            "WORKBENCH_HOST_HOME": str(home),
             **auth_env,
         }
     )
@@ -283,10 +309,13 @@ def main() -> None:
     # macOS Unix socket names are short; a nested project-state TMPDIR exceeds the limit.
     scratch = Path(tempfile.mkdtemp(prefix="wb-native-", dir="/private/tmp"))
     try:
+        tools = json.loads(config.read_text())
+        if sys.argv[1] == "codex":
+            tools["tui"] = json.loads((runtime / "ui/codex.json").read_text())
         plan = build_plan(
             Path.cwd(),
             home,
-            json.loads(config.read_text()),
+            tools,
             sys.argv[1],
             sys.argv[2],
             sys.argv[3:],
@@ -296,11 +325,12 @@ def main() -> None:
     except Exception:
         scratch.rmdir()
         raise
-    print(
-        f"{sys.argv[1].upper()} · NATIVE RESTRICTED · {Path(plan['root']).name}",
-        file=sys.stderr,
-        flush=True,
-    )
+    if sys.argv[1] == "shell":
+        print(
+            f"{sys.argv[1].upper()} · NATIVE RESTRICTED · {Path(plan['root']).name}",
+            file=sys.stderr,
+            flush=True,
+        )
     runner = Path(__file__).with_suffix(".mjs")
     os.execve(plan["node"], [plan["node"], str(runner), json.dumps(plan)], plan["env"])
 

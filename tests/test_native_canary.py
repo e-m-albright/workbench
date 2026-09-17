@@ -5,10 +5,15 @@ import http.server
 import json
 import os
 import pty
+import re
+import select
 import shlex
+import signal
 import socket
 import subprocess
+import termios
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -74,6 +79,7 @@ echo edited > edited
 /bin/bash -c '/bin/cat public >/dev/null'
 /usr/bin/python3 -I -S -c 'print("PYTHON-PASS")'
 /usr/bin/git status --short >/dev/null
+git status --short >/dev/null
 ./probe "$PPID"
 denied /bin/cat {shlex.quote(str(private))}
 denied /bin/cat escape
@@ -224,3 +230,74 @@ def test_real_pi_rpc_starts_with_shared_auth_and_no_model_request(tmp_path, synt
     rows = [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")]
     assert any(row.get("command") == "get_state" and row.get("success") for row in rows)
     assert not (synthetic_auth_store / "pi/settings.json").exists()
+
+
+@pytest.mark.parametrize("width", [80, 120])
+def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_auth_store, width):
+    """Exercise normal UI startup, not the version/RPC paths that skip trust storage."""
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".pi").mkdir()
+    (tmp_path / ".pi/settings.json").write_text("{}")
+    credential = synthetic_auth_store / "pi/auth.json"
+    credential.write_text("{}")
+    credential.chmod(0o600)
+    master, slave = pty.openpty()
+    termios.tcsetwinsize(slave, (30, width))
+    assert PILOT
+    runner = Path(PILOT) / ".local/share/workbench/shell/native-sandbox.py"
+    process = subprocess.Popen(
+        [
+            "/usr/bin/python3",
+            "-I",
+            "-S",
+            str(runner),
+            "pi",
+            "hosted",
+            "--offline",
+            "--provider",
+            "openai",
+            "--model",
+            "gpt-4.1",
+        ],
+        cwd=tmp_path,
+        env={"HOME": PILOT, "PATH": "/usr/bin:/bin", "TERM": "xterm-256color"},
+        stdin=slave,
+        stdout=slave,
+        stderr=slave,
+        start_new_session=True,
+    )
+    os.close(slave)
+    output = b""
+    try:
+        deadline = time.monotonic() + 15
+        declined = False
+        while time.monotonic() < deadline:
+            if select.select([master], [], [], 0.1)[0]:
+                try:
+                    output += os.read(master, 65536)
+                except OSError:
+                    break
+            if not declined and b"trust" in output.lower() and b"EPERM" not in output:
+                os.write(master, b"\x1b")
+                declined = True
+            plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output.decode(errors="replace"))
+            if "hosted > restricted" in plain or process.poll() is not None:
+                break
+        text = output.decode(errors="replace")
+        assert "EPERM" not in text, text
+        assert "hosted > restricted" in plain, text
+        assert "ctx " in plain, text
+        assert "openai/gpt-4.1" in plain, text
+        assert "PI · NATIVE RESTRICTED" not in text
+        assert process.poll() is None, text
+        assert not (synthetic_auth_store / "pi/trust.json").exists()
+        assert not (synthetic_auth_store / "pi/settings.json").exists()
+    finally:
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait(timeout=2)
+        os.close(master)

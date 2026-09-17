@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Claude Code's compact shared statusline:
 #
-#   claude <cwd> (<branch> [wt:name] [!n] [+n] [*n] [?n] [⇡n] [⇣n]) [#PR state] · ctx: n% · 5h: n% (resets ..) · 7d: n% (resets ..) · <model>
+#   claude <cwd> (<git state>) │ hosted > restricted/unrestricted
+#   ctx n% │ 5h n% left │ 1w n% left │ <model>
 #
 # Reads Claude's statusline JSON payload on stdin. Set NO_COLOR=1 to disable
 # ANSI colors. Schema: https://code.claude.com/docs/en/statusline.md
@@ -25,8 +26,12 @@ if [[ -z "${NO_COLOR:-}" ]]; then
     DANGER=$'\033[38;2;217;120;77m'
     GOLD=$'\033[38;2;211;177;95m'
     SAGE=$'\033[38;2;143;168;121m'
+    BLUE=$'\033[38;2;129;162;190m'
+    HOSTED=$'\033[38;2;240;198;116m'
+    UNRESTRICTED=$'\033[1;38;2;255;80;80m'
 else
     R='' DIM='' NOTE='' WARN='' DANGER='' GOLD='' SAGE=''
+    BLUE='' HOSTED='' UNRESTRICTED=''
 fi
 
 ramp() {
@@ -39,7 +44,7 @@ ramp() {
     fi
 }
 
-home="${HOME:-}"
+home="${WORKBENCH_HOST_HOME:-${HOME:-}}"
 short_path() {
     local path="$1"
     if [[ -n "$home" && "$path" == "$home"* ]]; then
@@ -137,24 +142,33 @@ seven_reset=$(j '.rate_limits.seven_day.resets_at')
 pr_number=$(j '.pr.number')
 pr_state=$(j '.pr.review_state')
 
-sep="${DIM} · ${R}"
+sep="${DIM} │ ${R}"
 out="${NOTE}claude${R} ${DIM}$(short_path "${cwd:-?}")${R}"
 git_text=$(git_segment "$cwd" "$worktree")
 [[ -n "$git_text" ]] && out="${out} ${git_text}"
 pr_text=$(pr_segment "$pr_number" "$pr_state")
 [[ -n "$pr_text" ]] && out="${out} ${pr_text}"
 
+authority="${WORKBENCH_AGENT_AUTHORITY:-unrestricted}"
+authority_color="$UNRESTRICTED"
+[[ "$authority" == restricted ]] && authority_color="$BLUE"
+out="${out}${sep}${HOSTED}${WORKBENCH_AGENT_LOCATION:-hosted}${R} > ${authority_color}${authority}${R}"
+printf '%s\n' "$out"
+out=""
+
 if [[ -n "$ctx_pct" ]]; then
-    out="${out}${sep}$(ramp "$ctx_pct")ctx: $(printf '%.0f%%' "$ctx_pct")${R}"
+    out="$(ramp "$ctx_pct")ctx $(printf '%.0f%%' "$ctx_pct")${R}"
 fi
 if [[ -n "$five_used" ]]; then
-    out="${out}${sep}$(ramp "$five_used")5h: $(printf '%.0f%%' "$five_used")$(eta "$five_reset")${R}"
+    remaining=$(jq -nr --argjson used "$five_used" '100 - $used | [0, .] | max | [100, .] | min')
+    out="${out}${out:+$sep}$(ramp "$five_used")5h $(printf '%.0f%%' "$remaining") left$(eta "$five_reset")${R}"
 fi
 if [[ -n "$seven_used" ]]; then
-    out="${out}${sep}$(ramp "$seven_used")7d: $(printf '%.0f%%' "$seven_used")$(eta "$seven_reset")${R}"
+    remaining=$(jq -nr --argjson used "$seven_used" '100 - $used | [0, .] | max | [100, .] | min')
+    out="${out}${out:+$sep}$(ramp "$seven_used")1w $(printf '%.0f%%' "$remaining") left$(eta "$seven_reset")${R}"
 fi
 if [[ -n "$model" ]]; then
-    out="${out}${sep}${DIM}${model}${R}"
+    out="${out}${out:+$sep}${NOTE}${model}${R}"
 fi
 
 printf '%s\n' "$out"

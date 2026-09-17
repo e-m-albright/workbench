@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import consult from "../agents/pi/extensions/consult";
 
 test("local sessions cannot send a consult to cloud CLIs", async () => {

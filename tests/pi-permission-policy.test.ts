@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, vi, test } from "vitest";
 import {
 	chmodSync,
 	mkdirSync,
@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-mock.module("@earendil-works/pi-coding-agent", () => ({
+vi.doMock("@earendil-works/pi-coding-agent", () => ({
 	getAgentDir: () => "/tmp/pi-agent",
 	withFileMutationQueue: async (_path: string, mutate: () => Promise<unknown>) => mutate(),
 }));
@@ -21,7 +21,7 @@ const { default: permissionPolicyExtension, policyBlockReason } = await import(
 
 const cwd = "/tmp/example";
 const policy = JSON.parse(
-	readFileSync(resolve(import.meta.dir, "../agents/pi/permission-policy.json"), "utf8"),
+	readFileSync(resolve(import.meta.dirname, "../agents/pi/permission-policy.json"), "utf8"),
 );
 
 function reason(

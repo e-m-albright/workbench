@@ -1,8 +1,8 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, vi, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-mock.module("@earendil-works/pi-coding-agent", () => ({}));
+vi.doMock("@earendil-works/pi-coding-agent", () => ({}));
 const { classifyCommand } = await import("../agents/pi/extensions/safe-git");
 
 interface Vector {
@@ -12,7 +12,7 @@ interface Vector {
 }
 
 const vectors: Vector[] = JSON.parse(
-	readFileSync(resolve(import.meta.dir, "data/git-guard-vectors.json"), "utf8"),
+	readFileSync(resolve(import.meta.dirname, "data/git-guard-vectors.json"), "utf8"),
 ).vectors;
 
 describe("safe-git command classification", () => {

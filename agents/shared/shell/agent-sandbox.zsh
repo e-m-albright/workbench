@@ -18,6 +18,7 @@ if [[ "$authority" == restricted ]]; then
 fi
 binary=$(whence -p "$vendor")
 export WORKBENCH_AGENT_AUTHORITY=$authority
+export WORKBENCH_AGENT_LOCATION=$location
 if [[ "$vendor" == pi ]]; then
     export WORKBENCH_PI_MODE="$location-$authority"
     route=frontier
@@ -44,6 +45,19 @@ if [[ "$vendor" == pi ]]; then
     set -- --route "$route" "$@"
 fi
 if [[ "$authority" == unrestricted ]]; then
-    print -u2 "$vendor · $location · UNRESTRICTED HOST"
+    if [[ "$vendor" == codex ]]; then
+        # Name the outer authority without widening Codex's managed inner workspace profile.
+        # Explicit caller policy/profile choices keep their own native footer label.
+        label_default=true
+        for arg in "$@"; do
+            case "$arg" in
+                -s|--sandbox|--sandbox=*|-p|--profile|--profile=*|--permissions|--permissions=*|--yolo|--dangerously-bypass-approvals-and-sandbox|*sandbox_mode=*|*default_permissions=*|permissions.*|permissions=*) label_default=false ;;
+            esac
+        done
+        if [[ "$label_default" == true ]]; then
+            set -- -c 'default_permissions="hosted > unrestricted"' \
+                -c 'permissions={"hosted > unrestricted"={extends=":workspace"}}' "$@"
+        fi
+    fi
     exec "$binary" "$@"
 fi

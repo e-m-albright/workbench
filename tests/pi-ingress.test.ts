@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, expect, vi, test } from "vitest";
 import { access, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-mock.module("typebox", () => {
+vi.doMock("typebox", () => {
 	const schema = () => ({});
 	return { Type: { Object: schema, String: schema, Optional: schema } };
 });

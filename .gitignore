@@ -25,3 +25,4 @@ logs/
 artifacts/
 tmp/
 .pi-tsconfig.generated.json
+node_modules/

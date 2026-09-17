@@ -11,6 +11,7 @@ terminal_title = ["spinner", "project"]
 status_line = [
   "current-dir",
   "git-branch",
+  "permissions",
   "branch-changes",
   "pull-request-number",
   "task-progress",

@@ -1,7 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
   "files": {
-    "includes": ["agents/pi/extensions/**/*.ts", "tests/**/*.ts"]
+    "includes": ["agents/pi/extensions/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
   },
   "formatter": {
     "enabled": true,

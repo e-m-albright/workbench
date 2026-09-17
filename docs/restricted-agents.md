@@ -7,8 +7,9 @@ owns command aliases; this document owns the security boundary and its limits.
 
 ## Daily use
 
-Run `co`, `pi`, or `cc` from an ordinary Git checkout. The launcher prints
-`NATIVE RESTRICTED` and admits that checkout without creating a VM, copying a
+Run `co`, `pi`, or `cc` from an ordinary Git checkout. All three show
+`hosted > restricted` in their footer, without a separate startup banner.
+The boundary admits that checkout without creating a VM, copying a
 repository, or requiring an update step after edits. Linked Git worktrees are
 not supported. A launch fails closed if its runtime, policy, repository, or
 sandbox validation fails; it never silently becomes unrestricted.
@@ -51,7 +52,7 @@ Each repository gets an isolated agent home under
 under `~/.local/share/workbench/model-auth/` and are shared across repositories:
 
 - Codex links its project-specific authentication file to its shared login file.
-- Pi shares one authentication file and refresh lock, with separate project sessions.
+- Pi links only its authentication file to the shared login; the canonical target supplies the shared refresh lock. Settings, project-trust decisions and sessions stay in its isolated project home.
 - Claude copies only the AI-login section of its credential entry, not the connector credentials stored alongside it, and shares its file refresh lock.
 
 Enrollment preserves already usable native credentials rather than replacing
@@ -91,7 +92,7 @@ tool paths are also admitted. The launcher starts with a clean environment,
 without ambient credential variables, shell startup overrides, or inherited
 upstream proxy settings.
 
-Managed Python, Node/npm, pnpm and Bun installations are readable so existing
+Managed Python, Node/npm and pnpm installations are readable so existing
 repository tooling works. Their host configuration and package caches are not
 imported; new per-project caches live in the isolated home.
 
@@ -107,6 +108,14 @@ terminal configuration must deny programmatic clipboard reads and confirm
 programmatic writes through OSC 52; manual paste remains an explicit user
 action. Do not infer that blocking a clipboard command inside the agent also
 blocks terminal callbacks.
+
+Pi and Claude reuse their normal status renderers through installed, read-only
+copies. Codex receives only the managed TUI settings, including its native
+permissions item. Its named inner full-access profile labels the outer native
+boundary; it does not replace that boundary. Unrestricted Codex retains its
+inner workspace profile, and explicit caller permission/profile overrides keep
+their native labels. Pi's separate Codex-login quota probe is disabled inside
+the native boundary. These display settings import no host tools or credentials.
 
 The vendor's nested operating-system sandbox is disabled inside this enforced
 outer policy because macOS does not support nesting those policies. Vendor

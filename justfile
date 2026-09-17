@@ -1,8 +1,5 @@
 # Workbench development and deployment tasks. Run `just` for grouped help.
 
-# Bun's installer uses this directory, which non-interactive shells may omit.
-export PATH := env_var('HOME') + '/.bun/bin:' + env_var('PATH')
-
 # ── Quality ───────────────────────────────────────────────────────────────────
 
 # Validate skills, local links, JSON, TOML, and shell syntax.
@@ -21,8 +18,8 @@ fmt-ts mode='write':
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{mode}}" in
-        write | all) bunx @biomejs/biome@2.3.8 format --write agents/pi/extensions tests ;;
-        --check | check) bunx @biomejs/biome@2.3.8 format agents/pi/extensions tests ;;
+        write | all) pnpm exec biome format --write agents/pi/extensions tests vitest.config.ts ;;
+        --check | check) pnpm exec biome format agents/pi/extensions tests vitest.config.ts ;;
         *)
             printf 'fmt-ts: unknown mode %q (try --check, check)\n' "{{mode}}" >&2
             exit 1
@@ -75,10 +72,10 @@ check:
 test *args:
     uv run pytest -v {{args}}
 
-# Run Pi extension behavior tests with Bun. Example: `just test-pi tests/pi-presets.test.ts`.
+# Run Pi extension behavior tests on Node. Example: `just test-pi tests/pi-presets.test.ts`.
 [group('testing')]
 test-pi *args='tests/*.test.ts':
-    bun test {{args}}
+    pnpm exec vitest run {{args}}
 
 
 # Typecheck Pi extensions against the installed Pi API; skips when Pi is absent.
@@ -99,7 +96,7 @@ typecheck-pi:
     fi
     deps="$pkg/node_modules"
     if [[ ! -d "$deps/typebox" ]]; then
-        # Bun's global installer hoists Pi dependencies beside the package.
+        # Support inherited hoisted global npm layouts as well as nested installs.
         deps="$(dirname "$(dirname "$pkg")")"
     fi
     cfg="{{justfile_directory()}}/.pi-tsconfig.generated.json"
@@ -123,7 +120,7 @@ typecheck-pi:
       "include": ["{{justfile_directory()}}/agents/pi/extensions/*.ts"]
     }
     EOF
-    bunx --package typescript@7.0.2 tsc -p "$cfg"
+    pnpm exec tsc -p "$cfg"
 
 # ── Documents ────────────────────────────────────────────────────────────────
 

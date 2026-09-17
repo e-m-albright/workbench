@@ -125,12 +125,14 @@ For a standalone checkout:
 git clone https://github.com/e-m-albright/workbench.git ~/code/public/workbench
 cd ~/code/public/workbench
 ./bin/workbench --help
+pnpm install --frozen-lockfile
 just check
 ```
 
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
-[Bun](https://bun.sh) for Pi extension tests, and the installed Pi/Claude/Codex
+[Node 24](https://nodejs.org/) and [pnpm](https://pnpm.io/) for the locked Pi
+extension test and development tools, and the installed Pi/Claude/Codex
 CLIs. [Pandoc](https://pandoc.org/) is required only to render and verify the
 maintained call-script document template. Workbench stages and atomically replaces managed skills; Pi and Codex discover one shared real-file deployment under `~/.agents/skills`, avoiding duplicate Pi skill warnings.
 

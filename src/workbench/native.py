@@ -7,6 +7,7 @@ import os
 import shutil
 import stat
 import subprocess
+import tomllib
 from pathlib import Path
 
 from workbench.core import (
@@ -25,6 +26,14 @@ def _binary(name: str) -> Path:
     if not found:
         raise WorkbenchError(f"Native sandbox requires {name}; install it through the host setup")
     return Path(found).resolve(strict=True)
+
+
+def install_ui(home: Path) -> None:
+    """Install display-only assets, never the host agent settings or tool catalogue."""
+    ui = home / DATA_REL / "native/ui"
+    copy_file(AGENTS / "pi/extensions/footer.ts", ui / "pi-footer.ts")
+    copy_file(AGENTS / "claude/statusline.sh", ui / "claude-statusline.sh")
+    write_json(ui / "codex.json", tomllib.loads((AGENTS / "codex/statusline.toml").read_text()))
 
 
 def prepare(home: Path | None = None) -> None:
@@ -61,6 +70,7 @@ def prepare(home: Path | None = None) -> None:
     )
     for name in ("native-sandbox.py", "native-sandbox.mjs"):
         copy_file(AGENTS / "shared/shell" / name, home / DATA_REL / "shell" / name)
+    install_ui(home)
     write_json(runtime / "tools.json", {"node": str(node), "agents": agents})
 
 

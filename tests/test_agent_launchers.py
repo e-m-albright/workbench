@@ -110,3 +110,32 @@ def test_native_cli_forwards_arguments_without_a_lima_command(monkeypatch):
     assert result.exit_code == 0, result.output
     assert calls == [("codex", "hosted", ["--model", "example", "hello world"])]
     assert runner.invoke(cli.app, ["lima", "--help"]).exit_code != 0
+
+
+@pytest.mark.parametrize("overrides", [[], ["--sandbox", "read-only"], ["--profile", "quick"]])
+def test_codex_host_footer_does_not_widen_inner_permissions(tmp_path, overrides):
+    stub = tmp_path / "codex"
+    stub.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+    stub.chmod(0o700)
+    result = subprocess.run(
+        [
+            "/bin/zsh",
+            "-f",
+            str(ROOT / "agents/shared/shell/agent-sandbox.zsh"),
+            "codex",
+            "hosted",
+            "unrestricted",
+            *overrides,
+        ],
+        env={"HOME": str(tmp_path), "PATH": f"{tmp_path}:/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert not result.stderr
+    assert ":root" not in result.stdout
+    if overrides:
+        assert result.stdout.splitlines() == overrides
+    else:
+        assert 'default_permissions="hosted > unrestricted"' in result.stdout
+        assert 'extends=":workspace"' in result.stdout

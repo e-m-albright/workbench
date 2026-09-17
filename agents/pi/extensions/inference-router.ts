@@ -61,23 +61,6 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 			? "frontier"
 			: undefined;
 
-	function setStatus(ctx: ExtensionContext) {
-		const [location, authority] = (
-			mode ?? (route === "private" ? "local-restricted" : "hosted-restricted")
-		).split("-");
-		// Fixed mode colors keep the safety signal distinct from a user's theme.
-		const tint = (rgb: string, text: string, bold = false) =>
-			process.env.NO_COLOR ? text : `\x1b[${bold ? "1;" : ""}38;2;${rgb}m${text}\x1b[0m`;
-		const blue = "129;162;190";
-		const locationLabel = tint(location === "local" ? blue : "240;198;116", location);
-		const authorityLabel = tint(
-			authority === "unrestricted" ? "255;80;80" : blue,
-			authority,
-			authority === "unrestricted",
-		);
-		ctx.ui.setStatus("inference-route", `${locationLabel} > ${authorityLabel}`);
-	}
-
 	async function selectRoute(next: Route, ctx: ExtensionContext): Promise<boolean> {
 		if (!configValid) return false;
 		const target = config[next];
@@ -93,7 +76,6 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 		route = next;
 		if (next === "private") stickyPrivate = true;
 		routeReady = true;
-		setStatus(ctx);
 		return true;
 	}
 
@@ -148,7 +130,6 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 			current && (route === "private" ? current.provider === "omlx" : current.provider !== "omlx"),
 		);
 		if (!routeReady) routeReady = await selectRoute(route, ctx);
-		setStatus(ctx);
 	});
 
 	pi.on("model_select", async (_event, ctx) => {

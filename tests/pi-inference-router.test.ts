@@ -1,7 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, vi, test } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 
-mock.module("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
+vi.doMock("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
 const { default: inferenceRouter } = await import("../agents/pi/extensions/inference-router");
 
 import { tmpdir } from "node:os";
@@ -51,7 +51,7 @@ describe("Pi model routing", () => {
 		expect(selected).toEqual([localModel]);
 	});
 
-	test("keeps supervised frontier authority visible in the status line", async () => {
+	test("leaves authority rendering to the common footer", async () => {
 		const previous = process.env.WORKBENCH_PI_MODE;
 		process.env.WORKBENCH_PI_MODE = "hosted-unrestricted";
 		try {
@@ -77,7 +77,7 @@ describe("Pi model routing", () => {
 
 			inferenceRouter(pi);
 			await handlers.get("session_start")?.({}, ctx);
-			expect(statuses.at(-1)?.replace(/\x1b\[[0-9;]*m/g, "")).toContain("hosted > unrestricted");
+			expect(statuses).toEqual([]);
 		} finally {
 			if (previous === undefined) delete process.env.WORKBENCH_PI_MODE;
 			else process.env.WORKBENCH_PI_MODE = previous;
