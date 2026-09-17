@@ -27,7 +27,7 @@ jobs:
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - name: Install locked development tools
         run: pnpm install --frozen-lockfile
-      - uses: pandoc/actions/setup@6a25d32c172975d0c82425964800b60988e93279 # v1.1.1
+      - uses: pandoc/actions/setup@dad02246c528d7888992b063050d14b77ae423b0 # v1.1.1
         with:
           version: "3.10"
       - name: Install launcher test shell
