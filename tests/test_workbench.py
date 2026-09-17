@@ -1,0 +1,1255 @@
+from __future__ import annotations
+
+import contextlib
+import hashlib
+import io
+import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import tomllib
+import unittest
+import zipfile
+from dataclasses import replace
+from pathlib import Path
+from unittest.mock import patch
+
+from workbench import codex, core, mcp, render, sync
+from workbench import drift as drift_mod
+from workbench import external_skills as external_skills_mod
+from workbench import lint as lint_mod
+
+
+class WorkbenchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # Unit tests using temporary homes must not consult the network-backed
+        # production registry unless that behavior is the subject of the test.
+        self._sync_external_patch = patch.object(sync, "external_skills", return_value=[])
+        self._drift_external_patch = patch.object(drift_mod, "external_skills", return_value=[])
+        self._sync_external_patch.start()
+        self._drift_external_patch.start()
+        self.addCleanup(self._sync_external_patch.stop)
+        self.addCleanup(self._drift_external_patch.stop)
+
+    def run_cli(self, *args: str) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env["NO_COLOR"] = "1"
+        env.pop("FORCE_COLOR", None)
+        result = subprocess.run(
+            [str(core.ROOT / "bin/workbench"), *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        ansi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+        result.stdout = ansi.sub("", result.stdout)
+        result.stderr = ansi.sub("", result.stderr)
+        return result
+
+    def run_hook(self, name: str, payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["bash", str(core.AGENTS / "shared/hooks" / name)],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def deploy_skills(self, home: Path, *roots: str) -> None:
+        for root in roots:
+            for source in core.AGENTS.glob("skills/*"):
+                if source.is_dir() and (source / "SKILL.md").exists():
+                    shutil.copytree(source, home / root / source.name)
+
+    def test_merge_mcp_preserves_external_and_removes_tombstones(self) -> None:
+        merged = mcp.merge_mcp(
+            {
+                "external": {"command": "example"},
+                "context7": {"command": "retired"},
+                "granola": {"url": "retired"},
+            },
+            "claude",
+        )
+
+        self.assertEqual(merged["external"], {"command": "example"})
+        self.assertNotIn("context7", merged)
+        self.assertNotIn("granola", merged)
+
+    def test_active_mcp_expands_env_refs_and_strips_metadata(self) -> None:
+        registry = {
+            "$comment": "registry-level note",
+            "svc": {
+                "$comment": "server-level note",
+                "command": "run",
+                "env": {"KEY": "${TEST_WB_KEY}", "FALLBACK": "${TEST_WB_MISSING:-default}"},
+                "targets": ["claude"],
+            },
+        }
+        with patch.dict("os.environ", {"TEST_WB_KEY": "secret-value"}, clear=False):
+            active = mcp.active_mcp("claude", registry)
+
+        svc = active["svc"]
+        self.assertNotIn("$comment", svc)
+        self.assertNotIn("targets", svc)
+        self.assertEqual(svc["env"]["KEY"], "secret-value")
+        self.assertEqual(svc["env"]["FALLBACK"], "default")
+
+    def test_active_mcp_leaves_unset_ref_literal_for_drift(self) -> None:
+        registry = {"svc": {"env": {"KEY": "${TEST_WB_UNSET}"}, "targets": ["claude"]}}
+        with patch.dict("os.environ", {}, clear=False):
+            os.environ.pop("TEST_WB_UNSET", None)
+            active = mcp.active_mcp("claude", registry)
+        self.assertEqual(active["svc"]["env"]["KEY"], "${TEST_WB_UNSET}")
+
+    def test_merge_mcp_prunes_managed_server_removed_from_target(self) -> None:
+        merged = mcp.merge_mcp(
+            {
+                "exa": {"command": "managed-elsewhere"},
+                "computer-use": {"command": "app-owned"},
+            },
+            "codex",
+        )
+
+        self.assertNotIn("exa", merged)
+        self.assertEqual(merged["computer-use"], {"command": "app-owned"})
+
+    def test_invalid_json_fails_loudly(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "settings.json"
+            path.write_text("{")
+
+            with self.assertRaises(core.WorkbenchError):
+                core.load_json(path, {})
+
+            self.assertEqual(path.read_text(), "{")
+
+    def test_write_text_keeps_one_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "config.json"
+            path.write_text("old")
+
+            self.assertTrue(core.write_text(path, "new"))
+
+            self.assertEqual(path.read_text(), "new")
+            self.assertEqual(path.with_name("config.json.bak").read_text(), "old")
+
+    def test_write_text_preserves_or_enforces_private_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            existing = Path(raw) / "existing.json"
+            existing.write_text("old\n")
+            existing.chmod(0o600)
+
+            core.write_text(existing, "new\n")
+            private = Path(raw) / "private.json"
+            core.write_text(private, "secret\n", mode=0o600)
+
+            self.assertEqual(existing.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(private.stat().st_mode & 0o777, 0o600)
+            private.chmod(0o644)
+            self.assertTrue(core.write_text(private, "secret\n", mode=0o600))
+            self.assertEqual(private.stat().st_mode & 0o777, 0o600)
+
+    def test_launcher_resolves_chained_symlinks(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            link = Path(raw) / "workbench"
+            link.symlink_to(core.ROOT / "bin/workbench")
+            chained = Path(raw) / "wb"
+            chained.symlink_to(link)
+
+            result = subprocess.run(
+                [str(chained), "lint"], capture_output=True, text=True, check=False
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertRegex(result.stdout, r"OK \d+ skills")
+
+    def test_bare_launcher_renders_branded_native_command_list(self) -> None:
+        result = self.run_cli()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("██╗    ██╗", result.stdout)
+        self.assertIn("Usage: workbench [OPTIONS] COMMAND [ARGS]...", result.stdout)
+        self.assertIn("Options", result.stdout)
+        self.assertIn("Configuration — deploy, verify, and validate", result.stdout)
+        self.assertIn("sync", result.stdout)
+        self.assertIn("drift", result.stdout)
+        self.assertNotIn("--no-skills", result.stdout)
+
+    def test_banner_uses_lichen_enamel_truecolor_gradient_on_terminals(self) -> None:
+        rendered = render.gradient_banner(color=True)
+
+        self.assertTrue(rendered.startswith("\033[38;2;57;78;82m"))
+        self.assertIn("\033[38;2;238;230;189m", rendered)
+        self.assertTrue(rendered.endswith("\033[0m"))
+
+    def test_bare_just_uses_dotfiles_heading_convention(self) -> None:
+        result = subprocess.run(
+            ["just"], cwd=core.ROOT, capture_output=True, text=True, check=False
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("workbench CLI", result.stdout)
+        self.assertIn("dev tasks (cwd: repository root)", result.stdout)
+        self.assertIn("[quality]", result.stdout)
+        self.assertIn("[testing]", result.stdout)
+        self.assertIn("[deployment]", result.stdout)
+
+    def test_sync_help_explains_targets_and_optional_installers(self) -> None:
+        result = self.run_cli("sync", "--help")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("claude|codex|pi|all", result.stdout)
+        self.assertIn("--no-skills", result.stdout)
+        self.assertIn("--no-plugins", result.stdout)
+
+    def test_every_command_has_contextual_visual_help(self) -> None:
+        expectations = {
+            "sync": "--no-plugins",
+            "drift": "default: all",
+            "lint": "shell syntax",
+        }
+        for command, expected in expectations.items():
+            with self.subTest(command=command):
+                result = self.run_cli(command, "--help")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(f"workbench {command}", result.stdout)
+                self.assertIn("Options", result.stdout)
+                self.assertIn(expected, result.stdout)
+                self.assertNotIn("usage: workbench", result.stderr)
+
+    def test_invalid_target_has_visual_contextual_error(self) -> None:
+        result = self.run_cli("sync", "other")
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("╭─ Error", result.stderr)
+        self.assertIn("is not one of 'claude', 'codex',", result.stderr)
+        self.assertIn("Usage: workbench sync [OPTIONS]", result.stderr)
+        self.assertNotIn("usage: workbench", result.stderr)
+
+    def test_unknown_command_has_visual_registry_error(self) -> None:
+        result = self.run_cli("other")
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("╭─ Error", result.stderr)
+        self.assertIn("No such command 'other'", result.stderr)
+        self.assertIn("Try 'workbench --help' for help.", result.stderr)
+        self.assertNotIn("usage: workbench", result.stderr)
+
+    def test_skill_sync_replaces_stale_trees_and_removes_retired_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            root = home / ".agents/skills"
+            canonical_name = next(
+                path.parent.name for path in core.AGENTS.glob("skills/*/SKILL.md")
+            )
+            stale = root / canonical_name
+            stale.mkdir(parents=True)
+            (stale / "SKILL.md").write_text("stale")
+            (stale / "removed-reference.md").write_text("stale")
+            for name in core.RETIRED_SKILLS:
+                retired = root / name
+                retired.mkdir(parents=True)
+                (retired / "SKILL.md").write_text("retired")
+
+            sync._sync_skills("codex", home)
+
+            self.assertEqual(
+                (root / canonical_name / "SKILL.md").read_text(),
+                (core.AGENTS / "skills" / canonical_name / "SKILL.md").read_text(),
+            )
+            self.assertFalse((root / canonical_name / "removed-reference.md").exists())
+            for name in core.RETIRED_SKILLS:
+                self.assertFalse((root / name).exists())
+
+    def _skill_archive(self, entries: list[tuple[zipfile.ZipInfo | str, bytes]]) -> bytes:
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            for path, content in entries:
+                archive.writestr(path, content)
+        return buffer.getvalue()
+
+    def _external_skill(
+        self, archive: bytes, *, sha256: str | None = None
+    ) -> external_skills_mod.ExternalSkill:
+        return external_skills_mod.ExternalSkill(
+            name="sample",
+            version="1.2.3",
+            description="Sample external skill.",
+            url="https://example.test/sample.zip",
+            sha256=sha256 or hashlib.sha256(archive).hexdigest(),
+            archive_root="sample",
+            source_repo="https://example.test/sample",
+        )
+
+    def test_external_skill_lint_detects_registry_collisions_and_retired_names(self) -> None:
+        archive = self._skill_archive([("sample/SKILL.md", b"skill")])
+        skill = self._external_skill(archive)
+        duplicate_name = replace(skill, url="https://example.test/other.zip")
+        duplicate_archive = replace(skill, name="other")
+        with patch.object(lint_mod, "RETIRED_SKILLS", {"sample": "reason"}):
+            errors = lint_mod._external_skill_errors([skill, duplicate_name, duplicate_archive])
+        self.assertTrue(any("duplicate external skill name" in error for error in errors))
+        self.assertTrue(any("duplicate external skill archive" in error for error in errors))
+        self.assertTrue(any("retired skill" in error for error in errors))
+
+    def test_external_skill_cache_downloads_once_and_repairs_from_valid_archive(self) -> None:
+        archive = self._skill_archive([("sample/SKILL.md", b"---\nname: sample\n---\n")])
+        skill = self._external_skill(archive)
+        calls = 0
+
+        def download(_url: str, *, timeout: int) -> io.BytesIO:
+            nonlocal calls
+            self.assertEqual(timeout, 30)
+            calls += 1
+            return io.BytesIO(archive)
+
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            source = external_skills_mod.cached_external_skill(home, skill, opener=download)
+            self.assertEqual((source / "SKILL.md").read_bytes(), b"---\nname: sample\n---\n")
+            (source / "SKILL.md").write_text("tampered")
+
+            repaired = external_skills_mod.cached_external_skill(home, skill, opener=download)
+
+            self.assertEqual(calls, 1)
+            self.assertEqual(
+                repaired.joinpath("SKILL.md").read_bytes(), b"---\nname: sample\n---\n"
+            )
+            self.assertIsNotNone(external_skills_mod.validated_cached_skill(home, skill))
+
+    def test_external_skill_source_applies_and_repairs_reviewed_overlay(self) -> None:
+        archive = self._skill_archive(
+            [("sample/SKILL.md", b"upstream"), ("sample/bin/tool", b"runtime")]
+        )
+        skill = self._external_skill(archive)
+        calls = 0
+
+        def download(_url: str, *, timeout: int) -> io.BytesIO:
+            nonlocal calls
+            calls += 1
+            return io.BytesIO(archive)
+
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw) / "home"
+            overlays = Path(raw) / "overlays"
+            wrapper = overlays / "sample/SKILL.md"
+            wrapper.parent.mkdir(parents=True)
+            wrapper.write_text("reviewed wrapper")
+
+            source = external_skills_mod.external_skill_source(
+                home, skill, opener=download, overlays=overlays
+            )
+            self.assertEqual(source.joinpath("SKILL.md").read_text(), "reviewed wrapper")
+            self.assertEqual(source.joinpath("bin/tool").read_text(), "runtime")
+            self.assertIsNotNone(
+                external_skills_mod.validated_external_skill_source(home, skill, overlays=overlays)
+            )
+
+            source.joinpath("SKILL.md").write_text("tampered")
+            repaired = external_skills_mod.external_skill_source(
+                home, skill, opener=download, overlays=overlays
+            )
+
+            self.assertEqual(calls, 1)
+            self.assertEqual(repaired.joinpath("SKILL.md").read_text(), "reviewed wrapper")
+
+    def test_external_skill_cache_rejects_bad_checksum_without_installing(self) -> None:
+        archive = self._skill_archive([("sample/SKILL.md", b"skill")])
+        skill = self._external_skill(archive, sha256="0" * 64)
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            with self.assertRaisesRegex(core.WorkbenchError, "checksum mismatch"):
+                external_skills_mod.cached_external_skill(
+                    home, skill, opener=lambda *_args, **_kwargs: io.BytesIO(archive)
+                )
+            self.assertFalse(external_skills_mod.cache_directory(home, skill).exists())
+
+    def test_external_skill_archive_rejects_unsafe_entries_and_expansion(self) -> None:
+        symlink = zipfile.ZipInfo("sample/link")
+        symlink.create_system = 3
+        symlink.external_attr = 0o120777 << 16
+        cases = {
+            "outside sample": [("other/SKILL.md", b"skill")],
+            "unsafe path": [("sample/../escape", b"bad")],
+            "symlink": [("sample/SKILL.md", b"skill"), (symlink, b"target")],
+            "duplicate path": [("sample/SKILL.md", b"one"), ("sample/SKILL.md", b"two")],
+        }
+        for message, entries in cases.items():
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as raw:
+                archive = self._skill_archive(entries)
+                skill = self._external_skill(archive)
+                with self.assertRaisesRegex(core.WorkbenchError, message):
+                    external_skills_mod.cached_external_skill(
+                        Path(raw),
+                        skill,
+                        opener=lambda *_args, data=archive, **_kwargs: io.BytesIO(data),
+                    )
+
+        archive = self._skill_archive([("sample/SKILL.md", b"large")])
+        skill = self._external_skill(archive)
+        with (
+            tempfile.TemporaryDirectory() as raw,
+            patch.object(external_skills_mod, "MAX_EXPANDED_BYTES", 4),
+            self.assertRaisesRegex(core.WorkbenchError, "expands beyond"),
+        ):
+            external_skills_mod.cached_external_skill(
+                Path(raw), skill, opener=lambda *_args, **_kwargs: io.BytesIO(archive)
+            )
+
+    def test_external_skill_download_is_capped(self) -> None:
+        payload = b"12345"
+        skill = self._external_skill(payload)
+        with (
+            tempfile.TemporaryDirectory() as raw,
+            patch.object(external_skills_mod, "MAX_ARCHIVE_BYTES", 4),
+            self.assertRaisesRegex(core.WorkbenchError, "archive exceeds"),
+        ):
+            external_skills_mod.cached_external_skill(
+                Path(raw), skill, opener=lambda *_args, **_kwargs: io.BytesIO(payload)
+            )
+
+    def test_drift_verifies_external_skill_cache_and_deployed_tree_offline(self) -> None:
+        archive = self._skill_archive([("sample/SKILL.md", b"skill")])
+        skill = self._external_skill(archive)
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            source = external_skills_mod.cached_external_skill(
+                home, skill, opener=lambda *_args, **_kwargs: io.BytesIO(archive)
+            )
+            deployed = home / ".agents/skills/sample"
+            shutil.copytree(source, deployed)
+            findings: list[str] = []
+            external: list[str] = []
+            with (
+                patch.object(drift_mod, "external_skills", return_value=[skill]),
+                patch.object(drift_mod, "_canonical_skills", return_value={}),
+            ):
+                drift_mod._check_skills(
+                    home / ".agents/skills", "codex", findings, external, home=home
+                )
+                self.assertEqual(findings, [])
+                deployed.joinpath("SKILL.md").write_text("tampered")
+                drift_mod._check_skills(
+                    home / ".agents/skills", "codex", findings, external, home=home
+                )
+            self.assertTrue(any("differs" in finding for finding in findings))
+            self.assertEqual(external, [])
+
+    @patch.object(sync.shutil, "copytree", side_effect=OSError("copy failed"))
+    def test_skill_sync_preserves_current_tree_when_staging_fails(self, _copytree) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            source = next(core.AGENTS.glob("skills/*"))
+            destination = Path(raw) / source.name
+            destination.mkdir()
+            current = destination / "SKILL.md"
+            current.write_text("current")
+
+            with self.assertRaises(OSError):
+                sync._replace_tree(source, destination)
+
+            self.assertEqual(current.read_text(), "current")
+
+    def test_check_treats_retired_and_extra_skill_files_as_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            skill_root = Path(raw)
+            retired = skill_root / "converge"
+            retired.mkdir()
+            (retired / "SKILL.md").write_text("retired")
+            canonical = next(core.AGENTS.glob("skills/*"))
+            deployed = skill_root / canonical.name
+            shutil.copytree(canonical, deployed)
+            (deployed / "stale.md").write_text("stale")
+            findings: list[str] = []
+            external: list[str] = []
+
+            drift_mod._check_skills(skill_root, "codex", findings, external)
+
+            self.assertIn("DRIFT retired codex skill still present: converge", findings)
+            self.assertTrue(
+                any("unexpected file" in item and "stale.md" in item for item in findings)
+            )
+            self.assertNotIn("EXTERNAL codex skill: converge", external)
+
+    def test_lint_rejects_retired_canonical_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            agents = Path(raw)
+            extension = agents / "pi/extensions/retired.ts"
+            extension.parent.mkdir(parents=True)
+            extension.write_text("retired")
+            specialist = agents / "subagents/retired.md"
+            specialist.parent.mkdir(parents=True)
+            specialist.write_text("retired")
+
+            with (
+                patch.object(lint_mod, "AGENTS", agents),
+                patch.object(lint_mod, "ROOT", agents),
+                patch.object(lint_mod, "RETIRED_PI_EXTENSIONS", {"retired.ts": "reason"}),
+                patch.object(lint_mod, "RETIRED_SUBAGENTS", {"retired": "reason"}),
+            ):
+                errors = lint_mod._retired_source_errors()
+
+            self.assertEqual(len(errors), 2)
+            self.assertTrue(all("retired source remains canonical" in item for item in errors))
+
+    def test_skill_frontmatter_validation_rejects_malformed_yaml(self) -> None:
+        with self.assertRaises(core.WorkbenchError):
+            lint_mod._frontmatter_mapping(
+                "name: misplaced\n---\ndescription: nope\n", Path("bad.md")
+            )
+        with self.assertRaises(core.WorkbenchError):
+            lint_mod._frontmatter_mapping("---\nname: [unterminated\n---\nbody\n", Path("bad.md"))
+
+    def test_skill_descriptions_fit_context_budget(self) -> None:
+        descriptions = []
+        for skill in core.AGENTS.glob("skills/*/SKILL.md"):
+            match = re.search(r"^description:\s*([^\n]+)$", skill.read_text(), re.MULTILINE)
+            self.assertIsNotNone(match, skill)
+            assert match
+            raw = match.group(1).strip()
+            self.assertFalse(": " in raw and not raw.startswith('"'), skill)
+            descriptions.append(raw.strip('"'))
+
+        self.assertTrue(all(len(d) <= lint_mod.PER_SKILL_DESCRIPTION_LIMIT for d in descriptions))
+        self.assertLessEqual(sum(map(len, descriptions)), lint_mod.DESCRIPTION_BUDGET)
+
+    def test_markdown_link_check_skips_examples_and_finds_broken_links(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            (root / "ok.md").write_text("ok")
+            (root / "links.md").write_text(
+                "[ok](ok.md)\n[missing](missing.md)\n```md\n[example](fake.md)\n```\n"
+            )
+
+            errors = lint_mod._markdown_link_errors(root)
+
+            self.assertEqual(len(errors), 1)
+            self.assertIn("missing.md", errors[0])
+
+    def test_knowledge_index_check_finds_unindexed_documents(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            knowledge = root / "playbook/knowledge"
+            nested = knowledge / "nested"
+            nested.mkdir(parents=True)
+            (knowledge / "README.md").write_text("[indexed](indexed.md)\n")
+            (knowledge / "indexed.md").write_text("indexed\n")
+            (nested / "missing.md").write_text("missing\n")
+
+            errors = lint_mod._knowledge_index_errors(root)
+
+            self.assertEqual(
+                errors,
+                ["knowledge document missing from index: playbook/knowledge/nested/missing.md"],
+            )
+
+    def test_repository_markdown_links_resolve(self) -> None:
+        self.assertEqual(lint_mod._markdown_link_errors(core.ROOT), [])
+        self.assertEqual(lint_mod._knowledge_index_errors(core.ROOT), [])
+
+    def test_claude_desktop_preferences_are_seeded_without_overwriting_owner_choices(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
+            desktop.parent.mkdir(parents=True)
+            desktop.write_text(json.dumps({"preferences": {"sidebarMode": "projects"}}))
+
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+
+            preferences = json.loads(desktop.read_text())["preferences"]
+            self.assertEqual(preferences["sidebarMode"], "projects")
+            self.assertTrue(preferences["coworkScheduledTasksEnabled"])
+
+    def test_sync_claude_preserves_unmanaged_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            settings = home / ".claude/settings.json"
+            settings.parent.mkdir(parents=True)
+            settings.write_text(json.dumps({"custom": 7, "permissions": {"custom": True}}))
+
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+
+            actual = json.loads(settings.read_text())
+            self.assertEqual(actual["custom"], 7)
+            self.assertTrue(actual["permissions"]["custom"])
+            self.assertIn("enabledPlugins", actual)
+            self.assertEqual(actual["defaultMode"], "auto")
+            self.assertNotIn("defaultMode", actual["permissions"])
+            self.assertTrue(actual["sandbox"]["enabled"])
+            self.assertTrue(actual["sandbox"]["allowUnsandboxedCommands"])
+            self.assertIn("git push *", actual["sandbox"]["excludedCommands"])
+            self.assertNotIn("~/Documents", actual["sandbox"]["filesystem"]["denyRead"])
+            self.assertEqual((home / ".claude.json").stat().st_mode & 0o777, 0o600)
+            desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
+            self.assertEqual(desktop.stat().st_mode & 0o777, 0o600)
+            self.assertTrue((home / ".claude.json.bak").exists() is False)
+
+    def test_plugin_inventory_parses_each_vendor_shape_with_enabled_state(
+        self,
+    ) -> None:
+        claude = json.dumps(
+            [
+                {"id": "example@market", "enabled": True},
+                {"id": "dormant@market", "enabled": False},
+            ]
+        )
+        codex = json.dumps({"installed": [{"pluginId": "example@market", "enabled": True}]})
+
+        self.assertEqual(
+            core._installed_plugins("claude", claude),
+            {"example@market": True, "dormant@market": False},
+        )
+        self.assertEqual(core._installed_plugins("codex", codex), {"example@market": True})
+
+    @patch.object(drift_mod, "_plugin_inventory")
+    def test_check_plugins_requires_enabled_and_reports_external(self, inventory) -> None:
+        declared = core._string_array(core.AGENTS / "claude/plugins.json")
+        inventory.return_value = {
+            **dict.fromkeys(declared, True),
+            declared[0]: False,
+            "extra@market": True,
+        }
+        findings: list[str] = []
+        external: list[str] = []
+
+        drift_mod._check_plugins("claude", Path("/nonexistent"), findings, external)
+
+        self.assertEqual(findings, [f"DRIFT claude plugin disabled: {declared[0]}"])
+        self.assertEqual(external, ["EXTERNAL claude plugin: extra@market"])
+
+    @patch.object(shutil, "which", return_value=None)
+    def test_check_plugins_degrades_when_cli_is_missing(self, _which) -> None:
+        findings: list[str] = []
+        external: list[str] = []
+
+        drift_mod._check_plugins("claude", Path("/nonexistent"), findings, external)
+
+        self.assertEqual(findings, [])
+        self.assertEqual(external, ["NOTE claude plugins unverified (CLI not found)"])
+
+    def test_codex_connector_plugins_are_disabled(self) -> None:
+        plugins = core._string_array(core.AGENTS / "codex/plugins.json")
+
+        self.assertEqual(plugins, [])
+
+    def test_pi_starts_in_dev_on_the_explicit_frontier_route(self) -> None:
+        settings = core.load_json(core.AGENTS / "pi/settings.json")
+        router = core.load_json(core.AGENTS / "pi/inference-router.json")
+        presets = core.load_json(core.AGENTS / "pi/presets.json")
+
+        self.assertEqual(settings["defaultPreset"], "dev")
+        self.assertNotIn("defaultTools", settings)
+        self.assertEqual(router["defaultMode"], "frontier")
+        self.assertNotIn("classifier", router)
+        self.assertEqual(router["private"]["provider"], "omlx")
+        self.assertEqual(list(presets), ["dev"])
+
+    def test_sync_removes_retired_workbench_hooks(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            hook_dir = home / core.DATA_REL / "hooks"
+            hook_dir.mkdir(parents=True)
+            retired = hook_dir / "notify.sh"
+            retired.write_text("#!/bin/sh\n")
+            backup = hook_dir / "notify.sh.bak"
+            backup.write_text("#!/bin/sh\n")
+
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+
+            self.assertFalse(retired.exists())
+            self.assertFalse(backup.exists())
+            self.assertTrue((hook_dir / "guard-destructive-shell.sh").exists())
+
+    def test_sync_keeps_backup_of_replaced_current_hook(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            hook_dir = home / core.DATA_REL / "hooks"
+            hook_dir.mkdir(parents=True)
+            (hook_dir / "guard-destructive-shell.sh").write_text("#!/bin/sh\nstale\n")
+
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            backup = hook_dir / "guard-destructive-shell.sh.bak"
+            self.assertTrue(backup.exists())
+
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            self.assertTrue(backup.exists(), "second sync must not delete the kept backup")
+
+    def test_sync_removes_retired_subagents_and_preserves_external_agents(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            for vendor, suffix in (("claude", ".md"), ("codex", ".toml")):
+                destination = Path(raw) / vendor / "agents"
+                destination.mkdir(parents=True)
+                retired = destination / f"debugger{suffix}"
+                retired.write_text("retired")
+                external = destination / f"external{suffix}"
+                external.write_text("external")
+
+                sync._remove_retired_subagents(destination)
+
+                self.assertFalse(retired.exists())
+                self.assertTrue(external.exists())
+
+    def test_check_detects_managed_file_content_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            self.deploy_skills(home, ".claude/skills")
+
+            self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 0)
+
+            (home / ".claude.json").chmod(0o644)
+            self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 1)
+            (home / ".claude.json").chmod(0o600)
+            (home / ".claude/hooks.json").write_text("{}\n")
+            (home / ".claude/settings.json").write_text(json.dumps({"voiceEnabled": False}))
+
+            self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 1)
+
+    def test_drift_ignores_sync_backup_of_current_hook(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            self.deploy_skills(home, ".claude/skills")
+            backup = home / core.DATA_REL / "hooks/guard-destructive-shell.sh.bak"
+            backup.write_text("#!/bin/sh\n")
+
+            self.assertEqual(drift_mod.drift(home, ("claude",), verify_plugins=False), 0)
+
+    def test_rules_only_sync_preserves_unrelated_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sentinels = [
+                home / ".claude/settings.json",
+                home / ".codex/config.toml",
+                home / ".pi/agent/settings.json",
+            ]
+            for sentinel in sentinels:
+                sentinel.parent.mkdir(parents=True, exist_ok=True)
+                sentinel.write_text("unrelated work in progress\n")
+
+            for vendor in ("claude", "codex", "pi"):
+                sync.sync_rules(home, vendor)
+
+            self.assertEqual(
+                (home / ".claude/CLAUDE.md").read_text(),
+                (core.AGENTS / "shared/rules.md").read_text(),
+            )
+            self.assertIn(
+                (core.AGENTS / "shared/rules.md").read_text().rstrip(),
+                (home / ".codex/AGENTS.md").read_text(),
+            )
+            self.assertEqual(
+                (home / ".pi/agent/AGENTS.md").read_text(),
+                (core.AGENTS / "shared/rules.md").read_text(),
+            )
+            for sentinel in sentinels:
+                self.assertEqual(sentinel.read_text(), "unrelated work in progress\n")
+
+    @patch.object(drift_mod.shutil, "which", return_value="/usr/local/bin/pi")
+    def test_temporary_home_sync_and_check_all_vendors(self, _which) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
+            sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
+            self.deploy_skills(home, ".claude/skills")
+
+            self.assertEqual(
+                drift_mod.drift(home, ("claude", "codex", "pi"), verify_plugins=False),
+                0,
+            )
+
+    @patch.object(drift_mod.shutil, "which", return_value="/usr/local/bin/pi")
+    def test_pi_sync_preserves_external_state_and_detects_managed_drift(self, _which) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            pi_home = home / ".pi/agent"
+            (pi_home / "extensions").mkdir(parents=True)
+            (pi_home / "sessions/project").mkdir(parents=True)
+            session = pi_home / "sessions/project/session.jsonl"
+            session.write_text("private conversation\n")
+            session.chmod(0o644)
+            (pi_home / "skills/external-skill").mkdir(parents=True)
+            (pi_home / "skills/external-skill/SKILL.md").write_text(
+                "---\nname: external-skill\ndescription: external\n---\n"
+            )
+            canonical_name = next(
+                path.parent.name for path in core.AGENTS.glob("skills/*/SKILL.md")
+            )
+            duplicate = pi_home / "skills" / canonical_name
+            duplicate.mkdir(parents=True)
+            (duplicate / "SKILL.md").write_text("stale duplicate\n")
+            (pi_home / "settings.json").write_text(
+                json.dumps({"externalSetting": True, "defaultTools": ["read"]})
+            )
+            (pi_home / "models.json").write_text(
+                json.dumps(
+                    {
+                        "providers": {
+                            "external-provider": {"models": []},
+                            "lm-studio": {"models": []},
+                        }
+                    }
+                )
+            )
+            (pi_home / "presets.json").write_text(
+                json.dumps({"external-preset": {}, "read": {}, "safe-auto": {}})
+            )
+            (pi_home / "extensions/external.ts").write_text("export default () => {};\n")
+            retired = pi_home / "extensions/discovery-telemetry.ts"
+            retired.write_text("stale retired extension\n")
+            retired_backup = pi_home / "extensions/apple-notes.ts.bak"
+            retired_backup.write_text("stale retired connector backup\n")
+            governor = pi_home / "extensions/closeout-governor.ts"
+            governor.write_text("stale extra-turn governor\n")
+            governor_backup = governor.with_suffix(".ts.bak")
+            governor_backup.write_text("old extra-turn governor\n")
+            retired_state = home / ".local/state/workbench/pi-discovery/old.jsonl"
+            retired_state.parent.mkdir(parents=True)
+            retired_state.write_text("stale private telemetry\n")
+
+            sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
+
+            settings = json.loads((pi_home / "settings.json").read_text())
+            models = json.loads((pi_home / "models.json").read_text())
+            presets = json.loads((pi_home / "presets.json").read_text())
+            self.assertTrue(settings["externalSetting"])
+            self.assertNotIn("defaultTools", settings)
+            self.assertIn("external-provider", models["providers"])
+            self.assertNotIn("lm-studio", models["providers"])
+            self.assertIn("external-preset", presets)
+            self.assertNotIn("read", presets)
+            self.assertNotIn("safe-auto", presets)
+            self.assertTrue((pi_home / "extensions/external.ts").exists())
+            self.assertFalse(retired.exists())
+            self.assertFalse(retired_backup.exists())
+            self.assertFalse(governor.exists())
+            self.assertFalse(governor_backup.exists())
+            self.assertFalse(retired_state.parent.exists())
+            self.assertTrue((pi_home / "skills/external-skill/SKILL.md").exists())
+            self.assertFalse((pi_home / "skills" / canonical_name).exists())
+            self.assertTrue((home / ".agents/skills" / canonical_name / "SKILL.md").exists())
+            self.assertFalse((pi_home / "settings.json").is_symlink())
+            self.assertEqual(
+                (pi_home / "inference-router.json").read_text(),
+                (core.AGENTS / "pi/inference-router.json").read_text(),
+            )
+            self.assertEqual((pi_home / "sessions").stat().st_mode & 0o777, 0o700)
+            self.assertEqual(session.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 0)
+
+            session.chmod(0o644)
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
+            session.chmod(0o600)
+            (pi_home / "extensions/welcome.ts").write_text("drift\n")
+            settings.pop("defaultPreset")
+            (pi_home / "settings.json").write_text(json.dumps(settings))
+
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
+
+    @patch.object(drift_mod.shutil, "which", return_value=None)
+    def test_pi_drift_requires_cli(self, _which) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
+
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
+
+    def test_codex_sync_deploys_and_checks_profiles(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+
+            sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            self.deploy_skills(home, ".agents/skills")
+
+            quick = home / ".codex/quick.config.toml"
+            deep = home / ".codex/deep.config.toml"
+            self.assertEqual(tomllib.loads(quick.read_text())["model_reasoning_effort"], "low")
+            self.assertEqual(tomllib.loads(deep.read_text())["model_reasoning_effort"], "high")
+            self.assertEqual(tomllib.loads(quick.read_text())["approval_policy"], "on-request")
+            self.assertEqual(drift_mod.drift(home, ("codex",), verify_plugins=False), 0)
+
+            quick.write_text('model_reasoning_effort = "medium"\n')
+
+            self.assertEqual(drift_mod.drift(home, ("codex",), verify_plugins=False), 1)
+
+    def test_codex_rule_merge_preserves_safe_additions_and_drops_bypasses(self) -> None:
+        canonical = 'prefix_rule(pattern=["git", "status"], decision="allow")\n'
+        live = (
+            canonical
+            + "\n# --- Locally approved additions ---\n"
+            + "\n".join(
+                [
+                    'prefix_rule(pattern=["gh", "pr", "view"], decision="allow")',
+                    'prefix_rule(pattern=["git", "commit", "--no-verify"], decision="allow")',
+                    'prefix_rule(pattern=["rm", "-rf"], decision="allow")',
+                ]
+            )
+        )
+
+        merged = codex.merge_codex_rules(canonical, live)
+
+        self.assertIn('["gh", "pr", "view"]', merged)
+        self.assertNotIn("--no-verify", merged)
+        self.assertNotIn('["rm", "-rf"]', merged)
+
+    def test_codex_rule_merge_preserves_approvals_outside_marker_section(self) -> None:
+        canonical = 'prefix_rule(pattern=["git", "status"], decision="allow")\n'
+        approval = 'prefix_rule(pattern=["cargo", "check"], decision="allow")'
+        live = f"{approval}\n{canonical}{approval}\n"
+
+        merged = codex.merge_codex_rules(canonical, live)
+
+        self.assertIn("# --- Locally approved additions ---", merged)
+        self.assertEqual(merged.count(approval), 1)
+        self.assertLess(merged.index(canonical.strip()), merged.index(approval))
+
+    def test_codex_merge_preserves_other_sections_and_external_mcp(self) -> None:
+        source = """\
+model = "example"
+
+[mcp_servers.external]
+command = "tool"
+
+[mcp_servers.context7]
+command = "retired"
+
+[tui]
+theme = "old"
+other = true
+"""
+
+        merged = codex.merge_codex_config(source)
+        parsed = tomllib.loads(merged)
+
+        self.assertEqual(parsed["model"], "example")
+        self.assertEqual(parsed["sandbox_mode"], "workspace-write")
+        self.assertEqual(parsed["approval_policy"], "on-request")
+        self.assertIn("external", parsed["mcp_servers"])
+        self.assertNotIn("context7", parsed["mcp_servers"])
+        self.assertEqual(parsed["tui"]["theme"], "Sublime Snazzy")
+        self.assertEqual(parsed["tui"]["terminal_title"], ["spinner", "project"])
+        self.assertTrue(parsed["tui"]["other"])
+
+    def test_codex_merge_repairs_weakened_ordinary_defaults_and_drift(self) -> None:
+        source = (
+            '"sandbox_mode" = "danger-full-access"\n'
+            '\'approval_policy\' = "never"\nmodel = "example"\n'
+            '[profiles.explicit]\nsandbox_mode = "danger-full-access"\n'
+        )
+        parsed = tomllib.loads(codex.merge_codex_config(source))
+        self.assertEqual(parsed["sandbox_mode"], "workspace-write")
+        self.assertEqual(parsed["approval_policy"], "on-request")
+        self.assertEqual(parsed["model"], "example")
+        self.assertEqual(parsed["profiles"]["explicit"]["sandbox_mode"], "danger-full-access")
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            config = home / ".codex/config.toml"
+            config.write_text(
+                config.read_text()
+                .replace('approval_policy = "on-request"', 'approval_policy = "never"')
+                .replace('sandbox_mode = "workspace-write"', 'sandbox_mode = "danger-full-access"')
+            )
+            findings = []
+            drift_mod._check_codex(home, findings, [])
+            self.assertIn("DRIFT Codex config", findings)
+
+    def test_codex_merge_preserves_noninteractive_confined_policy(self) -> None:
+        for sandbox in ("read-only", "workspace-write"):
+            source = f'sandbox_mode = "{sandbox}"\napproval_policy = "never"\n'
+            parsed = tomllib.loads(codex.merge_codex_config(source))
+            self.assertEqual(parsed["sandbox_mode"], sandbox)
+            self.assertEqual(parsed["approval_policy"], "never")
+
+    def test_codex_merge_preserves_structured_approval_policy(self) -> None:
+        source = (
+            "approval_policy = { granular = { sandbox_approval = false, "
+            "rules = false, mcp_elicitations = false } }\n"
+        )
+        self.assertEqual(
+            tomllib.loads(codex.merge_codex_config(source))["approval_policy"],
+            tomllib.loads(source)["approval_policy"],
+        )
+
+    def test_codex_default_repair_rejects_unrelated_multiline_changes(self) -> None:
+        source = (
+            'sandbox_mode = "danger-full-access"\napproval_policy = "never"\n'
+            'description = """\napproval_policy = "never"\n"""\n'
+        )
+        with self.assertRaisesRegex(core.WorkbenchError, "unrelated"):
+            codex.merge_codex_config(source)
+
+    def test_codex_merge_preserves_explicit_safety_policy(self) -> None:
+        merged = codex.merge_codex_config(
+            'sandbox_mode = "read-only"\napproval_policy = "untrusted"\n'
+        )
+        parsed = tomllib.loads(merged)
+
+        self.assertEqual(parsed["sandbox_mode"], "read-only")
+        self.assertEqual(parsed["approval_policy"], "untrusted")
+
+    def test_codex_merge_replaces_nested_tui_and_preserves_nested_mcp(self) -> None:
+        source = """\
+model = "example"
+
+[tui]
+theme = "old"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[mcp_servers.external]
+command = "tool"
+
+[mcp_servers.external.env]
+TOKEN = "preserved"
+
+[features]
+js_repl = false
+"""
+
+        parsed = tomllib.loads(codex.merge_codex_config(source))
+
+        self.assertEqual(parsed["tui"]["theme"], "Sublime Snazzy")
+        self.assertEqual(parsed["tui"]["model_availability_nux"], {"gpt-5.5": 4})
+        self.assertEqual(parsed["mcp_servers"]["external"]["env"]["TOKEN"], "preserved")
+        self.assertFalse(parsed["features"]["js_repl"])
+
+    def test_codex_merge_rejects_malformed_toml(self) -> None:
+        with self.assertRaises(core.WorkbenchError):
+            codex.merge_codex_config("[")
+
+    def test_codex_merge_is_idempotent(self) -> None:
+        fixtures = [
+            "",
+            'model = "example"\n\n[mcp_servers.external]\ncommand = "tool"\n',
+            'sandbox_mode = "read-only"\napproval_policy = "untrusted"\n',
+            "[tui]\ntheme = \"old\"\n\n[tui.model_availability_nux]\n'gpt-5.5' = 4\n",
+        ]
+        for source in fixtures:
+            with self.subTest(source=source):
+                once = codex.merge_codex_config(source)
+
+                self.assertEqual(codex.merge_codex_config(once), once)
+
+    def test_drop_tables_is_line_based_but_guard_rejects_corruption(self) -> None:
+        # Documents the known ceiling: _drop_tables cannot tell a real [tui]
+        # header from one inside a multi-line string, so it truncates the
+        # string mid-value. The round-trip guard turns that corruption into
+        # a WorkbenchError instead of writing broken TOML.
+        adversarial = 'description = """\n[tui]\ntheme = "fake"\n"""\n'
+
+        truncated = codex._drop_tables(adversarial, ("[tui",))
+
+        self.assertEqual(truncated, 'description = """')
+        with self.assertRaises(core.WorkbenchError):
+            codex.merge_codex_config(adversarial)
+
+    def test_toml_value_rejects_unsupported_scalar_types(self) -> None:
+        self.assertEqual(codex._toml_value(4), "4")
+        with self.assertRaises(core.WorkbenchError):
+            codex._toml_value(None)
+
+    def test_check_reports_codex_drift_for_tombstoned_mcp(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            self.deploy_skills(home, ".agents/skills")
+            config = home / ".codex/config.toml"
+            config.write_text(
+                config.read_text() + '\n[mcp_servers.context7]\ncommand = "retired"\n'
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                exit_code = drift_mod.drift(home, ("codex",), verify_plugins=False)
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn(
+                "DRIFT retired codex MCP still present: context7",
+                output.getvalue(),
+            )
+
+    def test_check_agents_flags_retired_and_reports_external(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            destination = Path(raw)
+            (destination / "debugger.toml").write_text('name = "debugger"\n')
+            (destination / "external.toml").write_text('name = "external"\n')
+            findings: list[str] = []
+            external: list[str] = []
+
+            drift_mod._check_agents("codex", destination, findings, external)
+
+            self.assertIn("DRIFT retired codex agent still present: debugger", findings)
+            self.assertIn("EXTERNAL codex agent: external", external)
+
+    def test_agent_launchers_preserve_read_only_review_and_explicit_staging(self) -> None:
+        launchers = (core.AGENTS / "shared/shell/agent-launchers.zsh").read_text()
+
+        self.assertNotIn("gacp()", launchers)
+        self.assertNotIn("git add -A", launchers)
+        self.assertNotIn("Fetch and merge origin/main", launchers)
+        self.assertIn("read-only review", launchers)
+
+    @patch.object(drift_mod.shutil, "which", return_value="/usr/local/bin/pi")
+    def test_pi_sync_retires_old_profiles_and_preserves_other_vendors(self, _which) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            data = home / core.DATA_REL / "sandbox"
+            data.mkdir(parents=True)
+            old = data / "pi-frontier.sb"
+            old.write_text("old profile\n")
+            unrelated = home / ".claude/settings.json"
+            unrelated.parent.mkdir()
+            unrelated.write_text("owner settings\n")
+            sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
+            self.assertFalse(old.exists())
+            self.assertEqual((data / "pi-frontier.sb.bak").read_text(), "old profile\n")
+            self.assertEqual(unrelated.read_text(), "owner settings\n")
+            self.assertEqual(
+                {p.name for p in data.glob("*.sb")},
+                set(),
+            )
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 0)
+            old.write_text("stale profile\n")
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
+
+    def test_local_wrapper_rejects_cloud_startup_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw).resolve()
+            sync.sync_pi(home, deploy_skills=False, deploy_plugins=False)
+            fake_bin = home / "bin"
+            fake_bin.mkdir()
+            binary = fake_bin / "pi"
+            binary.write_text('#!/bin/sh\nprintf "PI_STARTED\\n"\n')
+            binary.chmod(0o755)
+            env = {**os.environ, "HOME": str(home), "PATH": f"{fake_bin}:/usr/bin:/bin"}
+            wrapper = home / core.DATA_REL / "shell/agent-sandbox.zsh"
+            for args in (
+                ["--provider", "openai"],
+                ["--provider=openai"],
+                ["--model", "openai/gpt-5"],
+                ["--no-extensions"],
+                ["-ne"],
+            ):
+                with self.subTest(args=args):
+                    result = subprocess.run(
+                        ["/bin/zsh", str(wrapper), "pi", "local", "unrestricted", *args],
+                        env=env,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn("PI_STARTED", result.stdout)
+
+    def test_gcai_uses_a_fast_model_and_only_staged_changes(self) -> None:
+        launchers = (core.AGENTS / "shared/shell/agent-launchers.zsh").read_text()
+
+        self.assertIn("gcai()", launchers)
+        self.assertNotIn("gcmw()", launchers)
+        gcai = launchers.split("# Pi modes", maxsplit=1)[0]
+        self.assertIn("git diff --staged", gcai)
+        self.assertIn("--model openai-codex/gpt-5.3-codex-spark --no-extensions", gcai)
+        self.assertIn('"$HOME/code/private/"*', gcai)
+        self.assertIn("--route private", gcai)
+        self.assertIn("pi_launcher=_wb_local_commit_message", gcai)
+        self.assertIn("--no-session --no-context-files", gcai)
+        self.assertNotIn("git push", gcai)
+
+    def test_status_palette_matches_between_statusline_and_pi_footer(self) -> None:
+        """The bash statusline and the Pi footer render one visual grammar."""
+        statusline = (core.AGENTS / "claude/statusline.sh").read_text()
+        rgb = re.findall(r"38;2;(\d+);(\d+);(\d+)m", statusline)
+        statusline_hexes = {f"#{int(r):02x}{int(g):02x}{int(b):02x}" for r, g, b in rgb}
+        footer = (core.AGENTS / "pi/extensions/footer.ts").read_text()
+        footer_hexes = set(re.findall(r"#[0-9a-f]{6}\b", footer))
+
+        self.assertTrue(statusline_hexes)
+        self.assertEqual(
+            statusline_hexes - footer_hexes,
+            set(),
+            "statusline palette colors missing from the Pi footer",
+        )
+
+    def test_destructive_guard_matches_shared_git_vectors(self) -> None:
+        data = json.loads((core.ROOT / "tests/data/git-guard-vectors.json").read_text())
+        for vector in data["vectors"]:
+            with self.subTest(command=vector["command"]):
+                result = self.run_hook(
+                    "guard-destructive-shell.sh",
+                    {"tool_input": {"command": vector["command"]}},
+                )
+                expected = 2 if vector["hook"] == "block" else 0
+                self.assertEqual(result.returncode, expected, result.stderr)
+
+    def test_destructive_guard_allows_benign_command(self) -> None:
+        result = self.run_hook(
+            "guard-destructive-shell.sh", {"tool_input": {"command": "git status"}}
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_destructive_guard_blocks_any_recursive_force_delete(self) -> None:
+        result = self.run_hook(
+            "guard-destructive-shell.sh", {"tool_input": {"command": "rm -rf build"}}
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("recursive force-delete", result.stderr)
+
+    def test_destructive_guard_blocks_disk_destroy(self) -> None:
+        result = self.run_hook(
+            "guard-destructive-shell.sh",
+            {"tool_input": {"command": "diskutil eraseDisk APFS Blank disk4"}},
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("disk", result.stderr)
+
+    def test_destructive_guard_blocks_hook_bypass(self) -> None:
+        result = self.run_hook(
+            "guard-destructive-shell.sh",
+            {"tool_input": {"command": "git commit --no-verify -m unsafe"}},
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--no-verify", result.stderr)
+
+    def test_destructive_guard_blocks_alias_escape_and_eval(self) -> None:
+        for command in (r"\rm -rf build", 'x="rm -rf build"; eval $x'):
+            with self.subTest(command=command):
+                result = self.run_hook(
+                    "guard-destructive-shell.sh",
+                    {"tool_input": {"command": command}},
+                )
+
+                self.assertEqual(result.returncode, 2, result.stderr)
+
+    def test_sensitive_guard_blocks_secret_files_case_insensitively(self) -> None:
+        for path in (".env", ".ENV", "conf/secrets.JSON", "id_ed25519", "api.KEY"):
+            with self.subTest(path=path):
+                result = self.run_hook(
+                    "guard-sensitive-file.sh",
+                    {"tool_input": {"file_path": path}},
+                )
+
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("sensitive file", result.stderr)
+
+    def test_sensitive_guard_allows_templates_and_ordinary_files(self) -> None:
+        for path in (".env.example", "keys.pub", "src/main.py"):
+            with self.subTest(path=path):
+                result = self.run_hook(
+                    "guard-sensitive-file.sh",
+                    {"tool_input": {"file_path": path}},
+                )
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

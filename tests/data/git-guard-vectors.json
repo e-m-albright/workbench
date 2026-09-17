@@ -1,0 +1,27 @@
+{
+  "$comment": "Shared must-block/must-allow vectors for the destructive-git enforcement surfaces. Consumed by test_workbench.py (guard-destructive-shell.sh) and pi-safe-git.test.ts (classifyCommand). The Codex unsafe_fragments list and the Claude sandbox excludedCommands are related dialects but not command classifiers, so they are covered by their own tests. hook: expected guard-hook verdict. safeGit: expected safe-git severity (null = no approval prompt).",
+  "vectors": [
+    { "command": "git push --force origin main", "hook": "block", "safeGit": "high" },
+    { "command": "git push \"--force\" origin main", "hook": "block", "safeGit": "high" },
+    { "command": "git push origin main --force", "hook": "block", "safeGit": "high" },
+    { "command": "git push -f", "hook": "block", "safeGit": "medium" },
+    { "command": "git push origin +main", "hook": "block", "safeGit": "high" },
+    { "command": "git reset --hard HEAD~1", "hook": "block", "safeGit": "high" },
+    { "command": "git clean -fd", "hook": "block", "safeGit": "high" },
+    { "command": "git branch -D feature", "hook": "block", "safeGit": "high" },
+    { "command": "git commit --no-verify -m x", "hook": "block", "safeGit": "medium" },
+    { "command": "git stash drop", "hook": "block", "safeGit": "high" },
+    { "command": "git reflog expire --all", "hook": "block", "safeGit": "high" },
+    { "command": "git push origin main", "hook": "allow", "safeGit": "medium" },
+    { "command": "git push --force-with-lease origin main", "hook": "allow", "safeGit": "high" },
+    { "command": "git commit -m \"message\"", "hook": "allow", "safeGit": "medium" },
+    { "command": "git rebase main", "hook": "allow", "safeGit": "medium" },
+    { "command": "gh pr create --title x", "hook": "allow", "safeGit": "medium" },
+    { "command": "gh api repos/o/r --method DELETE", "hook": "allow", "safeGit": "medium" },
+    { "command": "gh pr view 12", "hook": "allow", "safeGit": null },
+    { "command": "git log --oneline", "hook": "allow", "safeGit": null },
+    { "command": "git status", "hook": "allow", "safeGit": null },
+    { "command": "git commit -m \"add +x bit\"", "hook": "allow", "safeGit": "medium" },
+    { "command": "ls -la", "hook": "allow", "safeGit": null }
+  ]
+}

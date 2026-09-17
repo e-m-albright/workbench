@@ -1,0 +1,116 @@
+---
+name: frontend-design
+description: Design, build, or review production frontend interfaces with strong hierarchy, states, accessibility, responsiveness, and domain fit. Use for UI creation, redesign, polish, critique, or detecting generated-design clichés.
+metadata:
+  source: Promoted from the retired .ai/rules/process/design-review.mdc; this skill is now the canonical home for that content.
+---
+
+# Frontend Design
+
+Design and review interfaces with the same standard. Not every item applies to every change; focus on what the product and current surface require.
+
+## Shape before building
+
+For new or substantially redesigned UI:
+
+1. Read the existing product, design system, routes, and representative screens.
+2. Classify the surface as **product** (the interface serves repeated work) or **brand** (the composition itself communicates identity).
+3. State a short visual and interaction direction grounded in the users, domain, content density, and ambient context.
+4. Confirm consequential choices when the user has not already made them.
+5. Build the real workflow, including empty, loading, error, partial, overflow, offline, and responsive states that apply.
+6. Verify visually in the browser at desktop and mobile sizes.
+
+Do not require new `PRODUCT.md` or `DESIGN.md` files merely to begin. Use them when the project already owns them or when repeated corrections have earned durable project-specific design context.
+
+## Separate discovery from convergence
+
+These phases need different context:
+
+- **Discovery** searches for a new structural and visual direction. Withhold current screenshots, tokens, components, and named competitor interfaces when they would anchor every proposal to the existing grammar. Supply the user jobs, representative content, required states, accessibility constraints, and desired qualities instead. Compare materially different information architectures before judging polish.
+- **Convergence** makes a chosen direction coherent with a real product. Read the project's design context, tokens, components, routes, and representative shipped screens. Reuse those mechanics instead of inventing a parallel system, while preserving the selected hierarchy and interaction model.
+
+Do not load brand context and then claim the resulting variants are independent discovery. Conversely, do not keep production implementation artificially detached from the system it must join.
+
+Use `document-design` for reports, proposals, briefs, benchmarks, and standalone HTML reading views. Use `presentation-design` for decks.
+
+## When to Use
+
+- Reviewing a PR or diff that changes `.svelte` / `.tsx` / `.jsx` / `.astro` / `.vue` / `.html` / `.css`.
+- "Does this look right?" / "review this component" / "what edge cases am I missing?"
+- A pass for the recognizable blandness of generated UI (see AI Slop Detection).
+
+Use `review` instead when the change is backend or logic work and the primary question is correctness or security rather than interface quality.
+
+For visual-direction examples and creative implementation tools, read
+[`references/inspiration.md`](references/inspiration.md). For current AI design generators, design-to-code bridges, and the anti-anchoring evaluation protocol, read [`../../../playbook/knowledge/ai-interface-design-tools.md`](../../../playbook/knowledge/ai-interface-design-tools.md). For a scroll-driven
+narrative, cinematic product presentation, or fixed visual that transforms
+between sections, read
+[`references/scrollytelling.md`](references/scrollytelling.md). Do not load that
+niche reference for ordinary interface work.
+
+## Visual Hierarchy & Layout
+
+- Is the most important action the most visually prominent?
+- Is there a clear visual flow? (users should know where to look first, second, third)
+- Is information density appropriate? (too much = overwhelming, too little = wasted space requiring extra clicks)
+- Is whitespace used intentionally? (breathing room around groups, not random spacing)
+- Does the layout handle varying content lengths? (long names, missing optional fields, translated strings)
+
+## Consistency
+
+- Does this match existing patterns in the product? (button styles, spacing, typography, color usage)
+- Are component variants used correctly? (primary/secondary/ghost buttons for the right contexts)
+- Are similar interactions handled the same way throughout? (same pattern for all delete confirmations, all form validations)
+- Is spacing systematic? (using a scale like 4/8/12/16/24/32, not arbitrary pixel values)
+
+## States & Edge Cases
+
+- **Empty state**: What does the user see before there's data? (not a blank page — guide them)
+- **Loading state**: Skeleton screens, spinners, or optimistic updates? (appropriate to the wait time)
+- **Error state**: Is the error message actionable? Can the user recover? (retry button, fix suggestion, support link)
+- **Partial failure**: What if some data loads but not all? (don't block everything on one failed request)
+- **Overflow**: What happens with 1 item? 0 items? 1,000 items? A 200-character name?
+- **Offline/slow**: Does the UI handle network loss gracefully? (queued actions, stale data indicators)
+
+## Responsiveness
+
+- Does this work at mobile, tablet, and desktop breakpoints?
+- Are touch targets large enough on mobile? (minimum 44x44px)
+- Is the interaction model appropriate for the device? (no hover-dependent UI on touch devices)
+- Does content reflow sensibly? (not just shrinking desktop layout)
+
+## Accessibility (WCAG)
+
+- Semantic HTML? (`button` not `div onClick`, `nav`/`main`/`aside` landmarks, heading hierarchy)
+- Keyboard navigable? (all interactive elements reachable via Tab, operable via Enter/Space)
+- Focus visible? (clear focus indicators, logical focus order, focus trap in modals)
+- Screen reader labels? (`aria-label` for icon buttons, `alt` text for meaningful images, live regions for dynamic updates)
+- Color contrast sufficient? (4.5:1 for text, 3:1 for large text and UI components)
+- Not color-only? (don't convey meaning through color alone — add icons, text, or patterns)
+- Motion reduced? (respect `prefers-reduced-motion`, no auto-playing animations)
+
+## Interaction Quality
+
+- Are destructive actions confirmed? (delete, overwrite, irreversible operations)
+- Is feedback immediate? (button state change on click, optimistic updates, progress indication)
+- Are form validations inline and specific? (not "form invalid" — which field, what's wrong, how to fix)
+- Is the submit button disabled during submission? (prevent double-submit)
+- Can the user undo? (more forgiving than "are you sure?" dialogs)
+- Are transitions purposeful? (guide attention, show spatial relationships — not decorative)
+
+## AI Slop Detection
+
+Generated UI often has a recognizable blandness. Watch for:
+
+- **Generic gradients** as backgrounds or accents with no design rationale
+- **Stock illustration feel** — SVG illustrations that look like every SaaS landing page
+- **Placeholder content** passed off as design ("Lorem ipsum", "User Name", "Description goes here")
+- **Framework defaults** — unstyled component library output without customization
+- **Gratuitous animations** — fade-ins on everything, parallax for no reason
+- **Cookie-cutter layouts** — hero + 3 feature cards + CTA is not always the right answer
+- **Over-consistency** — when everything looks the same, nothing has emphasis
+- **Meaningless micro-interactions** — hover effects and transitions that don't serve a purpose
+
+The fix isn't more polish — it's intentional design decisions. Each visual choice should have a reason. "Because the AI generated it that way" is not a reason.
+
+_Promoted from `.ai/rules/process/design-review.mdc` (was an always-on rule; now an on-demand skill)._

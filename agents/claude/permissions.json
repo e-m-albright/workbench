@@ -1,0 +1,28 @@
+{
+  "allow": [],
+  "deny": [
+    "Bash(rm -rf:*)",
+    "Bash(rm -fr:*)",
+    "Bash(git reset --hard:*)",
+    "Bash(git clean -f:*)",
+    "Bash(git branch -D:*)",
+    "Bash(git push --force:*)",
+    "Bash(git push -f:*)",
+    "Bash(git * --no-verify:*)",
+    "Bash(diskutil eraseDisk:*)",
+    "Bash(diskutil partitionDisk:*)",
+    "Read(.env)",
+    "Read(.env.local)",
+    "Read(.env.production)",
+    "Read(~/.ssh/**)",
+    "Read(~/.gnupg/**)",
+    "Read(~/.aws/**)",
+    "Read(~/.config/gcloud/**)",
+    "Read(~/Library/Keychains/**)",
+    "Edit(~/.ssh/**)",
+    "Edit(~/.gnupg/**)",
+    "Edit(~/.aws/**)",
+    "Edit(~/.config/gcloud/**)",
+    "Edit(~/Library/Keychains/**)"
+  ]
+}

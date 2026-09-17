@@ -1,0 +1,23 @@
+# Lefthook git hooks for workbench (public repo).
+# Install hooks: lefthook install
+# Mirrors the proven dotfiles pre-commit set, scoped to this repo's gates.
+
+pre-commit:
+  parallel: true
+  commands:
+    gitleaks:
+      # Public repo carrying deployed agent rules: scan staged changes for
+      # secrets before they land. Skips cleanly if gitleaks isn't installed
+      # (the scheduled history scan is the backstop).
+      run: |
+        if command -v gitleaks >/dev/null 2>&1; then
+          gitleaks protect --staged --no-banner
+        fi
+    shellcheck:
+      glob: "*.sh"
+      run: |
+        for f in {staged_files}; do
+          shellcheck -S warning "$f"
+        done
+    workbench-lint:
+      run: just lint

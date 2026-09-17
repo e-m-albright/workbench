@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE" ]]; do
+    TARGET="$(readlink "$SOURCE")"
+    [[ "$TARGET" == /* ]] && SOURCE="$TARGET" || SOURCE="$(dirname "$SOURCE")/$TARGET"
+done
+ROOT="$(cd "$(dirname "$SOURCE")/.." && pwd)"
+
+if ! command -v uv >/dev/null 2>&1; then
+    echo "workbench: uv is required (install via dotfiles or 'brew install uv')" >&2
+    exit 1
+fi
+exec uv run --quiet --project "$ROOT" workbench "$@"

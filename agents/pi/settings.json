@@ -1,0 +1,18 @@
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "medium",
+  "doubleEscapeAction": "tree",
+  "treeFilterMode": "user-only",
+  "tuiMode": "fullscreen",
+  "shellCommandPrefix": "shopt -s expand_aliases\neval \"$(grep '^alias ' $HOME/code/public/dotfiles/shell/.zshrc)\"",
+  "defaultPreset": "dev",
+  "safeGit": {
+    "promptLevel": "high",
+    "enabledByDefault": true
+  },
+  "packages": [
+    "npm:pi-agent-browser-native@0.2.71"
+  ],
+  "theme": "dark"
+}

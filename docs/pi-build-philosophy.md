@@ -1,0 +1,306 @@
+# Pi build philosophy
+
+Decision record for the owner's Pi harness. This page owns why capabilities are
+adopted, rejected, or held for evidence. [`pi-capabilities.md`](pi-capabilities.md)
+owns the current operational inventory. [`experiments.md`](experiments.md) owns
+active time-boxed experiments. [`decisions/tombstones.md`](decisions/tombstones.md)
+owns rejected approaches that should stay absent.
+
+Last reviewed: 2026-09-11.
+
+## Goal
+
+Build a compact, legible daily-driver harness that takes advantage of Pi's native
+capabilities and adds only high-leverage improvements. Pi should remain easier to
+understand than Claude Code or Codex, portable across model providers, and small
+enough that the owner knows what executes in every session.
+
+The target is not a homemade Codex clone or a smaller Oh My Pi. Use Codex and
+Claude Code when their stronger sandbox, browser, cloud, document, or fleet
+capabilities are the right boundary.
+
+## Selection rules
+
+A capability earns adoption when it:
+
+1. Solves a recurring observed problem rather than an imagined parity gap.
+2. Is not already covered by Pi, the terminal, Git, or a trusted CLI.
+3. Improves correctness, latency, context efficiency, or orientation enough to
+   justify its permanent metadata, dependencies, and trust surface.
+4. Fails loudly and has a clear removal path.
+5. Preserves inspectability and provider portability.
+6. Can be pinned, tested, and managed by Workbench.
+
+Prefer, in order:
+
+1. Native Pi capability.
+2. Terminal or operating-system capability.
+3. Existing trusted CLI exposed through a small skill.
+4. Small Workbench-owned extension.
+5. Pinned and reviewed third-party package.
+6. A broader distribution or fork only after the smaller options fail.
+
+Stars, demos, and feature count are discovery signals, not adoption evidence.
+Useful evidence includes repeated local friction, controlled comparisons, reduced
+fix cycles, lower context use, fewer stale edits, and safer failure behavior.
+
+## Trust model
+
+Pi packages run arbitrary code with the user's full account permissions. Skills
+can instruct the model to run arbitrary commands. OAuth tokens stored by an
+extension are readable by that extension and by any other process running as the
+same user. Pi's permission extension is a guardrail around tool calls, not an OS
+sandbox or an information-flow control system.
+
+Consequences:
+
+- Pin third-party packages to reviewed versions. Upgrade deliberately.
+- Keep OAuth automatic authorization off.
+- Request the narrowest OAuth scopes and enforce a local tool allowlist as a
+  second layer.
+- Treat email, calendar, activity, browser, web, archive, and downloaded content
+  as untrusted data, never instructions. Keep summary and extraction work on a
+  dedicated read-only connector or Agent Browser. If retrieval fails, stop rather
+  than falling back to `curl`, downloading an artifact, or executing a helper.
+- Do not run an interpreter, build tool, decoder, or model-written replacement
+  utility from an untrusted download or extracted directory outside an operating-
+  system sandbox. Code the model wrote itself can still import attacker-controlled
+  modules from the current working directory.
+- Do not send, upload, quote, or embed private source content in another service
+  without explicit user direction.
+- Prefer temporary browser sessions. Do not attach authenticated profiles unless
+  the task requires them and the user understands the exposure.
+- Use Codex or Claude Code with an explicit operating-system sandbox for any
+  execution against untrusted content. Approval classifiers and automatic modes
+  are convenience layers, not isolation boundaries.
+
+No community package is risk-free. Static review and pinning reduce supply-chain
+risk but cannot prove the absence of malicious behavior. A package that can read
+Gmail or control an authenticated browser belongs in the highest trust tier.
+
+Named residual risks the guardrails cannot close (reviewed 2026-08-28):
+
+- **Alternative egress and staged execution.** Pi now blocks `curl` and `wget`
+  outright so a failed browser read cannot silently become a shell download, but
+  command-text inspection cannot track provenance or contain every network-capable
+  runtime. A model can write a script, invoke a package manager, or compose several
+  benign-looking commands. The real fix remains an egress allowlist and operating-
+  system sandbox. Use a sandboxed harness for execution against untrusted content.
+- **Provider token custody sits outside the guardrails.** The permission policy
+  blocks the agent's tools from reading `~/.pi/agent/auth.json`; it cannot
+  constrain Pi or provider-auth code running as the same user. Upstream review
+  and version pinning are the remaining controls on token confidentiality.
+- **Alias expansion happens after policy inspection.** `shellCommandPrefix`
+  evals dotfiles aliases in every shell command, so the policy sees the alias
+  name, not its expansion. Keep destructive aliases out of the sourced alias
+  block; the guardrail cannot see through them.
+
+Pinning discipline: version pins plus lockfile integrity hashes protect against
+dist-tag repointing and republished tarballs only when installs are
+hash-verified. The npm manifest under `~/.pi/agent/npm` must use exact versions,
+not caret ranges, and upgrades must be deliberate. Vendoring a reviewed copy
+adds maintenance burden without adding trust beyond what the lockfile hash
+already guarantees; the long-term answer for connector trust is the small owned
+read-only adapter named under Source connectors, not a fork.
+
+## Adopted
+
+| Capability | Decision and evidence | Guardrail / removal |
+|---|---|---|
+| Upstream Pi TUI | Primary transparent, provider-neutral harness. Native sessions, trees, skills, prompt templates, model switching, thinking controls, extensions, RPC, and project trust cover the core workflow. | Stay near upstream. Do not fork core without a demonstrated blocker. |
+| Workbench-managed Pi | Settings, providers, presets, extensions, skills, permission policy, and MCP routing are deployed and drift-checked from one public source. | Credentials, sessions, and trust decisions remain private live state. |
+| Custom footer | Restores native information and adds repository state, context, cost, speed, compaction, and Codex quota evidence. | Every field must earn its width. Remove annotations that do not change behavior. |
+| Activity title and deterministic session name | Terminal tabs now show spinner, repository, concise first-prompt label, and active tool. Resumed unnamed sessions remain findable; explicit names win. | No completion notification. Remove if titles become noisy or inaccurate. |
+| Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, shell network retrieval, destructive Git, and risky shell mutations before execution. External reading stays on dedicated browser and connector tools. | These are not containment. Keep tests aligned with real failure modes. |
+| Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded; unavailable in local modes because its subprocess uses a hosted provider. |
+| Owned Google read-only connector | `google-readonly.ts` implements Gmail and Calendar search and read directly against `googleapis.com` with loopback OAuth, read-only scopes, and 0600 token storage. Gmail and Calendar remain subject to the provider and access requirements in the connector policy. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; tool-policy rules block raw credential reads; the connector process still needs access to its token files. Unrestricted host access does not itself grant a private-source tool. |
+| Bounded worktree worker | The `worker` tool lets either route start one isolated implementation task in the background, continue disjoint work, inspect progress, and later adopt or reject the result; `/worker` remains a manual entrypoint. Frontier workers remain subject to the same private-source path and connector guards as their parent. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and may not commit, push, install, or merge. Elapsed status uses no polling or extra model calls. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save wall-clock time or protect context. |
+| Default dev preset | One coding tool profile; launch modes independently select model location and access. | Do not add another preset without a recurring workflow the inference and access choices cannot express. |
+| Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an Exa-backed companion search tool. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
+| Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
+
+## Explicitly absent
+
+These decisions are intentional. Re-evaluate only when the named condition changes.
+
+| Capability | Decision | Why absent | Revisit when |
+|---|---|---|---|
+| Native fullscreen transcript | Adopted | Pi 0.84.3 provides viewport scrolling, search, selection, links, and prompt jumps without owned extension code. | Keep `tuiMode: fullscreen`; accept that final-answer landmarks and compact work summaries are absent unless recurring friction justifies a new upstream-first evaluation. |
+| Fast-mode control or display | Rejected | The Codex subscription route does not expose reliable state; priority service changes usage economics; thinking level is not Fast mode. Silent custom inference would be misleading. | Pi exposes authoritative provider-route state and the owner wants the cost tradeoff. |
+| General completion notifications | Rejected | They interrupt flow and duplicate visible terminal state. The background worker is the narrow exception because its tool call has already returned; it emits one completion notification so finished work is not stranded. | Long unattended runs outside the worker become common and missed completions are observed. |
+| Visible request ledger on every multipart prompt | Retired | See the canonical experiment record in [`decisions/tombstones.md`](decisions/tombstones.md#retired-pi-harness-experiments). | Use the revisit trigger recorded there. |
+| Multi-session GUI tabs | Rejected for now | Terminal tabs and session resume cover the real need without another session manager. | Cross-session visibility becomes recurring friction that terminal titles cannot solve. |
+| Broad Pi Web UI migration | Rejected | Network-listening trust surface and GUI overlap exceed the current phone-access need. | A supervised phone workflow proves valuable and Tailscale plus SSH or an audited loopback UI is insufficient. |
+| Oh My Pi migration | Rejected | Its batteries-included fork bundles a large tool, runtime, memory, browser, subagent, collaboration, and editor surface that conflicts with the compact upstream-first goal. | Several independently validated capabilities require coordinated core changes that extensions cannot provide. |
+| Hashline tool-suite replacement | Deferred, not adopted | Hash anchors provide stale-line verification and compact edit references, but exact-text Edit already fails loudly. No comparative model benchmark or independent evaluation was found, and the available package replaces most core filesystem tools plus Bash output. | Telemetry shows stale edit failures or material read/edit token waste; a narrow controlled trial beats exact replacement. |
+| LSP, AST, or semantic index by default | Deferred | The July 2026 telemetry trial found no repeated local-code reads or symbol-navigation bottleneck; broad repository orientation and post-mutation verification were the actual weak points. | Repeated definitions, references, or diagnostics friction appears in ordinary work and a bounded trial can measure it. |
+| Persistent subagent fleet | Rejected for now | A roster and parallel writers add coordination, trust, and reconciliation cost. The autonomous `worker` tool covers one isolated implementation thread and `/consult` covers independent review. | Two or more independent threads recur and bounded delegation measurably reduces latency or protects context. |
+| Automatic parallel writers | Rejected | Shared-checkout mutation races and unclear ownership are worse than sequential work. | Every writer is isolated in a worktree with explicit ownership and parent verification. |
+| `pi-mcp-adapter` MCP proxy | Removed 2026-07-22 | See the canonical experiment record in [`decisions/tombstones.md`](decisions/tombstones.md#retired-pi-harness-experiments). The permission policy's remote-MCP default-deny stays as dormant defense. | Use the revisit trigger recorded there. |
+| `pi-web-access` | Deferred | Useful search/fetch coverage, but it combines multiple providers, automatic repository cloning, browser-cookie access, local-video upload, and several fallback egress paths in one 7 MB package. | Existing retrieval repeatedly blocks work and a constrained configuration can prove provider and data-flow boundaries. |
+| Background scheduler, routines, or durable goals inside Pi | Rejected | Process continuity, scheduled automation, and long-lived objectives are separate concerns owned by Paseo, the operating system, CI, private automation, or hosted harnesses. Cursor Automations reinforces the value of event triggers and scoped tools, not the value of embedding a scheduler in the interactive harness. | A recurring workflow cannot be expressed safely by those owners and specifically requires Pi session state. |
+| Persistent cross-session agent memory | Rejected | Durable knowledge belongs in repository documentation and temporary handoffs are explicit. An opaque memory backend would add hidden context and another private state store. | Repeated loss survives the existing documentation and handoff workflow, with a bounded retrieval design that can be inspected and deleted. |
+| Broad community package bundle | Rejected | Permanent metadata and arbitrary-code surface grow faster than proven value. | Each package independently passes the selection rules. |
+| Duplicate diff approval UI | Rejected | Git diff, precise Edit failures, tests, and review skills already provide the verification loop. | A recurring bad patch bypasses those layers and a preview gate would have caught it. |
+
+## Provider routing and privacy
+
+Connector mechanics do not decide who sees the data; the active model provider
+does. Anything a tool returns — email, calendar, meeting notes — enters the
+session context and is sent to whichever provider serves the session (OpenAI via
+the Codex subscription, OpenRouter, Google, Anthropic, or a local model).
+
+Working policy:
+
+- The [launch matrix](pi-capabilities.md#launch-modes-and-permission-guardrails)
+  separates hosted/local inference from restricted/unrestricted access. Internal
+  frontier/private provider routes remain useful; automatic prompt
+  classification and a separate control mode do not.
+- Pi, Claude Code, and Codex use one shared outer wrapper. Restricted is the
+  default. Unrestricted permits harness maintenance and has no Workbench outer
+  OS sandbox; native approvals still apply. Vendor integrations invoke the
+  shared policy rather than copy it into competing configurations.
+- Connector grants and data release remain separate from filesystem access.
+  Privileged Strava reads keep their OAuth secrets out of model context.
+  Do not promise uniform source availability across modes, providers, and
+  launchers. Apple Notes remains unavailable.
+- Repository privacy and data privacy are separate. Preserve hosted coding in
+  private repositories, but do not claim a blacklist protects confidential Git
+  history. Splitting code, private state, and recoverable history is the durable
+  correction; its private migration and backup plan belongs to the data owner.
+- Prefer fewer enforcement layers with clear responsibilities. No VM is deployed. Do not build a
+  custom VM platform. Evaluate an existing macOS virtualization tool with only
+  approved code and inputs exposed. Keep native macOS work on a separately
+  evaluated path when a Linux guest cannot run its tools.
+- The current residual risks are explicit in the capabilities page: dynamic
+  path-list enforcement, shared token custody, ingress ownership, transcript
+  history, direct launch coverage, and unrestricted network paths. A VM reduces
+  host exposure only when its mounts, network, credentials, and control API are
+  also constrained. No isolation option is undefeatable.
+
+## Research tracks
+
+### Parking lot (no active work)
+
+- **Footer tightening:** legend terseness pass and ctx-severity threshold tuning
+  once the annotations bed in.
+- **Speed-based model comparison:** record per-model tok/s and cost history from
+  the footer data to inform model choice.
+
+### Prompt navigation
+
+- **Adopted in Pi 0.84.3:** managed settings use native fullscreen. It owns the viewport and supports search, selection, links, and jumps between user-prompt markers.
+- **Accepted limit:** fullscreen does not jump to final answers or summarize work. The custom Transcript Reader decision and revisit trigger live in [`decisions/tombstones.md`](decisions/tombstones.md#retired-pi-harness-experiments).
+- **Paseo boundary:** the mobile client owns its transcript rendering; terminal navigation does not change Paseo.
+
+### Code intelligence
+
+- **Candidates:** https://github.com/samfoy/pi-lsp-extension and
+  https://github.com/narumiruna/pi-extensions/tree/main/extensions/pi-lsp
+- **July 2026 result:** the telemetry trial found no repeated local-code reads or
+  symbol-navigation bottleneck, so no code-intelligence trial is currently justified.
+- **Revisit threshold:** ordinary work repeatedly stalls on diagnostics, definitions,
+  references, or symbol discovery and a bounded trial can measure the improvement.
+- **Avoid:** installing LSP, AST search, repository maps, and semantic indexing as
+  one indivisible stack.
+
+### Hash-anchored edits
+
+- **Candidate:** https://github.com/coctostan/pi-hashline-readmap
+- **Claim worth testing:** `LINE:HASH` references may lower edit payload and detect
+  stale lines with less repeated context.
+- **Evidence gap:** repository tests validate implementation behavior, not model
+  success against exact-string Edit. No comparative benchmark was found in the
+  candidate or Oh My Pi repositories during the 2026-07-21 review.
+- **Next test:** only after ordinary work demonstrates recurring stale or exact-match
+  edit failures, compare one narrow hash-edit primitive against exact replacement.
+- **Adopt only if:** it measurably beats exact replacement. Do not begin by
+  replacing read, edit, grep, find, list, write, and Bash together.
+
+### Interactive shell, subagents, and worktrees
+
+- **First slice built 2026-07-22, made autonomous 2026-08-26, backgrounded 2026-09-11:** the `worker` tool covers one mutating worker in an isolated worktree with parent-owned review. The `dev` preset permits the model to delegate without asking, continue disjoint parent work while the child runs, inspect and adopt the result, verify it in the parent checkout, and discard the worker. Elapsed footer status and one completion notification provide observability without polling or extra model calls. `/worker` remains available for explicit use.
+- **Candidate for broader process control:** https://github.com/nicobailon/pi-interactive-shell
+  (PTY overlay, multiple background sessions, attach/dismiss) remains unadopted.
+- **Evidence to expand:** two or more independent implementation threads recur and one background worker is the measured bottleneck, rather than coordination or review capacity.
+- **Never adopt:** concurrent writers in one checkout or autonomous merge/push.
+
+### Web access
+
+- **Current path:** The native wrapper's Exa-backed `agent_browser_web_search`
+  discovers public sources, while `agent_browser read <url>` reads a known source
+  without launching Chrome. Full Agent Browser sessions are reserved for rendered
+  state, JavaScript-only content, authentication, interaction, screenshots, and
+  diagnostics. Dedicated read-only connectors own private source retrieval, and
+  `gh` remains the structured GitHub path.
+- **Efficiency rule:** start with one high-signal search and allow at most one
+  focused follow-up unless the user explicitly requests exhaustive research and
+  the initial results are insufficient. Shortlist before reading, batch independent
+  extraction, and stop when the evidence answers the request.
+- **Guardrail:** search credentials stay machine-local. Pi's permission policy
+  blocks `curl` and `wget` so a failed read cannot escalate into a shell-driven
+  download.
+- **Candidate:** https://github.com/nicobailon/pi-web-access
+- **Next test:** log recurring cases where the current path cannot discover or
+  extract sources. If a gap appears, trial search/fetch only with browser cookies,
+  local file upload, video upload, automatic cloning, and unnecessary providers
+  disabled.
+
+### Remote and phone access
+
+- **Adopted stack:** Paseo is the sole agent-aware phone surface for Pi, Claude Code, and Codex. Its daemon binds directly to the Tailscale interface with the relay disabled.
+- **Deliberate absence:** there is no phone shell, terminal multiplexer, browser terminal, or Mission Control session manager. The owner does not need terminal connectivity from the phone, and Paseo owns agent process continuity.
+- **Productivity integration:** the private Notes web surface and Paseo may both use Tailscale, but remain separate applications and trust boundaries.
+- **Build threshold:** do not build a replacement viewer until Paseo fails a concrete workflow and an existing cross-harness client cannot satisfy it. Normalizing three harness protocols remains product-sized work.
+- **Boundary:** never expose an agent directly to the public network.
+
+### Source connectors
+
+- **Resolved 2026-07-22:** the Workbench-owned read-only connector (`google-readonly.ts`) replaced the generic adapter route for Gmail and Calendar. Direct REST reaches only `googleapis.com`, with loopback OAuth, read-only scopes, and no third-party code in the token path. Gmail and Calendar follow the connector policy and access boundary in the mode matrix.
+- **Credential layout (2026-07-22):** one agent-neutral root at
+  `~/Library/Application Support/notes-app/` holds the shared Google OAuth
+  client, the connectors' read-only tokens, the labeler's modify-scope token,
+  and the Strava client/token. The root is read- and write-protected by the
+  permission policy; each consumer holds its own separately scoped grant.
+- **Strava resolved 2026-07-22:** `strava-readonly.ts` uses the free personal
+  API with a user-registered app (callback domain `localhost`) instead of the
+  MCP route, whose discovery metadata is incompatible with local proxies.
+- **Revocation:** delete the token file under the credential root and revoke the
+  grant at https://myaccount.google.com/permissions (Google) or
+  https://www.strava.com/settings/apps (Strava).
+- **Granola retired 2026-09-05:** its project-scoped `mcp-remote` route, shared
+  MCP declaration, and Codex plugin declaration were removed. The operational
+  tombstone lives in `agents/shared/mcp-servers.json`.
+
+## Community watchlist
+
+Track ideas, not feature counts:
+
+- Upstream Pi: https://github.com/earendil-works/pi
+- Oh My Pi: https://github.com/can1357/oh-my-pi
+- Armin Ronacher's extensions: https://github.com/mitsuhiko/agent-stuff
+- Pi Interactive Shell: https://github.com/nicobailon/pi-interactive-shell
+- Pi MCP Adapter: https://github.com/nicobailon/pi-mcp-adapter
+- Pi Web Access: https://github.com/nicobailon/pi-web-access
+- Native Agent Browser: https://github.com/fitchmultz/pi-agent-browser-native
+- Hashline and readmap: https://github.com/coctostan/pi-hashline-readmap
+- Modular extensions: https://github.com/narumiruna/pi-extensions
+- Monopi: https://github.com/ifiokjr/monopi
+- Curated ecosystem index: https://github.com/BubblePtr/awesome-pi
+- Gondolin sandbox: https://github.com/earendil-works/gondolin
+
+Review quarterly or when a local problem names a capability. Do not browse this
+list merely to find something to install.
+
+## Changing a decision
+
+When evidence changes:
+
+1. State the observed problem and baseline.
+2. Name the smallest candidate and its trust boundary.
+3. Define success, removal, and review date before installation.
+4. Pin and test the candidate.
+5. Update this record, capabilities, experiment state, and tombstones in the same
+   change so no surface preserves the old decision.
+6. Remove failed experiments completely. A rejected capability can be reconsidered;
+   it should not linger half-installed.

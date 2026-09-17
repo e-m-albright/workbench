@@ -1,0 +1,14 @@
+{
+  "$comment": "Reviewed third-party skill archives. Pins are immutable; update the version, URL, and checksum together after review.",
+  "skills": [
+    {
+      "name": "archify",
+      "version": "2.16.0",
+      "description": "Create validated system diagrams as standalone interactive HTML. Use for architecture maps, workflows, API sequences, data lineage, state machines, or polished Mermaid conversions.",
+      "url": "https://github.com/tt-a1i/archify/releases/download/v2.16.0/archify.zip",
+      "sha256": "4c59fa6557a2385beaaef8c7219cc414573acc9f0c30a932d5053b0b20689a46",
+      "archive_root": "archify",
+      "source_repo": "https://github.com/tt-a1i/archify"
+    }
+  ]
+}

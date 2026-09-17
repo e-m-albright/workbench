@@ -1,0 +1,151 @@
+# Browser Tooling for AI Agents
+
+> **Last reviewed**: 2026-09-08 - clarified that dedicated search and direct URL reads precede full browser use for public research; retained the local Agent Browser plus Playwright stack for rendered pages and interaction.
+
+A tiered system for web retrieval, inspection, testing, and debugging from an AI agent. Pick the cheapest tier that does the job. **Use dedicated search for discovery, direct URL reads for known sources, Playwright for deterministic code, and Agent Browser for rendered-page exploration and supervised interaction.** No browser MCP servers are loaded.
+
+The tools sit at different layers: Playwright is the automation framework for known workflows, production jobs, and regression tests; Agent Browser is the agent-native control CLI for unfamiliar pages and interactive diagnosis. Both ultimately control Chrome over CDP.
+
+---
+
+## The tiers
+
+| Tier | Tool | Job | Cost shape |
+|------|------|-----|-----------|
+| **0** | Dedicated web search and direct URL reader | Discover and read public sources without launching Chrome | one search, a bounded source shortlist, then direct reads |
+| **1** | Playwright tests and helpers | Regression net, stable portal workflow, deterministic scrape | implementation cost, then no model navigation cost |
+| **2** | `agent-browser` CLI | Rendered-page inspection, interaction, and diagnostics | ~200–400 tokens / page · no MCP tax |
+| **5** | Stagehand (per-project) | Long agentic flows, selector-resilient | LLM tokens / run |
+| ~~3a~~ | ~~Playwright MCP~~ | dropped — agent-browser covers it | was ~13.7k always-on |
+| ~~4~~ | ~~Chrome DevTools MCP~~ | dropped — launch ad-hoc if ever needed | was ~18k always-on |
+
+---
+
+## Tier 0 — Search and direct reading
+
+For current public information, start with the harness's dedicated web-search tool. In Pi, `agent_browser_web_search` uses the configured Exa provider; it is a separate companion tool and does not launch Chrome. Start with one high-signal query and allow at most one focused follow-up unless exhaustive research was explicitly requested and the first results are insufficient.
+
+Once a source URL is known, read it directly. In Pi, `agent_browser read <url>` returns readable text without launching Chrome. Shortlist sources before opening them, batch independent extraction where supported, and stop when the available evidence answers the request. Escalate to Tier 2 only for rendered state, JavaScript-only content, authentication, interaction, screenshots, or browser diagnostics.
+
+## Tier 1 — Playwright tests in CI
+
+**Goal**: Catch regressions automatically, forever, free per run.
+
+```bash
+# Inside the project
+deno x -A npm:playwright install chromium
+deno x -A npm:playwright test
+```
+
+**WebRTC / Daily.co setup** — Daily's "headless robot" pattern uses Chromium launch flags:
+
+```typescript
+// playwright.config.ts
+use: {
+  launchOptions: {
+    args: [
+      '--use-fake-ui-for-media-stream',       // skip permission prompt
+      '--use-fake-device-for-media-stream',   // test-pattern video
+      '--use-file-for-fake-audio-capture=fixtures/audio.wav',
+      '--use-file-for-fake-video-capture=fixtures/video.y4m',
+    ],
+  },
+}
+```
+
+**When to write Tier 1 automation**: after root-causing a bug, or when a repeated portal workflow has known routes, selectors, validation rules, and approval boundaries. Use a test for regression coverage and a small headed helper for supervised authenticated workflows.
+
+---
+
+## Tier 2 — Token-cheap CLIs
+
+### agent-browser
+
+```bash
+# Already installed globally via dotfiles (macos/brew.sh)
+agent-browser open https://example.com
+agent-browser inspect "button:has-text('Submit')"
+agent-browser screenshot --output /tmp/page.png
+```
+
+**Best for**: "Did the deploy land? What does this study look like? Smoke-check this page."
+
+### Removed: PinchTab
+
+The local control-server experiment was removed on 2026-07-30. Its proposed job - persistent, visible, authenticated agent browsing - is now covered by Agent Browser profiles, headed sessions, streaming, and the native Pi wrapper. The always-on HTTP control plane added attack surface and operational state without a demonstrated workflow advantage. Reconsider only if multiple independent clients need to share and orchestrate one durable local browser service.
+
+---
+
+## Dropped: browser MCP servers (2026-06-09)
+
+Playwright MCP and Chrome DevTools MCP were removed from `agents/shared/mcp-servers.json`. An MCP server taxes every session's context with its tool schemas whether or not browsing occurs; Agent Browser plus Pi's native wrapper provides the interactive agent-facing control surface on demand.
+
+If you ever need DevTools-style perf/network/console forensics, launch it **ad-hoc** for that one session and drop it after — don't make it standing:
+
+```bash
+npx chrome-devtools-mcp@latest         # one-off, not in the managed config
+```
+
+Note: Playwright-the-*framework* (Tier 1 tests) is a different layer than Playwright-*MCP* (agent control). We keep the framework, drop the MCP.
+
+---
+
+## Tier 5 — Stagehand (per-project)
+
+```bash
+# Inside the project
+npm install @browserbasehq/stagehand
+```
+
+```typescript
+import { Stagehand } from '@browserbasehq/stagehand';
+
+const stagehand = new Stagehand({ env: 'LOCAL' });
+await stagehand.init();
+await stagehand.page.goto('https://example.com');
+await stagehand.page.act('click the submit button');
+const data = await stagehand.page.extract({ instruction: 'get the order total' });
+```
+
+**Reach for it when**: A test flow spans many screens where the UI redesigns frequently and selector-based tests rot faster than they catch bugs.
+
+**Skip it when**: Selector-based Playwright tests are still working — Stagehand costs LLM tokens per run.
+
+---
+
+## Production browser criteria
+
+Cloudflare Browser Run packages several capabilities that matter when browser automation becomes a maintained service: live inspection, human takeover and handback, direct Chrome DevTools Protocol access, session recordings, console and network evidence, and resumable sessions. These are useful requirements, not a present adoption case. The local stack already provides supervised browser visibility and diagnostics without another hosted control plane.
+
+WebMCP is an experimental browser interface through which a page declares semantic actions to an agent. It could be more stable and token-efficient than reconstructing intent from the Document Object Model. Keep it on watch until browser support, tool provenance, user consent, and authorization semantics mature. A site-advertised action is untrusted content, and an authenticated browser session must not silently lend all of its authority to that action.
+
+Adopt a hosted browser only when a recurring workload needs cross-machine availability, high concurrency, durable recordings, or human takeover that the local stack cannot supply. Respect robots controls and stop on anti-bot or CAPTCHA gates rather than treating infrastructure as a bypass.
+
+## Common workflow
+
+1. User reports a UI bug.
+2. **Tier 2** (`agent-browser`): inspect and reproduce from a quick page snapshot or supervised headed session.
+3. **Ad-hoc** (`chrome-devtools-mcp` for one session): only if a performance problem needs diagnostics Agent Browser cannot provide.
+4. **Tier 1** (Playwright): write a regression test, deterministic reader, or headed portal helper once the flow is known.
+
+For greenfield long flows, consider **Tier 5** (Stagehand) instead of Tier 1 if the UI is volatile.
+
+---
+
+## What we skip and why
+
+- **Claude in Chrome / browser extensions**: can't run headless, can't run in CI.
+- **Browserbase cloud (Stagehand managed)**: optional. Only if we hit captcha/anti-bot or need cross-machine session replay. Local Stagehand covers most needs free.
+- **Browser-use** (the SDK): overlaps with Stagehand. Pick one.
+
+---
+
+## Sources
+
+- *Playwright vs. Chrome DevTools MCP: Driving vs. Debugging* — covers the cost/specialty split
+- *I Tested Every Browser Automation Tool for Claude Code* — token benchmarks
+- *Daily.co: How to make a headless robot to test WebRTC* — fake-device flags
+- *Stagehand* — Browserbase, https://github.com/browserbase/stagehand
+- *agent-browser* — Vercel Labs, https://agent-browser.dev
+- Cloudflare, [Browser Run: give your agents a browser](https://blog.cloudflare.com/browser-run-for-ai-agents/), 2026-04-15
+- Cloudflare, [Give any website a WebMCP interface](https://blog.cloudflare.com/webmcp/), 2026-08-06

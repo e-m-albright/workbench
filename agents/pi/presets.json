@@ -1,0 +1,25 @@
+{
+  "dev": {
+    "thinkingLevel": "medium",
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "bash",
+      "edit",
+      "write",
+      "workspace_files",
+      "ingress_discard",
+      "worker",
+      "gmail_search_threads",
+      "gmail_get_thread",
+      "calendar_list_calendars",
+      "calendar_list_events",
+      "strava_list_activities",
+      "strava_get_activity",
+      "strava_athlete_stats"
+    ],
+    "instructions": "You are in DEV MODE. Make focused code changes when asked. The permission policy still blocks protected paths, unauthorized control-plane writes, destructive operations, and private connectors on frontier models. Use narrow read-only commands for inspection and verification. Autonomously call the worker tool for one substantial independent implementation task when isolated parallel work would materially help; no user approval is required. Do not delegate small tasks, coupled changes, or multiple concurrent writers. Review and adopt useful worker changes in the parent checkout, verify them there, then discard the worker."
+  }
+}

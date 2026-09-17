@@ -1,0 +1,74 @@
+---
+name: planning
+description: Pressure-test ideas, define scope and non-goals, and write implementation plans. Use for brainstorming, "should we build this", "grill me", architecture tradeoffs, or planning a multi-step change.
+metadata:
+  source: Promoted from the retired .ai/rules/process/planning.mdc; this skill is now the canonical home for that content.
+---
+
+# Planning & Scope
+
+Apply these criteria during brainstorming, planning, and spec review — before writing code. By the time you're reviewing a PR, you've already committed to building the thing. These questions prevent building the wrong thing.
+
+## Choose the mode
+
+- **Pressure-test an idea:** read [ideation.md](references/ideation.md), then surface the strongest alternative and the load-bearing uncertainty.
+- **Scope a decision:** use the criteria in this file.
+- **Write an implementation plan:** read [writing-plans.md](references/writing-plans.md) after the scope is settled.
+- **Synthesize a plan from the conversation:** if the discussion already contains the decisions, skip the interview and go straight to [writing-plans.md](references/writing-plans.md) — re-grilling settled points wastes the user's time.
+- **Grill the user about a plan** ("grill me", "stress-test this design", "interview me about X"): read [grill-with-docs.md](references/grill-with-docs.md).
+- **Carry the plan's discipline into implementation:** read [execution-discipline.md](references/execution-discipline.md).
+
+## When to Use
+
+- Deciding whether something is worth building, and if so, what the smallest valuable version is.
+- Scoping a task: defining "done", non-goals, increments, blast radius, rollback.
+- Choosing between approaches on effort / reversibility / complexity / maintenance grounds.
+
+Use the linked mode instead of loading every reference. Scope first; write a plan only after the consequential choices are settled.
+
+## Should We Build This?
+
+- Does this solve the user's real problem, or just the stated requirement? (ask why, not just what)
+- Is this already available as a library, service, or built-in feature?
+- What's the effort/impact ratio? (a 2-day feature 80% of users need vs. a 2-week feature for 5%)
+- Will this compound? (platform features that enable future work > one-off solutions)
+- Are we building optionality or lock-in? (prefer reversible decisions)
+
+## Scope Check
+
+- Is "done" clearly defined? (observable criteria, not open-ended exploration)
+- What's the smallest version that delivers value? (the MVP of the feature, not the roadmap)
+- What are we explicitly NOT building? (non-goals prevent scope creep)
+- Can this be decomposed into shippable increments? (no 3-week branches with one big merge)
+- Is this a one-way door or a two-way door? (one-way doors deserve more scrutiny — database schemas, public APIs, data deletion)
+
+## Dependencies & Risk
+
+- What are the blockers? (another team, a migration, an API change, a decision not yet made)
+- What's the blast radius if this breaks? (how many users/systems affected?)
+- What's the rollback plan? (feature flag, migration rollback, revert commit, or "hope"?)
+- Are there deadlines, freezes, or releases this interacts with?
+- Does this require coordinated deployment? (multiple services, database + code, config + code)
+
+## Approach Selection
+
+When choosing between approaches, evaluate:
+
+- **Effort**: How long for a human? How long with AI assistance? (be honest about both)
+- **Reversibility**: Can we change our minds later? At what cost?
+- **Complexity budget**: Does this use up complexity budget on the right thing? (complexity in domain logic is justified; complexity in infrastructure is usually not)
+- **Maintenance burden**: Who maintains this in 6 months? Is it obvious or does it require tribal knowledge?
+- **Failure modes**: What happens when this goes wrong? Is the failure loud or silent?
+
+When presenting options, include effort estimates for each and a clear recommendation with rationale. Don't present options without a recommendation — that's delegation, not advice.
+
+## Red Flags
+
+Stop and reconsider if you notice:
+- The plan has no non-goals (scope will creep)
+- "We'll figure that out later" on a load-bearing decision
+- The approach requires everything to go right (no error paths planned)
+- It's easier to describe what the code does than what problem it solves
+- The estimate doesn't include testing, migration, or deployment time
+
+_Promoted from `.ai/rules/process/planning.mdc` (was an always-on rule; now an on-demand skill)._

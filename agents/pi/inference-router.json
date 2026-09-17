@@ -1,0 +1,11 @@
+{
+  "defaultMode": "frontier",
+  "frontier": {
+    "provider": "openai-codex",
+    "model": "gpt-5.6-sol"
+  },
+  "private": {
+    "provider": "omlx",
+    "model": "Qwen3.6-35B-A3B-oQ4e-mtp"
+  }
+}

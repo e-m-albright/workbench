@@ -1,0 +1,76 @@
+# Deepen
+
+> **Canon** — enacts Principle 5 (*Simplicity is the goal — small files are a proxy*): deep modules over shallow. See [health/README.md](../../../../health/README.md).
+
+Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability, found by *judgment*, not measured by a gate.
+
+This is the **taste pole** of the code-health portfolio: it ideates freely on improvements that are about design feel — depth, naming, the right seam — and that no metric can see. Safety is verified by tests; "better" here is gated by your judgment and the user's, and recorded as an ADR when the decision needs durable context — not by a number.
+
+## Glossary
+
+Use these terms consistently in every suggestion. Do not drift casually between "component," "service," "API," and "boundary" when a more precise term below applies.
+
+- **Module** — anything with an interface and an implementation (function, class, package, slice).
+- **Interface** — everything a caller must know to use the module: types, invariants, error modes, ordering, config. Not just the type signature.
+- **Implementation** — the code inside.
+- **Depth** — leverage at the interface: a lot of behaviour behind a small interface. **Deep** = high leverage. **Shallow** = interface nearly as complex as the implementation.
+- **Seam** — where an interface lives; a place behaviour can be altered without editing in place. (Use this, not "boundary.")
+- **Adapter** — a concrete thing satisfying an interface at a seam.
+- **Leverage** — what callers get from depth.
+- **Locality** — what maintainers get from depth: change, bugs, knowledge concentrated in one place.
+
+Key principles:
+
+- **Deletion test**: imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.
+- **The interface is the test surface.**
+- **One adapter = hypothetical seam. Two adapters = real seam.**
+
+This skill is _informed_ by the project's domain model. The domain language gives names to good seams; ADRs record decisions the skill should not re-litigate. In a repository-wide minimum-surface mandate, use the [contraction cycle](contraction.md): prune first, then use this lens only where a deeper seam reduces what callers must know.
+
+## Process
+
+### 1. Explore
+
+Read the project's domain glossary and any ADRs in the area you're touching first. The glossary may be a standalone `DOMAIN.md`/`DOMAIN-MAP.md`, or — for a small domain — a `## Domain Language` section inside `AGENTS.md`. Check both. (When you add a term and the inline section outgrows ~30 lines or a second bounded context appears, graduate it to a standalone `DOMAIN.md` and leave a pointer in `AGENTS.md`.)
+
+For a large scope, delegate a bounded read-only exploration when the active harness supports it; otherwise walk the codebase directly. Don't follow rigid heuristics — explore organically and note where you experience friction:
+
+- Where does understanding one concept require bouncing between many small modules?
+- Where are modules **shallow** — interface nearly as complex as the implementation?
+- Where have pure functions been extracted just for testability, but the real bugs hide in how they're called (no **locality**)?
+- Where do tightly-coupled modules leak across their seams?
+- Where is one contract or canonical state copied into multiple maintained representations?
+- Where does a miscellaneous facade merely collect unrelated behavior already owned elsewhere?
+- Which parts of the codebase are untested, or hard to test through their current interface?
+
+Apply the **deletion test** to anything you suspect is shallow: would deleting it concentrate complexity, or just move it? A "yes, concentrates" is the signal you want.
+
+### 2. Present candidates
+
+Present a numbered list of deepening opportunities. For each candidate:
+
+- **Files** — which files/modules are involved
+- **Problem** — why the current architecture is causing friction
+- **Solution** — plain English description of what would change
+- **Benefits** — explained in terms of locality and leverage, how tests would improve, and which maintained interfaces or representations disappear
+- **Contraction proof** — whether lines truly vanish, temporarily rise for a smaller interface, or merely move elsewhere
+
+**Use DOMAIN.md vocabulary for the domain and this skill's glossary for the architecture.** If `DOMAIN.md` defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
+
+**ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly (e.g. _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+
+Do NOT propose interfaces yet. Ask the user: "Which of these would you like to explore?"
+
+### 3. Grilling loop
+
+Once the user picks a candidate, drop into a grilling conversation. Walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+
+Side effects happen inline as decisions crystallize:
+
+- **Naming a deepened module after a concept not in `DOMAIN.md`?** Add the term using the [domain glossary format](../../planning/references/domain-format.md). Create the file lazily if it doesn't exist.
+- **Sharpening a fuzzy term during the conversation?** Update `DOMAIN.md` right there.
+- **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing — skip ephemeral reasons ("not worth it right now") and self-evident ones. See the [ADR format](../../planning/references/adr-format.md). This ADR is also how the *taste* decision becomes durable — it stops the measured engine (or a future pass) re-proposing what you deliberately rejected.
+- **Want to explore alternative interfaces for the deepened module?** Compare the smallest caller contract that preserves invariants, error modes, and testability; prototype competing shapes before committing when the choice is consequential.
+
+## Sources
+- Adapted from [mattpocock/skills/engineering/improve-codebase-architecture](https://github.com/mattpocock/skills/blob/733d312/skills/engineering/improve-codebase-architecture/SKILL.md) (ported 2026-05-07, MIT). This remains the conversational architecture lens in the code-health portfolio.

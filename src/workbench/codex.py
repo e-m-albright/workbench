@@ -1,0 +1,155 @@
+"""Codex-native rendering and merging for configuration and command rules."""
+
+from __future__ import annotations
+
+import json
+import re
+import tomllib
+from collections.abc import Mapping
+
+from workbench.core import AGENTS, CODEX_APPENDIX, WorkbenchError
+from workbench.mcp import merge_mcp
+
+
+def expected_codex_rules_md() -> str:
+    """Canonical ~/.codex/AGENTS.md content, shared by sync and drift."""
+    return (AGENTS / "shared/rules.md").read_text().rstrip() + CODEX_APPENDIX
+
+
+def _toml_value(value: object) -> str:
+    if isinstance(value, bool):
+        return str(value).lower()
+    if isinstance(value, str):
+        return json.dumps(value)
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(_toml_value(item) for item in value) + "]"
+    if isinstance(value, dict):
+        return (
+            "{"
+            + ", ".join(f"{json.dumps(str(k))} = {_toml_value(v)}" for k, v in value.items())
+            + "}"
+        )
+    raise WorkbenchError(f"unsupported TOML value type: {type(value).__name__}")
+
+
+def _render_mcp(servers: Mapping[str, object]) -> str:
+    lines: list[str] = []
+    for name, raw in sorted(servers.items()):
+        lines.append(f"[mcp_servers.{name}]")
+        if isinstance(raw, dict):
+            lines.extend(f"{key} = {_toml_value(value)}" for key, value in raw.items())
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _drop_tables(text: str, prefixes: tuple[str, ...]) -> str:
+    # Ceiling: line-based, not TOML-aware. A multi-line string whose body
+    # contains a line that looks like a table header will be mis-parsed;
+    # the round-trip tomllib guard in merge_codex_config catches the
+    # corruption and aborts instead of writing it. Upgrade path: rewrite on
+    # top of a real TOML parser/emitter (e.g. tomlkit) that preserves
+    # comments and formatting.
+    result: list[str] = []
+    dropping = False
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith("["):
+            dropping = any(stripped.startswith(prefix) for prefix in prefixes)
+        if not dropping:
+            result.append(line)
+    return "".join(result).rstrip()
+
+
+def merge_codex_config(text: str) -> str:
+    try:
+        parsed = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as exc:
+        raise WorkbenchError(f"invalid Codex TOML: {exc}") from exc
+
+    existing = parsed.get("mcp_servers", {})
+    if not isinstance(existing, dict):
+        existing = {}
+    servers = merge_mcp(existing, "codex")
+    cleaned = _drop_tables(text, ("[mcp_servers", "[tui"))
+    status = tomllib.loads((AGENTS / "codex/statusline.toml").read_text())
+    existing_tui = parsed.get("tui", {})
+    if not isinstance(existing_tui, dict):
+        existing_tui = {}
+    tui_values = {**existing_tui, **status}
+    tui = "[tui]\n" + "\n".join(
+        f"{key} = {_toml_value(value)}" for key, value in tui_values.items()
+    )
+    fallback = 'project_doc_fallback_filenames = ["CODEX.md"]'
+    if "project_doc_fallback_filenames" not in parsed:
+        cleaned = f"{fallback}\n\n{cleaned}" if cleaned else fallback
+    # Ordinary launches have managed defaults; explicit named/CLI choices remain separate.
+    replacements = {}
+    if "sandbox_mode" not in parsed or parsed["sandbox_mode"] == "danger-full-access":
+        replacements["sandbox_mode"] = "workspace-write"
+    if "approval_policy" not in parsed or (
+        parsed["approval_policy"] == "never" and parsed.get("sandbox_mode") == "danger-full-access"
+    ):
+        replacements["approval_policy"] = "on-request"
+    # Line-oriented like _drop_tables; the semantic comparison below fails closed
+    # if a multiline string happens to look like a root assignment.
+    lines = []
+    in_root = True
+    for line in cleaned.splitlines():
+        if line.lstrip().startswith("["):
+            in_root = False
+        if in_root and any(
+            re.match(rf"^\s*(?:{key}|\"{key}\"|'{key}')\s*=", line) for key in replacements
+        ):
+            continue
+        lines.append(line)
+    cleaned = "\n".join(lines).rstrip()
+    defaults = [f'{key} = "{value}"' for key, value in replacements.items()]
+    if defaults:
+        cleaned = "\n".join(defaults) + (f"\n\n{cleaned}" if cleaned else "")
+    blocks = [part for part in (cleaned, _render_mcp(servers).rstrip(), tui) if part]
+    merged = "\n\n".join(blocks) + "\n"
+    try:
+        reparsed = tomllib.loads(merged)
+    except tomllib.TOMLDecodeError as exc:
+        raise WorkbenchError(f"generated invalid Codex TOML: {exc}") from exc
+    managed = {"mcp_servers", "tui", "sandbox_mode", "approval_policy"}
+    if any(reparsed.get(key) != value for key, value in parsed.items() if key not in managed):
+        raise WorkbenchError(
+            "Codex merge would change unrelated configuration; manual review required"
+        )
+    return merged
+
+
+def merge_codex_rules(canonical: str, live: str) -> str:
+    """Preserve local approvals without retaining known policy bypasses.
+
+    Codex appends interactively approved rules wherever the cursor lands, so
+    unknown prefix_rule lines are harvested from the whole live file — not
+    just the locally-approved section — deduped against the canonical rules,
+    and re-homed under the marker.
+    """
+    canonical_lines = set(canonical.splitlines())
+    marker = "# --- Locally approved additions ---"
+    unsafe_fragments = (
+        '"--no-verify"',
+        '["git", "reset", "--hard"]',
+        '["git", "push", "--force"]',
+        '["git", "push", "-f"]',
+        '["rm", "-rf"]',
+        '["rm", "-fr"]',
+    )
+    additions: list[str] = []
+    for line in live.splitlines():
+        if (
+            line.startswith("prefix_rule(")
+            and line not in canonical_lines
+            and line not in additions
+            and not any(fragment in line for fragment in unsafe_fragments)
+        ):
+            additions.append(line)
+    result = canonical.rstrip()
+    if additions:
+        result += f"\n\n{marker}\n" + "\n".join(additions)
+    return result + "\n"

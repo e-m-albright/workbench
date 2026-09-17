@@ -1,0 +1,28 @@
+{
+  "providers": {
+    "omlx": {
+      "baseUrl": "http://localhost:8000/v1",
+      "api": "openai-completions",
+      "apiKey": "omlx",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsStrictMode": true
+      },
+      "models": [
+        {
+          "id": "Qwen3.6-35B-A3B-oQ4e-mtp",
+          "name": "Qwen 3.6 35B-A3B optimized MLX 4-bit + MTP (private agent, ~51-80 tok/s)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 262144,
+          "maxTokens": 32768,
+          "compat": {
+            "thinkingFormat": "qwen-chat-template"
+          },
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    }
+  }
+}

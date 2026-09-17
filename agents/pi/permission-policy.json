@@ -1,0 +1,285 @@
+{
+  "$comment": "Best-effort tool friction backed by launcher-level macOS Seatbelt profiles. Frontier models may develop code across ~/code, but private data, credentials, ingress writes, and control-plane writes remain bounded.",
+  "defaultAction": "allow",
+  "blockedTools": [],
+  "privateProviders": ["omlx"],
+  "privateOnlyTools": [
+    "gmail_search_threads",
+    "gmail_get_thread",
+    "gmail_create_draft",
+    "gmail_create_reply_draft",
+    "calendar_list_calendars",
+    "calendar_list_events",
+    "strava_list_activities",
+    "strava_get_activity",
+    "strava_athlete_stats",
+    "contacts_candidates",
+    "apple_contacts_search",
+    "contacts_preview",
+    "contacts_sync"
+  ],
+  "privateBrowserDomains": [
+    "mail.google.com",
+    "drive.google.com",
+    "docs.google.com",
+    "calendar.google.com",
+    "contacts.google.com",
+    "github.com",
+    "icloud.com"
+  ],
+  "mcpAllowedTools": [],
+  "denyCommands": [
+    {
+      "name": "Contacts access",
+      "privateOnly": true,
+      "patterns": [
+        "\\bapple-contacts\\b",
+        "\\b(?:bin/)?notes\\s+contacts\\b"
+      ]
+    },
+    {
+      "name": "privileged shell",
+      "patterns": ["\\bsudo\\b", "\\bsu\\b"]
+    },
+    {
+      "name": "destructive filesystem command",
+      "patterns": [
+        "(?:^|[;&|()\\s])rm(?:\\s|$)",
+        "\\bchmod\\b",
+        "\\bchown\\b",
+        "\\bdd\\b",
+        "\\bmkfs(?:\\.|\\s|$)"
+      ]
+    },
+    {
+      "name": "filesystem mutation command",
+      "patterns": [
+        "(?:^|[;&|()\\s])cp(?:\\s|$)",
+        "(?:^|[;&|()\\s])mv(?:\\s|$)",
+        "(?:^|[;&|()\\s])ln(?:\\s|$)",
+        "(?:^|[;&|()\\s])mkdir(?:\\s|$)",
+        "(?:^|[;&|()\\s])rmdir(?:\\s|$)",
+        "(?:^|[;&|()\\s])touch(?:\\s|$)",
+        "(?:^|[;&|()\\s])tee(?:\\s|$)"
+      ]
+    },
+    {
+      "name": "nested agent invocation",
+      "$comment": "A model may not spawn another cloud or local agent to bypass the active provider or authority boundary.",
+      "patterns": [
+        "(?:^|[;&|()])\\s*(?:(?:env|command|exec)\\s+)*(?:[^\\s;&|()]+/)?(?:pi|pih|pihr|pihu|pil|pilr|pilu|pihc|piho|pilo|pif|piv|pia|pisu|cc|ccu|co|cou|claude|codex)(?:\\s|$)",
+        "scheduled-agent\\.py\\s+run\\b"
+      ]
+    },
+    {
+      "name": "Apple application scripting",
+      "$comment": "Apple Notes is intentionally unavailable to coding agents, including shell automation bypasses.",
+      "patterns": [
+        "\\bosascript\\b",
+        "\\bshortcuts\\s+run\\b",
+        "\\bopen\\s+(?:-[aAbB]\\s+)?(?:Notes|com\\.apple\\.Notes)\\b"
+      ]
+    },
+    {
+      "name": "Gmail access",
+      "$comment": "Gmail access is available only when the active model provider is the machine-local oMLX service.",
+      "privateOnly": true,
+      "patterns": [
+        "\\b(?:bin/)?notes\\s+gmail\\b",
+        "\\b(?:bin/)?notes\\s+observe\\s+communications\\b"
+      ]
+    },
+    {
+      "name": "Notes private data access",
+      "$comment": "Graph-backed Notes commands can expose private vault state and therefore require the local provider.",
+      "privateOnly": true,
+      "patterns": ["\\b(?:bin/)?notes\\s+(?:run\\s+track|query|actions|today|next|search|write)\\b"]
+    },
+    {
+      "name": "shell network retrieval, upload, or remote script execution",
+      "patterns": ["\\bcurl\\b", "\\bwget\\b"]
+    },
+    {
+      "name": "shell file redirection",
+      "$comment": "Dedicated file tools keep writes bounded and reviewable. Discarding stdout to /dev/null remains allowed.",
+      "patterns": ["(?:^|[;&|()\\s])(?:[12]?>>?|&>)(?![=])\\s*(?!/dev/null(?:\\s|$|[;&|)]))\\S+"]
+    },
+    {
+      "name": "inline interpreter escape hatch",
+      "patterns": [
+        "\\b(python|python3|node|ruby|perl|bash|sh)\\s+-(c|e)\\b",
+        "\\b(python|python3|node|ruby|perl|bash|sh)\\b[^|;&]*(?:--eval\\b|--exec\\b|<<)",
+        "\\beval\\b"
+      ]
+    },
+    {
+      "name": "process control",
+      "patterns": ["\\bkill\\b", "\\bkillall\\b", "\\bpkill\\b", "\\blaunchctl\\b"]
+    },
+    {
+      "name": "destructive or history-changing git",
+      "patterns": [
+        "\\bgit\\s+branch\\s+-[dD]\\b",
+        "\\bgit\\s+checkout\\b",
+        "\\bgit\\s+cherry-pick\\b",
+        "\\bgit\\s+clean\\b",
+        "\\bgit\\s+merge\\b",
+        "\\bgit\\s+pull\\b",
+        "\\bgit\\s+push\\s+.*--force(-with-lease)?\\b",
+        "\\bgit\\s+rebase\\b",
+        "\\bgit\\s+reset\\b",
+        "\\bgit\\s+restore\\b",
+        "\\bgit\\s+stash\\s+(drop|clear)\\b",
+        "\\bgit\\s+switch\\b",
+        "\\bgit\\s+tag\\b",
+        "\\bgit\\s+worktree\\b"
+      ]
+    },
+    {
+      "name": "mutating GitHub CLI command",
+      "patterns": [
+        "\\bgh\\s+api\\b.*(?:--method\\s+(?:POST|PUT|PATCH|DELETE)\\b|-X\\s*(?:POST|PUT|PATCH|DELETE)\\b|--input\\b|--field\\b|--raw-field\\b|-[fF]\\s*)",
+        "\\bgh\\s+auth\\b",
+        "\\bgh\\s+gist\\s+(create|edit)\\b",
+        "\\bgh\\s+issue\\s+(close|comment|create|edit)\\b",
+        "\\bgh\\s+pr\\s+(close|comment|create|edit|merge|ready|review)\\b",
+        "\\bgh\\s+release\\s+create\\b",
+        "\\bgh\\s+repo\\s+(clone|fork)\\b",
+        "\\bgh\\s+run\\s+rerun\\b",
+        "\\bgh\\s+workflow\\s+run\\b"
+      ]
+    },
+    {
+      "name": "dependency installation or removal",
+      "patterns": [
+        "\\bbrew\\s+(install|uninstall|upgrade)\\b",
+        "\\bnpm\\s+(ci|install|uninstall|update)\\b",
+        "\\bnpx\\b",
+        "\\bpnpm\\s+(add|install|remove)\\b",
+        "\\bbun\\s+(add|install|remove)\\b",
+        "\\byarn\\s+(add|install|remove)\\b",
+        "\\bpip\\s+(install|uninstall)\\b",
+        "\\bpipx\\b",
+        "\\buv\\s+(add|pip|python|remove|sync|tool|venv)\\b",
+        "\\bgo\\s+(get|install)\\b",
+        "\\bcargo\\s+(install|publish)\\b"
+      ]
+    },
+    {
+      "name": "database migration",
+      "patterns": [
+        "\\balembic\\s+(upgrade|downgrade)\\b",
+        "\\bdrizzle-kit\\s+(push|migrate)\\b",
+        "\\bgoose\\s+(up|down)\\b",
+        "\\batlas\\s+migrate\\b"
+      ]
+    },
+    {
+      "name": "container or deploy mutation",
+      "patterns": [
+        "\\bdocker\\s+compose\\s+(down|up)\\b",
+        "\\bdocker-compose\\s+(down|up)\\b",
+        "\\bdocker\\s+run\\b",
+        "\\bdocker\\s+volume\\b",
+        "\\bdocker\\s+system\\s+prune\\b",
+        "\\bdocker\\s+image\\s+prune\\b",
+        "\\bwrangler\\s+(deploy|delete)\\b"
+      ]
+    }
+  ],
+  "protectedReadPaths": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/secrets/**",
+    "~/.ssh/**",
+    "~/.gnupg/**",
+    "~/.aws/**",
+    "~/.config/gh/hosts.yml",
+    "~/.config/dotfiles/**",
+    "~/.pi/agent/auth.json",
+    "~/Library/Application Support/notes-app/google/**",
+    "~/Library/Application Support/notes-app/gmail/**",
+    "~/Library/Application Support/notes-app/strava/**",
+    "~/Library/Application Support/notes-app/browser-profiles/**",
+    "~/Library/Group Containers/group.com.apple.notes/**",
+    "~/Library/Containers/com.apple.Notes/**",
+    "~/.claude.json",
+    "~/Library/Application Support/Claude/claude_desktop_config.json",
+    "~/.claude/.credentials.json",
+    "~/.codex/auth.json",
+    "~/Library/Keychains/**"
+  ],
+  "protectedWritePaths": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/secrets/**",
+    "~/.ssh/**",
+    "~/.gnupg/**",
+    "~/.aws/**",
+    "~/.config/gh/hosts.yml",
+    "~/.config/dotfiles/**",
+    "~/Library/Application Support/notes-app/google/**",
+    "~/Library/Application Support/notes-app/gmail/**",
+    "~/Library/Application Support/notes-app/strava/**",
+    "~/Library/Application Support/notes-app/browser-profiles/**",
+    "~/Library/Group Containers/group.com.apple.notes/**",
+    "~/Library/Containers/com.apple.Notes/**",
+    "~/.claude.json",
+    "~/Library/Application Support/Claude/claude_desktop_config.json",
+    "~/.claude/.credentials.json",
+    "~/.codex/auth.json",
+    "~/Library/Keychains/**",
+    "~/code/ingress/**",
+    ".git/**",
+    "node_modules/**"
+  ],
+  "controlWritePaths": [
+    "~/.local/share/workbench/**",
+    "~/.agents/**",
+    "~/.zshrc",
+    "~/.zshrc.local",
+    "~/.npm-global/**",
+    "~/.pi/agent/AGENTS.md",
+    "~/.pi/agent/extensions/**",
+    "~/.pi/agent/settings.json",
+    "~/.pi/agent/models.json",
+    "~/.pi/agent/presets.json",
+    "~/.pi/agent/inference-router.json",
+    "~/.pi/agent/permission-policy.json",
+    "~/.config/workbench/private-paths",
+    "~/code/public/workbench/**",
+    "~/code/public/dotfiles/**"
+  ],
+  "privateReadPaths": [
+    "~/Library/CloudStorage/**",
+    "~/Library/Application Support/notes-app/**",
+    "~/Documents/**",
+    "~/Desktop/**",
+    "~/Downloads/**",
+    "~/Pictures/**",
+    "~/code/private/*/vault/**",
+    "~/code/private/*/.ai/state/**",
+    "~/code/private/*/.artifacts/**",
+    "~/code/private/*/.attachments/**",
+    "~/code/private/*/artifacts/**",
+    "~/code/private/*/.tmp/**"
+  ],
+  "privateWritePaths": [
+    "~/Library/CloudStorage/**",
+    "~/Library/Application Support/notes-app/**",
+    "~/Documents/**",
+    "~/Desktop/**",
+    "~/Downloads/**",
+    "~/Pictures/**",
+    "~/code/private/*/vault/**",
+    "~/code/private/*/.ai/state/**",
+    "~/code/private/*/.artifacts/**",
+    "~/code/private/*/.attachments/**",
+    "~/code/private/*/artifacts/**",
+    "~/code/private/*/.tmp/**"
+  ]
+}

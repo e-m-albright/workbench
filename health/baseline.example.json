@@ -1,0 +1,13 @@
+{
+  "files_glob": "**/*",
+  "suppressions": {
+    "type_ignore": 0,
+    "lint_disable": 0,
+    "skipped_test": 0
+  },
+  "suppression_patterns": {
+    "type_ignore": "# (type: ignore|pyright: ignore)",
+    "lint_disable": "# noqa|eslint-disable|biome-ignore",
+    "skipped_test": "pytest\\.mark\\.skip|\\.skip\\("
+  }
+}

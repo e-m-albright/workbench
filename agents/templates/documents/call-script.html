@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>$title$</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      --font-reading: "Iowan Old Style", "Lora", Georgia, serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      --paper: #f7f5f0;
+      --card: #fbfaf7;
+      --paper-raised: #f0ede7;
+      --wash: #f0ede7;
+      --ink: #292724;
+      --muted: #68645f;
+      --faint: #716c66;
+      --rule: #d3cec5;
+      --rule-strong: #aaa39a;
+      --accent: #44688a;
+      --accent-ink: #fafaf9;
+      --danger: #bd1f2d;
+      --radius-sm: 0.3rem;
+      --radius: 0.55rem;
+    }
+
+    html.dark {
+      color-scheme: dark;
+      --paper: #1f1d1b;
+      --card: #272421;
+      --paper-raised: #292623;
+      --wash: #302c29;
+      --ink: #eee9e3;
+      --muted: #aaa39b;
+      --faint: #9a948d;
+      --rule: #45403b;
+      --rule-strong: #625b54;
+      --accent: #7fa3b8;
+      --accent-ink: #17212c;
+      --danger: #ff8178;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; scroll-behavior: smooth; background: var(--paper); -webkit-text-size-adjust: 100%; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--paper); color: var(--ink); font: 16px/1.58 var(--font-sans); }
+    button, a { font: inherit; -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; }
+    button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent), transparent 30%); outline-offset: 3px; }
+    .skip-link { position: fixed; top: 0.75rem; left: 0.75rem; z-index: 50; padding: 0.65rem 0.85rem; background: var(--ink); color: var(--paper); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; transform: translateY(-200%); }
+    .skip-link:focus { transform: translateY(0); }
+
+    .site-header { position: sticky; top: 0; z-index: 30; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-height: 4.6rem; padding-left: clamp(1rem, 4vw, 4rem); border-bottom: 1px solid var(--rule-strong); background: color-mix(in srgb, var(--paper), transparent 7%); backdrop-filter: blur(12px); }
+    .wordmark { font-size: 1.15rem; font-weight: 680; letter-spacing: -0.035em; }
+    .header-actions { display: flex; align-self: stretch; }
+    .header-actions button { min-width: 4.7rem; padding: 0 0.9rem; border: 0; border-left: 1px solid var(--rule); background: transparent; color: var(--muted); cursor: pointer; font-size: 0.61rem; font-weight: 750; letter-spacing: 0.11em; text-transform: uppercase; }
+    .header-actions button:hover { background: var(--paper-raised); color: var(--ink); }
+    .header-actions .theme-toggle { min-width: 4.2rem; color: var(--ink); font-size: 1rem; letter-spacing: 0; }
+
+    .page-shell { display: grid; grid-template-columns: minmax(0, 55rem) minmax(15rem, 19rem); gap: clamp(3rem, 6vw, 6rem); width: min(96rem, 100%); margin: 0 auto; padding: clamp(2.5rem, 4vw, 4rem) clamp(1rem, 4vw, 4rem) 7rem; }
+    main { min-width: 0; }
+    .document-head { margin-bottom: clamp(3rem, 5vw, 4.5rem); }
+    .document-head h1 { max-width: 18ch; margin: 0; font-size: clamp(2.7rem, 5vw, 4.8rem); font-weight: 720; line-height: 0.96; letter-spacing: -0.05em; text-wrap: balance; }
+    .subtitle { max-width: 48rem; margin: 1.2rem 0 0; color: var(--muted); font-family: var(--font-reading); font-size: clamp(1.05rem, 1.7vw, 1.3rem); line-height: 1.55; }
+    .document-meta { display: flex; flex-wrap: wrap; gap: 0.55rem 1.4rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule-strong); color: var(--faint); font-family: var(--font-mono); font-size: 0.61rem; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    .sections { border-bottom: 1px solid var(--rule-strong); }
+    .section { scroll-margin-top: 6rem; border-top: 1px solid var(--rule-strong); }
+    .section summary { display: grid; grid-template-columns: 3rem minmax(0, 1fr) auto; gap: 0.8rem; align-items: baseline; min-height: 5.4rem; padding: 1.25rem 0; cursor: pointer; list-style: none; }
+    .section summary::-webkit-details-marker { display: none; }
+    .section summary:hover .section-title { color: var(--accent); }
+    .section-index { color: var(--accent); font-family: var(--font-mono); font-size: 0.61rem; font-weight: 700; letter-spacing: 0.08em; }
+    .section-title { margin: 0; font-size: clamp(1.55rem, 3vw, 2.35rem); font-weight: 720; line-height: 1.05; letter-spacing: -0.025em; transition: color 150ms ease; }
+    .section-state { color: var(--muted); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .section:not([open]) .section-state::before { content: "Open +"; }
+    .section[open] .section-state::before { content: "Close −"; }
+    .section-body { padding: 0 0 clamp(2.5rem, 5vw, 4.5rem) 3.8rem; }
+    .section-body > :first-child { margin-top: 0; }
+    .section-body > :last-child { margin-bottom: 0; }
+
+    h3 { margin: 2.6rem 0 0.75rem; font-size: 1.05rem; font-weight: 720; line-height: 1.3; }
+    h4 { margin: 2rem 0 0.55rem; color: var(--muted); font-size: 0.65rem; font-weight: 750; letter-spacing: 0.13em; text-transform: uppercase; }
+    p { margin: 0.8rem 0; }
+    ul, ol { margin: 0.8rem 0; padding-left: 1.25rem; }
+    li { margin: 0.38rem 0; padding-left: 0.15rem; }
+    li::marker { color: var(--accent); }
+    strong { font-weight: 720; }
+    hr { margin: 2.5rem 0; border: 0; border-top: 1px solid var(--rule); }
+    code { padding: 0.1rem 0.3rem; border: 1px solid var(--rule); background: var(--wash); font: 0.84em var(--font-mono); }
+    blockquote { margin: 1.5rem 0; padding: 1rem 1.25rem; border-left: 4px solid var(--accent); background: var(--wash); }
+    blockquote p { margin: 0; font-size: 1.12rem; font-weight: 650; line-height: 1.5; }
+    .prompt, .evidence, .warning, .callout, .decision { margin: 1.25rem 0; padding: 1rem 1.15rem; border-left: 3px solid var(--accent); background: var(--wash); }
+    .evidence { border-left-color: var(--rule-strong); background: var(--card); }
+    .warning { border-left-color: var(--danger); }
+    .label { display: block; margin-bottom: 0.4rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.58rem; font-weight: 750; letter-spacing: 0.11em; text-transform: uppercase; }
+    .prompt p, .evidence p, .warning p, .callout p, .decision p { margin: 0.45rem 0; }
+    .prompt p { font-weight: 650; }
+    .status-row, .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 1.4rem 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+    .status-card, .metric { padding: 1rem; border-right: 1px solid var(--rule); }
+    .status-card:last-child, .metric:last-child { border-right: 0; }
+    .status-card p, .metric p { color: var(--muted); font-size: 0.8rem; }
+    table { display: table; width: 100%; margin: 1.5rem 0; border-collapse: collapse; font-size: 0.78rem; line-height: 1.45; }
+    th, td { padding: 0.75rem 0.65rem; border-top: 1px solid var(--rule); vertical-align: top; text-align: left; }
+    th { border-top-color: var(--rule-strong); color: var(--muted); font-size: 0.61rem; font-weight: 750; letter-spacing: 0.09em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 1px solid var(--rule); }
+
+    .toc-panel { position: sticky; top: 7rem; align-self: start; max-height: calc(100vh - 9rem); overflow: auto; scrollbar-width: thin; }
+    .toc-head { margin-bottom: 0.75rem; }
+    .toc-head h2 { margin: 0; color: var(--accent); font-size: 0.64rem; font-weight: 750; letter-spacing: 0.18em; text-transform: uppercase; }
+    #TOC ul { margin: 0; padding: 0; list-style: none; }
+    #TOC > ul { border-bottom: 1px solid var(--rule); }
+    #TOC li { margin: 0; border-top: 1px solid var(--rule); }
+    #TOC ul ul { display: none; }
+    #TOC a { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0.4rem; padding: 0.72rem 0; color: var(--muted); font-size: 0.72rem; font-weight: 650; line-height: 1.3; text-decoration: none; }
+    #TOC a::before { color: var(--faint); font-family: var(--font-mono); font-size: 0.58rem; content: attr(data-index); }
+    #TOC a:hover, #TOC a[aria-current="true"] { color: var(--ink); }
+    #TOC a[aria-current="true"] { margin-left: -0.7rem; padding-left: 0.55rem; border-left: 3px solid var(--accent); }
+    .toc-toggle { display: none; }
+
+    @media (max-width: 900px) {
+      .page-shell { display: flex; flex-direction: column; padding-top: 2rem; }
+      .toc-panel { position: static; order: -1; align-self: stretch; max-height: none; overflow: visible; }
+      .toc-head { margin: 0; }
+      .toc-head h2 { display: none; }
+      .toc-toggle { display: flex; width: 100%; min-height: 3rem; align-items: center; justify-content: space-between; padding: 0; border: 0; border-bottom: 1px solid var(--rule-strong); background: transparent; color: var(--ink); cursor: pointer; font-size: 0.64rem; font-weight: 750; letter-spacing: 0.14em; text-transform: uppercase; }
+      #TOC { display: none; padding-top: 0.7rem; }
+      .toc-panel[data-open="true"] #TOC { display: block; }
+      .document-head { margin-bottom: 4rem; }
+      .document-head h1 { font-size: clamp(3rem, 13vw, 5.5rem); }
+      .status-row, .metric-grid { grid-template-columns: 1fr; border-bottom: 0; }
+      .status-card, .metric { border-right: 0; border-bottom: 1px solid var(--rule); }
+      table { display: block; overflow-x: auto; }
+    }
+
+    @media (max-width: 560px) {
+      .site-header { padding-left: 1rem; }
+      .header-actions button[data-wide] { display: none; }
+      .header-actions .theme-toggle { min-width: 3.6rem; }
+      .section summary { grid-template-columns: 2.2rem minmax(0, 1fr); min-height: 4.8rem; }
+      .section-state { display: none; }
+      .section-body { padding-left: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .section-title { transition: none; } }
+    @media print {
+      :root { --paper: #fff; --card: #fff; --wash: #f4f2ee; --ink: #111; --muted: #444; --rule: #ccc; --rule-strong: #888; }
+      .site-header, .toc-panel { display: none; }
+      .page-shell { display: block; width: auto; padding: 0; }
+      .document-head { margin-bottom: 2rem; }
+      .document-head h1 { font-size: 3.2rem; }
+      .section { break-inside: avoid; }
+      .section-state { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#document">Skip to script</a>
+  <header class="site-header">
+    <div class="wordmark">Call script</div>
+    <div class="header-actions" aria-label="Document controls">
+      <button type="button" id="expand" data-wide>Expand</button>
+      <button type="button" id="collapse" data-wide>Collapse</button>
+      <button type="button" id="theme" class="theme-toggle" aria-label="Toggle color theme" title="Toggle color theme">◐</button>
+    </div>
+  </header>
+
+  <div class="page-shell">
+    <main id="document">
+      <header class="document-head">
+        <h1>$title$</h1>
+        $if(subtitle)$<p class="subtitle">$subtitle$</p>$endif$
+        <div class="document-meta">
+          $if(updated)$<span>Updated $updated$</span>$endif$
+          $if(status)$<span>Status: $status$</span>$endif$
+          $if(audience)$<span>For $audience$</span>$endif$
+        </div>
+      </header>
+      <div class="sections" id="sections">$body$</div>
+    </main>
+
+    <aside class="toc-panel" id="toc-panel">
+      <div class="toc-head">
+        <button type="button" class="toc-toggle" id="toc-toggle" aria-expanded="false">Contents <span>+</span></button>
+        <h2>Contents</h2>
+      </div>
+      <nav id="TOC" aria-label="Document contents">$toc$</nav>
+    </aside>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const sourceSections = [...document.querySelectorAll('#sections > section.level2')];
+      sourceSections.forEach((source, index) => {
+        const heading = source.querySelector(':scope > h2');
+        if (!heading) return;
+        const details = document.createElement('details');
+        details.className = 'section';
+        details.id = source.id || 'section-' + (index + 1);
+        const summary = document.createElement('summary');
+        const number = document.createElement('span');
+        number.className = 'section-index';
+        number.textContent = String(index + 1).padStart(2, '0');
+        const title = document.createElement('span');
+        title.className = 'section-title';
+        title.textContent = heading.textContent;
+        const state = document.createElement('span');
+        state.className = 'section-state';
+        state.setAttribute('aria-hidden', 'true');
+        summary.append(number, title, state);
+        const body = document.createElement('div');
+        body.className = 'section-body';
+        [...source.children].forEach((child) => { if (child !== heading) body.append(child); });
+        details.append(summary, body);
+        source.replaceWith(details);
+      });
+
+      const sections = [...document.querySelectorAll('.section')];
+      const links = [...document.querySelectorAll('#TOC a')];
+      links.forEach((link, index) => {
+        link.dataset.index = String(index + 1).padStart(2, '0');
+        link.addEventListener('click', () => setTimeout(openHash, 0));
+      });
+      function openHash() {
+        if (!location.hash) return;
+        const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+        if (!target) return;
+        const section = target.matches('details') ? target : target.closest('details');
+        if (section) section.open = true;
+        requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+      }
+      function setActive() {
+        const active = [...sections].reverse().find((section) => section.getBoundingClientRect().top <= 120) || sections[0];
+        links.forEach((link) => link.setAttribute('aria-current', String(link.getAttribute('href') === '#' + (active ? active.id : ''))));
+      }
+      addEventListener('scroll', setActive, { passive: true });
+      setActive();
+
+      document.getElementById('expand').addEventListener('click', () => sections.forEach((section) => { section.open = true; }));
+      document.getElementById('collapse').addEventListener('click', () => sections.forEach((section) => { section.open = false; }));
+      const tocPanel = document.getElementById('toc-panel');
+      const tocToggle = document.getElementById('toc-toggle');
+      tocToggle.addEventListener('click', () => {
+        const open = tocPanel.dataset.open === 'true';
+        tocPanel.dataset.open = String(!open);
+        tocToggle.setAttribute('aria-expanded', String(!open));
+        tocToggle.querySelector('span').textContent = open ? '+' : '−';
+      });
+
+      const storedTheme = localStorage.getItem('call-script-theme');
+      if (storedTheme === 'dark') root.classList.add('dark');
+      else if (storedTheme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+      document.getElementById('theme').addEventListener('click', () => {
+        root.classList.toggle('dark');
+        localStorage.setItem('call-script-theme', root.classList.contains('dark') ? 'dark' : 'light');
+      });
+
+      let printState = [];
+      addEventListener('beforeprint', () => { printState = sections.map((section) => section.open); sections.forEach((section) => { section.open = true; }); });
+      addEventListener('afterprint', () => sections.forEach((section, index) => { section.open = printState[index]; }));
+      openHash();
+    })();
+  </script>
+</body>
+</html>
