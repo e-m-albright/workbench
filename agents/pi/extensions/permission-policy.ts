@@ -6,23 +6,38 @@ import { resolveAgentDir } from "./lib/agent-dir";
 interface DenyCommandRule {
 	name: string;
 	patterns: string[];
+	privateOnly?: boolean;
 }
 
 export interface PermissionPolicy {
 	defaultAction?: "allow" | "deny";
 	denyCommands?: DenyCommandRule[];
+	blockedTools?: string[];
+	privateProviders?: string[];
+	privateOnlyTools?: string[];
+	privateBrowserDomains?: string[];
 	mcpAllowedTools?: string[];
 	protectedPaths?: string[];
 	protectedReadPaths?: string[];
 	protectedWritePaths?: string[];
+	privateReadPaths?: string[];
+	privateWritePaths?: string[];
+	controlWritePaths?: string[];
 }
 
 export type LoadedPermissionPolicy = {
 	defaultAction: "allow" | "deny";
 	denyCommands: DenyCommandRule[];
+	blockedTools: string[];
+	privateProviders: string[];
+	privateOnlyTools: string[];
+	privateBrowserDomains: string[];
 	mcpAllowedTools: string[];
 	protectedReadPaths: string[];
 	protectedWritePaths: string[];
+	privateReadPaths: string[];
+	privateWritePaths: string[];
+	controlWritePaths: string[];
 };
 
 const SECRET_PATHS = [
@@ -47,9 +62,16 @@ const SECRET_PATHS = [
 const FALLBACK_POLICY: LoadedPermissionPolicy = {
 	defaultAction: "allow",
 	denyCommands: [],
+	blockedTools: [],
+	privateProviders: ["omlx"],
+	privateOnlyTools: [],
+	privateBrowserDomains: [],
 	mcpAllowedTools: [],
 	protectedReadPaths: SECRET_PATHS,
 	protectedWritePaths: [...SECRET_PATHS, "~/.pi/agent/**", ".git/**", "node_modules/**"],
+	privateReadPaths: [],
+	privateWritePaths: [],
+	controlWritePaths: [],
 };
 
 function readPolicyFile(path: string): PermissionPolicy {
@@ -59,6 +81,16 @@ function readPolicyFile(path: string): PermissionPolicy {
 	} catch (error) {
 		throw new Error(`Invalid permission policy at ${path}: ${error}`);
 	}
+}
+
+export function readPrivatePathFile(
+	path = join(process.env.HOME ?? "~", ".config", "workbench", "private-paths"),
+): string[] {
+	if (!existsSync(path)) return [];
+	return readFileSync(path, "utf8")
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0 && !line.startsWith("#"));
 }
 
 function loadPolicy(cwd: string): LoadedPermissionPolicy {
@@ -72,6 +104,24 @@ function loadPolicy(cwd: string): LoadedPermissionPolicy {
 			...FALLBACK_POLICY.denyCommands,
 			...(globalPolicy.denyCommands ?? []),
 			...(projectPolicy.denyCommands ?? []),
+		],
+		blockedTools: [
+			...FALLBACK_POLICY.blockedTools,
+			...(globalPolicy.blockedTools ?? []),
+			...(projectPolicy.blockedTools ?? []),
+		],
+		privateProviders: (globalPolicy.privateProviders ?? FALLBACK_POLICY.privateProviders).filter(
+			(provider) => provider === "omlx",
+		),
+		privateOnlyTools: [
+			...FALLBACK_POLICY.privateOnlyTools,
+			...(globalPolicy.privateOnlyTools ?? []),
+			...(projectPolicy.privateOnlyTools ?? []),
+		],
+		privateBrowserDomains: [
+			...FALLBACK_POLICY.privateBrowserDomains,
+			...(globalPolicy.privateBrowserDomains ?? []),
+			...(projectPolicy.privateBrowserDomains ?? []),
 		],
 		mcpAllowedTools: [
 			...FALLBACK_POLICY.mcpAllowedTools,
@@ -87,6 +137,23 @@ function loadPolicy(cwd: string): LoadedPermissionPolicy {
 			...(globalPolicy.protectedWritePaths ?? FALLBACK_POLICY.protectedWritePaths),
 			...(projectPolicy.protectedWritePaths ?? []),
 			...legacyPaths,
+		],
+		privateReadPaths: [
+			...FALLBACK_POLICY.privateReadPaths,
+			...(globalPolicy.privateReadPaths ?? []),
+			...(projectPolicy.privateReadPaths ?? []),
+			...readPrivatePathFile(),
+		],
+		privateWritePaths: [
+			...FALLBACK_POLICY.privateWritePaths,
+			...(globalPolicy.privateWritePaths ?? []),
+			...(projectPolicy.privateWritePaths ?? []),
+			...readPrivatePathFile(),
+		],
+		controlWritePaths: [
+			...FALLBACK_POLICY.controlWritePaths,
+			...(globalPolicy.controlWritePaths ?? []),
+			...(projectPolicy.controlWritePaths ?? []),
 		],
 	};
 }
@@ -147,9 +214,28 @@ function extractInputPaths(input: unknown): string[] {
 	const record = input as Record<string, unknown>;
 	const paths = new Set<string>();
 
-	for (const key of ["path", "file", "target", "source"] as const) {
+	for (const key of ["path", "file", "target", "source", "outputPath"] as const) {
 		const value = record[key];
 		if (typeof value === "string") paths.add(value);
+	}
+
+	const args = record.args;
+	if (Array.isArray(args)) {
+		for (const value of args) {
+			if (typeof value === "string") paths.add(value);
+		}
+	}
+
+	const job = record.job;
+	if (job && typeof job === "object") {
+		const steps = (job as Record<string, unknown>).steps;
+		if (Array.isArray(steps)) {
+			for (const step of steps) {
+				if (!step || typeof step !== "object") continue;
+				const stepPath = (step as Record<string, unknown>).path;
+				if (typeof stepPath === "string") paths.add(stepPath);
+			}
+		}
 	}
 
 	const multi = record.multi;
@@ -162,6 +248,25 @@ function extractInputPaths(input: unknown): string[] {
 	}
 
 	return [...paths];
+}
+
+function allInputStrings(value: unknown): string[] {
+	if (typeof value === "string") return [value];
+	if (Array.isArray(value)) return value.flatMap(allInputStrings);
+	if (!value || typeof value !== "object") return [];
+	return Object.values(value as Record<string, unknown>).flatMap(allInputStrings);
+}
+
+function privateBrowserDomain(input: unknown, domains: string[]): string | undefined {
+	for (const value of allInputStrings(input)) {
+		const lowered = value.toLowerCase();
+		for (const domain of domains) {
+			const needle = domain.toLowerCase();
+			if (lowered.includes(`://${needle}`) || lowered.includes(`://${needle}/`)) return domain;
+			if (lowered.includes(`.${needle}/`) || lowered.endsWith(`.${needle}`)) return domain;
+		}
+	}
+	return undefined;
 }
 
 function protectedPathMention(
@@ -181,7 +286,8 @@ function protectedPathMention(
 			cleaned.includes("/") ||
 			cleaned.startsWith(".") ||
 			cleaned.startsWith("~") ||
-			cleaned.startsWith("$HOME");
+			cleaned.startsWith("$HOME") ||
+			existsSync(resolve(cwd, cleaned));
 		if (!looksLikePath) continue;
 
 		const matched = pathMatchesPolicy(cwd, cleaned, protectedPathGlobs);
@@ -190,8 +296,15 @@ function protectedPathMention(
 	return undefined;
 }
 
-export function commandDenyReason(command: string, rules: DenyCommandRule[]): string | undefined {
+export function commandDenyReason(
+	command: string,
+	rules: DenyCommandRule[],
+	privateProvider = false,
+	openData = false,
+): string | undefined {
 	for (const rule of rules) {
+		if (rule.privateOnly && (privateProvider || (openData && rule.name === "Notes private data access")))
+			continue;
 		for (const pattern of rule.patterns) {
 			if (new RegExp(pattern, "i").test(command)) return rule.name;
 		}
@@ -200,6 +313,10 @@ export function commandDenyReason(command: string, rules: DenyCommandRule[]): st
 }
 
 const DENY_ALTERNATIVES: Record<string, string> = {
+	"Gmail access": "Switch to the private local provider before accessing Gmail.",
+	"Notes private data access": "Switch to the private local provider before querying private Notes data.",
+	"nested agent invocation":
+		"Nested agent processes are disabled so a cloud model cannot use a local model as a data proxy.",
 	"filesystem mutation command":
 		"Use workspace_files for rename, copy, or directory creation; use write or edit for file contents.",
 	"shell network retrieval, upload, or remote script execution":
@@ -243,17 +360,49 @@ export function policyBlockReason(
 	input: unknown,
 	cwd: string,
 	policy: LoadedPermissionPolicy,
+	provider?: string,
+	mode = process.env.WORKBENCH_PI_MODE,
 ): string | undefined {
-	const readTools = new Set(["read", "grep", "find", "ls"]);
+	const privateProvider =
+		mode === "local-unrestricted" && provider === "omlx" && policy.privateProviders.includes(provider);
+	const dataAuthorized = privateProvider || mode === "hosted-unrestricted";
+	const control = mode?.endsWith("-unrestricted") ?? false;
+	if (policy.blockedTools.includes(toolName)) {
+		return `Tool blocked by policy: ${toolName}`;
+	}
+	if (policy.privateOnlyTools.includes(toolName) && !privateProvider) {
+		return `Tool requires a private local provider: ${toolName}`;
+	}
+	if (toolName === "agent_browser" && !privateProvider) {
+		const domain = privateBrowserDomain(input, policy.privateBrowserDomains);
+		if (domain) return `Authenticated private browser domain requires a private local provider: ${domain}`;
+	}
+
+	const readTools = new Set(["read", "grep", "find", "ls", "agent_browser"]);
 	const writeTools = new Set(["write", "edit", "workspace_files"]);
 	const protectedPaths = readTools.has(toolName)
 		? policy.protectedReadPaths
 		: writeTools.has(toolName)
 			? policy.protectedWritePaths
 			: [];
+	const controlPaths = writeTools.has(toolName) && !control ? policy.controlWritePaths : [];
+	const privatePaths = readTools.has(toolName)
+		? policy.privateReadPaths
+		: writeTools.has(toolName)
+			? policy.privateWritePaths
+			: [];
 	for (const candidate of extractInputPaths(input)) {
 		const matched = pathMatchesPolicy(cwd, candidate, protectedPaths);
 		if (matched) return `Protected path blocked by policy: ${matched}`;
+		const controlled = pathMatchesPolicy(cwd, candidate, controlPaths);
+		if (controlled) return `hosted-unrestricted authority required to write control path: ${controlled}`;
+		const privateMatched = pathMatchesPolicy(cwd, candidate, privatePaths);
+		if (privateMatched && toolName === "agent_browser") {
+			return `Private path browser upload blocked by policy: ${privateMatched}`;
+		}
+		if (privateMatched && !dataAuthorized) {
+			return `Private path requires a private local provider: ${privateMatched}`;
+		}
 	}
 
 	if (toolName === "mcp") {
@@ -273,7 +422,16 @@ export function policyBlockReason(
 	const command = String((input as Record<string, unknown>).command ?? "");
 	const protectedPath = protectedPathMention(cwd, command, policy.protectedReadPaths);
 	if (protectedPath) return `Command mentions protected path: ${protectedPath}`;
-	const denied = commandDenyReason(command, policy.denyCommands);
+	const privatePath = protectedPathMention(cwd, command, policy.privateReadPaths);
+	if (privatePath && !dataAuthorized) {
+		return `Command mentions private path requiring a private local provider: ${privatePath}`;
+	}
+	const denied = commandDenyReason(
+		command,
+		policy.denyCommands,
+		privateProvider,
+		mode === "hosted-unrestricted",
+	);
 	if (denied) return formatCommandDenial(denied);
 	if (policy.defaultAction === "deny") return "Command blocked by default-deny policy";
 	return undefined;
@@ -293,10 +451,17 @@ export default function permissionPolicyExtension(pi: ExtensionAPI) {
 					"Permission policy",
 					`  Default action: ${policy.defaultAction}`,
 					`  Deny command groups: ${policy.denyCommands.length}`,
+					`  Blocked tools: ${policy.blockedTools.length}`,
+					`  Private-only tools: ${policy.privateOnlyTools.length}`,
+					`  Private browser domains: ${policy.privateBrowserDomains.length}`,
+					`  Private providers: ${policy.privateProviders.join(", ")}`,
 					`  MCP read-only tools: ${policy.mcpAllowedTools.length}`,
 					`  Protected read globs: ${policy.protectedReadPaths.length}`,
 					`  Protected write globs: ${policy.protectedWritePaths.length}`,
-					"  Source: ~/.pi/agent/permission-policy.json plus optional .pi/permission-policy.json",
+					`  Private read globs: ${policy.privateReadPaths.length}`,
+					`  Private write globs: ${policy.privateWritePaths.length}`,
+					`  Control-only write globs: ${policy.controlWritePaths.length}`,
+					"  Source: ~/.pi/agent/permission-policy.json, ~/.config/workbench/private-paths, plus optional .pi/permission-policy.json",
 				].join("\n"),
 				"info",
 			);
@@ -316,7 +481,13 @@ export default function permissionPolicyExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
-		const reason = policyBlockReason(event.toolName, event.input, ctx.cwd, policyFor(ctx));
+		const reason = policyBlockReason(
+			event.toolName,
+			event.input,
+			ctx.cwd,
+			policyFor(ctx),
+			ctx.model?.provider,
+		);
 		return reason ? block(reason) : undefined;
 	});
 }

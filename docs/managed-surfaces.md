@@ -4,20 +4,52 @@ The exhaustive map of what `workbench sync` deploys and `workbench drift`
 verifies, per harness. The README keeps only the summary; this document is the
 reference.
 
+The table describes managed host configuration. Restricted terminal sessions use
+an isolated home and do not import those host settings, extensions, sessions,
+skills, or MCP servers. Their separate runtime and credential surfaces are
+described below and in the [boundary reference](restricted-agents.md).
+
 | Surface | Pi | Claude Code / Desktop | Codex |
 | --- | --- | --- | --- |
 | CLI presence | `pi` on `PATH` | Checked when managing plugins | Checked when managing plugins |
 | Global instructions | `~/.pi/agent/AGENTS.md` | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
 | Harness configuration | `~/.pi/agent/{settings,models,presets}.json` | `~/.claude/settings.json`, `~/.claude.json` | `~/.codex/config.toml` |
 | Desktop configuration | None | Claude Desktop MCPs and seeded preference defaults | ChatGPT connector plugins through the Codex plugin CLI |
-| Command policy | `~/.pi/agent/permission-policy.json` plus permission-policy and safe-git extensions | Claude permissions and sandbox settings | `~/.codex/rules/default.rules` |
+| Command policy | Host `~/.pi/agent/permission-policy.json` and permission-policy/safe-git extensions; separate native terminal boundary | Host Claude permissions and sandbox settings; separate native terminal boundary | Host `~/.codex/rules/default.rules`; separate native terminal boundary |
 | Extensions / hooks | `~/.pi/agent/extensions/*.ts` | Claude settings plus shared runtime scripts | `~/.codex/hooks.json` plus shared runtime scripts |
-| Shared local CLIs | native Pi tools; `apple-notes`/`apple-contacts` are owned and deployed by a machine-local private layer | the same CLIs via shell | the same CLIs via shell |
+| Shared local CLIs | native Pi tools; `apple-contacts` is owned and deployed by a machine-local private layer; Apple Notes is blocked | the contacts CLI via shell | the contacts CLI via shell |
 | Specialist agents | Not managed | Native external additions are preserved | Native external additions are preserved |
 | Skills | Shared skills in `~/.agents/skills`; Pi-only external skills may remain in `~/.pi/agent/skills` | Claude global skill directory | `~/.agents/skills` |
 | Plugins / packages | `packages` in managed Pi settings | IDs from `agents/claude/plugins.json` | IDs from `agents/codex/plugins.json` |
 | MCP servers | None by design | Shared registry plus preserved external servers | Shared registry plus preserved external servers |
 | Generated/private state | Contents preserved and unmanaged; session filesystem permissions enforced private | Preserved vendor state | Preserved vendor state |
+
+The shared shell runtime deploys `agent-launchers.zsh`, `agent-sandbox.zsh`, and
+the `native-sandbox.py` / `native-sandbox.mjs` entrypoints under
+`~/.local/share/workbench/shell/`. `workbench native prepare` installs the locked
+runtime dependencies and resolved tool paths under
+`~/.local/share/workbench/native/`. Sync removes the retired permissive Seatbelt
+profiles and Codex app-server helper; Lima is not an active implementation.
+
+The standalone launch interface is
+`/bin/zsh -f ~/.local/share/workbench/shell/agent-sandbox.zsh VENDOR LOCATION AUTHORITY [native args]`:
+`VENDOR` is `pi`, `claude`, or `codex`; `LOCATION` is `hosted` or `local`
+(local is Pi-only and unrestricted); `AUTHORITY` is `restricted` or
+`unrestricted`. Restricted aliases invoke the installed native entrypoint
+directly; the standalone wrapper routes restricted calls there too. The
+[launch matrix](pi-capabilities.md#launch-modes-and-permission-guardrails) owns
+aliases and access semantics. Unrestricted launches do not load the outer
+Seatbelt policy; native vendor approvals remain active. Editor and Paseo host
+tool callbacks are not contained by this terminal boundary and must not be
+advertised as restricted. Running processes retain their existing boundary.
+
+Per-repository state lives under `~/.local/share/workbench/agent-state/`.
+Optional `workbench native prepare --authorize` enrollment copies only selected
+provider login material into `~/.local/share/workbench/model-auth/`; it preserves
+existing usable credentials. These deliberately agent-readable credentials keep
+their provider account scopes and are not inference-only grants. Machine-local
+`~/.config/workbench/private-paths` exclusions remain enforced, including existing
+vault exclusions; sync does not grant blanket access to private repository data.
 
 The global instructions conditionally consult
 `~/.config/workbench/private-context.md` for machine-local repository aliases
@@ -49,6 +81,22 @@ Workbench. Sync repairs Pi session directories to `0700` and existing transcript
 also sets the active transcript to `0600` on each session start. If Pi has not created
 the file yet during session rebinding, it retries before the first model turn so new
 transcripts do not wait for the next sync.
+
+The Claude launchers select native permission modes without importing host global
+settings into the restricted home. `cc` keeps native auto permission handling
+inside the restricted boundary; `ccr` selects native plan mode for review.
+`cca` requests a worktree workflow, but entering an existing linked worktree is
+unsupported by the native launcher. Native auto
+handling is an automatic approval classifier, not a prompt before every action.
+The retired `--dev`, `--scout`, and `--yolo` permission-profile flags are rejected;
+old machine-local profile files are not loaded by these launchers.
+
+Codex sync seeds ordinary workspace-write and on-request defaults and repairs a
+broad ordinary sandbox setting. It preserves stricter read-only settings,
+confined noninteractive `never` policies, structured approval policies, and
+explicit named profiles. `never` disables approval prompts; it does not by
+itself grant an escape from a sandbox. The coupled ordinary
+`danger-full-access`/`never` posture is repaired to workspace-write/on-request.
 
 ## Drift semantics
 

@@ -63,9 +63,9 @@ Binary assets: 3 tracked files, 227,224 bytes. Workbench contains 31 local skill
 
 ### Pi runtime extensions
 
-- Activity naming, welcome, footer and quota display, presets, privacy-first local/frontier inference routing, consult, worker delegation, and Git safety.
-- Confirmed GitHub workflow dispatch.
-- Read-only Google, Calendar, Strava, and bounded Apple Notes integration surfaces.
+- Activity naming, welcome, footer and quota display, one development preset, explicit local/frontier inference routing, consult, worker delegation, and Git safety.
+- Confirmed GitHub workflow dispatch and confirmed ingress discard.
+- Read-only Google, Calendar, and Strava integration surfaces. Apple Notes is blocked.
 - Agent Browser integration through the pinned native package rather than a competing browser layer.
 
 **Assessment:** Keep selectively. Each extension must provide a capability Pi does not natively supply or enforce a local trust boundary. Review extensions when upstream Pi gains equivalent behavior; remove the local implementation rather than maintaining two paths.

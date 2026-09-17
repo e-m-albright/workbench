@@ -1,98 +1,40 @@
 import { describe, expect, mock, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 
 mock.module("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
-const {
-	default: inferenceRouter,
-	classifyHardRule,
-	formatRouteLabel,
-	isSensitiveToolCall,
-	parseClassifierDecision,
-} = await import("../agents/pi/extensions/inference-router");
-import type { RouterConfig } from "../agents/pi/extensions/inference-router";
+const { default: inferenceRouter } = await import("../agents/pi/extensions/inference-router");
 
-const theme = {
-	fg: (_color: string, text: string) => text,
-};
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-const config: RouterConfig = {
-	defaultMode: "frontier",
-	frontier: { provider: "openai-codex", model: "gpt-5.6-sol" },
-	private: { provider: "omlx", model: "Qwen3.6-35B-A3B-oQ4e-mtp" },
-	classifier: {
-		baseUrl: "http://localhost:8000/v1",
-		model: "Qwen3.6-35B-A3B-oQ4e-mtp",
-		timeoutMs: 1500,
-	},
-	privatePathFragments: ["/code/private/"],
-};
+const theme = { fg: (_color: string, text: string) => text };
 
-describe("Pi local model configuration", () => {
+describe("Pi model routing", () => {
 	test("advertises the full context window exposed by oMLX", () => {
 		const models = JSON.parse(readFileSync(new URL("../agents/pi/models.json", import.meta.url), "utf8"));
 		const localModel = models.providers.omlx.models.find(
 			(model: { id: string }) => model.id === "Qwen3.6-35B-A3B-oQ4e-mtp",
 		);
-
 		expect(localModel).toMatchObject({ contextWindow: 262144, maxTokens: 32768 });
 	});
-});
 
-describe("Pi inference router policy", () => {
-	test("keeps private workspaces local without asking a classifier", () => {
-		expect(classifyHardRule("Refactor this module", "/home/dev/code/private/project", config)).toEqual({
-			route: "private",
-			reason: "private_workspace",
-		});
-	});
-
-	test("recognizes explicit personal-data requests", () => {
-		expect(classifyHardRule("Show me my task queue for today", "/home/dev", config)).toEqual({
-			route: "private",
-			reason: "personal_data",
-		});
-	});
-
-	test("leaves ordinary ambiguous input to the local classifier", () => {
-		expect(
-			classifyHardRule("Explain this tradeoff", "/home/dev/code/public/project", config),
-		).toBeUndefined();
-	});
-
-	test("accepts only the small categorical classifier contract", () => {
-		expect(parseClassifierDecision('{"route":"private","reason":"simple"}')).toEqual({
-			route: "private",
-			reason: "simple",
-		});
-		expect(parseClassifierDecision('{"route":"frontier","reason":"coding"}')).toEqual({
-			route: "frontier",
-			reason: "coding",
-		});
-		expect(parseClassifierDecision('{"route":"frontier","reason":"invented"}')).toBeUndefined();
-		expect(parseClassifierDecision("frontier")).toBeUndefined();
-	});
-
-	test("formats fixed routes without repeating the mode and selected target", () => {
-		expect(formatRouteLabel("frontier", { route: "frontier", reason: "coding" })).toBe("frontier");
-		expect(formatRouteLabel("private", { route: "private", reason: "personal_data" })).toBe("private");
-	});
-
-	test("keeps the selected target and reason visible in auto mode", () => {
-		expect(formatRouteLabel("auto")).toBe("auto");
-		expect(formatRouteLabel("auto", { route: "frontier", reason: "coding" })).toBe(
-			"auto → frontier (coding)",
+	test("defaults explicitly to frontier without automatic classification", () => {
+		const router = JSON.parse(
+			readFileSync(new URL("../agents/pi/inference-router.json", import.meta.url), "utf8"),
 		);
+		expect(router.defaultMode).toBe("frontier");
+		expect(JSON.stringify(router)).not.toContain("classifier");
 	});
 
-	test("keeps plain Pi on the configured frontier default even in a private workspace", async () => {
+	test("selects an explicit private route at session start", async () => {
 		const handlers = new Map<string, (...args: any[]) => any>();
 		const selected: unknown[] = [];
-		const frontierModel = { provider: "openai-codex", id: "gpt-5.6-sol" };
+		const localModel = { provider: "omlx", id: "local" };
 		const pi = {
 			registerFlag: () => undefined,
 			registerCommand: () => undefined,
 			on: (event: string, handler: (...args: any[]) => any) => handlers.set(event, handler),
-			getFlag: () => undefined,
+			getFlag: () => "private",
 			setModel: async (model: unknown) => {
 				selected.push(model);
 				return true;
@@ -100,17 +42,49 @@ describe("Pi inference router policy", () => {
 		} as any;
 		const ctx = {
 			cwd: "/home/dev/code/private/project",
-			modelRegistry: { find: () => frontierModel },
+			modelRegistry: { find: () => localModel },
 			ui: { theme, setStatus: () => undefined, notify: () => undefined },
 		} as any;
 
 		inferenceRouter(pi);
 		await handlers.get("session_start")?.({}, ctx);
-
-		expect(selected).toEqual([frontierModel]);
+		expect(selected).toEqual([localModel]);
 	});
 
-	test("blocks an explicit private route when the local model is unavailable", async () => {
+	test("keeps supervised frontier authority visible in the status line", async () => {
+		const previous = process.env.WORKBENCH_PI_MODE;
+		process.env.WORKBENCH_PI_MODE = "hosted-unrestricted";
+		try {
+			const handlers = new Map<string, (...args: any[]) => any>();
+			const statuses: string[] = [];
+			const frontierModel = { provider: "openai-codex", id: "frontier" };
+			const pi = {
+				registerFlag: () => undefined,
+				registerCommand: () => undefined,
+				on: (event: string, handler: (...args: any[]) => any) => handlers.set(event, handler),
+				getFlag: () => "frontier",
+				setModel: async () => true,
+			} as any;
+			const ctx = {
+				cwd: "/home/dev/code/project",
+				modelRegistry: { find: () => frontierModel },
+				ui: {
+					theme,
+					setStatus: (_name: string, value: string) => statuses.push(value),
+					notify: () => undefined,
+				},
+			} as any;
+
+			inferenceRouter(pi);
+			await handlers.get("session_start")?.({}, ctx);
+			expect(statuses.at(-1)?.replace(/\x1b\[[0-9;]*m/g, "")).toContain("hosted > unrestricted");
+		} finally {
+			if (previous === undefined) delete process.env.WORKBENCH_PI_MODE;
+			else process.env.WORKBENCH_PI_MODE = previous;
+		}
+	});
+
+	test("fails closed when the selected private model is unavailable", async () => {
 		const handlers = new Map<string, (...args: any[]) => any>();
 		const editorValues: string[] = [];
 		const notifications: string[] = [];
@@ -135,21 +109,116 @@ describe("Pi inference router policy", () => {
 		inferenceRouter(pi);
 		await handlers.get("session_start")?.({}, ctx);
 		const result = await handlers.get("input")?.({ source: "user", text: "Private prompt" }, ctx);
-
 		expect(result).toEqual({ action: "handled" });
 		expect(editorValues).toEqual(["Private prompt"]);
-		expect(notifications).toContain("Private route blocked: the local model is unavailable");
+		expect(notifications.at(-1)).toContain("Private route blocked");
 	});
+});
 
-	test("treats connector and private-path tool calls as sensitive", () => {
-		expect(isSensitiveToolCall("gmail_get_thread", {} as never, config)).toBe(true);
-		expect(isSensitiveToolCall("apple_notes_get", {} as never, config)).toBe(true);
-		expect(
-			isSensitiveToolCall("read", { path: "/home/dev/code/private/project/file.md" } as never, config),
-		).toBe(true);
-		expect(isSensitiveToolCall("bash", { command: "notes actions work" } as never, config)).toBe(true);
-		expect(
-			isSensitiveToolCall("read", { path: "/home/dev/code/public/project/file.md" } as never, config),
-		).toBe(false);
-	});
+test("pins local-restricted against route flags and rejects later cloud model selection", async () => {
+	const previous = process.env.WORKBENCH_PI_MODE;
+	process.env.WORKBENCH_PI_MODE = "local-restricted";
+	try {
+		const handlers = new Map<string, (...args: any[]) => any>();
+		const commands = new Map<string, any>();
+		const selected: string[] = [];
+		const ctx = {
+			cwd: "/tmp/example",
+			model: { provider: "openai-codex" },
+			modelRegistry: { find: (provider: string) => ({ provider, id: "model" }) },
+			ui: { theme, setStatus() {}, notify() {}, setEditorText() {} },
+		} as any;
+		inferenceRouter({
+			registerFlag() {},
+			registerCommand: (name: string, command: any) => commands.set(name, command),
+			on: (name: string, handler: any) => handlers.set(name, handler),
+			getFlag: () => "frontier",
+			setModel: async (model: any) => {
+				selected.push(model.provider);
+				ctx.model = model;
+				return true;
+			},
+		} as any);
+		await handlers.get("session_start")?.({}, ctx);
+		expect(selected).toEqual(["omlx"]);
+		await commands.get("route").handler("frontier", ctx);
+		expect(selected).toEqual(["omlx"]);
+		ctx.model = { provider: "openai-codex" };
+		await handlers.get("model_select")?.({ model: ctx.model }, ctx);
+		expect(ctx.model.provider).toBe("omlx");
+	} finally {
+		if (previous === undefined) delete process.env.WORKBENCH_PI_MODE;
+		else process.env.WORKBENCH_PI_MODE = previous;
+	}
+});
+
+test("invalid private routing config blocks every input source", async () => {
+	const cwd = mkdtempSync(join(tmpdir(), "wb-router-"));
+	mkdirSync(join(cwd, ".pi"));
+	writeFileSync(
+		join(cwd, ".pi/inference-router.json"),
+		JSON.stringify({ private: { provider: "openai-codex" } }),
+	);
+	const handlers = new Map<string, any>();
+	let sends = 0;
+	const ctx = {
+		cwd,
+		modelRegistry: { find: () => ({ provider: "openai-codex" }) },
+		ui: { theme, setStatus() {}, notify() {}, setEditorText() {} },
+	} as any;
+	inferenceRouter({
+		registerFlag() {},
+		registerCommand() {},
+		on: (event: string, handler: any) => handlers.set(event, handler),
+		getFlag: () => "private",
+		setModel: async () => {
+			sends++;
+			return true;
+		},
+	} as any);
+	await handlers.get("session_start")({}, ctx);
+	expect(sends).toBe(0);
+	for (const source of ["user", "extension"]) {
+		expect(await handlers.get("input")({ source, text: "private" }, ctx)).toEqual({ action: "handled" });
+	}
+	expect(sends).toBe(0);
+});
+
+test("preserves a compatible explicit startup model for hosted and local profiles", async () => {
+	const previous = process.env.WORKBENCH_PI_MODE;
+	try {
+		for (const [mode, provider, id] of [
+			["hosted-restricted", "openai-codex", "gpt-5.6-terra"],
+			["hosted-unrestricted", "anthropic", "chosen-cloud-model"],
+			["local-restricted", "omlx", "chosen-local-model"],
+		]) {
+			process.env.WORKBENCH_PI_MODE = mode;
+			const handlers = new Map<string, any>();
+			const selected: unknown[] = [];
+			const ctx = {
+				cwd: "/tmp/example",
+				model: { provider, id },
+				modelRegistry: { find: () => ({ provider, id: "configured-default" }) },
+				ui: { theme, setStatus() {}, notify() {}, setEditorText() {} },
+			} as any;
+			inferenceRouter({
+				registerFlag() {},
+				registerCommand() {},
+				on: (event: string, handler: any) => handlers.set(event, handler),
+				getFlag: () => "frontier",
+				setModel: async (model: unknown) => {
+					selected.push(model);
+					return true;
+				},
+			} as any);
+			await handlers.get("session_start")({}, ctx);
+			expect(selected).toEqual([]);
+			expect(await handlers.get("input")({ source: "user", text: "synthetic" }, ctx)).toEqual({
+				action: "continue",
+			});
+		}
+	} finally {
+		if (previous === undefined) delete process.env.WORKBENCH_PI_MODE;
+		else process.env.WORKBENCH_PI_MODE = previous;
+	}
 });

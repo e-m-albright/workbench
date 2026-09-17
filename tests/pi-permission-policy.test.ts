@@ -24,8 +24,20 @@ const policy = JSON.parse(
 	readFileSync(resolve(import.meta.dir, "../agents/pi/permission-policy.json"), "utf8"),
 );
 
-function reason(tool: string, input: Record<string, unknown>): string | undefined {
-	return policyBlockReason(tool, input, cwd, policy);
+function reason(
+	tool: string,
+	input: Record<string, unknown>,
+	provider = "openai-codex",
+	authority?: string,
+): string | undefined {
+	return policyBlockReason(
+		tool,
+		input,
+		cwd,
+		policy,
+		provider,
+		authority ?? (provider === "omlx" ? "local-unrestricted" : "hosted-restricted"),
+	);
 }
 
 describe("Pi permission policy", () => {
@@ -82,7 +94,115 @@ describe("Pi permission policy", () => {
 	test("blocks dependency-tree writes and credential reads", () => {
 		expect(reason("edit", { path: "node_modules/pkg/index.js" })).toContain("node_modules");
 		expect(reason("read", { path: "~/.pi/agent/auth.json" })).toContain("auth.json");
+		expect(reason("read", { path: "~/.pi/agent/auth.json" }, "omlx")).toContain("auth.json");
+		expect(
+			reason("read", { path: "~/.pi/agent/auth.json" }, "openai-codex", "hosted-unrestricted"),
+		).toContain("auth.json");
 		expect(reason("grep", { path: ".env" })).toContain(".env");
+	});
+
+	test("reserves private-source tools and Notes commands for data-authorized sessions", () => {
+		for (const tool of [
+			"gmail_search_threads",
+			"gmail_get_thread",
+			"gmail_create_draft",
+			"gmail_create_reply_draft",
+			"calendar_list_events",
+			"strava_get_activity",
+			"apple_contacts_search",
+			"contacts_sync",
+		]) {
+			expect(reason(tool, {})).toContain("private local provider");
+			expect(reason(tool, {}, "omlx")).toBeUndefined();
+			expect(reason(tool, {}, "openai-codex", "hosted-unrestricted")).toContain("private local provider");
+		}
+		expect(reason("worker", {})).toBeUndefined();
+		expect(reason("worker", {}, "omlx")).toBeUndefined();
+		expect(reason("bash", { command: "notes gmail poll" })).toContain("private local provider");
+		expect(reason("bash", { command: "bin/notes run track" })).toContain("private local provider");
+		expect(reason("bash", { command: "notes gmail poll" }, "omlx")).toBeUndefined();
+		expect(reason("bash", { command: "notes gmail poll" }, "openai-codex", "hosted-unrestricted")).toContain(
+			"private local provider",
+		);
+		expect(reason("bash", { command: "bin/notes run track" }, "omlx")).toBeUndefined();
+		expect(
+			reason("bash", { command: "bin/notes run track" }, "openai-codex", "hosted-unrestricted"),
+		).toBeUndefined();
+	});
+
+	test("blocks Contacts commands in restricted sessions without blocking documentation", () => {
+		for (const mode of ["hosted-restricted", "local-restricted"]) {
+			for (const command of ["apple-contacts search example", "notes contacts preview example"]) {
+				expect(reason("bash", { command }, "omlx", mode)).toContain("Contacts access");
+			}
+		}
+		expect(reason("bash", { command: "cat docs/contacts.md" })).toBeUndefined();
+		expect(reason("bash", { command: "apple-contacts search example" }, "omlx")).toBeUndefined();
+	});
+
+	test("allows local file tools but never browser uploads for personal documents", () => {
+		const cloudDocument = "~/Library/CloudStorage/GoogleDrive-example/My Drive/client/document.pdf";
+		for (const [tool, input] of [
+			["read", { path: cloudDocument }],
+			["write", { path: "~/Documents/private.txt" }],
+			["bash", { command: `pdftotext "${cloudDocument}" /tmp/document.txt` }],
+		] as const) {
+			expect(reason(tool, input)?.toLowerCase()).toContain("private path");
+			expect(reason(tool, input, "omlx")).toBeUndefined();
+		}
+		expect(reason("agent_browser", { args: ["upload", "@e1", cloudDocument] })).toContain("browser upload");
+		expect(reason("agent_browser", { args: ["upload", "@e1", cloudDocument] }, "omlx")).toContain(
+			"browser upload",
+		);
+		expect(reason("read", { path: "~/code/private/project/app/README.md" })).toBeUndefined();
+		expect(reason("read", { path: "~/code/private/project/vault/work/client.md" })?.toLowerCase()).toContain(
+			"private path",
+		);
+		expect(reason("read", { path: "~/code/private/project/vault/work/client.md" }, "omlx")).toBeUndefined();
+		expect(
+			reason(
+				"read",
+				{ path: "~/code/private/project/vault/work/client.md" },
+				"openai-codex",
+				"hosted-unrestricted",
+			),
+		).toBeUndefined();
+		expect(
+			reason(
+				"read",
+				{ path: "~/Library/Application Support/notes-app/meeting-diarization/result.json" },
+				"openai-codex",
+				"hosted-unrestricted",
+			),
+		).toBeUndefined();
+	});
+
+	test("reserves authenticated private browser domains for the local provider", () => {
+		for (const url of [
+			"https://mail.google.com/mail/u/0/#inbox",
+			"https://docs.google.com/document/d/example/edit",
+			"https://github.com/settings/profile",
+		]) {
+			expect(reason("agent_browser", { args: ["open", url] })).toContain("private local provider");
+			expect(reason("agent_browser", { args: ["open", url] }, "omlx")).toBeUndefined();
+		}
+		expect(
+			reason("agent_browser", { args: ["open", "https://www.linkedin.com/messaging/"] }),
+		).toBeUndefined();
+		expect(reason("agent_browser", { args: ["open", "https://example.com/docs"] })).toBeUndefined();
+	});
+
+	test("blocks nested agent invocation for both cloud and local models", () => {
+		for (const command of [
+			"pi --route private --print 'read my email'",
+			"codex exec 'read ~/Documents'",
+			"claude -p 'read private files'",
+			"pisu -c",
+			"uv run python app/scripts/scheduled-agent.py run coach-exercise prompt",
+		]) {
+			expect(reason("bash", { command })).toContain("nested agent invocation");
+			expect(reason("bash", { command }, "omlx")).toContain("nested agent invocation");
+		}
 	});
 
 	test("allows read-only GitHub API calls and blocks mutations", () => {
@@ -152,16 +272,17 @@ describe("Pi permission policy", () => {
 		expect(reason("bash", { command: "cat $HOME/.ssh/id_ed25519" })).toContain(".ssh");
 	});
 
-	test("blocks writes to Pi's own live configuration", () => {
-		expect(reason("edit", { path: "~/.pi/agent/extensions/permission-policy.ts" })).toContain("~/.pi/agent");
-		expect(reason("write", { path: "~/.pi/agent/settings.json" })).toContain("~/.pi/agent");
-		expect(
-			reason("workspace_files", {
-				action: "rename",
-				source: "safe.ts",
-				target: "~/.pi/agent/extensions/safe.ts",
-			}),
-		).toContain("~/.pi/agent");
+	test("reserves control-plane writes for hosted-unrestricted", () => {
+		for (const path of [
+			"~/.pi/agent/extensions/permission-policy.ts",
+			"~/.pi/agent/settings.json",
+			"~/code/public/workbench/agents/pi/settings.json",
+			"~/code/public/dotfiles/shell/.zshrc",
+		]) {
+			expect(reason("edit", { path })).toContain("hosted-unrestricted");
+			expect(reason("edit", { path }, "openai-codex", "hosted-unrestricted")).toBeUndefined();
+			expect(reason("edit", { path }, "omlx", "local-unrestricted")).toBeUndefined();
+		}
 	});
 
 	test("blocks generated Claude configs that contain materialized secrets", () => {
@@ -183,6 +304,9 @@ describe("Pi permission policy", () => {
 		writeFileSync(join(base, "secrets", "key.txt"), "k");
 		symlinkSync(join(base, "secrets", "key.txt"), join(base, "innocent.txt"));
 		expect(reason("read", { path: join(base, "innocent.txt") })).toContain("secrets");
+		expect(
+			policyBlockReason("bash", { command: "cat innocent.txt" }, base, policy, "openai-codex"),
+		).toContain("secrets");
 	});
 
 	test("denies all remote MCP tools now that the allowlist is empty", () => {
@@ -190,6 +314,13 @@ describe("Pi permission policy", () => {
 			"not on the read-only allowlist",
 		);
 		expect(reason("mcp", { server: "gmail", action: "auth-start" })).toContain("initiated explicitly");
+	});
+
+	test("blocks Apple Notes storage and shell automation", () => {
+		expect(
+			reason("read", { path: "~/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite" }),
+		).toContain("apple.notes");
+		expect(reason("bash", { command: "osascript read-notes.scpt" })).toContain("Apple application scripting");
 	});
 
 	test("blocks tool reads of the shared connector credential root", () => {
@@ -203,4 +334,35 @@ describe("Pi permission policy", () => {
 			"notes-app",
 		);
 	});
+});
+
+test("local-restricted does not inherit local-unrestricted private capabilities", () => {
+	expect(reason("read", { path: "~/Documents/private.txt" }, "omlx", "local-restricted")).toContain(
+		"Private path",
+	);
+	expect(reason("gmail_get_thread", {}, "omlx", "local-restricted")).toContain("private local provider");
+	expect(
+		reason("agent_browser", { args: ["open", "https://mail.google.com"] }, "omlx", "local-restricted"),
+	).toContain("private local provider");
+});
+test("provider policy cannot relabel a hosted model as local", () => {
+	const modified = { ...policy, privateProviders: ["openai-codex"] };
+	expect(
+		policyBlockReason("gmail_get_thread", {}, cwd, modified, "openai-codex", "local-unrestricted"),
+	).toContain("private local provider");
+});
+test("Pi-only deployment is not mistaken for nested Pi invocation", () => {
+	expect(reason("bash", { command: "just sync pi" }, "openai-codex", "hosted-unrestricted")).toBeUndefined();
+	expect(
+		reason("bash", { command: "workbench sync pi" }, "openai-codex", "hosted-unrestricted"),
+	).toBeUndefined();
+	for (const command of [
+		"pil -p secret",
+		"pilo -p secret",
+		"/usr/local/bin/pi -p secret",
+		"piho",
+		"env pi -p secret",
+	]) {
+		expect(reason("bash", { command })).toContain("nested agent");
+	}
 });

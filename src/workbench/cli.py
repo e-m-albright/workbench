@@ -16,6 +16,7 @@ from typer.core import TyperGroup
 
 from workbench import drift as drift_module
 from workbench import lint as lint_module
+from workbench import native as native_module
 from workbench.core import VENDOR_CHOICES, WorkbenchError, _vendors, drain_changed_paths
 from workbench.render import ALIAS_NOTE, DESCRIPTION, gradient_banner, print_error
 from workbench.sync import sync_claude, sync_codex, sync_pi, sync_rules
@@ -114,6 +115,32 @@ def lint() -> int:
     return lint_module.lint()
 
 
+native_app = typer.Typer(help="Prepare and use the native restricted terminal boundary.")
+app.add_typer(native_app, name="native")
+
+
+@native_app.command("prepare")
+def native_prepare(
+    authorize: Annotated[bool, typer.Option(help="Reuse only existing AI model logins")] = False,
+) -> None:
+    """Install the locked runtime and optionally enroll persistent model-only credentials."""
+    native_module.prepare()
+    if authorize:
+        for vendor, ready in native_module.authorize().items():
+            print(f"{vendor}: {'saved model login ready' if ready else 'no reusable model login'}")
+
+
+@native_app.command(
+    "run", context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
+def native_run(
+    ctx: typer.Context,
+    vendor: Annotated[str, typer.Argument(help="codex, claude, pi, or shell")],
+) -> None:
+    """Run a terminal agent in the enforced macOS boundary with an isolated home."""
+    raise typer.Exit(native_module.run_agent(vendor, "hosted", ctx.args))
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_argv = sys.argv[1:] if argv is None else argv
     if not raw_argv:
@@ -122,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
         app(args=raw_argv, prog_name="workbench", standalone_mode=True)
     except SystemExit as error:
         return int(error.code or 0)
-    except (WorkbenchError, OSError, subprocess.CalledProcessError) as error:
+    except (WorkbenchError, OSError, ValueError, subprocess.CalledProcessError) as error:
         print_error(str(error), stream=sys.stderr)
         return 1
     return 0

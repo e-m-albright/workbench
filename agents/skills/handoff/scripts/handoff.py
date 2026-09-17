@@ -15,8 +15,10 @@ from pathlib import Path
 
 
 def state_root() -> Path:
-    base = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
-    return base / "workbench/handoffs"
+    configured = os.environ.get("WORKBENCH_HANDOFF_HOME")
+    if configured:
+        return Path(configured).expanduser()
+    return Path.home() / "code/ingress/handoffs"
 
 
 def queue(name: str) -> Path:

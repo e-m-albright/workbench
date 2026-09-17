@@ -87,10 +87,7 @@ broader than those versions.
 
 Sources: [BleepingComputer summary](https://www.bleepingcomputer.com/news/security/cursor-codex-gemini-cli-antigravity-hit-by-sandbox-escapes/), [Pillar Security's Week of Sandbox Escapes](https://www.pillar.security/blog/the-week-of-sandbox-escapes), and [Cymulate's configuration-based sandbox escape research](https://cymulate.com/blog/the-race-to-ship-ai-tools-left-security-behind-part-1-sandbox-escape/), July 2026.
 
-**Workbench follow-up:** audit the deployed Claude policy's
-`allowUnsandboxedCommands: true` escape hatch against this threat model. Do not
-change it from article evidence alone; test which recurring commands require it
-and whether narrower explicit exclusions preserve the workflow.
+**Workbench posture:** Pi, Claude Code, and Codex use a shared restricted/unrestricted launch wrapper. Restricted is the default and applies an outer Seatbelt policy. Unrestricted omits that outer sandbox and permits harness edits while native approval rules remain active. Pi selects hosted or local inference separately. Verify the actual launch path and denied operations; this is not an NDA-compliance guarantee. No VM is deployed. The [launch matrix](../../docs/pi-capabilities.md#launch-modes-and-permission-guardrails) owns the current commands and limits.
 
 ## Quick reference: adopt in this order
 

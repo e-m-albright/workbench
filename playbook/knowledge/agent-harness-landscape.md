@@ -3,7 +3,7 @@
 **Status:** OPEN / ongoing survey. Not an active build — a tracked view of the
 coding-agent tooling landscape and where our own harness ambitions sit.
 
-**Last surveyed:** 2026-08-28 · **Next review cue:** when a tracked tool ships a
+**Last surveyed:** 2026-09-15 · **Next review cue:** when a tracked tool ships a
 step-change, or roughly quarterly.
 
 **Project this belongs to:** *own our coding surface.* The install-manifest side
@@ -110,6 +110,18 @@ Recent sources point in the same direction without proving one universal recipe:
 The decision rule remains: start from repository context, native tools, deterministic gates, and one observable execution loop. Add a harness feature only for a named recurring failure with a removal path and measurable verification. Do not use vendor throughput as a proxy for owner value or maintainability.
 
 Sources: OpenAI, [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/); Anthropic, [The new rules of context engineering for Claude 5 generation models](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models); O'Reilly, [Stop Overengineering Your Agent Harness](https://www.oreilly.com/radar/stop-overengineering-your-agent-harness/); Galster et al., [Harness Engineering for Agentic AI Coding Tools](https://arxiv.org/abs/2602.14690); METR, [developer productivity experiment update](https://metr.org/blog/2026-02-24-uplift-update/) and [transcript-analysis note](https://metr.org/notes/2026-02-17-exploratory-transcript-analysis-for-estimating-time-savings-from-coding-agents/).
+
+### Executable world models for long-horizon work
+
+[Schema](https://schema-harness.github.io/) adds a sharper pattern for agents that must discover an environment and act over many steps: preserve observations as an append-only ground-truth history; compile the current hypothesis into an executable state-transition model; replay that model against all prior evidence; search and plan cheaply inside the model; use real actions mainly to learn or commit; and invalidate the remaining plan as soon as reality disagrees. The model is useful because it is readable, diffable, replayable, and falsifiable, not because it is a perfect simulation.
+
+The business-process translation is concrete. Long-running automation needs observable case state, typed transitions, explicit invariants, checkpointed progress, idempotent side effects, deterministic verifiers, and a surprise-triggered stop-and-replan path. Consequential writes still cross a policy or human-approval boundary. The objective is not an agent that keeps talking for hours. It is a workflow that can prove which state it believed, why a transition was legal, what changed in reality, and whether the promised outcome occurred.
+
+This also sharpens evaluation: report the model, harness, tools, context policy, stopping rule, and test-time token or dollar budget together. Schema's roughly 99% ARC-AGI-3 result is self-reported on the Public set, uses a fixed fallback that retains the stronger per-game result from two model runs, and makes no held-out or Semi-private performance claim. Treat the score as evidence that the benchmark is harness-sensitive, not as independent proof of general long-horizon reliability.
+
+**Disposition:** adopt the executable-world-model loop as a design criterion, not Schema itself as a dependency. A new long-running automation should identify its event history, state model, transition checks, verifier, mismatch response, and write authority before receiving more autonomy.
+
+Source: Impossible Research, [Schema](https://schema-harness.github.io/), 2026.
 
 ---
 

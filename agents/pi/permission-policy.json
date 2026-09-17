@@ -1,14 +1,45 @@
 {
-  "$comment": "Best-effort friction, not containment: defaultAction is allow with a regex denylist, so novel phrasings run by default. The OS sandbox is the hard boundary, mirroring guard-destructive-shell.sh's framing.",
+  "$comment": "Best-effort tool friction backed by launcher-level macOS Seatbelt profiles. Frontier models may develop code across ~/code, but private data, credentials, ingress writes, and control-plane writes remain bounded.",
   "defaultAction": "allow",
+  "blockedTools": [],
+  "privateProviders": ["omlx"],
+  "privateOnlyTools": [
+    "gmail_search_threads",
+    "gmail_get_thread",
+    "gmail_create_draft",
+    "gmail_create_reply_draft",
+    "calendar_list_calendars",
+    "calendar_list_events",
+    "strava_list_activities",
+    "strava_get_activity",
+    "strava_athlete_stats",
+    "contacts_candidates",
+    "apple_contacts_search",
+    "contacts_preview",
+    "contacts_sync"
+  ],
+  "privateBrowserDomains": [
+    "mail.google.com",
+    "drive.google.com",
+    "docs.google.com",
+    "calendar.google.com",
+    "contacts.google.com",
+    "github.com",
+    "icloud.com"
+  ],
   "mcpAllowedTools": [],
   "denyCommands": [
     {
-      "name": "privileged shell",
+      "name": "Contacts access",
+      "privateOnly": true,
       "patterns": [
-        "\\bsudo\\b",
-        "\\bsu\\b"
+        "\\bapple-contacts\\b",
+        "\\b(?:bin/)?notes\\s+contacts\\b"
       ]
+    },
+    {
+      "name": "privileged shell",
+      "patterns": ["\\bsudo\\b", "\\bsu\\b"]
     },
     {
       "name": "destructive filesystem command",
@@ -33,19 +64,45 @@
       ]
     },
     {
-      "name": "shell network retrieval, upload, or remote script execution",
-      "$comment": "Dedicated browser and connector tools own external reads. Blocking curl and wget closes the common prompt-injection transition from passive content into shell-driven downloads; this remains a guardrail, not network containment.",
+      "name": "nested agent invocation",
+      "$comment": "A model may not spawn another cloud or local agent to bypass the active provider or authority boundary.",
       "patterns": [
-        "\\bcurl\\b",
-        "\\bwget\\b"
+        "(?:^|[;&|()])\\s*(?:(?:env|command|exec)\\s+)*(?:[^\\s;&|()]+/)?(?:pi|pih|pihr|pihu|pil|pilr|pilu|pihc|piho|pilo|pif|piv|pia|pisu|cc|ccu|co|cou|claude|codex)(?:\\s|$)",
+        "scheduled-agent\\.py\\s+run\\b"
       ]
+    },
+    {
+      "name": "Apple application scripting",
+      "$comment": "Apple Notes is intentionally unavailable to coding agents, including shell automation bypasses.",
+      "patterns": [
+        "\\bosascript\\b",
+        "\\bshortcuts\\s+run\\b",
+        "\\bopen\\s+(?:-[aAbB]\\s+)?(?:Notes|com\\.apple\\.Notes)\\b"
+      ]
+    },
+    {
+      "name": "Gmail access",
+      "$comment": "Gmail access is available only when the active model provider is the machine-local oMLX service.",
+      "privateOnly": true,
+      "patterns": [
+        "\\b(?:bin/)?notes\\s+gmail\\b",
+        "\\b(?:bin/)?notes\\s+observe\\s+communications\\b"
+      ]
+    },
+    {
+      "name": "Notes private data access",
+      "$comment": "Graph-backed Notes commands can expose private vault state and therefore require the local provider.",
+      "privateOnly": true,
+      "patterns": ["\\b(?:bin/)?notes\\s+(?:run\\s+track|query|actions|today|next|search|write)\\b"]
+    },
+    {
+      "name": "shell network retrieval, upload, or remote script execution",
+      "patterns": ["\\bcurl\\b", "\\bwget\\b"]
     },
     {
       "name": "shell file redirection",
       "$comment": "Dedicated file tools keep writes bounded and reviewable. Discarding stdout to /dev/null remains allowed.",
-      "patterns": [
-        "(?:^|[;&|()\\s])(?:[12]?>>?|&>)(?![=])\\s*(?!/dev/null(?:\\s|$|[;&|)]))\\S+"
-      ]
+      "patterns": ["(?:^|[;&|()\\s])(?:[12]?>>?|&>)(?![=])\\s*(?!/dev/null(?:\\s|$|[;&|)]))\\S+"]
     },
     {
       "name": "inline interpreter escape hatch",
@@ -57,12 +114,7 @@
     },
     {
       "name": "process control",
-      "patterns": [
-        "\\bkill\\b",
-        "\\bkillall\\b",
-        "\\bpkill\\b",
-        "\\blaunchctl\\b"
-      ]
+      "patterns": ["\\bkill\\b", "\\bkillall\\b", "\\bpkill\\b", "\\blaunchctl\\b"]
     },
     {
       "name": "destructive or history-changing git",
@@ -145,8 +197,14 @@
     "~/.gnupg/**",
     "~/.aws/**",
     "~/.config/gh/hosts.yml",
+    "~/.config/dotfiles/**",
     "~/.pi/agent/auth.json",
-    "~/Library/Application Support/notes-app/**",
+    "~/Library/Application Support/notes-app/google/**",
+    "~/Library/Application Support/notes-app/gmail/**",
+    "~/Library/Application Support/notes-app/strava/**",
+    "~/Library/Application Support/notes-app/browser-profiles/**",
+    "~/Library/Group Containers/group.com.apple.notes/**",
+    "~/Library/Containers/com.apple.Notes/**",
     "~/.claude.json",
     "~/Library/Application Support/Claude/claude_desktop_config.json",
     "~/.claude/.credentials.json",
@@ -163,14 +221,65 @@
     "~/.gnupg/**",
     "~/.aws/**",
     "~/.config/gh/hosts.yml",
-    "~/.pi/agent/**",
-    "~/Library/Application Support/notes-app/**",
+    "~/.config/dotfiles/**",
+    "~/Library/Application Support/notes-app/google/**",
+    "~/Library/Application Support/notes-app/gmail/**",
+    "~/Library/Application Support/notes-app/strava/**",
+    "~/Library/Application Support/notes-app/browser-profiles/**",
+    "~/Library/Group Containers/group.com.apple.notes/**",
+    "~/Library/Containers/com.apple.Notes/**",
     "~/.claude.json",
     "~/Library/Application Support/Claude/claude_desktop_config.json",
     "~/.claude/.credentials.json",
     "~/.codex/auth.json",
     "~/Library/Keychains/**",
+    "~/code/ingress/**",
     ".git/**",
     "node_modules/**"
+  ],
+  "controlWritePaths": [
+    "~/.local/share/workbench/**",
+    "~/.agents/**",
+    "~/.zshrc",
+    "~/.zshrc.local",
+    "~/.npm-global/**",
+    "~/.pi/agent/AGENTS.md",
+    "~/.pi/agent/extensions/**",
+    "~/.pi/agent/settings.json",
+    "~/.pi/agent/models.json",
+    "~/.pi/agent/presets.json",
+    "~/.pi/agent/inference-router.json",
+    "~/.pi/agent/permission-policy.json",
+    "~/.config/workbench/private-paths",
+    "~/code/public/workbench/**",
+    "~/code/public/dotfiles/**"
+  ],
+  "privateReadPaths": [
+    "~/Library/CloudStorage/**",
+    "~/Library/Application Support/notes-app/**",
+    "~/Documents/**",
+    "~/Desktop/**",
+    "~/Downloads/**",
+    "~/Pictures/**",
+    "~/code/private/*/vault/**",
+    "~/code/private/*/.ai/state/**",
+    "~/code/private/*/.artifacts/**",
+    "~/code/private/*/.attachments/**",
+    "~/code/private/*/artifacts/**",
+    "~/code/private/*/.tmp/**"
+  ],
+  "privateWritePaths": [
+    "~/Library/CloudStorage/**",
+    "~/Library/Application Support/notes-app/**",
+    "~/Documents/**",
+    "~/Desktop/**",
+    "~/Downloads/**",
+    "~/Pictures/**",
+    "~/code/private/*/vault/**",
+    "~/code/private/*/.ai/state/**",
+    "~/code/private/*/.artifacts/**",
+    "~/code/private/*/.attachments/**",
+    "~/code/private/*/artifacts/**",
+    "~/code/private/*/.tmp/**"
   ]
 }

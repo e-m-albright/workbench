@@ -12,6 +12,15 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 AGENTS = ROOT / "agents"
 DATA_REL = Path(".local/share/workbench")
+PRIVATE_PATHS_DEFAULT = """\
+# Machine-local private-data denylist. Unrestricted sessions own changes.
+~/code/private/*/vault/**
+~/code/private/*/.ai/state/**
+~/code/private/*/.artifacts/**
+~/code/private/*/.attachments/**
+~/code/private/*/artifacts/**
+~/code/private/*/.tmp/**
+"""
 CODEX_APPENDIX = """\
 
 ## Codex-Specific
@@ -77,6 +86,15 @@ RETIRED_SKILLS = {
     ),
 }
 RETIRED_PI_EXTENSIONS = {
+    "closeout-governor.ts": (
+        "final-answer wording heuristics triggered extra model turns without proving value;"
+        " repository verification gates and shared closeout instructions own completion."
+        " Revisit only if missed verification causes measured failures those controls cannot catch"
+    ),
+    "apple-notes.ts": (
+        "retired 2026-09-14 because Apple Notes is outside the coding-agent data boundary;"
+        " no shell or connector fallback is permitted"
+    ),
     "change-directory.ts": (
         "agents can work across repositories directly; changing the session root"
         " mid-conversation added lifecycle complexity without useful capability"
@@ -105,6 +123,31 @@ RETIRED_PI_PROVIDERS = {
         " returned with multi-model routing and prefix-cache requirements"
     ),
 }
+RETIRED_PI_PRESETS = {
+    "plan": "retired 2026-09-14 when dev became the sole explicit operating preset",
+    "read": "retired 2026-09-14 when dev became the sole explicit operating preset",
+    "safe-auto": "retired 2026-09-14 with automatic prompt classification",
+    "sources": "retired 2026-09-14 when dev became the sole explicit operating preset",
+}
+RETIRED_PI_SETTINGS = {
+    "defaultTools": (
+        "retired 2026-09-15 because a stale read-only allowlist silently removed"
+        " bash, edit, and write when preset activation failed"
+    ),
+}
+RETIRED_PI_SANDBOX_PROFILES = (
+    "agent-restricted.sb",  # Replaced by the default-deny native runtime.
+    "pi-hosted-code.sb",
+    "pi-hosted-control.sb",
+    "pi-hosted-open.sb",
+    "pi-local-code.sb",
+    "pi-local-open.sb",
+    "pi-frontier.sb",
+    "pi-private.sb",
+    "pi-architect.sb",
+    "pi-superuser.sb",
+)
+RETIRED_AGENT_SHELL_FILES = ("codex-external-sandbox.py",)
 RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
 VENDORS = ("claude", "codex", "pi")
 VENDOR_CHOICES = (*VENDORS, "all")
@@ -115,20 +158,11 @@ VENDOR_CHOICES = (*VENDORS, "all")
 # The catastrophe guards — rm -rf, disk erase, git reset --hard, --no-verify, …
 # — live in permissions.json plus the guard hooks and are independent of this
 # block. This layer is *containment*: it caps writes and secret reads on the
-# default sandboxed path. Two deliberate escape valves keep containment from
-# breaking safe work:
-#   - filesystem.allowWrite re-opens regenerable tool caches (uv, pip, …) so the
-#     Python check gate runs in-sandbox instead of failing on ~/.cache.
-#   - excludedCommands runs network git and gh *entirely* outside the sandbox
-#     (SSH auth and Go-TLS both break inside Seatbelt). Patterns are whole-command
-#     globs — "git push" alone matches only a bare command, so each verb needs a
-#     "<verb> *" form to catch real invocations like `git push origin main`.
-#     These still pass through the permission rules and guard hooks, so a
-#     force-push or reset --hard stays blocked; only containment is lifted.
-#   - allowUnsandboxedCommands is True so the long tail of sandbox-incompatible
-#     commands (other network tools) retries outside via the escape hatch,
-#     gated by the auto-mode classifier — restoring autonomy without a blanket
-#     bypass. The catastrophe guards above still apply to every retry.
+# default sandboxed path. filesystem.allowWrite re-opens regenerable tool caches
+# (uv, pip, …) so the Python check gate runs in-sandbox instead of failing on
+# ~/.cache. Network Git and gh exclusions and approval-gated unsandboxed retries
+# preserve direct native Claude use. Managed launchers apply the shared outer boundary;
+# the catastrophe guards above still apply to every retry.
 CLAUDE_SANDBOX = {
     "enabled": True,
     "failIfUnavailable": True,

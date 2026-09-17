@@ -1,0 +1,7 @@
+{
+  "name": "workbench-native-boundary",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.76"
+  }
+}

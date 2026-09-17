@@ -23,10 +23,14 @@ function deferred<T>() {
 	return { promise, resolve };
 }
 
-function createHarness(run: Promise<ExecResult>, options: { branchDeleteFails?: boolean } = {}) {
+function createHarness(
+	run: Promise<ExecResult>,
+	options: { branchDeleteFails?: boolean; provider?: string } = {},
+) {
 	let workerTool: WorkerTool | undefined;
 	let shutdown: ((event: unknown, ctx: any) => Promise<void>) | undefined;
 	let workerSignal: AbortSignal | undefined;
+	let workerArgs: string[] | undefined;
 	const statuses: Array<string | undefined> = [];
 	const notifications: Array<{ text: string; level: string }> = [];
 	const root = `/tmp/wb-worker-${Date.now()}-${Math.random()}`;
@@ -41,6 +45,7 @@ function createHarness(run: Promise<ExecResult>, options: { branchDeleteFails?: 
 		async exec(command: string, args: string[], execOptions?: { signal?: AbortSignal }) {
 			if (command === "pi") {
 				workerSignal = execOptions?.signal;
+				workerArgs = args;
 				return run;
 			}
 			if (args.includes("--show-toplevel")) {
@@ -58,6 +63,7 @@ function createHarness(run: Promise<ExecResult>, options: { branchDeleteFails?: 
 	workerExtension(pi as never);
 	const ctx = {
 		cwd: root,
+		model: { provider: options.provider ?? "openai-codex" },
 		hasUI: true,
 		ui: {
 			setStatus(_key: string, value: string | undefined) {
@@ -79,6 +85,9 @@ function createHarness(run: Promise<ExecResult>, options: { branchDeleteFails?: 
 		get workerSignal() {
 			return workerSignal;
 		},
+		get workerArgs() {
+			return workerArgs;
+		},
 	};
 }
 
@@ -98,6 +107,27 @@ describe("Pi worker delegate", () => {
 			"fix-the-flaky-footer-202607220101",
 		);
 		expect(workerSlug("!!!", "202607220101")).toBe("task-202607220101");
+	});
+
+	test("pins each worker to its parent's privacy route", async () => {
+		for (const [provider, route] of [
+			["openai-codex", "frontier"],
+			["omlx", "private"],
+		] as const) {
+			const child = deferred<ExecResult>();
+			const harness = createHarness(child.promise, { provider });
+			await harness.tool?.execute(
+				"delegate",
+				{ action: "delegate", task: "add one test" },
+				undefined,
+				undefined,
+				harness.ctx,
+			);
+			expect(harness.workerArgs?.slice(0, 2)).toEqual(["--route", route]);
+			child.resolve({ code: 0, stdout: "done", stderr: "", killed: false });
+			await settleBackground();
+			await harness.tool?.execute("discard", { action: "discard" }, undefined, undefined, harness.ctx);
+		}
 	});
 
 	test("worker prompt forbids git mutation and requires verification", () => {

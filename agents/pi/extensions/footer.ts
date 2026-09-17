@@ -567,7 +567,7 @@ export default function (pi: ExtensionAPI) {
 		refreshTimer && clearInterval(refreshTimer);
 		refreshTimer = setInterval(() => {
 			void refresh(ctx);
-		}, 3000);
+		}, 15_000);
 		quotaTimer && clearInterval(quotaTimer);
 		quotaTimer = setInterval(() => {
 			void refreshQuota(ctx, true);

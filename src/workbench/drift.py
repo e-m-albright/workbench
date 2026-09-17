@@ -12,8 +12,12 @@ from workbench.codex import expected_codex_rules_md, merge_codex_config, merge_c
 from workbench.core import (
     AGENTS,
     DATA_REL,
+    RETIRED_AGENT_SHELL_FILES,
     RETIRED_PI_EXTENSIONS,
+    RETIRED_PI_PRESETS,
     RETIRED_PI_PROVIDERS,
+    RETIRED_PI_SANDBOX_PROFILES,
+    RETIRED_PI_SETTINGS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
     ROOT,
@@ -236,6 +240,10 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
             "Pi settings",
         )
     )
+    live_settings = _settings(pi_home / "settings.json")
+    for name in sorted(RETIRED_PI_SETTINGS):
+        if name in live_settings:
+            findings.append(f"DRIFT retired Pi setting still present: {name}")
     for filename, nested_key in (
         ("models.json", "providers"),
         ("presets.json", None),
@@ -250,6 +258,8 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
             for name in sorted(actual.keys() - expected.keys()):
                 if filename == "models.json" and name in RETIRED_PI_PROVIDERS:
                     findings.append(f"DRIFT retired Pi provider still present: {name}")
+                elif filename == "presets.json" and name in RETIRED_PI_PRESETS:
+                    findings.append(f"DRIFT retired Pi preset still present: {name}")
                 else:
                     external.append(f"EXTERNAL Pi {filename} entry: {name}")
 
@@ -325,6 +335,16 @@ def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) ->
     if selected:
         for name, fragment in _canonical_shell_fragments().items():
             _compare(fragment, data / "shell" / name, f"shell fragment {name}", findings)
+        for name in RETIRED_AGENT_SHELL_FILES:
+            if (data / "shell" / name).exists():
+                findings.append(f"DRIFT retired agent bridge still present: {name}")
+        for name in RETIRED_PI_SANDBOX_PROFILES:
+            if (data / "sandbox" / name).exists():
+                findings.append(f"DRIFT retired Pi sandbox profile still present: {name}")
+    if "pi" in selected:
+        _check_private_mode(
+            home / ".config/workbench/private-paths", "Pi private path denylist", findings
+        )
     if {"claude", "codex"} & set(selected):
         hooks = _canonical_hooks()
         for name, hook in hooks.items():

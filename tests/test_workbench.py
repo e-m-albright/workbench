@@ -580,6 +580,7 @@ class WorkbenchTests(unittest.TestCase):
             self.assertTrue(actual["sandbox"]["enabled"])
             self.assertTrue(actual["sandbox"]["allowUnsandboxedCommands"])
             self.assertIn("git push *", actual["sandbox"]["excludedCommands"])
+            self.assertNotIn("~/Documents", actual["sandbox"]["filesystem"]["denyRead"])
             self.assertEqual((home / ".claude.json").stat().st_mode & 0o777, 0o600)
             desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
             self.assertEqual(desktop.stat().st_mode & 0o777, 0o600)
@@ -628,16 +629,22 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(findings, [])
         self.assertEqual(external, ["NOTE claude plugins unverified (CLI not found)"])
 
-    def test_codex_connector_plugins_are_declared(self) -> None:
+    def test_codex_connector_plugins_are_disabled(self) -> None:
         plugins = core._string_array(core.AGENTS / "codex/plugins.json")
 
-        self.assertEqual(
-            plugins,
-            [
-                "gmail@openai-curated-remote",
-                "google-calendar@openai-curated-remote",
-            ],
-        )
+        self.assertEqual(plugins, [])
+
+    def test_pi_starts_in_dev_on_the_explicit_frontier_route(self) -> None:
+        settings = core.load_json(core.AGENTS / "pi/settings.json")
+        router = core.load_json(core.AGENTS / "pi/inference-router.json")
+        presets = core.load_json(core.AGENTS / "pi/presets.json")
+
+        self.assertEqual(settings["defaultPreset"], "dev")
+        self.assertNotIn("defaultTools", settings)
+        self.assertEqual(router["defaultMode"], "frontier")
+        self.assertNotIn("classifier", router)
+        self.assertEqual(router["private"]["provider"], "omlx")
+        self.assertEqual(list(presets), ["dev"])
 
     def test_sync_removes_retired_workbench_hooks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -774,7 +781,9 @@ class WorkbenchTests(unittest.TestCase):
             duplicate = pi_home / "skills" / canonical_name
             duplicate.mkdir(parents=True)
             (duplicate / "SKILL.md").write_text("stale duplicate\n")
-            (pi_home / "settings.json").write_text(json.dumps({"externalSetting": True}))
+            (pi_home / "settings.json").write_text(
+                json.dumps({"externalSetting": True, "defaultTools": ["read"]})
+            )
             (pi_home / "models.json").write_text(
                 json.dumps(
                     {
@@ -785,10 +794,18 @@ class WorkbenchTests(unittest.TestCase):
                     }
                 )
             )
-            (pi_home / "presets.json").write_text(json.dumps({"external-preset": {}}))
+            (pi_home / "presets.json").write_text(
+                json.dumps({"external-preset": {}, "read": {}, "safe-auto": {}})
+            )
             (pi_home / "extensions/external.ts").write_text("export default () => {};\n")
             retired = pi_home / "extensions/discovery-telemetry.ts"
             retired.write_text("stale retired extension\n")
+            retired_backup = pi_home / "extensions/apple-notes.ts.bak"
+            retired_backup.write_text("stale retired connector backup\n")
+            governor = pi_home / "extensions/closeout-governor.ts"
+            governor.write_text("stale extra-turn governor\n")
+            governor_backup = governor.with_suffix(".ts.bak")
+            governor_backup.write_text("old extra-turn governor\n")
             retired_state = home / ".local/state/workbench/pi-discovery/old.jsonl"
             retired_state.parent.mkdir(parents=True)
             retired_state.write_text("stale private telemetry\n")
@@ -799,11 +816,17 @@ class WorkbenchTests(unittest.TestCase):
             models = json.loads((pi_home / "models.json").read_text())
             presets = json.loads((pi_home / "presets.json").read_text())
             self.assertTrue(settings["externalSetting"])
+            self.assertNotIn("defaultTools", settings)
             self.assertIn("external-provider", models["providers"])
             self.assertNotIn("lm-studio", models["providers"])
             self.assertIn("external-preset", presets)
+            self.assertNotIn("read", presets)
+            self.assertNotIn("safe-auto", presets)
             self.assertTrue((pi_home / "extensions/external.ts").exists())
             self.assertFalse(retired.exists())
+            self.assertFalse(retired_backup.exists())
+            self.assertFalse(governor.exists())
+            self.assertFalse(governor_backup.exists())
             self.assertFalse(retired_state.parent.exists())
             self.assertTrue((pi_home / "skills/external-skill/SKILL.md").exists())
             self.assertFalse((pi_home / "skills" / canonical_name).exists())
@@ -909,6 +932,55 @@ other = true
         self.assertEqual(parsed["tui"]["theme"], "Sublime Snazzy")
         self.assertEqual(parsed["tui"]["terminal_title"], ["spinner", "project"])
         self.assertTrue(parsed["tui"]["other"])
+
+    def test_codex_merge_repairs_weakened_ordinary_defaults_and_drift(self) -> None:
+        source = (
+            '"sandbox_mode" = "danger-full-access"\n'
+            '\'approval_policy\' = "never"\nmodel = "example"\n'
+            '[profiles.explicit]\nsandbox_mode = "danger-full-access"\n'
+        )
+        parsed = tomllib.loads(codex.merge_codex_config(source))
+        self.assertEqual(parsed["sandbox_mode"], "workspace-write")
+        self.assertEqual(parsed["approval_policy"], "on-request")
+        self.assertEqual(parsed["model"], "example")
+        self.assertEqual(parsed["profiles"]["explicit"]["sandbox_mode"], "danger-full-access")
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
+            config = home / ".codex/config.toml"
+            config.write_text(
+                config.read_text()
+                .replace('approval_policy = "on-request"', 'approval_policy = "never"')
+                .replace('sandbox_mode = "workspace-write"', 'sandbox_mode = "danger-full-access"')
+            )
+            findings = []
+            drift_mod._check_codex(home, findings, [])
+            self.assertIn("DRIFT Codex config", findings)
+
+    def test_codex_merge_preserves_noninteractive_confined_policy(self) -> None:
+        for sandbox in ("read-only", "workspace-write"):
+            source = f'sandbox_mode = "{sandbox}"\napproval_policy = "never"\n'
+            parsed = tomllib.loads(codex.merge_codex_config(source))
+            self.assertEqual(parsed["sandbox_mode"], sandbox)
+            self.assertEqual(parsed["approval_policy"], "never")
+
+    def test_codex_merge_preserves_structured_approval_policy(self) -> None:
+        source = (
+            "approval_policy = { granular = { sandbox_approval = false, "
+            "rules = false, mcp_elicitations = false } }\n"
+        )
+        self.assertEqual(
+            tomllib.loads(codex.merge_codex_config(source))["approval_policy"],
+            tomllib.loads(source)["approval_policy"],
+        )
+
+    def test_codex_default_repair_rejects_unrelated_multiline_changes(self) -> None:
+        source = (
+            'sandbox_mode = "danger-full-access"\napproval_policy = "never"\n'
+            'description = """\napproval_policy = "never"\n"""\n'
+        )
+        with self.assertRaisesRegex(core.WorkbenchError, "unrelated"):
+            codex.merge_codex_config(source)
 
     def test_codex_merge_preserves_explicit_safety_policy(self) -> None:
         merged = codex.merge_codex_config(
@@ -1022,16 +1094,69 @@ js_repl = false
         self.assertNotIn("Fetch and merge origin/main", launchers)
         self.assertIn("read-only review", launchers)
 
+    @patch.object(drift_mod.shutil, "which", return_value="/usr/local/bin/pi")
+    def test_pi_sync_retires_old_profiles_and_preserves_other_vendors(self, _which) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw)
+            data = home / core.DATA_REL / "sandbox"
+            data.mkdir(parents=True)
+            old = data / "pi-frontier.sb"
+            old.write_text("old profile\n")
+            unrelated = home / ".claude/settings.json"
+            unrelated.parent.mkdir()
+            unrelated.write_text("owner settings\n")
+            sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
+            self.assertFalse(old.exists())
+            self.assertEqual((data / "pi-frontier.sb.bak").read_text(), "old profile\n")
+            self.assertEqual(unrelated.read_text(), "owner settings\n")
+            self.assertEqual(
+                {p.name for p in data.glob("*.sb")},
+                set(),
+            )
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 0)
+            old.write_text("stale profile\n")
+            self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
+
+    def test_local_wrapper_rejects_cloud_startup_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw).resolve()
+            sync.sync_pi(home, deploy_skills=False, deploy_plugins=False)
+            fake_bin = home / "bin"
+            fake_bin.mkdir()
+            binary = fake_bin / "pi"
+            binary.write_text('#!/bin/sh\nprintf "PI_STARTED\\n"\n')
+            binary.chmod(0o755)
+            env = {**os.environ, "HOME": str(home), "PATH": f"{fake_bin}:/usr/bin:/bin"}
+            wrapper = home / core.DATA_REL / "shell/agent-sandbox.zsh"
+            for args in (
+                ["--provider", "openai"],
+                ["--provider=openai"],
+                ["--model", "openai/gpt-5"],
+                ["--no-extensions"],
+                ["-ne"],
+            ):
+                with self.subTest(args=args):
+                    result = subprocess.run(
+                        ["/bin/zsh", str(wrapper), "pi", "local", "unrestricted", *args],
+                        env=env,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn("PI_STARTED", result.stdout)
+
     def test_gcai_uses_a_fast_model_and_only_staged_changes(self) -> None:
         launchers = (core.AGENTS / "shared/shell/agent-launchers.zsh").read_text()
 
         self.assertIn("gcai()", launchers)
         self.assertNotIn("gcmw()", launchers)
-        gcai = launchers.split("# Pi privacy routes", maxsplit=1)[0]
+        gcai = launchers.split("# Pi modes", maxsplit=1)[0]
         self.assertIn("git diff --staged", gcai)
         self.assertIn("--model openai-codex/gpt-5.3-codex-spark --no-extensions", gcai)
         self.assertIn('"$HOME/code/private/"*', gcai)
         self.assertIn("--route private", gcai)
+        self.assertIn("pi_launcher=_wb_local_commit_message", gcai)
         self.assertIn("--no-session --no-context-files", gcai)
         self.assertNotIn("git push", gcai)
 

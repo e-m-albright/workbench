@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tomllib
 from collections.abc import Mapping
 
@@ -83,19 +84,41 @@ def merge_codex_config(text: str) -> str:
     fallback = 'project_doc_fallback_filenames = ["CODEX.md"]'
     if "project_doc_fallback_filenames" not in parsed:
         cleaned = f"{fallback}\n\n{cleaned}" if cleaned else fallback
-    defaults: list[str] = []
-    if "sandbox_mode" not in parsed:
-        defaults.append('sandbox_mode = "workspace-write"')
-    if "approval_policy" not in parsed:
-        defaults.append('approval_policy = "on-request"')
+    # Ordinary launches have managed defaults; explicit named/CLI choices remain separate.
+    replacements = {}
+    if "sandbox_mode" not in parsed or parsed["sandbox_mode"] == "danger-full-access":
+        replacements["sandbox_mode"] = "workspace-write"
+    if "approval_policy" not in parsed or (
+        parsed["approval_policy"] == "never" and parsed.get("sandbox_mode") == "danger-full-access"
+    ):
+        replacements["approval_policy"] = "on-request"
+    # Line-oriented like _drop_tables; the semantic comparison below fails closed
+    # if a multiline string happens to look like a root assignment.
+    lines = []
+    in_root = True
+    for line in cleaned.splitlines():
+        if line.lstrip().startswith("["):
+            in_root = False
+        if in_root and any(
+            re.match(rf"^\s*(?:{key}|\"{key}\"|'{key}')\s*=", line) for key in replacements
+        ):
+            continue
+        lines.append(line)
+    cleaned = "\n".join(lines).rstrip()
+    defaults = [f'{key} = "{value}"' for key, value in replacements.items()]
     if defaults:
         cleaned = "\n".join(defaults) + (f"\n\n{cleaned}" if cleaned else "")
     blocks = [part for part in (cleaned, _render_mcp(servers).rstrip(), tui) if part]
     merged = "\n\n".join(blocks) + "\n"
     try:
-        tomllib.loads(merged)
+        reparsed = tomllib.loads(merged)
     except tomllib.TOMLDecodeError as exc:
         raise WorkbenchError(f"generated invalid Codex TOML: {exc}") from exc
+    managed = {"mcp_servers", "tui", "sandbox_mode", "approval_policy"}
+    if any(reparsed.get(key) != value for key, value in parsed.items() if key not in managed):
+        raise WorkbenchError(
+            "Codex merge would change unrelated configuration; manual review required"
+        )
     return merged
 
 

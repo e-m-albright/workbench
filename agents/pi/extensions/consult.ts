@@ -153,6 +153,13 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("consult", {
 		description: "Read-only second opinion: /consult [--claude|--codex|--fable|--model <id>] <question>",
 		handler: async (args, ctx) => {
+			if (process.env.WORKBENCH_PI_MODE?.startsWith("local-") || ctx.model?.provider === "omlx") {
+				ctx.ui.notify(
+					"Cloud consult is unavailable in a local session. Start a separate hosted session with explicitly released context.",
+					"error",
+				);
+				return;
+			}
 			const settings = getSettings(ctx);
 			const { provider, model, question } = parseArgs(args, settings.provider, settings.model);
 

@@ -8,8 +8,10 @@ from pathlib import Path
 SCRIPT = Path(__file__).parents[1] / "agents/skills/handoff/scripts/handoff.py"
 
 
-def run_handoff(state_home: Path, *args: str, stdin: str = "") -> subprocess.CompletedProcess[str]:
-    env = {**os.environ, "XDG_STATE_HOME": str(state_home)}
+def run_handoff(
+    handoff_home: Path, *args: str, stdin: str = ""
+) -> subprocess.CompletedProcess[str]:
+    env = {**os.environ, "WORKBENCH_HANDOFF_HOME": str(handoff_home)}
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
         input=stdin,
@@ -33,7 +35,7 @@ def test_save_creates_private_markdown_artifact(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     artifact = Path(result.stdout.strip())
-    assert artifact.parent == tmp_path / "workbench/handoffs/ready"
+    assert artifact.parent == tmp_path / "ready"
     assert artifact.stat().st_mode & 0o777 == 0o600
     assert artifact.parent.stat().st_mode & 0o777 == 0o700
     assert artifact.parent.parent.stat().st_mode & 0o777 == 0o700
@@ -42,6 +44,24 @@ def test_save_creates_private_markdown_artifact(tmp_path: Path) -> None:
     assert 'repository: "/home/dev/dotfiles"' in text
     assert "status: ready" in text
     assert "## Context snapshot" in text
+
+
+def test_default_queue_lives_directly_under_ingress(tmp_path: Path) -> None:
+    env = {**os.environ, "HOME": str(tmp_path)}
+    env.pop("WORKBENCH_HANDOFF_HOME", None)
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "save", "--project", "workbench"],
+        input="## Context snapshot\n",
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    artifact = Path(result.stdout.strip())
+    assert artifact.parent == tmp_path / "code/ingress/handoffs/ready"
 
 
 def test_latest_then_consume_moves_artifact_without_destroying_it(tmp_path: Path) -> None:
@@ -62,7 +82,7 @@ def test_latest_then_consume_moves_artifact_without_destroying_it(tmp_path: Path
     assert consumed.returncode == 0, consumed.stderr
     destination = Path(consumed.stdout.strip())
     assert not artifact.exists()
-    assert destination.parent == tmp_path / "workbench/handoffs/consumed"
+    assert destination.parent == tmp_path / "consumed"
     assert destination.exists()
     assert "status: consumed" in destination.read_text()
     assert "consumed_at:" in destination.read_text()

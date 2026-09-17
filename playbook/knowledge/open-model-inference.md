@@ -305,22 +305,13 @@ product and runs supported models on Cloudflare infrastructure. Saying simply
 | [Vercel AI Gateway](https://vercel.com/ai-gateway) | No | Competitive application gateway with hundreds of models, fallback, budgets, usage controls, and bring-your-own-key support. Strongest with AI SDK or Vercel; OpenRouter remains broader and more deployment-neutral. |
 | [Portkey](https://portkey.ai/) | No | Mature gateway and observability control plane; organization-oriented rather than needed locally. |
 | [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) | No, for the gateway product | Observability, caching, rate limits, retries, fallback, and provider routing; attractive when the application already lives on Cloudflare. See the [Vercel and Cloudflare stack watch](../stacks/vercel-cloudflare.md#model-gateways-vercel-cloudflare-and-openrouter) for the direct gateway comparison. |
-| Workbench Pi router | No | **Active policy layer.** Explicit frontier/private/auto modes with a local classifier and sticky privacy boundary. |
+| Workbench Pi router | No | **Active policy layer.** Explicit frontier and private routes; automatic prompt classification was removed because the owner prefers visible launcher intent. |
 
-Plain `pi` remains the explicit frontier path. Workbench deploys only the two
-privacy shorthands:
-
-```bash
-piv  # explicit private/local
-pia  # automatic, conservative routing
-```
-
-Auto classifies each user input until any input routes private. That transition is
-one-way for the session: later inputs remain local unless the user explicitly
-overrides the boundary. Connector data stays conservative in auto because its
-sensitivity cannot be known before retrieval. Calendar or selected Gmail work may
-use plain `pi` in a fresh session when the user deliberately values
-frontier intelligence over local handling.
+Workbench's [launch modes](../../docs/pi-capabilities.md#launch-modes-and-permission-guardrails)
+separate inference location (`hosted` or `local`) from access (`restricted` or
+`unrestricted`). Pi, Claude Code, and Codex share the outer access wrapper. The
+capabilities page owns the commands, access matrix, and limitations. Internal frontier/private provider routing remains a
+separate concept. Automatic prompt classification is absent.
 
 Provider routing chooses where to run the same model. Model routing chooses which
 model should answer. The first is operationally mature; the second must be judged

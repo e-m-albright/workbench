@@ -49,4 +49,5 @@ names or personal absolute paths and ensure tracked files return nothing.
 - Plan non-trivial changes before implementation.
 - Preserve unrelated user changes.
 - Verify commands and file deployment before claiming completion.
+- `.github/workflows/ci.yml` owns main push/PR checks, manual runs, and weekly maintenance on Mondays at 09:00 America/Los_Angeles. Its independent jobs run `just check`, dependency auditing, and full-history secret scanning. GitHub Actions Dependabot checks weekly at the same local time.
 - When removing a capability, record why and what would justify revisiting it.

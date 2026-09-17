@@ -218,8 +218,9 @@ export default function workerExtension(pi: ExtensionAPI) {
 		};
 		active = state;
 		startProgressTimer(ctx, state);
+		const route = ctx.model?.provider === "omlx" ? "private" : "frontier";
 		void pi
-			.exec("pi", ["-p", "--no-session", buildWorkerPrompt(boundedTask, branch)], {
+			.exec("pi", ["--route", route, "-p", "--no-session", buildWorkerPrompt(boundedTask, branch)], {
 				cwd: dir,
 				timeout: timeoutMs(ctx),
 				signal: state.abortController.signal,

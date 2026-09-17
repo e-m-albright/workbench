@@ -112,10 +112,10 @@ read-only adapter named under Source connectors, not a fork.
 | Custom footer | Restores native information and adds repository state, context, cost, speed, compaction, and Codex quota evidence. | Every field must earn its width. Remove annotations that do not change behavior. |
 | Activity title and deterministic session name | Terminal tabs now show spinner, repository, concise first-prompt label, and active tool. Resumed unnamed sessions remain findable; explicit names win. | No completion notification. Remove if titles become noisy or inaccurate. |
 | Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, shell network retrieval, destructive Git, and risky shell mutations before execution. External reading stays on dedicated browser and connector tools. | These are not containment. Keep tests aligned with real failure modes. |
-| Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded. |
-| Owned Google read-only connector | `google-readonly.ts` implements Gmail/Calendar search and read directly against `googleapis.com` with loopback OAuth (PKCE), read-only scopes, and 0600 token storage. Replaces the generic adapter route so no third-party dependency tree sits in the token path. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; credential files are on the protected read list; tools are read-only by construction. |
-| Bounded worktree worker | The `worker` tool lets the parent model start one isolated implementation task in the background, continue disjoint work, inspect progress, and later adopt or reject the result; `/worker` remains a manual entrypoint. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and may not commit, push, install, or merge. Elapsed status uses no polling or extra model calls. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save wall-clock time or protect context. |
-| Plan preset | `/preset plan` gives a read-only planning stance with a required scope/non-goals/steps/verification contract before switching to dev. | A preset plus instructions, no machinery. Remove if unused. |
+| Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded; unavailable in local modes because its subprocess uses a hosted provider. |
+| Owned Google read-only connector | `google-readonly.ts` implements Gmail and Calendar search and read directly against `googleapis.com` with loopback OAuth, read-only scopes, and 0600 token storage. Gmail and Calendar remain subject to the provider and access requirements in the connector policy. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; tool-policy rules block raw credential reads; the connector process still needs access to its token files. Unrestricted host access does not itself grant a private-source tool. |
+| Bounded worktree worker | The `worker` tool lets either route start one isolated implementation task in the background, continue disjoint work, inspect progress, and later adopt or reject the result; `/worker` remains a manual entrypoint. Frontier workers remain subject to the same private-source path and connector guards as their parent. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and may not commit, push, install, or merge. Elapsed status uses no polling or extra model calls. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save wall-clock time or protect context. |
+| Default dev preset | One coding tool profile; launch modes independently select model location and access. | Do not add another preset without a recurring workflow the inference and access choices cannot express. |
 | Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an Exa-backed companion search tool. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
 
@@ -152,14 +152,31 @@ the Codex subscription, OpenRouter, Google, Anthropic, or a local model).
 
 Working policy:
 
-- For sessions that read Gmail or Calendar content, prefer the provider already
-  holding that data (Google models for Google data) or a local model.
-  Pi's per-session model switching makes this a one-keystroke choice, which is a
-  capability Claude Code and Codex do not offer.
-- Claude and Codex connectors send the same source data to Anthropic or OpenAI
-  respectively; using them is a data-routing decision, not just a convenience.
-- Default remains the Codex subscription route for coding work that does not
-  touch personal source data.
+- The [launch matrix](pi-capabilities.md#launch-modes-and-permission-guardrails)
+  separates hosted/local inference from restricted/unrestricted access. Internal
+  frontier/private provider routes remain useful; automatic prompt
+  classification and a separate control mode do not.
+- Pi, Claude Code, and Codex use one shared outer wrapper. Restricted is the
+  default. Unrestricted permits harness maintenance and has no Workbench outer
+  OS sandbox; native approvals still apply. Vendor integrations invoke the
+  shared policy rather than copy it into competing configurations.
+- Connector grants and data release remain separate from filesystem access.
+  Privileged Strava reads keep their OAuth secrets out of model context.
+  Do not promise uniform source availability across modes, providers, and
+  launchers. Apple Notes remains unavailable.
+- Repository privacy and data privacy are separate. Preserve hosted coding in
+  private repositories, but do not claim a blacklist protects confidential Git
+  history. Splitting code, private state, and recoverable history is the durable
+  correction; its private migration and backup plan belongs to the data owner.
+- Prefer fewer enforcement layers with clear responsibilities. No VM is deployed. Do not build a
+  custom VM platform. Evaluate an existing macOS virtualization tool with only
+  approved code and inputs exposed. Keep native macOS work on a separately
+  evaluated path when a Linux guest cannot run its tools.
+- The current residual risks are explicit in the capabilities page: dynamic
+  path-list enforcement, shared token custody, ingress ownership, transcript
+  history, direct launch coverage, and unrestricted network paths. A VM reduces
+  host exposure only when its mounts, network, credentials, and control API are
+  also constrained. No isolation option is undefeatable.
 
 ## Research tracks
 
@@ -169,8 +186,6 @@ Working policy:
   once the annotations bed in.
 - **Speed-based model comparison:** record per-model tok/s and cost history from
   the footer data to inform model choice.
-- **Private preset:** a preset or binding that pins source-data sessions to a
-  Google or local model per the privacy policy above.
 
 ### Prompt navigation
 
@@ -241,10 +256,7 @@ Working policy:
 
 ### Source connectors
 
-- **Resolved 2026-07-22:** the Workbench-owned read-only connector
-  (`google-readonly.ts`) replaced the generic adapter route for Gmail and
-  Calendar. Direct REST to `googleapis.com`, loopback OAuth with PKCE, read-only
-  scopes, no third-party code in the token path.
+- **Resolved 2026-07-22:** the Workbench-owned read-only connector (`google-readonly.ts`) replaced the generic adapter route for Gmail and Calendar. Direct REST reaches only `googleapis.com`, with loopback OAuth, read-only scopes, and no third-party code in the token path. Gmail and Calendar follow the connector policy and access boundary in the mode matrix.
 - **Credential layout (2026-07-22):** one agent-neutral root at
   `~/Library/Application Support/notes-app/` holds the shared Google OAuth
   client, the connectors' read-only tokens, the labeler's modify-scope token,

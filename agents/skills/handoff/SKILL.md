@@ -10,7 +10,7 @@ Transfer only the state a fresh session needs to continue safely. Handoffs are d
 
 ## Storage and lifecycle
 
-Store Markdown artifacts under `${XDG_STATE_HOME:-$HOME/.local/state}/workbench/handoffs/`:
+Store Markdown artifacts under `${WORKBENCH_HANDOFF_HOME:-$HOME/code/ingress/handoffs}`. This is the global cross-repository agent handoff queue; each artifact records its owning project:
 
 - `ready/` contains handoffs available for consumption.
 - `consumed/` retains recently consumed handoffs for recovery.

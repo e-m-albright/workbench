@@ -31,11 +31,10 @@ session tokens, and OAuth grants never belong in dotfiles or Workbench.
 
 The expected connector split is:
 
-- ChatGPT/Codex: official plugins for Gmail and Google Calendar.
-- Claude Code/Desktop: managed MCP declarations where no equivalent managed
-  plugin is part of the selected workflow.
-- External local MCPs remain explicit and are reported by `workbench drift`
-  rather than silently deleted.
+- ChatGPT/Codex: no Gmail or Google Calendar plugins are declared.
+- Pi: the owned read-only Google and Strava connectors are available only to the machine-local provider. Private vault and document access follows the same provider gate. Apple Notes is unavailable to coding agents.
+- Claude Code/Desktop: managed Model Context Protocol declarations where no equivalent approved integration exists. No Gmail connector is declared, and personal document roots remain sandbox-denied.
+- External local Model Context Protocol servers remain explicit and are reported by `workbench drift` rather than silently deleted.
 
 ## Editor and terminal
 

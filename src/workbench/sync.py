@@ -12,8 +12,13 @@ from workbench.core import (
     AGENTS,
     CLAUDE_SANDBOX,
     DATA_REL,
+    PRIVATE_PATHS_DEFAULT,
+    RETIRED_AGENT_SHELL_FILES,
     RETIRED_PI_EXTENSIONS,
+    RETIRED_PI_PRESETS,
     RETIRED_PI_PROVIDERS,
+    RETIRED_PI_SANDBOX_PROFILES,
+    RETIRED_PI_SETTINGS,
     RETIRED_PI_STATE_PATHS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
@@ -56,8 +61,26 @@ def _canonical_hooks() -> dict[str, Path]:
 
 
 def _canonical_shell_fragments() -> dict[str, Path]:
-    """Shell fragments (agent launchers) sourced by the dotfiles zshrc."""
-    return {f.name: f for f in sorted((AGENTS / "shared/shell").glob("*.zsh"))}
+    """Shared launcher runtime; dotfiles sources only agent-launchers.zsh."""
+    return {
+        path.name: path
+        for path in sorted((AGENTS / "shared/shell").iterdir())
+        if path.suffix in {".zsh", ".py", ".mjs"}
+    }
+
+
+def _retire_agent_runtime(home: Path) -> None:
+    """Remove obsolete weaker boundaries while retaining owner recovery copies."""
+    data = home / DATA_REL
+    for directory, names in (
+        ("sandbox", RETIRED_PI_SANDBOX_PROFILES),
+        ("shell", RETIRED_AGENT_SHELL_FILES),
+    ):
+        for name in names:
+            retired = data / directory / name
+            if retired.exists():
+                copy_file(retired, retired.with_name(name + ".bak"))
+                _remove_deployed_path(retired)
 
 
 def _canonical_skills() -> dict[str, Path]:
@@ -69,6 +92,7 @@ def _install_runtime_files(home: Path) -> Path:
     data = home / DATA_REL
     for name, fragment in _canonical_shell_fragments().items():
         copy_file(fragment, data / "shell" / name)
+    _retire_agent_runtime(home)
     hooks = _canonical_hooks()
     hook_dir = data / "hooks"
     if hook_dir.exists():
@@ -276,6 +300,7 @@ def _merge_pi_object(
     destination: Path,
     *,
     nested_key: str | None = None,
+    retired_keys: set[str] | None = None,
     retired_nested_keys: set[str] | None = None,
 ) -> None:
     desired = _settings(source)
@@ -292,7 +317,10 @@ def _merge_pi_object(
         }
         desired = {**existing, **desired, nested_key: {**retained, **desired_nested}}
     else:
-        desired = {**existing, **desired}
+        retained = {
+            key: value for key, value in existing.items() if key not in (retired_keys or set())
+        }
+        desired = {**retained, **desired}
     if destination.is_symlink():
         destination.unlink()
     write_json(destination, desired)
@@ -330,24 +358,38 @@ def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
     del deploy_plugins  # Pi packages are declared in settings.json, not a separate plugin registry.
     for name, fragment in _canonical_shell_fragments().items():
         copy_file(fragment, home / DATA_REL / "shell" / name)
+    _retire_agent_runtime(home)
+    private_paths = home / ".config/workbench/private-paths"
+    if not private_paths.exists():
+        write_text(private_paths, PRIVATE_PATHS_DEFAULT, mode=0o600)
     source = AGENTS / "pi"
     destination = home / ".pi/agent"
     _harden_pi_session_permissions(destination)
     for path in RETIRED_PI_STATE_PATHS:
         _remove_deployed_path(home / path)
     _replace_pi_file(AGENTS / "shared/rules.md", destination / "AGENTS.md")
-    _merge_pi_object(source / "settings.json", destination / "settings.json")
+    _merge_pi_object(
+        source / "settings.json",
+        destination / "settings.json",
+        retired_keys=set(RETIRED_PI_SETTINGS),
+    )
     _merge_pi_object(
         source / "models.json",
         destination / "models.json",
         nested_key="providers",
         retired_nested_keys=set(RETIRED_PI_PROVIDERS),
     )
-    _merge_pi_object(source / "presets.json", destination / "presets.json")
+    _merge_pi_object(
+        source / "presets.json",
+        destination / "presets.json",
+        retired_keys=set(RETIRED_PI_PRESETS),
+    )
     _replace_pi_file(source / "inference-router.json", destination / "inference-router.json")
     _replace_pi_file(source / "permission-policy.json", destination / "permission-policy.json")
     for name in RETIRED_PI_EXTENSIONS:
-        _remove_deployed_path(destination / "extensions" / name)
+        retired = destination / "extensions" / name
+        _remove_deployed_path(retired)
+        _remove_deployed_path(retired.with_name(f"{retired.name}.bak"))
     for extension in sorted((source / "extensions").glob("*.ts")):
         _replace_pi_file(extension, destination / "extensions" / extension.name)
     # Helper modules live one level down: Pi loads every top-level extensions/*.ts

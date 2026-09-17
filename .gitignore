@@ -17,6 +17,7 @@ state/
 logs/
 
 # Local working artifacts
+.artifacts/
 .venv/
 .pytest_cache/
 .ruff_cache/

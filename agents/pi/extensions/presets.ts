@@ -33,6 +33,18 @@ function loadPresets(cwd: string): PresetsConfig {
 	};
 }
 
+function readPresetSettings(path: string): PresetSettings {
+	if (!existsSync(path)) return {};
+	return JSON.parse(readFileSync(path, "utf8")) as PresetSettings;
+}
+
+function loadPresetSettings(cwd: string): PresetSettings {
+	return {
+		...readPresetSettings(join(resolveAgentDir(), "settings.json")),
+		...readPresetSettings(join(cwd, ".pi", "settings.json")),
+	};
+}
+
 function presetSummary(name: string, preset: Preset): string {
 	const parts = [name];
 	if (preset.tools) parts.push(`tools:${preset.tools.join(",")}`);
@@ -69,15 +81,8 @@ async function applyPreset(name: string, preset: Preset, pi: ExtensionAPI, ctx: 
 
 // Tool-name prefixes whose results are untrusted external content. Once one has
 // run, the session context may carry injected instructions.
-const CONNECTOR_PREFIXES = ["gmail_", "calendar_", "strava_", "apple_notes_", "notes_sources"];
-const ACTING_TOOLS = new Set([
-	"bash",
-	"edit",
-	"write",
-	"workspace_files",
-	"apple_notes_create",
-	"apple_notes_append",
-]);
+const CONNECTOR_PREFIXES = ["gmail_", "calendar_", "strava_", "notes_sources"];
+const ACTING_TOOLS = new Set(["bash", "edit", "write", "workspace_files"]);
 
 export function isConnectorTool(toolName: string): boolean {
 	return CONNECTOR_PREFIXES.some((prefix) => toolName.startsWith(prefix));
@@ -162,9 +167,7 @@ export default function presetsExtension(pi: ExtensionAPI) {
 		// The containment boundary is the session: taint from a previous session
 		// in this long-lived process must not follow into a fresh one.
 		sessionReadUntrustedContent = false;
-		const settingsManager = (ctx as unknown as { settingsManager?: { getSettings(): PresetSettings } })
-			.settingsManager;
-		const settings = (settingsManager?.getSettings() ?? {}) as PresetSettings;
+		const settings = loadPresetSettings(ctx.cwd);
 		const requested = (pi.getFlag("preset") as string | undefined) ?? settings.defaultPreset;
 		if (!requested) return;
 
