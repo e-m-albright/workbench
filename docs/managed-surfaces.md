@@ -4,10 +4,11 @@ The exhaustive map of what `workbench sync` deploys and `workbench drift`
 verifies, per harness. The README keeps only the summary; this document is the
 reference.
 
-The table describes managed host configuration. Restricted terminal sessions use
-an isolated home and do not import those host settings, extensions, sessions,
-skills, or MCP servers. Their separate runtime and credential surfaces are
-described below and in the [boundary reference](restricted-agents.md).
+The table describes the shared harness configuration. Restricted terminal
+sessions use the same instructions, skills, extensions, and presentation through
+a derived configuration that excludes host history and connector credentials.
+Their isolated state and access boundary are described below and in the
+[boundary reference](restricted-agents.md).
 
 | Surface | Pi | Claude Code / Desktop | Codex |
 | --- | --- | --- | --- |
@@ -44,6 +45,10 @@ tool callbacks are not contained by this terminal boundary and must not be
 advertised as restricted. Running processes retain their existing boundary.
 
 Per-repository state lives under `~/.local/share/workbench/agent-state/`.
+Sync derives shared harness preferences and approved code paths under
+`~/.local/share/workbench/native/harness/`; launches refresh those preferences
+into isolated state and admit the code assets read-only. This projection is
+generated from the normal installed harness, not maintained as another profile.
 Optional `workbench native prepare --authorize` enrollment copies only selected
 provider login material into `~/.local/share/workbench/model-auth/`; it preserves
 existing usable credentials. These deliberately agent-readable credentials keep
@@ -82,8 +87,8 @@ also sets the active transcript to `0600` on each session start. If Pi has not c
 the file yet during session rebinding, it retries before the first model turn so new
 transcripts do not wait for the next sync.
 
-The Claude launchers select native permission modes without importing host global
-settings into the restricted home. `cc` keeps native auto permission handling
+The Claude launchers select native permission modes while sharing the normal
+harness preferences. `cc` keeps native auto permission handling
 inside the restricted boundary; `ccr` selects native plan mode for review.
 `cca` requests a worktree workflow, but entering an existing linked worktree is
 unsupported by the native launcher. Native auto

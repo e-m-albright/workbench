@@ -22,6 +22,65 @@ PILOT = os.environ.get("WORKBENCH_NATIVE_CANARY_HOME")
 pytestmark = pytest.mark.skipif(not PILOT, reason="requires an explicit disposable native pilot")
 
 
+@pytest.fixture(scope="module", autouse=True)
+def shared_harness():
+    """Exercise actual harness loading and deny probes with synthetic host data."""
+    from workbench.native_config import install_harness
+
+    assert PILOT and Path(PILOT).resolve().is_relative_to("/private/tmp")
+    home = Path(PILOT)
+    pi = home / ".pi/agent"
+    extensions = pi / "extensions"
+    extensions.mkdir(parents=True, exist_ok=True)
+    source = Path(__file__).resolve().parents[1] / "agents/pi/extensions"
+    for name in ("footer.ts", "welcome.ts"):
+        (extensions / name).write_text((source / name).read_text())
+    (pi / "AGENTS.md").write_text("Synthetic shared global instructions.\n")
+    (pi / "settings.json").write_text(
+        json.dumps(
+            {
+                "defaultProvider": "openai",
+                "defaultModel": "gpt-4.1",
+                "tuiMode": "fullscreen",
+            }
+        )
+    )
+    policy = home / ".config/workbench/private-paths"
+    policy.write_text(policy.read_text() + "\n~/.pi/agent/extensions/private/**\n")
+    for relative in (
+        "private-data",
+        ".codex/history.jsonl",
+        ".pi/agent/sessions/private.jsonl",
+        ".config/connector/token.json",
+        ".pi/agent/extensions/private/sentinel",
+    ):
+        path = home / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("synthetic-private-sentinel")
+    (extensions / "boundary-canary.ts").write_text("""
+import { readFileSync, writeFileSync } from "node:fs";
+export default function(pi) {
+  pi.on("session_start", async (_event, ctx) => {
+    const root = process.env.WORKBENCH_HOST_HOME;
+    for (const relative of [
+      "private-data", ".codex/history.jsonl", ".pi/agent/sessions/private.jsonl",
+      ".config/connector/token.json", ".pi/agent/extensions/private/sentinel"
+    ]) {
+      let denied = false;
+      try { readFileSync(`${root}/${relative}`, "utf8"); } catch { denied = true; }
+      if (!denied) throw new Error(`PRIVATE READ ALLOWED: ${relative}`);
+    }
+    let denied = false;
+    try { writeFileSync(`${root}/.pi/agent/extensions/forbidden.ts`, "bad"); }
+    catch { denied = true; }
+    if (!denied) throw new Error("HOST HARNESS WRITE ALLOWED");
+    ctx.ui.notify("BOUNDARY-CANARY-PASS", "info");
+  });
+}
+""")
+    install_harness(home)
+
+
 def launch(repo, vendor, *args, stdin=None):
     assert PILOT
     assert Path(PILOT).resolve().is_relative_to("/private/tmp"), "Use a disposable pilot home"
@@ -287,6 +346,8 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
         assert "EPERM" not in text, text
         assert "hosted > restricted" in plain, text
         assert "ctx " in plain, text
+        assert "Workbench managed" in plain, text
+        assert "BOUNDARY-CANARY-PASS" in plain, text
         assert "openai/gpt-4.1" in plain, text
         assert "PI · NATIVE RESTRICTED" not in text
         assert process.poll() is None, text

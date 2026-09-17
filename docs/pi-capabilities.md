@@ -119,11 +119,12 @@ operational state.
 | `co` | Codex's selected provider | Native restricted terminal |
 | `cou` | Codex's selected provider | Unrestricted host, with interactive confirmation |
 
-Restricted Pi is intentionally plain Pi: no host extensions, skills, prompt
-templates, themes, connector tools, or host settings are loaded. The managed
-extension features described elsewhere on this page belong to host workflows,
-not the default restricted `pi` command. Its selected provider login persists
-across repositories while conversation storage remains per repository.
+Restricted Pi uses the same managed harness: global instructions, extensions,
+skills, prompt templates, themes, presets, and model preferences. The operating
+system limits what its tools can access. Connector credentials and host history
+remain excluded, so enabling an extension does not grant private data access.
+Its selected provider login persists across repositories while conversation
+storage remains per repository.
 
 The installed native launcher wraps the entire process and its children in a
 default-deny macOS policy. It admits the selected ordinary Git checkout, necessary
@@ -137,7 +138,7 @@ Hosted and local inference are not equivalent authority choices. Local Pi is
 explicitly unrestricted because exposing the whole local inference service to a
 restricted agent would weaken the boundary. Its normal oMLX service and other
 consumers are unchanged. The internal `frontier` and `private` routes select
-providers for host Pi; they do not grant operating-system permissions. Host
+providers for Pi; they do not grant operating-system permissions.
 Pi's `dev` preset selects tools, not authority.
 
 The `cc` and `co` launchers accept `--restricted` and `--unrestricted`; Pi

@@ -4,6 +4,7 @@ import contextlib
 import hashlib
 import json
 import os
+import secrets
 import shlex
 import sys
 import tempfile
@@ -100,7 +101,10 @@ def build_plan(
     auth_files = []
     auth_env = {}
     auth_link = None
-    ui_files = []
+    manifest = runtime / "native/harness/manifest.json"
+    if not manifest.is_file():
+        raise ValueError("Missing shared harness; run workbench sync")
+    harness = json.loads(manifest.read_text())[vendor]
     if vendor == "codex":
         command += [
             "-c",
@@ -115,44 +119,19 @@ def build_plan(
             "-c",
             "features.apps=false",
         ]
-        for key, value in tools.get("tui", {}).items():
-            command += ["-c", f"tui.{key}={json.dumps(value)}"]
         auth_files = [str(auth / "auth.json")]
         auth_link = {"path": str(agent_home / ".codex/auth.json"), "target": auth_files[0]}
         auth_env["CODEX_HOME"] = str(agent_home / ".codex")
     elif vendor == "claude":
-        statusline = runtime / "native/ui/claude-statusline.sh"
-        command += [
-            "--settings",
-            json.dumps(
-                {
-                    "sandbox": {"enabled": False},
-                    "statusLine": {
-                        "type": "command",
-                        "command": f"/bin/bash {shlex.quote(str(statusline))}",
-                    },
-                }
-            ),
-        ]
-        ui_files = [str(statusline)]
+        command += ["--settings", json.dumps({"sandbox": {"enabled": False}})]
         auth_files = [str(auth / ".credentials.json"), str(auth / ".storage-write.lock")]
         auth_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
     elif vendor == "pi":
-        # Only auth is shared: Pi also writes trust, settings and caches in its agent dir.
-        command += [
-            "--session-dir",
-            str(agent_home / ".pi/sessions"),
-            "--no-extensions",
-            "--no-skills",
-            "--no-prompt-templates",
-            "--no-themes",
-            "--extension",
-            str(runtime / "native/ui/pi-footer.ts"),
-        ]
-        ui_files = [str(runtime / "native/ui/pi-footer.ts")]
+        command += ["--session-dir", str(agent_home / ".pi/sessions")]
         auth_files = [str(auth / "auth.json"), str(auth / "auth.json.lock")]
         auth_link = {"path": str(agent_home / ".pi/agent/auth.json"), "target": auth_files[0]}
         auth_env["PI_CODING_AGENT_DIR"] = str(agent_home / ".pi/agent")
+        auth_env["WORKBENCH_PI_MODE"] = "hosted-restricted"
     read = [
         "/System/Library",
         "/usr/bin",
@@ -183,7 +162,7 @@ def build_plan(
         str(home / ".npm-global/global"),
         str(home / ".npm-global/lib/node_modules/pnpm"),
         *agent["read"],
-        *ui_files,
+        *harness["read"],
         str(root),
         str(agent_home),
         str(temp),
@@ -208,7 +187,7 @@ def build_plan(
             "denyRead": ["/", *excludes],
             "allowRead": read,
             "allowWrite": [str(root), str(agent_home), str(temp), *auth_files],
-            "denyWrite": ["/tmp/claude", "/private/tmp/claude", *excludes],
+            "denyWrite": ["/tmp/claude", "/private/tmp/claude", *excludes, *harness["read"]],
         },
         "network": {
             "allowedDomains": [],
@@ -258,16 +237,19 @@ def build_plan(
         "command": [*command, *args],
         "node": str(node),
         "auth_link": auth_link,
+        "harness": harness,
     }
 
 
-def initialize_home(plan: dict, home: Path) -> None:
-    """Create state without following a link planted by a prior sandboxed session."""
-    link = plan.get("auth_link")
-    directory = Path(link["path"]).parent if link else Path(plan["env"]["HOME"])
+@contextlib.contextmanager
+def state_directory(home: Path, directory: Path):
+    """Open state directories without following links planted by earlier sessions."""
+    relative = directory.relative_to(home)
+    if ".." in relative.parts:
+        raise ValueError("Agent state must stay inside its home")
     descriptor = os.open(home, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
-        for part in directory.relative_to(home).parts:
+        for part in relative.parts:
             with contextlib.suppress(FileExistsError):
                 os.mkdir(part, mode=0o700, dir_fd=descriptor)
             try:
@@ -278,20 +260,51 @@ def initialize_home(plan: dict, home: Path) -> None:
                 raise ValueError("Agent state contains a symlink or non-directory") from error
             os.close(descriptor)
             descriptor = child
-        if link:
-            try:
-                os.symlink(link["target"], "auth.json", dir_fd=descriptor)
-            except FileExistsError:
-                try:
-                    target = os.readlink("auth.json", dir_fd=descriptor)
-                except OSError as error:
-                    raise ValueError(
-                        "Unexpected model login link; refusing to overwrite"
-                    ) from error
-                if target != link["target"]:
-                    raise ValueError("Unexpected model login link; refusing to overwrite") from None
+        yield descriptor
     finally:
         os.close(descriptor)
+
+
+def initialize_home(plan: dict, home: Path) -> None:
+    """Share harness assets, refresh preferences, and retain isolated mutable state."""
+    agent_home = Path(plan["env"]["HOME"])
+    with state_directory(home, agent_home):
+        pass
+    harness = plan.get("harness", {"links": [], "files": []})
+    links = [(agent_home / item["path"], item["target"], "harness") for item in harness["links"]]
+    if plan.get("auth_link"):
+        item = plan["auth_link"]
+        links.append((Path(item["path"]), item["target"], "model login"))
+    for path, target, label in links:
+        path.relative_to(agent_home)
+        with state_directory(home, path.parent) as descriptor:
+            try:
+                os.symlink(target, path.name, dir_fd=descriptor)
+            except FileExistsError:
+                try:
+                    matches = os.readlink(path.name, dir_fd=descriptor) == target
+                except OSError:
+                    matches = False
+                if not matches:
+                    raise ValueError(f"Unexpected {label} link; refusing to overwrite") from None
+    for item in harness["files"]:
+        path = agent_home / item["path"]
+        path.relative_to(agent_home)
+        content = Path(item["source"]).read_bytes()
+        if item["path"] == ".codex/config.toml":
+            escaped_home = json.dumps(str(agent_home), ensure_ascii=False)[1:-1].encode()
+            content = content.replace(b"__WORKBENCH_AGENT_HOME__", escaped_home)
+        with state_directory(home, path.parent) as descriptor:
+            # Atomic replacement also breaks hostile hardlinks; never truncate a state file.
+            temporary = f".workbench-{secrets.token_hex(12)}"
+            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=descriptor)
+            try:
+                with os.fdopen(fd, "wb") as stream:
+                    stream.write(content)
+                os.replace(temporary, path.name, src_dir_fd=descriptor, dst_dir_fd=descriptor)
+            finally:
+                with contextlib.suppress(FileNotFoundError):
+                    os.unlink(temporary, dir_fd=descriptor)
 
 
 def main() -> None:
@@ -310,8 +323,6 @@ def main() -> None:
     scratch = Path(tempfile.mkdtemp(prefix="wb-native-", dir="/private/tmp"))
     try:
         tools = json.loads(config.read_text())
-        if sys.argv[1] == "codex":
-            tools["tui"] = json.loads((runtime / "ui/codex.json").read_text())
         plan = build_plan(
             Path.cwd(),
             home,

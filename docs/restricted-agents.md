@@ -66,8 +66,8 @@ These are provider account credentials, not newly issued inference-only tokens.
 Their existing account scopes may grant more than model inference. The selected
 restricted agent can deliberately read, change, or steal its admitted login
 file; this exposure is an accepted tradeoff. No browser credentials, general
-Keychain access, connector grants, host sessions, host settings, extensions, or
-MCP configuration are imported. Codex's account-backed apps feature is disabled,
+Keychain access, connector grants, host sessions, or credential-bearing MCP
+configuration are imported. Codex's account-backed apps feature is disabled,
 but that setting does not reduce a stolen token's provider-side scopes.
 
 ## Enforced permissions
@@ -82,7 +82,7 @@ but that setting does not reduce a stolen token's provider-side scopes.
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
 | Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. |
 | Public network | Public HTTP and HTTPS are permitted through the runtime proxy; literal IP and private resolved destinations are denied. |
-| Host agent configuration | Not imported; restricted Pi starts without host extensions, skills, prompt templates, or themes. |
+| Harness configuration | Shared instructions, skills, extensions, prompts, themes, installed plugin code, model preferences, and interface settings. Host code assets are read-only; settings and caches remain in the isolated home. |
 | Local inference and editor/mobile protocols | Unsupported by the restricted launcher. |
 
 The machine-local policy is `~/.config/workbench/private-paths`; its absence
@@ -109,10 +109,18 @@ programmatic writes through OSC 52; manual paste remains an explicit user
 action. Do not infer that blocking a clipboard command inside the agent also
 blocks terminal callbacks.
 
-Pi and Claude reuse their normal status renderers through installed, read-only
-copies. Codex receives only the managed TUI settings, including its native
-permissions item. Its named inner full-access profile labels the outer native
-boundary; it does not replace that boundary. Unrestricted Codex retains its
+Restricted and unrestricted launches use the same harness. `workbench sync`
+derives a credential-free configuration projection from the installed settings
+under `native/harness/`; there is no separately maintained restricted theme,
+model default, or skill catalogue. Each launch refreshes those preferences into
+its isolated home and links the shared code assets read-only. Private connector
+grants, environment secrets, host conversation history, and unrelated project
+state are excluded. Tools remain subject to the outer sandbox even when their
+extensions load normally. A shared tool that requires protected host access
+cannot acquire that access by being enabled in the harness.
+
+Codex's native permissions item labels the outer boundary. Its named inner
+full-access profile does not replace that boundary. Unrestricted Codex retains its
 inner workspace profile, and explicit caller permission/profile overrides keep
 their native labels. Pi's separate Codex-login quota probe is disabled inside
 the native boundary. These display settings import no host tools or credentials.
@@ -145,8 +153,9 @@ a fresh process to use the current policy.
 
 ## Verification and implementation
 
-Unit tests cover repository admission, clean environments, per-repository state,
-missing policy, credential enrollment, planted state symlinks, and adaptation of
+Unit tests cover configuration parity, credential exclusion, repository admission,
+clean environments, per-repository state, missing policy, credential enrollment,
+planted state symlinks and hardlinks, and adaptation of
 the pinned runtime. Opt-in integration tests use a disposable prepared home,
 synthetic files and host services, and a public HTTPS positive control:
 
@@ -170,6 +179,7 @@ The maintained implementation is:
 - `agents/shared/shell/native-sandbox.mjs`: pinned runtime and network proxy lifecycle.
 - `agents/shared/sandbox/package.json` and its lockfile: runtime dependency pin.
 - `src/workbench/native.py`: installation and optional credential enrollment.
+- `src/workbench/native_config.py`: derived shared harness configuration without host data or connector credentials.
 - `agents/shared/shell/agent-launchers.zsh`: interactive aliases and unrestricted confirmation.
 - `agents/shared/shell/agent-sandbox.zsh`: explicit authority routing for standalone launches.
 - `tests/test_native*.py` and `tests/test_agent_launchers.py`: regression and canary coverage.

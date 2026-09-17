@@ -33,7 +33,7 @@ from workbench.core import (
 )
 from workbench.external_skills import external_skill_source, external_skills
 from workbench.mcp import _desktop_mcp, merge_mcp, retired_mcp_names
-from workbench.native import install_ui
+from workbench.native_config import install_harness
 
 
 def _sync_plugins(vendor: str, home: Path) -> None:
@@ -91,7 +91,6 @@ def _canonical_skills() -> dict[str, Path]:
 
 def _install_runtime_files(home: Path) -> Path:
     data = home / DATA_REL
-    install_ui(home)
     for name, fragment in _canonical_shell_fragments().items():
         copy_file(fragment, data / "shell" / name)
     _retire_agent_runtime(home)
@@ -231,6 +230,7 @@ def sync_claude(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> Non
         _sync_skills("claude", home)
     if deploy_plugins:
         _sync_plugins("claude", home)
+    install_harness(home, "claude")
 
 
 def _sync_claude_desktop(home: Path) -> None:
@@ -275,6 +275,7 @@ def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None
         _sync_skills("codex", home)
     if deploy_plugins:
         _sync_plugins("codex", home)
+    install_harness(home, "codex")
 
 
 def _replace_pi_file(source: Path, destination: Path) -> None:
@@ -400,3 +401,4 @@ def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
         _replace_pi_file(helper, destination / "extensions/lib" / helper.name)
     if deploy_skills:
         _sync_pi_skills(home)
+    install_harness(home, "pi")
