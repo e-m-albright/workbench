@@ -300,11 +300,9 @@ export function commandDenyReason(
 	command: string,
 	rules: DenyCommandRule[],
 	privateProvider = false,
-	openData = false,
 ): string | undefined {
 	for (const rule of rules) {
-		if (rule.privateOnly && (privateProvider || (openData && rule.name === "Notes private data access")))
-			continue;
+		if (rule.privateOnly && privateProvider) continue;
 		for (const pattern of rule.patterns) {
 			if (new RegExp(pattern, "i").test(command)) return rule.name;
 		}
@@ -314,7 +312,6 @@ export function commandDenyReason(
 
 const DENY_ALTERNATIVES: Record<string, string> = {
 	"Gmail access": "Switch to the private local provider before accessing Gmail.",
-	"Notes private data access": "Switch to the private local provider before querying private Notes data.",
 	"nested agent invocation":
 		"Nested agent processes are disabled so a cloud model cannot use a local model as a data proxy.",
 	"filesystem mutation command":
@@ -426,12 +423,7 @@ export function policyBlockReason(
 	if (privatePath && !dataAuthorized) {
 		return `Command mentions private path requiring a private local provider: ${privatePath}`;
 	}
-	const denied = commandDenyReason(
-		command,
-		policy.denyCommands,
-		privateProvider,
-		mode === "hosted-unrestricted",
-	);
+	const denied = commandDenyReason(command, policy.denyCommands, privateProvider);
 	if (denied) return formatCommandDenial(denied);
 	if (policy.defaultAction === "deny") return "Command blocked by default-deny policy";
 	return undefined;

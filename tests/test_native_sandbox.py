@@ -107,6 +107,9 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
         assert str(home / relative) in plan["policy"]["filesystem"]["allowRead"]
         assert str(home / relative) not in plan["policy"]["filesystem"]["allowWrite"]
     assert str(home / ".npm-global/bin") in plan["env"]["PATH"].split(":")
+    zoneinfo = "/private/var/db/timezone/zoneinfo"
+    assert zoneinfo in plan["policy"]["filesystem"]["allowRead"]
+    assert plan["env"]["PYTHONTZPATH"] == zoneinfo
     assert str(home / ".bun/bin") not in plan["env"]["PATH"].split(":")
     assert str(home / ".bun/bin") not in plan["policy"]["filesystem"]["allowRead"]
     assert plan["policy"]["filesystem"]["denyRead"][0] == "/"

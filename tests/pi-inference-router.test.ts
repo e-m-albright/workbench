@@ -85,33 +85,40 @@ describe("Pi model routing", () => {
 	});
 
 	test("fails closed when the selected private model is unavailable", async () => {
-		const handlers = new Map<string, (...args: any[]) => any>();
-		const editorValues: string[] = [];
-		const notifications: string[] = [];
-		const pi = {
-			registerFlag: () => undefined,
-			registerCommand: () => undefined,
-			on: (event: string, handler: (...args: any[]) => any) => handlers.set(event, handler),
-			getFlag: () => "private",
-			setModel: async () => false,
-		} as any;
-		const ctx = {
-			cwd: "/home/dev/code/private/project",
-			modelRegistry: { find: () => undefined },
-			ui: {
-				theme,
-				setStatus: () => undefined,
-				notify: (message: string) => notifications.push(message),
-				setEditorText: (value: string) => editorValues.push(value),
-			},
-		} as any;
+		const previous = process.env.WORKBENCH_PI_MODE;
+		delete process.env.WORKBENCH_PI_MODE;
+		try {
+			const handlers = new Map<string, (...args: any[]) => any>();
+			const editorValues: string[] = [];
+			const notifications: string[] = [];
+			const pi = {
+				registerFlag: () => undefined,
+				registerCommand: () => undefined,
+				on: (event: string, handler: (...args: any[]) => any) => handlers.set(event, handler),
+				getFlag: () => "private",
+				setModel: async () => false,
+			} as any;
+			const ctx = {
+				cwd: "/home/dev/code/private/project",
+				modelRegistry: { find: () => undefined },
+				ui: {
+					theme,
+					setStatus: () => undefined,
+					notify: (message: string) => notifications.push(message),
+					setEditorText: (value: string) => editorValues.push(value),
+				},
+			} as any;
 
-		inferenceRouter(pi);
-		await handlers.get("session_start")?.({}, ctx);
-		const result = await handlers.get("input")?.({ source: "user", text: "Private prompt" }, ctx);
-		expect(result).toEqual({ action: "handled" });
-		expect(editorValues).toEqual(["Private prompt"]);
-		expect(notifications.at(-1)).toContain("Private route blocked");
+			inferenceRouter(pi);
+			await handlers.get("session_start")?.({}, ctx);
+			const result = await handlers.get("input")?.({ source: "user", text: "Private prompt" }, ctx);
+			expect(result).toEqual({ action: "handled" });
+			expect(editorValues).toEqual(["Private prompt"]);
+			expect(notifications.at(-1)).toContain("Private route blocked");
+		} finally {
+			if (previous === undefined) delete process.env.WORKBENCH_PI_MODE;
+			else process.env.WORKBENCH_PI_MODE = previous;
+		}
 	});
 });
 

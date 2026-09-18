@@ -12,11 +12,10 @@ from pathlib import Path
 from workbench.core import (
     AGENTS,
     DATA_REL,
-    PRIVATE_PATHS_DEFAULT,
     WorkbenchError,
     copy_file,
+    ensure_private_path_policy,
     write_json,
-    write_text,
 )
 from workbench.native_config import install_harness
 
@@ -49,9 +48,7 @@ def prepare(home: Path | None = None) -> None:
     runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
     for vendor in agents:
         (home / DATA_REL / "model-auth" / vendor).mkdir(parents=True, exist_ok=True, mode=0o700)
-    private = home / ".config/workbench/private-paths"
-    if not private.exists():
-        write_text(private, PRIVATE_PATHS_DEFAULT, mode=0o600)
+    ensure_private_path_policy(home / ".config/workbench/private-paths")
     for name in ("package.json", "package-lock.json"):
         copy_file(AGENTS / "shared/sandbox" / name, runtime / name)
     subprocess.run(

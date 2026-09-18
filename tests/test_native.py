@@ -3,7 +3,7 @@
 import json
 from types import SimpleNamespace
 
-from workbench import native
+from workbench import core, native
 
 
 def test_prepare_copies_a_protected_runtime_without_copying_credentials(tmp_path, monkeypatch):
@@ -27,6 +27,9 @@ def test_prepare_copies_a_protected_runtime_without_copying_credentials(tmp_path
     assert (runtime / "native/tools.json").is_file()
     assert not (home / ".codex").exists()
     assert not (home / ".pi").exists()
+    private_paths = (home / ".config/workbench/private-paths").read_text().splitlines()
+    assert core.MEETING_RECORDINGS_PRIVATE_PATH in private_paths
+    assert core.LEGACY_VAULT_PRIVATE_PATH not in private_paths
     assert calls[0][0][0][1:3] == ["ci", "--ignore-scripts"]
 
 

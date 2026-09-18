@@ -101,7 +101,7 @@ describe("Pi permission policy", () => {
 		expect(reason("grep", { path: ".env" })).toContain(".env");
 	});
 
-	test("reserves private-source tools and Notes commands for data-authorized sessions", () => {
+	test("reserves private-source connectors while allowing canonical Notes commands", () => {
 		for (const tool of [
 			"gmail_search_threads",
 			"gmail_get_thread",
@@ -120,14 +120,14 @@ describe("Pi permission policy", () => {
 		expect(reason("worker", {}, "omlx")).toBeUndefined();
 		expect(reason("bash", { command: "notes gmail poll" })).toContain("private local provider");
 		expect(reason("bash", { command: "bin/notes run track" })).toContain("private local provider");
+		expect(reason("bash", { command: "notes search 'current priorities'" })).toBeUndefined();
+		expect(reason("bash", { command: "notes query people show example" })).toBeUndefined();
+		expect(reason("bash", { command: "notes write action add example" })).toBeUndefined();
 		expect(reason("bash", { command: "notes gmail poll" }, "omlx")).toBeUndefined();
+		expect(reason("bash", { command: "bin/notes run track" }, "omlx")).toBeUndefined();
 		expect(reason("bash", { command: "notes gmail poll" }, "openai-codex", "hosted-unrestricted")).toContain(
 			"private local provider",
 		);
-		expect(reason("bash", { command: "bin/notes run track" }, "omlx")).toBeUndefined();
-		expect(
-			reason("bash", { command: "bin/notes run track" }, "openai-codex", "hosted-unrestricted"),
-		).toBeUndefined();
 	});
 
 	test("blocks Contacts commands in restricted sessions without blocking documentation", () => {
@@ -155,9 +155,12 @@ describe("Pi permission policy", () => {
 			"browser upload",
 		);
 		expect(reason("read", { path: "~/code/private/project/app/README.md" })).toBeUndefined();
-		expect(reason("read", { path: "~/code/private/project/vault/work/client.md" })?.toLowerCase()).toContain(
-			"private path",
-		);
+		expect(reason("read", { path: "~/code/private/project/vault/work/client.md" })).toBeUndefined();
+		expect(
+			reason("read", {
+				path: "~/code/private/project/vault/work/.data/comm/meeting/recordings/call.txt",
+			}),
+		).toContain("Private path");
 		expect(reason("read", { path: "~/code/private/project/vault/work/client.md" }, "omlx")).toBeUndefined();
 		expect(
 			reason(

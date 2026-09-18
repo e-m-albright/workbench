@@ -1,5 +1,5 @@
 {
-  "$comment": "Best-effort tool friction backed by launcher-level macOS Seatbelt profiles. Frontier models may develop code across ~/code, but private data, credentials, ingress writes, and control-plane writes remain bounded.",
+  "$comment": "Best-effort tool friction backed by launcher-level macOS Seatbelt profiles. Restricted models may use the selected repository as its approved decision boundary, while raw sources, connectors, credentials, ingress writes, and control-plane writes remain bounded.",
   "defaultAction": "allow",
   "blockedTools": [],
   "privateProviders": ["omlx"],
@@ -86,14 +86,9 @@
       "privateOnly": true,
       "patterns": [
         "\\b(?:bin/)?notes\\s+gmail\\b",
-        "\\b(?:bin/)?notes\\s+observe\\s+communications\\b"
+        "\\b(?:bin/)?notes\\s+observe\\s+communications\\b",
+        "\\b(?:bin/)?notes\\s+run\\s+track\\b"
       ]
-    },
-    {
-      "name": "Notes private data access",
-      "$comment": "Graph-backed Notes commands can expose private vault state and therefore require the local provider.",
-      "privateOnly": true,
-      "patterns": ["\\b(?:bin/)?notes\\s+(?:run\\s+track|query|actions|today|next|search|write)\\b"]
     },
     {
       "name": "shell network retrieval, upload, or remote script execution",
@@ -261,7 +256,7 @@
     "~/Desktop/**",
     "~/Downloads/**",
     "~/Pictures/**",
-    "~/code/private/*/vault/**",
+    "~/code/private/*/vault/work/.data/comm/meeting/recordings/**",
     "~/code/private/*/.ai/state/**",
     "~/code/private/*/.artifacts/**",
     "~/code/private/*/.attachments/**",
@@ -275,7 +270,7 @@
     "~/Desktop/**",
     "~/Downloads/**",
     "~/Pictures/**",
-    "~/code/private/*/vault/**",
+    "~/code/private/*/vault/work/.data/comm/meeting/recordings/**",
     "~/code/private/*/.ai/state/**",
     "~/code/private/*/.artifacts/**",
     "~/code/private/*/.attachments/**",

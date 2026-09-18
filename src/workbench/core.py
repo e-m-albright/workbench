@@ -12,9 +12,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 AGENTS = ROOT / "agents"
 DATA_REL = Path(".local/share/workbench")
-PRIVATE_PATHS_DEFAULT = """\
-# Machine-local private-data denylist. Unrestricted sessions own changes.
-~/code/private/*/vault/**
+LEGACY_VAULT_PRIVATE_PATH = "~/code/private/*/vault/**"
+MEETING_RECORDINGS_PRIVATE_PATH = "~/code/private/*/vault/work/.data/comm/meeting/recordings/**"
+PRIVATE_PATHS_DEFAULT = f"""\
+# Machine-local raw-source and private-data denylist. Unrestricted sessions own changes.
+{MEETING_RECORDINGS_PRIVATE_PATH}
 ~/code/private/*/.ai/state/**
 ~/code/private/*/.artifacts/**
 ~/code/private/*/.attachments/**
@@ -257,6 +259,22 @@ def write_text(
     tmp.replace(path)
     _changed_paths.append(path)
     return True
+
+
+def ensure_private_path_policy(path: Path) -> bool:
+    """Install the default denylist and narrow the retired whole-vault exclusion."""
+    if not path.exists():
+        return write_text(path, PRIVATE_PATHS_DEFAULT, mode=0o600)
+
+    lines = path.read_text().splitlines()
+    migrated = [
+        MEETING_RECORDINGS_PRIVATE_PATH if line == LEGACY_VAULT_PRIVATE_PATH else line
+        for line in lines
+    ]
+    if MEETING_RECORDINGS_PRIVATE_PATH not in migrated:
+        migrated.append(MEETING_RECORDINGS_PRIVATE_PATH)
+    deduplicated = list(dict.fromkeys(migrated))
+    return write_text(path, "\n".join(deduplicated) + "\n", mode=0o600)
 
 
 def write_json(path: Path, value: Any, *, mode: int | None = None) -> bool:

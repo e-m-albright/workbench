@@ -10,9 +10,12 @@ owns command aliases; this document owns the security boundary and its limits.
 Run `co`, `pi`, or `cc` from an ordinary Git checkout. All three show
 `hosted > restricted` in their footer, without a separate startup banner.
 The boundary admits that checkout without creating a VM, copying a
-repository, or requiring an update step after edits. Linked Git worktrees are
-not supported. A launch fails closed if its runtime, policy, repository, or
-sandbox validation fails; it never silently becomes unrestricted.
+repository, or requiring an update step after edits. The selected checkout is
+the decision boundary: its curated source, structured state, and Git history
+are readable unless a machine-local exclusion names a raw-source subtree.
+Linked Git worktrees are not supported. A launch fails closed if its runtime,
+policy, repository, or sandbox validation fails; it never silently becomes
+unrestricted.
 
 Explicit unrestricted launchers remain available for host workflows. Local Pi
 uses only `pil`, asks for confirmation, and has host authority. There is no
@@ -79,8 +82,8 @@ multiple provider logins from its authentication store.
 
 | Resource | Restricted terminal policy |
 | --- | --- |
-| Selected checkout | Read and write, including Git history, ignored files, and untracked files unless explicitly excluded. |
-| Machine-local private paths | Denied for reads and writes, including paths inside the selected checkout. Existing vault exclusions remain; choosing its repository does not authorize the vault. |
+| Selected checkout | Read and write, including curated vault prose, structured world-model state, reviewed meeting notes, Git history, ignored files, and untracked files unless explicitly excluded. |
+| Machine-local private paths | Denied for reads and writes, including named paths inside the selected checkout. Raw meeting recordings, transcripts, and sidecars remain excluded; choosing a repository does not authorize those sources. |
 | Environment files | `.env` and `.env.*` paths are denied at every depth, including files created after launch. |
 | Other repositories and personal files | Not admitted merely because they are open or used by another agent. |
 | Agent state | One persistent home per repository plus a private temporary directory for the session. |
@@ -136,9 +139,12 @@ action approvals remain a separate layer and cannot expand the outer boundary.
 
 ## Accepted risks and limits
 
-Readable repository content can be sent to public destinations. Review Git
-history, ignored files, caches, recovery exports, and other retained data before
-admitting a repository; a clean working-tree diff is not a privacy review.
+Readable repository content can be sent to public destinations. Selecting a
+repository is therefore an explicit release of its admitted decision-ready
+content to the active provider, not permission to inspect unrelated machine
+state or excluded raw sources. Review Git history, ignored files, caches,
+recovery exports, and other retained data before admitting a repository; a
+clean working-tree diff is not a privacy review.
 Neither this boundary nor local inference determines confidentiality obligations.
 Removing old history can eliminate retired content from an active checkout, but
 the retained root snapshot remains readable. Approve that snapshot explicitly;

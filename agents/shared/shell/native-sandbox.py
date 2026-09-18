@@ -132,6 +132,9 @@ def build_plan(
         auth_link = {"path": str(agent_home / ".pi/agent/auth.json"), "target": auth_files[0]}
         auth_env["PI_CODING_AGENT_DIR"] = str(agent_home / ".pi/agent")
         auth_env["WORKBENCH_PI_MODE"] = "hosted-restricted"
+    # Use the canonical target directly: resolving /usr/share/zoneinfo would
+    # require traversing /var before the child sandbox policy is installed.
+    zoneinfo = Path("/private/var/db/timezone/zoneinfo")
     read = [
         "/System/Library",
         "/usr/bin",
@@ -154,6 +157,7 @@ def build_plan(
         "/dev/urandom",
         "/dev/fd",
         "/dev/tty",
+        str(zoneinfo),
         str(node.parent),
         str(node.parent.parent / "lib/node_modules/npm"),
         # Managed tool installations only, not host settings or package caches.
@@ -223,6 +227,7 @@ def build_plan(
             "NODE_USE_ENV_PROXY": "1",
             "DEVELOPER_DIR": "/Library/Developer/CommandLineTools",
             "GIT_CONFIG_NOSYSTEM": "1",
+            "PYTHONTZPATH": str(zoneinfo),
             "WORKBENCH_AGENT_AUTHORITY": "restricted",
             "WORKBENCH_AGENT_LOCATION": "hosted",
             "WORKBENCH_HOST_HOME": str(home),

@@ -128,10 +128,11 @@ storage remains per repository.
 
 The installed native launcher wraps the entire process and its children in a
 default-deny macOS policy. It admits the selected ordinary Git checkout, necessary
-tools, isolated state, and the selected provider's login paths. Machine-local
-private exclusions and environment files remain denied even inside that
-checkout. Existing vault exclusions are not lifted. Linked worktrees are
-unsupported. The [security reference](restricted-agents.md) owns the exact
+tools, isolated state, and the selected provider's login paths. That checkout
+is the approved decision boundary, including curated vault and structured state
+when present. Machine-local raw-source exclusions and environment files remain
+denied even inside it; raw meeting recordings are not admitted. Linked worktrees
+are unsupported. The [security reference](restricted-agents.md) owns the exact
 permissions, authentication risks, accepted limits, and verification procedure.
 
 Hosted and local inference are not equivalent authority choices. Local Pi is
@@ -170,9 +171,10 @@ probes verify specific blocked routes; they are not proof against every kernel
 exploit, terminal callback, or future vendor feature.
 
 Host Pi's permission-policy extension adds readable denials for credential
-requests, connector access, browser operations, and shell effects. Its local
-personal connectors require local unrestricted access; hosted unrestricted
-access does not automatically grant cloud personal connector calls. These
+requests, connector access, browser operations, raw-source paths, and shell
+effects. Canonical repository commands remain available inside the restricted
+checkout. Personal connectors such as Gmail require local unrestricted access;
+hosted unrestricted access does not automatically grant those connector calls. These
 tool-level checks are useful guidance, not isolation from arbitrary code in an
 unrestricted process.
 

@@ -53,8 +53,10 @@ Optional `workbench native prepare --authorize` enrollment copies only selected
 provider login material into `~/.local/share/workbench/model-auth/`; it preserves
 existing usable credentials. These deliberately agent-readable credentials keep
 their provider account scopes and are not inference-only grants. Machine-local
-`~/.config/workbench/private-paths` exclusions remain enforced, including existing
-vault exclusions; sync does not grant blanket access to private repository data.
+`~/.config/workbench/private-paths` exclusions remain enforced. The selected
+checkout is otherwise the repository owner's approved decision boundary;
+current defaults exclude raw meeting recordings rather than an entire curated
+vault.
 
 The global instructions conditionally consult
 `~/.config/workbench/private-context.md` for machine-local repository aliases

@@ -152,6 +152,24 @@ class WorkbenchTests(unittest.TestCase):
             self.assertTrue(core.write_text(private, "secret\n", mode=0o600))
             self.assertEqual(private.stat().st_mode & 0o777, 0o600)
 
+    def test_private_path_policy_narrows_the_retired_whole_vault_exclusion(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "private-paths"
+            path.write_text(
+                "# owner additions stay intact\n"
+                "~/.local/share/private/**\n"
+                f"{core.LEGACY_VAULT_PRIVATE_PATH}\n"
+            )
+
+            self.assertTrue(core.ensure_private_path_policy(path))
+
+            lines = path.read_text().splitlines()
+            self.assertNotIn(core.LEGACY_VAULT_PRIVATE_PATH, lines)
+            self.assertEqual(lines.count(core.MEETING_RECORDINGS_PRIVATE_PATH), 1)
+            self.assertIn("~/.local/share/private/**", lines)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertFalse(core.ensure_private_path_policy(path))
+
     def test_launcher_resolves_chained_symlinks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             link = Path(raw) / "workbench"
@@ -1153,7 +1171,7 @@ js_repl = false
         self.assertNotIn("gcmw()", launchers)
         gcai = launchers.split("# Pi modes", maxsplit=1)[0]
         self.assertIn("git diff --staged", gcai)
-        self.assertIn("--model openai-codex/gpt-5.3-codex-spark --no-extensions", gcai)
+        self.assertIn("--model openai-codex/gpt-5.6-luna --no-extensions", gcai)
         self.assertIn('"$HOME/code/private/"*', gcai)
         self.assertIn("--route private", gcai)
         self.assertIn("pi_launcher=_wb_local_commit_message", gcai)

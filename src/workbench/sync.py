@@ -12,7 +12,6 @@ from workbench.core import (
     AGENTS,
     CLAUDE_SANDBOX,
     DATA_REL,
-    PRIVATE_PATHS_DEFAULT,
     RETIRED_AGENT_SHELL_FILES,
     RETIRED_PI_EXTENSIONS,
     RETIRED_PI_PRESETS,
@@ -28,6 +27,7 @@ from workbench.core import (
     _settings,
     _string_array,
     copy_file,
+    ensure_private_path_policy,
     write_json,
     write_text,
 )
@@ -362,9 +362,7 @@ def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
     for name, fragment in _canonical_shell_fragments().items():
         copy_file(fragment, home / DATA_REL / "shell" / name)
     _retire_agent_runtime(home)
-    private_paths = home / ".config/workbench/private-paths"
-    if not private_paths.exists():
-        write_text(private_paths, PRIVATE_PATHS_DEFAULT, mode=0o600)
+    ensure_private_path_policy(home / ".config/workbench/private-paths")
     source = AGENTS / "pi"
     destination = home / ".pi/agent"
     _harden_pi_session_permissions(destination)
