@@ -86,6 +86,12 @@ Isolate what varies behind the cheapest stable seam. When a pattern repeats: fir
 
 **Gate examples**: registry-derivation tests (one source, many derivations); naming-convention lints.
 
+### 13. Feedback speed is an architectural property
+
+Keep domain and state logic executable without a user interface, simulator, network, or deployment whenever the domain permits it. Put effects behind thin adapters so humans and agents can exercise the faithful core through the cheapest deterministic loop, then reserve slower integration and visual checks for the boundaries they actually verify. Do not distort the domain merely to optimize for an agent; this separation must also improve ordinary testing and comprehension.
+
+**Gate examples**: dependency-direction checks around the pure core; focused unit and contract targets; runtime budgets for the fast verification path.
+
 ---
 
 ## Structural smells (what linters can't catch)

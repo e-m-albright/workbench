@@ -12,6 +12,8 @@
       "workspace_files",
       "ingress_discard",
       "worker",
+      "agent_browser",
+      "agent_browser_web_search",
       "gmail_search_threads",
       "gmail_get_thread",
       "calendar_list_calendars",

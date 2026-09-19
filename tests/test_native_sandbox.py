@@ -102,6 +102,7 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     for relative in (
         ".local/share/uv/python",
         ".npm-global/global",
+        ".npm-global/lib/node_modules/agent-browser",
         ".npm-global/lib/node_modules/pnpm",
     ):
         assert str(home / relative) in plan["policy"]["filesystem"]["allowRead"]

@@ -164,6 +164,7 @@ def build_plan(
         str(home / ".local/share/uv/python"),
         str(home / ".npm-global/bin"),
         str(home / ".npm-global/global"),
+        str(home / ".npm-global/lib/node_modules/agent-browser"),
         str(home / ".npm-global/lib/node_modules/pnpm"),
         *agent["read"],
         *harness["read"],

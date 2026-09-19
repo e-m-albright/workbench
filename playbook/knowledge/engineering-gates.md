@@ -17,6 +17,16 @@ maintenance cost no longer earns its place.
 
 Instrument the advisory stage. Record the finding type, affected file, eventual accept-or-reject decision, false positives, and the prompt or policy version that produced it. Aggregate trends can reveal a confusing component interface, a degraded reviewer prompt, or a rule mature enough to encode deterministically. Promote recurring, unambiguous findings into a test or linter rather than asking the model to rediscover them forever. Honeycomb's Lattice Watch is one concrete implementation of this loop: deterministic lint first, contextual model review second, telemetry across pull requests, and deploy markers when the reviewing prompt changes.
 
+## Agent cleanup campaigns
+
+For repetitive cleanup across many repositories or call sites, separate deciding the desired state from changing code. Use deterministic systems to inventory candidates and retrieve authoritative runtime metadata. Require a person to confirm any ambiguous target value or irreversible interpretation before mutation begins. Then give each agent one bounded cleanup in an isolated worktree, cap concurrency and runtime, and require the repository's native build, test, coverage, and static-analysis gates before opening a pull request.
+
+Prefer a syntax-aware codemod when the relationship is structural and expressible as rules. Use an agent when the relationship is semantic, dispersed through wrappers or dependency injection, and still bounded by a clear target state and deterministic checks. Pilot across representative complexity levels before scaling, and report first-pass success, revisions, and human interventions separately; a headline completion rate hides where judgment remains necessary. Follow removal with a focused quality pass for names, dead parameters, and abstractions whose meaning changed.
+
+## Proof belongs to the verifier
+
+An implementer's completion report is not proof, whether the implementer is a person or an agent. Bind proof to the exact revision and environment under review, and have an independent harness or reviewer reproduce it. Prefer machine-readable test, type, security, and runtime results generated outside the implementation transcript. Add screenshots, recordings, traces, or logs when behavior is visual or interactive, but treat them as scoped evidence rather than substitutes for workflow assertions; they can be stale, incomplete, or selectively captured. A second model can challenge the result, but it is another reviewer, not an independent source of truth. Keep credentials, production mutations, acceptance of residual risk, and other consequential authority human-owned.
+
 ## 1. The baselines ratchet
 
 A single `baselines.json` records a **ceiling** for every health metric: per-file and per-extension line ceilings, and **counts** of escape hatches — `# type: ignore`, `# noqa`, `#[allow(...)]`, `@ts-expect-error`, `except Exception`, `dict[str, Any]`, `cast(...)`, skipped tests, bare TODOs, `#[cfg(test)]`-in-src. A gate fails any commit where `actual > ceiling`.

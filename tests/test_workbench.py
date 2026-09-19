@@ -663,6 +663,9 @@ class WorkbenchTests(unittest.TestCase):
         self.assertNotIn("classifier", router)
         self.assertEqual(router["private"]["provider"], "omlx")
         self.assertEqual(list(presets), ["dev"])
+        self.assertTrue(
+            {"agent_browser", "agent_browser_web_search"}.issubset(presets["dev"]["tools"])
+        )
 
     def test_sync_removes_retired_workbench_hooks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
