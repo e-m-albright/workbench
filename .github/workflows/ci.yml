@@ -36,7 +36,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends zsh
       - name: Install Pi so typecheck-pi runs instead of skipping
         # Pinned so CI is deterministic; bump alongside the host install.
-        run: npm install -g @earendil-works/pi-coding-agent@0.85.1
+        run: npm install -g @earendil-works/pi-coding-agent@0.86.1
       - name: Deterministic quality gate
         run: just check
 
@@ -54,9 +54,9 @@ jobs:
         # Keep optional platform binaries inside each admitted package directory.
         run: >-
           npm install -g --install-strategy=nested
-          @anthropic-ai/claude-code@2.1.250
-          @openai/codex@0.154.0
-          @earendil-works/pi-coding-agent@0.85.1
+          @anthropic-ai/claude-code@2.1.278
+          @openai/codex@0.155.1
+          @earendil-works/pi-coding-agent@0.86.1
       - name: Probe the real boundary with synthetic data and credentials
         # No model prompts or provider credentials are used by these tests.
         run: |

@@ -24,6 +24,29 @@ def test_development_toolchain_uses_node_and_pnpm():
     assert not list(root.glob("bun.lock*"))
 
 
+def test_documented_pi_and_browser_versions_match_managed_pins():
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github/workflows/ci.yml").read_text()
+    pi_versions = set(re.findall(r"@earendil-works/pi-coding-agent@(\d+\.\d+\.\d+)", workflow))
+    assert len(pi_versions) == 1
+    pi_version = pi_versions.pop()
+    for path in (
+        root / "docs/pi-capabilities.md",
+        root / "agents/skills/pi-guide/references/tutorial.md",
+    ):
+        assert f"Pi {pi_version}" in path.read_text(), path
+
+    settings = json.loads((root / "agents/pi/settings.json").read_text())
+    browser_pin = next(
+        package
+        for package in settings["packages"]
+        if package.startswith("npm:pi-agent-browser-native@")
+    )
+    browser_version = browser_pin.rsplit("@", 1)[1]
+    for path in (root / "docs/pi-capabilities.md", root / "docs/pi-build-philosophy.md"):
+        assert f"pi-agent-browser-native` {browser_version}" in path.read_text(), path
+
+
 def test_audit_runs_all_locked_dependency_surfaces(tmp_path):
     root = Path(__file__).resolve().parents[1]
     commands = tmp_path / "commands"
@@ -41,7 +64,7 @@ def test_audit_runs_all_locked_dependency_surfaces(tmp_path):
         capture_output=True,
     )
     assert commands.read_text().splitlines() == [
-        "uv run --locked pip-audit",
+        "uv run --locked pip-audit --cache-dir tmp/pip-audit-cache",
         "pnpm audit",
         "npm --prefix agents/shared/sandbox audit --package-lock-only --ignore-scripts",
     ]

@@ -51,7 +51,7 @@ const SECRET_PATHS = [
 	"~/.aws/**",
 	"~/.config/gh/hosts.yml",
 	"~/.pi/agent/auth.json",
-	"~/Library/Application Support/notes-app/**",
+	"~/.local/share/workbench/connectors/**",
 	"~/.claude.json",
 	"~/Library/Application Support/Claude/claude_desktop_config.json",
 	"~/.claude/.credentials.json",
@@ -329,7 +329,6 @@ export function commandDenyReason(
 }
 
 const DENY_ALTERNATIVES: Record<string, string> = {
-	"Gmail access": "Switch to the private local provider before accessing Gmail.",
 	"nested agent invocation":
 		"Nested agent processes are disabled so a cloud model cannot use a local model as a data proxy.",
 	"filesystem mutation command":

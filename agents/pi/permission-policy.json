@@ -32,10 +32,7 @@
     {
       "name": "Contacts access",
       "privateOnly": true,
-      "patterns": [
-        "\\bapple-contacts\\b",
-        "\\b(?:bin/)?notes\\s+contacts\\b"
-      ]
+      "patterns": ["\\bapple-contacts\\b"]
     },
     {
       "name": "privileged shell",
@@ -78,16 +75,6 @@
         "\\bosascript\\b",
         "\\bshortcuts\\s+run\\b",
         "\\bopen\\s+(?:-[aAbB]\\s+)?(?:Notes|com\\.apple\\.Notes)\\b"
-      ]
-    },
-    {
-      "name": "Gmail access",
-      "$comment": "Gmail access is available only when the active model provider is the machine-local oMLX service.",
-      "privateOnly": true,
-      "patterns": [
-        "\\b(?:bin/)?notes\\s+gmail\\b",
-        "\\b(?:bin/)?notes\\s+observe\\s+communications\\b",
-        "\\b(?:bin/)?notes\\s+run\\s+track\\b"
       ]
     },
     {
@@ -194,10 +181,7 @@
     "~/.config/gh/hosts.yml",
     "~/.config/dotfiles/**",
     "~/.pi/agent/auth.json",
-    "~/Library/Application Support/notes-app/google/**",
-    "~/Library/Application Support/notes-app/gmail/**",
-    "~/Library/Application Support/notes-app/strava/**",
-    "~/Library/Application Support/notes-app/browser-profiles/**",
+    "~/.local/share/workbench/connectors/**",
     "~/Library/Group Containers/group.com.apple.notes/**",
     "~/Library/Containers/com.apple.Notes/**",
     "~/.claude.json",
@@ -217,10 +201,7 @@
     "~/.aws/**",
     "~/.config/gh/hosts.yml",
     "~/.config/dotfiles/**",
-    "~/Library/Application Support/notes-app/google/**",
-    "~/Library/Application Support/notes-app/gmail/**",
-    "~/Library/Application Support/notes-app/strava/**",
-    "~/Library/Application Support/notes-app/browser-profiles/**",
+    "~/.local/share/workbench/connectors/**",
     "~/Library/Group Containers/group.com.apple.notes/**",
     "~/Library/Containers/com.apple.Notes/**",
     "~/.claude.json",
@@ -251,7 +232,7 @@
   ],
   "privateReadPaths": [
     "~/Library/CloudStorage/**",
-    "~/Library/Application Support/notes-app/**",
+    "~/Library/Application Support/**",
     "~/Documents/**",
     "~/Desktop/**",
     "~/Downloads/**",
@@ -265,7 +246,7 @@
   ],
   "privateWritePaths": [
     "~/Library/CloudStorage/**",
-    "~/Library/Application Support/notes-app/**",
+    "~/Library/Application Support/**",
     "~/Documents/**",
     "~/Desktop/**",
     "~/Downloads/**",

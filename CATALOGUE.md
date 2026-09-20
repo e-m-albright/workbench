@@ -2,7 +2,7 @@
 
 Timestamped map of maintained agent-intelligence capabilities in this repository.
 
-**Snapshot:** 2026-09-19. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
+**Snapshot:** 2026-09-20. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
 
 ## Scale snapshot
 
@@ -19,11 +19,11 @@ Text must be UTF-8 without NUL bytes; other files are binary assets, reported by
 
 | Group | Files | Lines |
 |---|---:|---:|
-| Code - source | 44 | 8,771 |
-| Code - tests | 29 | 5,030 |
-| Text | 169 | 18,553 |
+| Code - source | 44 | 8,826 |
+| Code - tests | 29 | 5,205 |
+| Text | 169 | 18,459 |
 | Generated/vendor | 3 | 1,734 |
-| **Source tree text total** | **245** | **34,088** |
+| **Source tree text total** | **245** | **34,224** |
 
 Binary assets: 2 files, 223,107 bytes. Workbench contains 31 local skills and one externally managed skill. Archify's reviewed wrapper and release pin are tracked here; its checksum-verified upstream runtime lives only in the machine-local cache and deployed agent directories.
 

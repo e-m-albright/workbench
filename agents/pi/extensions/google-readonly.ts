@@ -6,10 +6,10 @@
  * loopback OAuth with PKCE, and read-only scopes. No non-Google network
  * endpoints, no transitive dependency tree in the token path.
  *
- * Credentials live in the shared agent-neutral root used by the notes app:
- *   ~/Library/Application Support/notes-app/google/client-secret.json
- *     (Google's native "installed" Desktop-app JSON, shared with the labeler)
- *   ~/Library/Application Support/notes-app/google/readonly-token.json
+ * Credentials live in Workbench-owned private state:
+ *   ~/.local/share/workbench/connectors/google/client-secret.json
+ *     (Google's native "installed" Desktop-app JSON)
+ *   ~/.local/share/workbench/connectors/google/readonly-token.json
  *     (this connector's read-only grant, mode 0600)
  * Deliberate ceiling: strava-readonly.ts mirrors this file's OAuth/loopback
  * scaffolding (token store, refresh, callback server) because extensions
@@ -25,11 +25,11 @@ import { createHash, randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-const CRED_ROOT = join(homedir(), "Library", "Application Support", "notes-app");
+export const CONNECTOR_ROOT = join(homedir(), ".local", "share", "workbench", "connectors");
 
 const SCOPES = [
 	"https://www.googleapis.com/auth/gmail.readonly",
@@ -60,11 +60,11 @@ interface StoredTokens {
 }
 
 function configPath(): string {
-	return join(CRED_ROOT, "google", "client-secret.json");
+	return join(CONNECTOR_ROOT, "google", "client-secret.json");
 }
 
 function tokensPath(): string {
-	return join(CRED_ROOT, "google", "readonly-token.json");
+	return join(CONNECTOR_ROOT, "google", "readonly-token.json");
 }
 
 function readJson<T>(path: string): T | undefined {
@@ -91,10 +91,11 @@ function readConfig(): OAuthConfig | undefined {
 	return parseClientConfig(readJson<unknown>(configPath()));
 }
 
-function saveTokens(tokens: StoredTokens): void {
-	mkdirSync(join(CRED_ROOT, "google"), { recursive: true, mode: 0o700 });
-	writeFileSync(tokensPath(), JSON.stringify(tokens, null, 2), { encoding: "utf8", mode: 0o600 });
-	chmodSync(tokensPath(), 0o600);
+export function saveTokens(tokens: StoredTokens, path = tokensPath()): void {
+	mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+	chmodSync(dirname(path), 0o700);
+	writeFileSync(path, JSON.stringify(tokens, null, 2), { encoding: "utf8", mode: 0o600 });
+	chmodSync(path, 0o600);
 }
 
 function decodeBase64Url(data: string): string {
@@ -209,14 +210,7 @@ async function accessToken(signal?: AbortSignal): Promise<string> {
 		},
 		signal,
 	);
-	if (typeof refreshed.access_token !== "string" || !refreshed.access_token) {
-		throw new Error("Google token response is missing access_token.");
-	}
-	const next: StoredTokens = {
-		accessToken: String(refreshed.access_token),
-		refreshToken: tokens.refreshToken,
-		expiresAt: Date.now() + Number(refreshed.expires_in ?? 3600) * 1000,
-	};
+	const next = tokenResponse(refreshed, tokens.refreshToken);
 	saveTokens(next);
 	return next.accessToken;
 }
@@ -228,6 +222,38 @@ async function apiGet(url: string, signal?: AbortSignal): Promise<any> {
 		throw new Error(`Google API ${response.status}: ${capText(await response.text(), 500)}`);
 	}
 	return response.json();
+}
+
+export function oauthCallbackCode(url: URL, expectedState: string): string {
+	const error = url.searchParams.get("error");
+	if (error) throw new Error(`Authorization failed: ${error}`);
+	const code = url.searchParams.get("code");
+	if (!code || url.searchParams.get("state") !== expectedState) {
+		throw new Error("Missing code or state mismatch.");
+	}
+	return code;
+}
+
+export function tokenResponse(
+	data: Record<string, unknown>,
+	fallbackRefreshToken?: string,
+	now = Date.now(),
+): StoredTokens {
+	if (typeof data.access_token !== "string" || !data.access_token) {
+		throw new Error("Google token response is missing access_token.");
+	}
+	const refreshToken =
+		typeof data.refresh_token === "string" && data.refresh_token ? data.refresh_token : fallbackRefreshToken;
+	if (!refreshToken) throw new Error("Google token response is missing refresh_token.");
+	const expiresIn = Number(data.expires_in ?? 3600);
+	if (!Number.isFinite(expiresIn) || expiresIn <= 0) {
+		throw new Error("Google token response has an invalid expires_in value.");
+	}
+	return {
+		accessToken: data.access_token,
+		refreshToken,
+		expiresAt: now + expiresIn * 1000,
+	};
 }
 
 function textResult(text: string, details: unknown = undefined) {
@@ -278,15 +304,15 @@ async function runAuthFlow(pi: ExtensionAPI, ctx: ExtensionContext, config: OAut
 					return;
 				}
 				const error = url.searchParams.get("error");
-				const received = url.searchParams.get("code");
-				const gotState = url.searchParams.get("state");
 				res.writeHead(200, { "Content-Type": "text/plain" });
 				res.end(error ? `Authorization failed: ${error}` : "Authorized. You can close this tab.");
 				server.close();
 				clearTimeout(timer);
-				if (error) rejectPromise(new Error(`Authorization failed: ${error}`));
-				else if (!received || gotState !== state) rejectPromise(new Error("Missing code or state mismatch."));
-				else resolvePromise({ code: received, port: grantedPort });
+				try {
+					resolvePromise({ code: oauthCallbackCode(url, state), port: grantedPort });
+				} catch (callbackError) {
+					rejectPromise(callbackError);
+				}
 			});
 			const timer = setTimeout(() => {
 				server.close();
@@ -320,17 +346,13 @@ async function runAuthFlow(pi: ExtensionAPI, ctx: ExtensionContext, config: OAut
 		redirect_uri: `http://127.0.0.1:${port}/callback`,
 		code_verifier: verifier,
 	});
-	if (typeof exchanged.refresh_token !== "string" || !exchanged.refresh_token) {
-		throw new Error("Google did not return a refresh token; re-run /google-auth.");
+	try {
+		saveTokens(tokenResponse(exchanged));
+	} catch (error) {
+		throw new Error(
+			`Google returned an invalid token response; re-run /google-auth: ${error instanceof Error ? error.message : error}`,
+		);
 	}
-	if (typeof exchanged.access_token !== "string" || !exchanged.access_token) {
-		throw new Error("Google did not return an access token; re-run /google-auth.");
-	}
-	saveTokens({
-		accessToken: exchanged.access_token,
-		refreshToken: exchanged.refresh_token,
-		expiresAt: Date.now() + Number(exchanged.expires_in ?? 3600) * 1000,
-	});
 }
 
 export default function googleReadonly(pi: ExtensionAPI) {

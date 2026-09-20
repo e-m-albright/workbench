@@ -231,11 +231,11 @@ ranked. None of these require adopting any tool above.
 
 ## Open questions / to-do (tracked)
 
-- [x] Decide which of the internalization ideas above graduate into the private
+- [x] Decide which of the internalization ideas above graduate into a private
       knowledge-base CLI, and in what order. Decided 2026-08-04: #1 only for
-      now — edge confidence/provenance is now printed in the notes CLI's person
-      show, offered-intros, and CRM views (the schema already carried it).
-      `notes path` / `--budget` and the rest were considered and parked.
+      now — edge confidence and provenance were adopted in the private owner's
+      relationship views because its schema already carried them. The remaining
+      ideas were considered and parked.
 - [ ] Watch whether Graphify's bus-factor/churn risk resolves (team growth,
       v1.0, storage move off single-JSON) before considering it for any real
       codebase use here.

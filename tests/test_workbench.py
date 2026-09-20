@@ -167,6 +167,7 @@ class WorkbenchTests(unittest.TestCase):
             self.assertNotIn(core.LEGACY_VAULT_PRIVATE_PATH, lines)
             self.assertEqual(lines.count(core.MEETING_RECORDINGS_PRIVATE_PATH), 1)
             self.assertIn("~/.local/share/private/**", lines)
+            self.assertIn("~/Library/Application Support/**", lines)
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             self.assertFalse(core.ensure_private_path_policy(path))
 
@@ -396,7 +397,16 @@ class WorkbenchTests(unittest.TestCase):
             "duplicate path": [("sample/SKILL.md", b"one"), ("sample/SKILL.md", b"two")],
         }
         for message, entries in cases.items():
-            with self.subTest(message=message), tempfile.TemporaryDirectory() as raw:
+            expected_warning = (
+                self.assertWarnsRegex(UserWarning, "Duplicate name")
+                if message == "duplicate path"
+                else contextlib.nullcontext()
+            )
+            with (
+                self.subTest(message=message),
+                tempfile.TemporaryDirectory() as raw,
+                expected_warning,
+            ):
                 archive = self._skill_archive(entries)
                 skill = self._external_skill(archive)
                 with self.assertRaisesRegex(core.WorkbenchError, message):

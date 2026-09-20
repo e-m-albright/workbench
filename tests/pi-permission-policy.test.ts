@@ -101,7 +101,7 @@ describe("Pi permission policy", () => {
 		expect(reason("grep", { path: ".env" })).toContain(".env");
 	});
 
-	test("reserves private-source connectors while allowing canonical Notes commands", () => {
+	test("reserves private-source connectors for the local provider", () => {
 		for (const tool of [
 			"gmail_search_threads",
 			"gmail_get_thread",
@@ -118,23 +118,13 @@ describe("Pi permission policy", () => {
 		}
 		expect(reason("worker", {})).toBeUndefined();
 		expect(reason("worker", {}, "omlx")).toBeUndefined();
-		expect(reason("bash", { command: "notes gmail poll" })).toContain("private local provider");
-		expect(reason("bash", { command: "bin/notes run track" })).toContain("private local provider");
-		expect(reason("bash", { command: "notes search 'current priorities'" })).toBeUndefined();
-		expect(reason("bash", { command: "notes query people show example" })).toBeUndefined();
-		expect(reason("bash", { command: "notes write action add example" })).toBeUndefined();
-		expect(reason("bash", { command: "notes gmail poll" }, "omlx")).toBeUndefined();
-		expect(reason("bash", { command: "bin/notes run track" }, "omlx")).toBeUndefined();
-		expect(reason("bash", { command: "notes gmail poll" }, "openai-codex", "hosted-unrestricted")).toContain(
-			"private local provider",
-		);
 	});
 
 	test("blocks Contacts commands in restricted sessions without blocking documentation", () => {
 		for (const mode of ["hosted-restricted", "local-restricted"]) {
-			for (const command of ["apple-contacts search example", "notes contacts preview example"]) {
-				expect(reason("bash", { command }, "omlx", mode)).toContain("Contacts access");
-			}
+			expect(reason("bash", { command: "apple-contacts search example" }, "omlx", mode)).toContain(
+				"Contacts access",
+			);
 		}
 		expect(reason("bash", { command: "cat docs/contacts.md" })).toBeUndefined();
 		expect(reason("bash", { command: "apple-contacts search example" }, "omlx")).toBeUndefined();
@@ -173,7 +163,7 @@ describe("Pi permission policy", () => {
 		expect(
 			reason(
 				"read",
-				{ path: "~/Library/Application Support/notes-app/meeting-diarization/result.json" },
+				{ path: "~/Library/Application Support/private-app/generated/result.json" },
 				"openai-codex",
 				"hosted-unrestricted",
 			),
@@ -368,16 +358,15 @@ describe("Pi permission policy", () => {
 		expect(reason("bash", { command: "osascript read-notes.scpt" })).toContain("Apple application scripting");
 	});
 
-	test("blocks tool reads of the shared connector credential root", () => {
-		expect(
-			reason("read", { path: "~/Library/Application Support/notes-app/google/readonly-token.json" }),
-		).toContain("notes-app");
-		expect(reason("read", { path: "~/Library/Application Support/notes-app/strava/token.json" })).toContain(
-			"notes-app",
-		);
-		expect(reason("write", { path: "~/Library/Application Support/notes-app/gmail/token.json" })).toContain(
-			"notes-app",
-		);
+	test("blocks tool access to the Workbench connector credential root", () => {
+		for (const [tool, path] of [
+			["read", "~/.local/share/workbench/connectors/google/readonly-token.json"],
+			["read", "~/.local/share/workbench/connectors/strava/token.json"],
+			["write", "~/.local/share/workbench/connectors/google/client-secret.json"],
+		] as const) {
+			expect(reason(tool, { path })).toContain("workbench/connectors");
+			expect(reason(tool, { path }, "omlx")).toContain("workbench/connectors");
+		}
 	});
 });
 

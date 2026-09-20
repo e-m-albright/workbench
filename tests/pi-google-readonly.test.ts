@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, test, vi } from "vitest";
 
 vi.doMock("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
@@ -6,14 +9,68 @@ vi.doMock("typebox", () => {
 	const schema = () => ({});
 	return { Type: { Object: schema, String: schema, Number: schema, Optional: schema } };
 });
-const { buildEventsUrl, capText, extractPlainText, formatThread, formatThreadSearchResult, headerValue } =
-	await import("../agents/pi/extensions/google-readonly");
+const {
+	CONNECTOR_ROOT,
+	buildEventsUrl,
+	capText,
+	extractPlainText,
+	formatThread,
+	formatThreadSearchResult,
+	headerValue,
+	oauthCallbackCode,
+	saveTokens,
+	tokenResponse,
+} = await import("../agents/pi/extensions/google-readonly");
 
 function b64url(text: string): string {
 	return Buffer.from(text, "utf8").toString("base64url");
 }
 
 describe("Pi Google read-only connector", () => {
+	test("owns its credential root and persists tokens privately", () => {
+		expect(CONNECTOR_ROOT).toMatch(/[/\\]\.local[/\\]share[/\\]workbench[/\\]connectors$/);
+		const root = mkdtempSync(join(tmpdir(), "workbench-google-token-"));
+		const path = join(root, "nested", "token.json");
+		try {
+			const tokens = tokenResponse(
+				{ access_token: "new-access", expires_in: 1200 },
+				"existing-refresh",
+				1000,
+			);
+			expect(tokens).toEqual({
+				accessToken: "new-access",
+				refreshToken: "existing-refresh",
+				expiresAt: 1_201_000,
+			});
+			saveTokens(tokens, path);
+			expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(tokens);
+			expect(statSync(join(root, "nested")).mode & 0o777).toBe(0o700);
+			expect(statSync(path).mode & 0o777).toBe(0o600);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	test("accepts only the expected OAuth callback state", () => {
+		expect(oauthCallbackCode(new URL("http://127.0.0.1/callback?code=ok&state=expected"), "expected")).toBe(
+			"ok",
+		);
+		expect(() =>
+			oauthCallbackCode(new URL("http://127.0.0.1/callback?code=ok&state=wrong"), "expected"),
+		).toThrow("state mismatch");
+		expect(() =>
+			oauthCallbackCode(new URL("http://127.0.0.1/callback?error=denied&state=expected"), "expected"),
+		).toThrow("denied");
+	});
+
+	test("rejects malformed token responses", () => {
+		expect(() => tokenResponse({}, "refresh")).toThrow("access_token");
+		expect(() => tokenResponse({ access_token: "access" })).toThrow("refresh_token");
+		expect(() =>
+			tokenResponse({ access_token: "access", refresh_token: "refresh", expires_in: "nope" }),
+		).toThrow("expires_in");
+	});
+
 	test("bounds a whole Gmail thread, including oversized headers and omitted messages", () => {
 		const messages = Array.from({ length: 100 }, () => ({
 			payload: {

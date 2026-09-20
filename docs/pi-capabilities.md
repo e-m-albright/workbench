@@ -1,6 +1,6 @@
 # Pi agent - capability overview and build candidates
 
-Snapshot of the managed Pi 0.85.1 harness, checked against installed package documentation and repository configuration on 2026-09-19. [`pi-build-philosophy.md`](pi-build-philosophy.md) owns adoption and rejection rationale; this page owns current operational state.
+Snapshot of the managed Pi 0.86.1 harness, checked against published package documentation and repository configuration on 2026-09-20. [`pi-build-philosophy.md`](pi-build-philosophy.md) owns adoption and rejection rationale; this page owns current operational state.
 
 ## What pi exposes (official, today)
 
@@ -34,7 +34,7 @@ operations differ with launch authority; see the launch matrix below.
 | Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
-| `pi-agent-browser-native` 0.2.71 | Pinned package | Structured Agent Browser wrapper plus Exa-backed public web search |
+| `pi-agent-browser-native` 0.6.15 | Pinned package | Structured Agent Browser wrapper plus Exa-backed public web search |
 | `just typecheck-pi` | Dev gate | Typechecks extensions against the installed Pi API |
 | pi-guide skill | Skill | Versioned tutorial for native Pi plus this harness |
 
@@ -54,7 +54,7 @@ without deleting them. Authentication, trust decisions, sessions, and model cach
 
 ## Prompt navigation
 
-Managed settings use Pi 0.85.1's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
+Managed settings use Pi 0.86.1's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
 
 Workbench also sets `/tree` to its `user-only` filter and keeps double-Escape bound
 to opening it. Up/Down previews prior prompts and Escape returns without changing
@@ -80,7 +80,7 @@ in the conversation and save it from an authorized host session.
 
 Gmail and Google Calendar use the Workbench-owned `google-readonly.ts` extension: direct REST calls to `googleapis.com`, loopback OAuth with PKCE, and read-only scopes. Their provider and access requirements are enforced by Pi's connector policy; unrestricted filesystem access is not a blanket connector grant. Source content enters the selected model's context, so confidential-source work must follow its owner's release policy.
 
-OAuth client configuration and refresh tokens remain machine-local, with 0600 files inside 0700 directories. `/google-auth` creates an explicitly approved grant; `/google-status` reports state. The tool policy protects raw credentials. A connector in the same process must still read its own tokens, so these rules do not isolate trusted extensions from arbitrary code in that process. Apple Notes remains unavailable. Connector content is untrusted evidence, never instructions.
+OAuth client configuration and refresh tokens remain machine-local under `~/.local/share/workbench/connectors/`, with 0600 files inside 0700 directories. After upgrading from an older credential layout, place each connector's client configuration under this root and authorize it again; Workbench does not retain a compatibility path into a private workflow owner. `/google-auth` creates an explicitly approved grant; `/google-status` reports state. The tool policy protects raw credentials. A connector in the same process must still read its own tokens, so these rules do not isolate trusted extensions from arbitrary code in that process. Apple Notes remains unavailable. Connector content is untrusted evidence, never instructions.
 
 Pi has no MCP client installed. `pi-mcp-adapter` was removed once active source
 access moved to owned connectors, and Granola's remaining project-scoped MCP
@@ -98,7 +98,7 @@ client handles it).
 
 ## Native Agent Browser
 
-Workbench pins `pi-agent-browser-native` 0.2.71 around the existing Agent Browser
+Workbench pins `pi-agent-browser-native` 0.6.15 around the existing Agent Browser
 CLI. It adds structured tool results, bounded context spills, secret redaction,
 stale-reference guards, session recovery, artifact metadata, and the
 `agent_browser_web_search` companion backed by a machine-local Exa credential.

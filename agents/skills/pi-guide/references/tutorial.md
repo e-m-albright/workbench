@@ -1,7 +1,7 @@
 # Pi tutorial
 
-Snapshot: Pi 0.85.1, checked against installed package documentation and managed
-configuration on 2026-09-19. Earlier version-specific observations remain dated
+Snapshot: Pi 0.86.1, checked against published package documentation and managed
+configuration on 2026-09-20. Earlier version-specific observations remain dated
 in the capability reference rather than serving as current guarantees.
 
 Native references live in the installed `@earendil-works/pi-coding-agent` package

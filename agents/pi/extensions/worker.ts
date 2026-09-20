@@ -196,6 +196,26 @@ export default function workerExtension(pi: ExtensionAPI) {
 		}
 		const root = await repoRoot(ctx);
 		if (!root) return { text: "worker needs a git repository.", isError: true };
+		const parentStatus = await pi.exec("git", ["status", "--porcelain"], {
+			cwd: root,
+			timeout: 10_000,
+		});
+		if (parentStatus.code !== 0) {
+			return {
+				text: `Could not verify that the parent working tree is clean:\n${truncate(parentStatus.stderr || parentStatus.stdout)}`,
+				isError: true,
+			};
+		}
+		if (parentStatus.stdout.trim()) {
+			return {
+				text: [
+					"Worker delegation requires a clean parent working tree because the child starts from HEAD.",
+					"Commit, stash, or discard tracked and untracked changes before delegating.",
+					truncate(parentStatus.stdout),
+				].join("\n\n"),
+				isError: true,
+			};
+		}
 
 		const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 12);
 		const slug = workerSlug(boundedTask, stamp);

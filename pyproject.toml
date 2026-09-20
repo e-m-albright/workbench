@@ -62,3 +62,4 @@ venv = ".venv"
 testpaths = ["tests"]
 # A hung subprocess test fails loudly instead of open; unknown markers error.
 addopts = "--timeout=60 --strict-markers"
+filterwarnings = ["error"]

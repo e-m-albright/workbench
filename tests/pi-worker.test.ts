@@ -35,7 +35,7 @@ function deferred<T>() {
 
 function createHarness(
 	run: Promise<ExecResult>,
-	options: { branchDeleteFails?: boolean; provider?: string } = {},
+	options: { branchDeleteFails?: boolean; parentStatus?: string; provider?: string } = {},
 ) {
 	let workerTool: WorkerTool | undefined;
 	let shutdown: ((event: unknown, ctx: any) => Promise<void>) | undefined;
@@ -66,7 +66,12 @@ function createHarness(
 				return { code: 0, stdout: `${root}\n`, stderr: "", killed: false };
 			}
 			if (args[0] === "status" || args[0] === "diff") {
-				return { code: 0, stdout: "", stderr: "", killed: false };
+				return {
+					code: 0,
+					stdout: args[0] === "status" ? (options.parentStatus ?? "") : "",
+					stderr: "",
+					killed: false,
+				};
 			}
 			if (args[0] === "branch" && options.branchDeleteFails) {
 				return { code: 1, stdout: "", stderr: "branch is locked", killed: false };
@@ -133,6 +138,48 @@ describe("Pi worker delegate", () => {
 			),
 		).rejects.toThrow("restricted");
 		expect(harness.calls).toEqual([]);
+	});
+
+	test("rejects delegation when the parent has tracked or untracked changes", async () => {
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false }), {
+			parentStatus: " M tracked.ts\n?? untracked.ts\n",
+		});
+
+		await expect(
+			harness.tool?.execute(
+				"delegate",
+				{ action: "delegate", task: "test" },
+				undefined,
+				undefined,
+				harness.ctx,
+			),
+		).rejects.toThrow("clean parent working tree");
+		expect(harness.calls).toContainEqual(["git", "status", "--porcelain"]);
+		expect(harness.calls.some((call) => call.includes("worktree"))).toBe(false);
+		expect(harness.calls.some((call) => call[0] === "pi")).toBe(false);
+	});
+
+	test("continues delegation when the parent working tree is clean", async () => {
+		const child = deferred<ExecResult>();
+		const harness = createHarness(child.promise);
+
+		await harness.tool?.execute(
+			"delegate",
+			{ action: "delegate", task: "test" },
+			undefined,
+			undefined,
+			harness.ctx,
+		);
+
+		const statusIndex = harness.calls.findIndex((call) => call[1] === "status");
+		const worktreeIndex = harness.calls.findIndex((call) => call.includes("worktree"));
+		expect(statusIndex).toBeGreaterThanOrEqual(0);
+		expect(worktreeIndex).toBeGreaterThan(statusIndex);
+		expect(harness.calls.some((call) => call[0] === "pi")).toBe(true);
+
+		child.resolve({ code: 0, stdout: "done", stderr: "", killed: false });
+		await settleBackground();
+		await harness.tool?.execute("discard", { action: "discard" }, undefined, undefined, harness.ctx);
 	});
 
 	test("worker uses its configured timeout without an undocumented settings manager", async () => {

@@ -116,7 +116,7 @@ read-only adapter named under Source connectors, not a fork.
 | Owned Google read-only connector | `google-readonly.ts` implements Gmail and Calendar search and read directly against `googleapis.com` with loopback OAuth, read-only scopes, and 0600 token storage. Gmail and Calendar remain subject to the provider and access requirements in the connector policy. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; tool-policy rules block raw credential reads; the connector process still needs access to its token files. Unrestricted host access does not itself grant a private-source tool. |
 | Bounded worktree worker | The `worker` tool lets either route start one isolated implementation task in the background, continue disjoint work, inspect progress, and later adopt or reject the result; `/worker` remains a manual entrypoint. Frontier workers remain subject to the same private-source path and connector guards as their parent. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and may not commit, push, install, or merge. Elapsed status uses no polling or extra model calls. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save wall-clock time or protect context. |
 | Default dev preset | One coding tool profile; launch modes independently select model location and access. | Do not add another preset without a recurring workflow the inference and access choices cannot express. |
-| Native Agent Browser wrapper | `pi-agent-browser-native` 0.2.71 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an Exa-backed companion search tool. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
+| Native Agent Browser wrapper | `pi-agent-browser-native` 0.6.15 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an Exa-backed companion search tool. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
 
 ## Explicitly absent
@@ -250,18 +250,18 @@ Working policy:
 
 - **Adopted stack:** Paseo is the sole agent-aware phone surface for Pi, Claude Code, and Codex. Its daemon binds directly to the Tailscale interface with the relay disabled.
 - **Deliberate absence:** there is no phone shell, terminal multiplexer, browser terminal, or Mission Control session manager. The owner does not need terminal connectivity from the phone, and Paseo owns agent process continuity.
-- **Productivity integration:** the private Notes web surface and Paseo may both use Tailscale, but remain separate applications and trust boundaries.
+- **Productivity integration:** a private workflow surface and Paseo may both use Tailscale, but remain separate applications and trust boundaries.
 - **Build threshold:** do not build a replacement viewer until Paseo fails a concrete workflow and an existing cross-harness client cannot satisfy it. Normalizing three harness protocols remains product-sized work.
 - **Boundary:** never expose an agent directly to the public network.
 
 ### Source connectors
 
 - **Resolved 2026-07-22:** the Workbench-owned read-only connector (`google-readonly.ts`) replaced the generic adapter route for Gmail and Calendar. Direct REST reaches only `googleapis.com`, with loopback OAuth, read-only scopes, and no third-party code in the token path. Gmail and Calendar follow the connector policy and access boundary in the mode matrix.
-- **Credential layout (2026-07-22):** one agent-neutral root at
-  `~/Library/Application Support/notes-app/` holds the shared Google OAuth
-  client, the connectors' read-only tokens, the labeler's modify-scope token,
-  and the Strava client/token. The root is read- and write-protected by the
-  permission policy; each consumer holds its own separately scoped grant.
+- **Credential layout (revised 2026-09-20):** Workbench-owned connector
+  credentials live under `~/.local/share/workbench/connectors/`. The root is
+  read- and write-protected by the permission policy, and each connector holds
+  its own separately scoped grant. Private workflow credentials remain with
+  their private owner rather than sharing this public layer's storage contract.
 - **Strava resolved 2026-07-22:** `strava-readonly.ts` uses the free personal
   API with a user-registered app (callback domain `localhost`) instead of the
   MCP route, whose discovery metadata is incompatible with local proxies.

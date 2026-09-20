@@ -14,6 +14,7 @@ AGENTS = ROOT / "agents"
 DATA_REL = Path(".local/share/workbench")
 LEGACY_VAULT_PRIVATE_PATH = "~/code/private/*/vault/**"
 MEETING_RECORDINGS_PRIVATE_PATH = "~/code/private/*/vault/work/.data/comm/meeting/recordings/**"
+APPLICATION_SUPPORT_PRIVATE_PATH = "~/Library/Application Support/**"
 PRIVATE_PATHS_DEFAULT = f"""\
 # Machine-local raw-source and private-data denylist. Unrestricted sessions own changes.
 {MEETING_RECORDINGS_PRIVATE_PATH}
@@ -22,6 +23,7 @@ PRIVATE_PATHS_DEFAULT = f"""\
 ~/code/private/*/.attachments/**
 ~/code/private/*/artifacts/**
 ~/code/private/*/.tmp/**
+{APPLICATION_SUPPORT_PRIVATE_PATH}
 """
 CODEX_APPENDIX = """\
 
@@ -271,8 +273,9 @@ def ensure_private_path_policy(path: Path) -> bool:
         MEETING_RECORDINGS_PRIVATE_PATH if line == LEGACY_VAULT_PRIVATE_PATH else line
         for line in lines
     ]
-    if MEETING_RECORDINGS_PRIVATE_PATH not in migrated:
-        migrated.append(MEETING_RECORDINGS_PRIVATE_PATH)
+    for required in (MEETING_RECORDINGS_PRIVATE_PATH, APPLICATION_SUPPORT_PRIVATE_PATH):
+        if required not in migrated:
+            migrated.append(required)
     deduplicated = list(dict.fromkeys(migrated))
     return write_text(path, "\n".join(deduplicated) + "\n", mode=0o600)
 

@@ -6,11 +6,11 @@
  * Exists because Strava's MCP discovery metadata is incompatible with local MCP
  * proxies; the plain personal API is free and stable.
  *
- * Credentials live in the shared agent-neutral root used by the notes app:
- *   ~/Library/Application Support/notes-app/strava/client.json
+ * Credentials live in Workbench-owned private state:
+ *   ~/.local/share/workbench/connectors/strava/client.json
  *     ({ "clientId": "…", "clientSecret": "…" } from strava.com/settings/api,
  *      callback domain "localhost")
- *   ~/Library/Application Support/notes-app/strava/token.json (mode 0600)
+ *   ~/.local/share/workbench/connectors/strava/token.json (mode 0600)
  * Strava rotates refresh tokens on every refresh; the stored token file is
  * rewritten each time. Access is scoped read,activity:read_all — no writes.
  * Run /strava-auth once to mint the grant.
@@ -20,11 +20,11 @@ import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-const CRED_ROOT = join(homedir(), "Library", "Application Support", "notes-app");
+export const CONNECTOR_ROOT = join(homedir(), ".local", "share", "workbench", "connectors");
 
 const SCOPE = "read,activity:read_all";
 const AUTH_URL = "https://www.strava.com/oauth/authorize";
@@ -48,11 +48,11 @@ interface StoredTokens {
 }
 
 function configPath(): string {
-	return join(CRED_ROOT, "strava", "client.json");
+	return join(CONNECTOR_ROOT, "strava", "client.json");
 }
 
 function tokensPath(): string {
-	return join(CRED_ROOT, "strava", "token.json");
+	return join(CONNECTOR_ROOT, "strava", "token.json");
 }
 
 function readJson<T>(path: string): T | undefined {
@@ -70,10 +70,11 @@ function readConfig(): OAuthConfig | undefined {
 	return { clientId: raw.clientId, clientSecret: raw.clientSecret };
 }
 
-function saveTokens(tokens: StoredTokens): void {
-	mkdirSync(join(CRED_ROOT, "strava"), { recursive: true, mode: 0o700 });
-	writeFileSync(tokensPath(), JSON.stringify(tokens, null, 2), { encoding: "utf8", mode: 0o600 });
-	chmodSync(tokensPath(), 0o600);
+export function saveTokens(tokens: StoredTokens, path = tokensPath()): void {
+	mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+	chmodSync(dirname(path), 0o700);
+	writeFileSync(path, JSON.stringify(tokens, null, 2), { encoding: "utf8", mode: 0o600 });
+	chmodSync(path, 0o600);
 }
 
 export function buildActivitiesUrl(params: {
@@ -144,7 +145,17 @@ async function tokenRequest(
 	return json;
 }
 
-function storeTokenResponse(data: Record<string, unknown>): StoredTokens {
+export function oauthCallbackCode(url: URL, expectedState: string): string {
+	const error = url.searchParams.get("error");
+	if (error) throw new Error(`Authorization failed: ${error}`);
+	const code = url.searchParams.get("code");
+	if (!code || url.searchParams.get("state") !== expectedState) {
+		throw new Error("Missing code or state mismatch.");
+	}
+	return code;
+}
+
+export function storeTokenResponse(data: Record<string, unknown>, path?: string): StoredTokens {
 	if (typeof data.access_token !== "string" || typeof data.refresh_token !== "string") {
 		throw new Error("Strava token response is missing access_token or refresh_token.");
 	}
@@ -158,7 +169,7 @@ function storeTokenResponse(data: Record<string, unknown>): StoredTokens {
 		refreshToken: data.refresh_token,
 		expiresAt,
 	};
-	saveTokens(tokens);
+	saveTokens(tokens, path);
 	return tokens;
 }
 
@@ -223,15 +234,15 @@ async function runAuthFlow(pi: ExtensionAPI, ctx: ExtensionContext, config: OAut
 				return;
 			}
 			const error = url.searchParams.get("error");
-			const received = url.searchParams.get("code");
-			const gotState = url.searchParams.get("state");
 			res.writeHead(200, { "Content-Type": "text/plain" });
 			res.end(error ? `Authorization failed: ${error}` : "Authorized. You can close this tab.");
 			server.close();
 			clearTimeout(timer);
-			if (error) rejectPromise(new Error(`Authorization failed: ${error}`));
-			else if (!received || gotState !== state) rejectPromise(new Error("Missing code or state mismatch."));
-			else resolvePromise(received);
+			try {
+				resolvePromise(oauthCallbackCode(url, state));
+			} catch (callbackError) {
+				rejectPromise(callbackError);
+			}
 		});
 		const timer = setTimeout(() => {
 			server.close();

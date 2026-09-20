@@ -31,8 +31,8 @@ test("thread titles remove conversational boilerplate and stay compact", () => {
 });
 
 test("activity titles put progress, project, thread, and phase in scan order", () => {
-	expect(formatActivityTitle("notes", "Pi harness improvements", "⠹", "Running focused tests")).toBe(
-		"⠹ notes | Pi harness improvements · Running focused tests",
+	expect(formatActivityTitle("project", "Pi harness improvements", "⠹", "Running focused tests")).toBe(
+		"⠹ project | Pi harness improvements · Running focused tests",
 	);
 	expect(formatActivityTitle("notes", undefined)).toBe("π notes");
 });

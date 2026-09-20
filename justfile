@@ -150,7 +150,7 @@ check-documents:
 # Audit locked Python, development Node, and native sandbox dependencies.
 [group('dependencies')]
 audit:
-    uv run --locked pip-audit
+    uv run --locked pip-audit --cache-dir tmp/pip-audit-cache
     pnpm audit
     npm --prefix agents/shared/sandbox audit --package-lock-only --ignore-scripts
 
