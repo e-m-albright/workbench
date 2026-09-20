@@ -26,12 +26,12 @@ from workbench.core import (
     _string_array,
 )
 from workbench.external_skills import external_skills, validated_external_skill_source
-from workbench.mcp import _desktop_mcp, active_mcp, retired_mcp_names
+from workbench.mcp import active_mcp, merge_mcp, retired_mcp_names
 from workbench.sync import (
     _canonical_hooks,
     _canonical_shell_fragments,
     _canonical_skills,
-    managed_claude_settings,
+    merge_claude_settings,
 )
 
 
@@ -183,17 +183,16 @@ def _check_claude(home: Path, data: Path, findings: list[str], external: list[st
         findings,
     )
     settings = _settings(home / ".claude/settings.json")
-    findings.extend(
-        _managed_value_errors(settings, managed_claude_settings(data), "Claude settings")
-    )
+    reconciled = merge_claude_settings(settings, data)
+    for key in settings.keys() | reconciled.keys():
+        if settings.get(key) != reconciled.get(key):
+            findings.append(f"DRIFT Claude settings.{key}")
     claude_root = home / ".claude.json"
     desktop_path = home / "Library/Application Support/Claude/claude_desktop_config.json"
     _check_private_mode(claude_root, "Claude root configuration", findings)
     _check_private_mode(desktop_path, "Claude Desktop configuration", findings)
     desktop = _settings(desktop_path)
-    findings.extend(
-        _managed_value_errors(desktop.get("mcpServers"), _desktop_mcp(), "Claude Desktop MCP")
-    )
+    _check_mcp(desktop.get("mcpServers"), "desktop", "Claude Desktop MCP", findings, external)
     desktop_defaults = _settings(AGENTS / "claude/desktop-preferences.json").get("preferences", {})
     live_preferences = desktop.get("preferences", {})
     if not isinstance(desktop_defaults, dict) or not isinstance(live_preferences, dict):
@@ -210,7 +209,9 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
     if not shutil.which("pi"):
         findings.append("DRIFT Pi CLI is not installed or not on PATH")
     sessions = pi_home / "sessions"
-    if sessions.exists():
+    if sessions.is_symlink():
+        findings.append(f"DRIFT Pi session path is a symlink: {sessions}")
+    elif sessions.exists():
         for path in (sessions, *sessions.rglob("*")):
             if path.is_symlink():
                 findings.append(f"DRIFT Pi session path is a symlink: {path}")
@@ -327,6 +328,23 @@ def _check_codex(home: Path, findings: list[str], external: list[str]) -> object
     return parsed.get("mcp_servers", {})
 
 
+def _check_mcp(
+    actual: object, target: str, label: str, findings: list[str], external: list[str]
+) -> None:
+    if not isinstance(actual, dict):
+        findings.append(f"DRIFT {label} configuration is not an object")
+        actual = {}
+    merged = merge_mcp(actual, target)
+    for name, value in merged.items():
+        if actual.get(name) != value:
+            findings.append(f"DRIFT {label} {name}")
+    for name in actual.keys() - merged.keys():
+        reason = "retired" if name in retired_mcp_names() else "untargeted"
+        findings.append(f"DRIFT {reason} {label} still present: {name}")
+    for name in actual.keys() & merged.keys() - active_mcp(target).keys():
+        external.append(f"EXTERNAL {label}: {name}")
+
+
 def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) -> int:
     findings: list[str] = []
     external: list[str] = []
@@ -371,17 +389,7 @@ def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) ->
             mcp = _check_codex(home, findings, external)
             skill_root = home / ".agents/skills"
 
-        if not isinstance(mcp, dict):
-            findings.append(f"DRIFT {vendor} MCP configuration is not an object")
-            mcp = {}
-        expected_mcp = active_mcp(vendor)
-        for name, value in expected_mcp.items():
-            if mcp.get(name) != value:
-                findings.append(f"DRIFT {vendor} MCP {name}")
-        for name in retired_mcp_names() & set(mcp):
-            findings.append(f"DRIFT retired {vendor} MCP still present: {name}")
-        for name in set(mcp) - set(expected_mcp):
-            external.append(f"EXTERNAL {vendor} MCP: {name}")
+        _check_mcp(mcp, vendor, f"{vendor} MCP", findings, external)
 
         _check_skills(skill_root, vendor, findings, external, home=home)
         if verify_plugins:

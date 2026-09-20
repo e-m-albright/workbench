@@ -137,8 +137,10 @@ Keep business logic clean; push orthogonal behavior into decorators.
 # | for unions (3.10+)
 def process(value: str | None) -> str | None: ...
 
+
 # lowercase builtins (3.9+)
 def get_items() -> list[str]: ...
+
 
 # collections.abc for abstract types
 from collections.abc import Callable, Sequence, Mapping
@@ -148,6 +150,7 @@ from collections.abc import Callable, Sequence, Mapping
 
 ```python
 import uvloop
+
 uvloop.install()  # before the event loop / app starts
 ```
 

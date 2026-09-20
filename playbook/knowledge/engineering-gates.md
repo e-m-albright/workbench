@@ -103,7 +103,11 @@ Tier verification by execution cost and place each tier where its cost belongs:
 | quality (output meets a rubric) | ~cents per run | manual / nightly |
 | model (real-model behavior) | real $ | manual / release only |
 
-**Anti-cheat discipline:** never silence a test without a tracking reason + an offsetting test + a PR note; a pre-push guard refuses net test-line *deletion*; regenerating a snapshot without reading the diff is rubber-stamping (>50 changed lines is a regression until proven otherwise); TODOs carry an owner/date (`# TODO(2026-Q3 or @owner): …`) enforced by a ratchet.
+**Preserve test effectiveness:** justify disabled tests and retain coverage of the
+underlying contract. Delete redundant tests when the remaining assertions still
+detect the relevant failures; test-line counts do not measure protection. Review
+snapshot diffs before accepting them. Track unresolved test gaps with an owner
+and revisit condition.
 
 ## 9. Hook-failure triage (when a gate blocks you)
 

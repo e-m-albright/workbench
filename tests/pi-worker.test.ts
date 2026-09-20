@@ -1,4 +1,7 @@
-import { describe, expect, vi, test } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { buildWorkerPrompt, reviewInstructions, workerSlug } from "../agents/pi/extensions/lib/worker-core";
 
 vi.doMock("typebox", () => {
@@ -7,6 +10,13 @@ vi.doMock("typebox", () => {
 });
 
 const { default: workerExtension } = await import("../agents/pi/extensions/worker");
+
+beforeEach(() => {
+	vi.stubEnv("PI_CODING_AGENT_DIR", "/nonexistent-workbench-test-agent");
+});
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
 
 type ToolResult = { content: { text: string }[]; details?: Record<string, unknown> };
 type WorkerTool = {
@@ -31,6 +41,8 @@ function createHarness(
 	let shutdown: ((event: unknown, ctx: any) => Promise<void>) | undefined;
 	let workerSignal: AbortSignal | undefined;
 	let workerArgs: string[] | undefined;
+	let workerTimeout: number | undefined;
+	const calls: string[][] = [];
 	const statuses: Array<string | undefined> = [];
 	const notifications: Array<{ text: string; level: string }> = [];
 	const root = `/tmp/wb-worker-${Date.now()}-${Math.random()}`;
@@ -42,8 +54,10 @@ function createHarness(
 		on(event: string, handler: typeof shutdown) {
 			if (event === "session_shutdown") shutdown = handler;
 		},
-		async exec(command: string, args: string[], execOptions?: { signal?: AbortSignal }) {
+		async exec(command: string, args: string[], execOptions?: { signal?: AbortSignal; timeout?: number }) {
+			calls.push([command, ...args]);
 			if (command === "pi") {
+				workerTimeout = execOptions?.timeout;
 				workerSignal = execOptions?.signal;
 				workerArgs = args;
 				return run;
@@ -81,6 +95,10 @@ function createHarness(
 		shutdown,
 		ctx,
 		statuses,
+		calls,
+		get workerTimeout() {
+			return workerTimeout;
+		},
 		notifications,
 		get workerSignal() {
 			return workerSignal;
@@ -102,6 +120,40 @@ async function settleBackground(): Promise<void> {
 }
 
 describe("Pi worker delegate", () => {
+	test("restricted delegation rejects before creating a branch or worktree", async () => {
+		vi.stubEnv("WORKBENCH_PI_MODE", "hosted-restricted");
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false }));
+		await expect(
+			harness.tool?.execute(
+				"delegate",
+				{ action: "delegate", task: "test" },
+				undefined,
+				undefined,
+				harness.ctx,
+			),
+		).rejects.toThrow("restricted");
+		expect(harness.calls).toEqual([]);
+	});
+
+	test("worker uses its configured timeout without an undocumented settings manager", async () => {
+		const agent = mkdtempSync(join(tmpdir(), "pi-worker-settings-"));
+		writeFileSync(join(agent, "settings.json"), JSON.stringify({ worker: { timeoutMs: 3210 } }));
+		vi.stubEnv("PI_CODING_AGENT_DIR", agent);
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false }));
+		try {
+			await harness.tool?.execute(
+				"delegate",
+				{ action: "delegate", task: "test" },
+				undefined,
+				undefined,
+				harness.ctx,
+			);
+			expect(harness.workerTimeout).toBe(3210);
+		} finally {
+			await harness.shutdown?.({}, harness.ctx);
+			rmSync(agent, { recursive: true, force: true });
+		}
+	});
 	test("derives a bounded branch slug from the task", () => {
 		expect(workerSlug("Fix the flaky footer test in CI!", "202607220101")).toBe(
 			"fix-the-flaky-footer-202607220101",

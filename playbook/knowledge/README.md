@@ -23,7 +23,7 @@ Durable, opinionated knowledge that isn't tied to one language stack. Reference 
 - [engineering-laws.md](engineering-laws.md) — decision heuristics for estimation, adoption, maintenance, scaling, and judgment
 - [infrastructure-as-code-landscape.md](infrastructure-as-code-landscape.md) — OpenTofu, Kubernetes, GitOps, and Crossplane landscape with explicit adoption triggers
 - [project-memory.md](project-memory.md) — decision-organization system (ADRs, curated memory)
-- [agent-output.md](agent-output.md) — `ai/.agents/` working-files & artifacts convention (plans, research)
+- [agent-output.md](agent-output.md) — temporary working files, plans, research, and generated deliverables
 - **Prompting**
   - [prompt-construction.md](prompting/prompt-construction.md) — system-prompt construction recipe
   - [prompt-tactics.md](prompting/prompt-tactics.md) — prompt patterns for coding agents

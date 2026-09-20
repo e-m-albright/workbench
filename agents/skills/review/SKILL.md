@@ -135,10 +135,10 @@ JUDGMENT item before touching it.
 
 Severity: **Critical** (must fix before merge), **Warning** (should fix), **Note** (consider).
 
-Below a **B** overall should not merge without addressing the top action items. If there are no findings, say so plainly — don't manufacture issues.
+Grades are advisory. Base merge recommendations on verified defects and project-owned gates, not a model's aggregate score. Record the rubric version, model, confidence, and evidence with persisted assessments. If there are no findings, say so plainly.
 
 ## Composition
 
-This skill is the shared rubric for both first-class vendors. Invoke it directly
+This skill is the shared rubric for Pi, Claude Code, and Codex. Invoke it directly
 for one focused pass or use its independent threads as native subagent tasks
 when isolation and parallelism materially help.

@@ -1,6 +1,6 @@
 # Pi agent - capability overview and build candidates
 
-Snapshot of what the Pi harness can do and the candidate enhancements under review. [`pi-build-philosophy.md`](pi-build-philosophy.md) owns adoption and rejection rationale; this page owns current operational state. Captured 2026-07-21 and updated as the managed harness changes.
+Snapshot of the managed Pi 0.85.1 harness, checked against installed package documentation and repository configuration on 2026-09-19. [`pi-build-philosophy.md`](pi-build-philosophy.md) owns adoption and rejection rationale; this page owns current operational state.
 
 ## What pi exposes (official, today)
 
@@ -13,8 +13,8 @@ Snapshot of what the Pi harness can do and the candidate enhancements under revi
 
 Everything the managed harness adds to a stock `pi` install, in one place:
 
-These host extensions are available in explicitly unrestricted workflows.
-Restricted `pi` deliberately does not load them; see the launch matrix below.
+Restricted and unrestricted Pi load the same managed extensions. Their usable
+operations differ with launch authority; see the launch matrix below.
 
 | Addition | Kind | What it provides |
 |---|---|---|
@@ -29,8 +29,8 @@ Restricted `pi` deliberately does not load them; see the launch matrix below.
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
 | Presets (`presets.ts` + JSON) | Extension | One default `dev` tool and execution profile; model location and access scope belong to the launch mode rather than a preset |
 | Pi launchers + native sandbox | Host guardrail | Cloud terminal sessions are restricted; local Pi is explicitly unrestricted, with no inference-service tunnel (see the mode table below) |
-| Consult (`consult.ts`) | Extension | Hosted-only `/consult` second opinion via Claude, Codex, or Fable; local modes refuse this cloud subprocess |
-| Worker (`worker.ts`) | Extension | Model-callable `worker` tool plus `/worker`: start one worktree-isolated child Pi in the background, show elapsed progress and completion status, review live or finished work, and discard after parent-owned adoption and verification |
+| Consult (`consult.ts`) | Extension | Hosted unrestricted `/consult` second opinion via Claude, Codex, or Fable; restricted and local modes refuse the subprocess |
+| Worker (`worker.ts`) | Extension | In unrestricted sessions, model-callable `worker` tool plus `/worker` starts one worktree-isolated child Pi, reports progress, and supports review and discard after parent-owned adoption and verification |
 | Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
@@ -54,7 +54,7 @@ without deleting them. Authentication, trust decisions, sessions, and model cach
 
 ## Prompt navigation
 
-Managed settings use Pi 0.84.3's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
+Managed settings use Pi 0.85.1's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
 
 Workbench also sets `/tree` to its `user-only` filter and keeps double-Escape bound
 to opening it. Up/Down previews prior prompts and Escape returns without changing
@@ -62,9 +62,19 @@ context; Enter intentionally rewinds and branches.
 
 ## Bounded orchestration
 
+Worker delegation requires an explicitly unrestricted session. Restricted Pi
+rejects worker start before creating a sibling worktree, which lies outside its
+admitted checkout. `/consult` also rejects restricted sessions because the
+boundary admits only Pi's selected provider login, not another agent's login.
+Local sessions refuse cloud consult to preserve the inference boundary.
+
 The model-callable `worker` tool is the Pi harness's answer to one independent parallel implementation thread. It creates a separate Git worktree, starts one child Pi in the background, and returns control to the parent after setup. A lightweight footer status reports elapsed time without polling or extra model calls; completion produces one notification. `worker review` or `/worker-status` reads the live diff or finished report on demand. The child cannot commit, push, install dependencies, or merge, and adoption remains with the parent. In the `dev` preset the model may delegate without user approval, continue disjoint parent work, review and adopt useful changes, verify them in the parent checkout, and discard the worktree. `/worker <task>`, `/worker-status`, and `/worker-done` remain manual controls.
 
-This does not provide workflow fleets, background schedules, or autonomous merging. A worker must start from committed state and must not receive a task that depends on uncommitted parent files. `/consult` covers read-only independent judgment, while Claude Code remains the explicit route for exceptional coordinated finder/verifier fleets.
+This does not provide workflow fleets, background schedules, or autonomous merging. A worker must start from committed state and must not receive a task that depends on uncommitted parent files. In hosted unrestricted sessions, `/consult` covers read-only independent judgment.
+
+The shared handoff skill uses a private global queue outside a restricted
+checkout. A restricted session cannot save there; return the continuation text
+in the conversation and save it from an authorized host session.
 
 ## Connector access
 
@@ -192,6 +202,6 @@ Architectural choices and candidate replacements belong in
 
 ## Notes
 
-- Context size is provider-specific. Pi (verified on 0.84.3) currently advertises GPT-5.6 Sol as 272K through the `openai-codex` subscription route and 1.1M through OpenRouter. The footer uses the active provider's model metadata; it must not relabel the subscription route as 1.1M without endpoint evidence.
+- Context size is provider-specific. The earlier Pi 0.84.3 snapshot advertised GPT-5.6 Sol as 272K through the `openai-codex` subscription route and 1.1M through OpenRouter; those are historical observations, not current limits. The footer uses the active provider's model metadata.
 - The extension API does not expose the auto-compaction toggle, but completed compactions appear as session entries and are counted in the footer. Codex subscription windows come from the authenticated local Codex app-server; no credentials or conversation content are read. Pi still has no direct thinking-level getter, so the footer reads `thinking_level_change` session entries.
 - Footer convention: keep every data point the default footer had; additions must earn their width.

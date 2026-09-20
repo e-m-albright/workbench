@@ -377,6 +377,7 @@ import modal
 
 app = modal.App("my-ai-service")
 
+
 @app.function(gpu="A10G")
 def run_inference(prompt: str) -> str:
     # Your model code here

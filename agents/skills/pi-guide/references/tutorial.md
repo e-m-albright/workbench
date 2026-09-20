@@ -1,11 +1,13 @@
 # Pi tutorial
 
-Snapshot: Pi 0.84.3, reviewed 2026-08-26.
+Snapshot: Pi 0.85.1, checked against installed package documentation and managed
+configuration on 2026-09-19. Earlier version-specific observations remain dated
+in the capability reference rather than serving as current guarantees.
 
 Native references live in the installed `@earendil-works/pi-coding-agent` package
 under `README.md` and `docs/`. Workbench decisions live in
-`docs/pi-build-philosophy.md` and the current inventory in
-`docs/pi-capabilities.md`.
+[Pi build philosophy](../../../../docs/pi-build-philosophy.md) and the current
+[capability inventory](../../../../docs/pi-capabilities.md).
 
 ## Daily workflow
 
@@ -30,7 +32,7 @@ under `README.md` and `docs/`. Workbench decisions live in
 | Key | Native action |
 |---|---|
 | Escape | Interrupt the active agent operation or cancel a picker |
-| Ctrl+C | Copy selection, or clear the editor when there is no selection |
+| Ctrl+C | Clear the editor; press twice to quit |
 | Ctrl+D | Exit when the editor is empty |
 | Ctrl+G | Open the prompt in the configured external editor |
 | Shift+Enter or Ctrl+J | Insert a newline |
@@ -99,7 +101,7 @@ references, and scripts.
 ### Packages
 
 Packages can bundle extensions, skills, prompts, and themes. They execute with the
-user's full permissions. Prefer pinned npm versions such as
+agent process's permissions, including any inherited operating-system sandbox. Prefer pinned npm versions such as
 `npm:package@1.2.3`; unversioned packages expand supply-chain drift. Use a temporary
 `pi -e npm:package` trial before permanent installation when practical.
 
@@ -112,9 +114,9 @@ The same model name through two providers can have different limits.
 ### Project trust
 
 Project-local instructions, extensions, skills, settings, and packages can execute
-or steer work. Trust only repositories whose contents are safe to load. Use Codex
-or Claude Code's stronger containment for high-autonomy work against untrusted
-content.
+or steer work. Trust only repositories whose contents are safe to load. Workbench's
+restricted terminal launch contains Pi and its children within the admitted
+checkout; project trust does not expand those operating-system permissions.
 
 ## Workbench custom setup
 
@@ -125,15 +127,22 @@ content.
 | Footer | Git state, model, thinking, context, tokens, cost, speed, compaction, quota |
 | Permission policy | Blocks protected paths, risky shell effects, and non-allowlisted MCP calls |
 | Safe Git | Adds approval gates around destructive history operations |
-| Presets | Switches coherent model/tool/behavior profiles; `plan` is read-only planning with a required plan contract |
-| Consult | Explicit independent second opinion (`/consult`, `--fable` for adversarial) |
-| Worker | One model-callable, worktree-isolated delegate; `dev` may delegate, review, and discard without per-use approval. `/worker` remains a manual entrypoint. |
+| Presets | One `dev` tool and execution profile; inference and authority belong to the launch mode |
+| Consult | Hosted unrestricted second opinion (`/consult`, `--fable` for adversarial); restricted and local sessions refuse it |
+| Worker | One model-callable, worktree-isolated delegate in unrestricted sessions; parent reviews and verifies adoption. Restricted sessions refuse worker start. `/worker` remains a manual entrypoint. |
 | Google read-only | Owned Gmail/Calendar tools (`/google-auth`, `/google-status`); direct REST, read-only scopes |
 | Strava read-only | Owned activity tools (`/strava-auth`, `/strava-status`); free personal API |
 | Native Agent Browser | Structured wrapper around the trusted Agent Browser CLI |
 
+Restricted `pi` loads the same managed extensions as unrestricted `pihu` (hosted)
+and `pil` (local). Loading a connector does not grant credentials: personal
+connectors require local unrestricted access. The global handoff queue also sits
+outside the restricted checkout; return continuation text in the conversation and
+save it from an authorized host session.
+
 Terminal titles use the first user prompt unless `/name` supplies an explicit
-name. There are intentionally no completion notifications and no Fast-mode label.
+name. Worker completion has a notification; there is no separate completion
+notification daemon or Fast-mode label.
 
 ## Build philosophy
 
@@ -144,16 +153,16 @@ Claude Code, Oh My Pi, or a graphical control deck.
 Currently absent on purpose:
 
 - Fast-mode controls whose provider state cannot be observed reliably
-- completion notifications without observed missed completions
+- a separate completion notification daemon without observed missed completions
 - visible request-ledger ceremony
 - a custom transcript reader beyond native fullscreen
 - a broad Pi Web UI or public network listener
-- a permanent subagent roster or concurrent writers
+- a permanent subagent roster or uncontrolled concurrent writers
 - wholesale replacement of native read/edit/search tools with hashline machinery
 - LSP, AST, and semantic indexing before repeated work identifies a concrete bottleneck
 - broad Web Access provider and extraction fallbacks before a recurring gap
 
 Research candidates have explicit evidence thresholds and removal paths in
-`docs/pi-build-philosophy.md`. The right response to an interesting community
+[Pi build philosophy](../../../../docs/pi-build-philosophy.md). The right response to an interesting community
 feature is: name the local problem, test the smallest version, and keep it only if
 it reduces errors, latency, context, or manual rework.

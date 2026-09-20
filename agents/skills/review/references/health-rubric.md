@@ -1,5 +1,9 @@
 # Health Rubric
 
+Rubric version: 2026-09-19. Grades are advisory. Apply criteria to the project's
+actual contracts and scale; record non-applicable criteria instead of penalizing
+missing machinery. Project-owned conventions take precedence over examples below.
+
 The module-health lens: grade the change against universal engineering principles, surface-specific rules, and a structural anti-pattern scan. Threads T5 (universal) and T6 (surface + structure) own this file. Grade every criterion with `file:line` evidence.
 
 _Merged from `code-quality-audit` (rubric formerly in its SKILL.md + the anti-pattern checklist from audit-criteria.md, originally promoted from `.ai/rules/process/code-audit.mdc`)._
@@ -9,10 +13,10 @@ _Merged from `code-quality-audit` (rubric formerly in its SKILL.md + the anti-pa
 | # | Criterion | What A looks like | What F looks like |
 |---|-----------|-------------------|-------------------|
 | **U1** | **Type Safety** | Every domain value has a proper type (enum, union, model). No stringly-typed business logic. Types enforced at boundaries. | Untyped dicts/strings flowing through business logic. Callers manually parse keys. |
-| **U2** | **Enum Discipline** | Every string comparison uses a typed enum/union. Enums live in a canonical location. Exhaustive matching enforced. | Magic strings in comparisons across 3+ files. Typo-prone. No single source of truth. |
+| **U2** | **Domain Vocabulary** | Closed sets of meaningful domain values use enums or unions where that prevents invalid states; ordinary text stays text. | Repeated, inconsistent domain values permit typos or unhandled states. |
 | **U3** | **DRY / Consolidation** | Each pattern implemented once. Lookup tables over if/elif chains. Shared abstractions in core/shared modules. No copy-paste. | Same N-line block in 3 files. Parallel if/elif chains. Per-module boilerplate. |
 | **U4** | **Module Focus** | Files sized appropriately for their language. Single clear responsibility. Functions are focused. Clear seams between modules. | God modules mixing concerns. Functions doing 5 things. No clear extraction points. |
-| **U5** | **Observability** | Every significant operation has a span/trace. Structured logging with context (entity IDs, operation names). No bare string warnings. | No spans. String-formatted logs. No request correlation. Invisible failures. |
+| **U5** | **Observability** | Failures and significant operations expose enough context to diagnose them. Traces and correlation IDs are used where requests cross service boundaries. | Failures are invisible or lack the context needed to diagnose them. |
 | **U6** | **Test Quality** | Tests verify behavior, not implementation. Appropriate fixtures. Correct placement. No flaky patterns. | Tests mock internals. Hand-crafted fixtures duplicated. Wrong directory. |
 | **U7** | **Error Handling** | Specific errors caught and logged with context. No silent swallowing. Graceful degradation where appropriate. | Silent `except: pass`. Bare catch-all. No logging on failure. User sees blank screen. |
 | **U8** | **Dead Code** | No unused imports, functions, or commented-out blocks. Everything that exists is referenced. | Commented-out code. `#[allow(dead_code)]`. Unused imports. Files with zero importers. |
@@ -28,9 +32,9 @@ Apply the relevant section based on detected surface(s).
 
 | # | Criterion | What A looks like | What F looks like |
 |---|-----------|-------------------|-------------------|
-| **P1** | **Decorator Adoption** | `@timed`, `@retry`, `@cached` at boundaries. No inline `time.monotonic()`. No manual retry loops. | Ad-hoc timing, retry, caching scattered through business logic. |
+| **P1** | **Boundary Policies** | Timing, retries, and caching have clear ownership where needed; existing project mechanisms are reused. | Repeated, inconsistent policy obscures business logic or changes failure behavior. |
 | **P2** | **Import Hygiene** | `from __future__ import annotations`. `TYPE_CHECKING` blocks. Clean isort. No inline imports. | Missing annotations. Runtime type-only imports. Chaotic import order. |
-| **P3** | **Type Strictness** | `pyright strict` clean. Pydantic at boundaries. No `Any` outside generic helpers. | `# type: ignore` proliferation. `dict[str, Any]` in business signatures. |
+| **P3** | **Type Coverage** | The project's type-checking mode passes; boundary validation protects meaningful contracts using appropriate native types or existing libraries. | Suppressions or unvalidated external values conceal concrete contract failures. |
 
 ### Rust (when auditing `*.rs`)
 
@@ -44,7 +48,7 @@ Apply the relevant section based on detected surface(s).
 
 | # | Criterion | What A looks like | What F looks like |
 |---|-----------|-------------------|-------------------|
-| **W1** | **Design Token Discipline** | Tailwind classes only. Zero inline `style="font-size:..."`. Colors via CSS variables, not hex literals. | Inline styles on many elements. Hardcoded hex colors. `!important` hacks. |
+| **W1** | **Design Token Discipline** | Repeated visual decisions use the project's existing token and styling system; dynamic styles have clear ownership. | Competing styling conventions or repeated hardcoded values cause visible inconsistency. |
 | **W2** | **Single-Source Registries** | Single nav/route/command-palette source. Adding a route = 1 file edit. | Three parallel hand-maintained lists. Adding a route requires editing 4 files. |
 | **W3** | **Reactive State** | State modules in dedicated files. Derived state via framework primitives (`$derived`, `useMemo`, etc.). Props down, events up. | Business logic in components. State managed via global stores and prop drilling. |
 
@@ -62,7 +66,7 @@ Drive the flexible domain observations with this checklist. Not every item appli
 
 ### Quick Scan
 
-- [ ] **God Function** — >40 lines or >3 responsibilities → extract into focused functions
+- [ ] **God Function** — unrelated responsibilities or hard-to-follow control flow; extract only when the new boundary improves comprehension
 - [ ] **Data Clump** — same 3+ params passed together → extract into a struct/model
 - [ ] **Arrow Code** — >3 levels of nesting → use early returns or extract helper
 - [ ] **Lying Signature** — return type doesn't match behavior (returns null when type says non-null) → fix type or fix behavior
@@ -123,9 +127,13 @@ Scale: A=4.0, A-=3.7, B+=3.3, B=3.0, B-=2.7, C+=2.3, C=2.0, C-=1.7, D=1.0, F=0.0
 
 Overall = 38.25 / 13.25 = 2.89 → **B**. Show this table in the report so the letter is reproducible, not asserted.
 
-## Size Thresholds by Surface
+## Size Review Cues by Surface
 
-| Surface | File limit | Function limit | Justification |
+These are inspection cues, not failure thresholds or extraction requirements.
+Report a structural problem only with evidence of confusing responsibilities,
+coupling, or difficult changes. Project-owned deterministic limits take precedence.
+
+| Surface | File cue | Function cue | Rationale |
 |---------|-----------|----------------|---------------|
 | Python | 400 lines | 50 lines | Dynamic language needs smaller units for readability |
 | Rust | 800 lines | 80 lines | Type system + pattern matching allow denser code |
@@ -143,4 +151,5 @@ If the project has a `baselines.json` with `file_ceilings`, use those instead �
 - **D** — "significant quality issues affecting maintainability"
 - **F** — "actively harmful patterns that will cause production incidents"
 
-Post-cleanup target: **A-/B+**. Below B should not merge without addressing the top action items.
+Use grades to explain priorities. Verified defects and project-owned deterministic
+gates determine readiness; an aggregate model grade is not a merge gate.

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { resolveAgentDir } from "./lib/agent-dir";
+import { loadSettings } from "./lib/settings";
 
 type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
@@ -17,31 +18,15 @@ interface PresetsConfig {
 	[name: string]: Preset;
 }
 
-interface PresetSettings {
-	defaultPreset?: string;
-}
-
 function readPresets(path: string): PresetsConfig {
 	if (!existsSync(path)) return {};
 	return JSON.parse(readFileSync(path, "utf8")) as PresetsConfig;
 }
 
-function loadPresets(cwd: string): PresetsConfig {
+function loadPresets(ctx: ExtensionContext): PresetsConfig {
 	return {
 		...readPresets(join(resolveAgentDir(), "presets.json")),
-		...readPresets(join(cwd, ".pi", "presets.json")),
-	};
-}
-
-function readPresetSettings(path: string): PresetSettings {
-	if (!existsSync(path)) return {};
-	return JSON.parse(readFileSync(path, "utf8")) as PresetSettings;
-}
-
-function loadPresetSettings(cwd: string): PresetSettings {
-	return {
-		...readPresetSettings(join(resolveAgentDir(), "settings.json")),
-		...readPresetSettings(join(cwd, ".pi", "settings.json")),
+		...(ctx.isProjectTrusted?.() === true ? readPresets(join(ctx.cwd, ".pi", "presets.json")) : {}),
 	};
 }
 
@@ -117,7 +102,7 @@ export default function presetsExtension(pi: ExtensionAPI) {
 	pi.registerCommand("preset", {
 		description: "Apply a named preset",
 		handler: async (args, ctx) => {
-			presets = loadPresets(ctx.cwd);
+			presets = loadPresets(ctx);
 			const requested = args.trim();
 
 			if (requested) {
@@ -163,12 +148,14 @@ export default function presetsExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
-		presets = loadPresets(ctx.cwd);
+		presets = loadPresets(ctx);
 		// The containment boundary is the session: taint from a previous session
 		// in this long-lived process must not follow into a fresh one.
 		sessionReadUntrustedContent = false;
-		const settings = loadPresetSettings(ctx.cwd);
-		const requested = (pi.getFlag("preset") as string | undefined) ?? settings.defaultPreset;
+		const settings = loadSettings(ctx);
+		const requested =
+			(pi.getFlag("preset") as string | undefined) ??
+			(typeof settings.defaultPreset === "string" ? settings.defaultPreset : undefined);
 		if (!requested) return;
 
 		const preset = presets[requested];

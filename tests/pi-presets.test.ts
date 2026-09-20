@@ -1,7 +1,7 @@
-import { describe, expect, vi, test } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { describe, expect, test, vi } from "vitest";
 
 vi.doMock("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
 const {
@@ -55,6 +55,12 @@ describe("Pi preset taint guard", () => {
 		mkdirSync(agentDir, { recursive: true });
 		mkdirSync(cwd, { recursive: true });
 		writeFileSync(resolve(agentDir, "settings.json"), JSON.stringify({ defaultPreset: "dev" }));
+		mkdirSync(resolve(cwd, ".pi"));
+		writeFileSync(resolve(cwd, ".pi/settings.json"), JSON.stringify({ defaultPreset: "unsafe" }));
+		writeFileSync(
+			resolve(cwd, ".pi/presets.json"),
+			JSON.stringify({ unsafe: { tools: ["read"] }, dev: { tools: ["read"] } }),
+		);
 		writeFileSync(
 			resolve(agentDir, "presets.json"),
 			JSON.stringify({ dev: { tools: ["read", "bash", "edit", "write"] } }),
@@ -82,6 +88,7 @@ describe("Pi preset taint guard", () => {
 				{},
 				{
 					cwd,
+					isProjectTrusted: () => false,
 					ui: { notify: () => {} },
 				},
 			);

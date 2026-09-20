@@ -10,7 +10,7 @@ lint:
 # Ruff lint over the CLI sources.
 [group('quality')]
 lint-py:
-    uv run ruff check .
+    uv run --locked ruff check .
 
 # Biome format for the TypeScript surface. `just fmt-ts check` verifies only.
 [group('quality')]
@@ -38,8 +38,8 @@ fmt mode='write':
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{mode}}" in
-        write | all) uv run ruff format . ;;
-        --check | check) uv run ruff format --check . ;;
+        write | all) uv run --locked ruff format . ;;
+        --check | check) uv run --locked ruff format --check . ;;
         *)
             printf 'fmt: unknown mode %q (try --check, check)\n' "{{mode}}" >&2
             exit 1
@@ -49,7 +49,7 @@ fmt mode='write':
 # Pyright typecheck.
 [group('quality')]
 typecheck:
-    uv run pyright
+    uv run --locked pyright
 
 # Run the complete deterministic development gate.
 [group('quality')]
@@ -65,12 +65,17 @@ check:
     just fmt-ts check
     just check-documents
 
+# Print reproducible catalogue counts; add --include-untracked during a review.
+[group('quality')]
+catalogue *args:
+    uv run --locked python scripts/catalogue.py {{args}}
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 
 # Run deterministic unit tests. Example: `just test -k budget`.
 [group('testing')]
 test *args:
-    uv run pytest -v {{args}}
+    uv run --locked pytest -v {{args}}
 
 # Run Pi extension behavior tests on Node. Example: `just test-pi tests/pi-presets.test.ts`.
 [group('testing')]
@@ -142,10 +147,12 @@ check-documents:
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 
-# pip-audit dependency vulnerabilities.
+# Audit locked Python, development Node, and native sandbox dependencies.
 [group('dependencies')]
 audit:
-    uv run pip-audit
+    uv run --locked pip-audit
+    pnpm audit
+    npm --prefix agents/shared/sandbox audit --package-lock-only --ignore-scripts
 
 # ── Deployment ────────────────────────────────────────────────────────────────
 

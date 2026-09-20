@@ -55,7 +55,8 @@ its capability-health, repository-health, code-health, review, and
 security-review skills. It does not require every project to install a shared
 framework.
 
-For projects that adopt the bundled suppression ratchet, copy
+The bundled JSON is an example baseline, not an executable ratchet. For projects
+that implement a suppression check in their own tooling, copy
 `baseline.example.json` to `docs/health/<scope>/baselines.json`, narrow its
 `files_glob`, and keep only patterns the project can count reliably. Store
 advisory findings beside it in `findings.md` and dated `report-<date>.md` files.

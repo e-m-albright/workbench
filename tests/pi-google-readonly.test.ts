@@ -1,4 +1,4 @@
-import { describe, expect, vi, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 vi.doMock("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
 // typebox is a virtual module provided by Pi's extension loader at runtime.
@@ -6,15 +6,28 @@ vi.doMock("typebox", () => {
 	const schema = () => ({});
 	return { Type: { Object: schema, String: schema, Number: schema, Optional: schema } };
 });
-const { buildEventsUrl, capText, extractPlainText, formatThreadSearchResult, headerValue } = await import(
-	"../agents/pi/extensions/google-readonly"
-);
+const { buildEventsUrl, capText, extractPlainText, formatThread, formatThreadSearchResult, headerValue } =
+	await import("../agents/pi/extensions/google-readonly");
 
 function b64url(text: string): string {
 	return Buffer.from(text, "utf8").toString("base64url");
 }
 
 describe("Pi Google read-only connector", () => {
+	test("bounds a whole Gmail thread, including oversized headers and omitted messages", () => {
+		const messages = Array.from({ length: 100 }, () => ({
+			payload: {
+				mimeType: "text/plain",
+				headers: [{ name: "Subject", value: "s".repeat(100_000) }],
+				body: { data: b64url("x".repeat(5000)) },
+			},
+		}));
+		const text = formatThread(messages);
+		expect(text.length).toBeLessThanOrEqual(24_000);
+		expect(text).toContain("truncated");
+		expect(text).toContain("80 messages omitted");
+		expect(formatThread([])).toBe("Empty thread.");
+	});
 	test("extracts the first text/plain body from a nested payload", () => {
 		const payload = {
 			mimeType: "multipart/alternative",

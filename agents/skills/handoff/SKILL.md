@@ -18,6 +18,11 @@ Store Markdown artifacts under `${WORKBENCH_HANDOFF_HOME:-$HOME/code/ingress/han
 - The Desktop is not the canonical store. Export a convenience copy there only when the user explicitly asks.
 - Put durable decisions, architecture, operating instructions, and reusable knowledge in the repository's real documentation.
 
+The default queue is outside a restricted agent's admitted checkout. If the
+current sandbox cannot write it, return the continuation text in the conversation
+and name the blocked destination. Save it from an authorized host session; do not
+silently relocate private handoffs into a public repository or claim they were saved.
+
 Use the bundled helper so naming, permissions, queue transitions, and path checks stay consistent.
 
 > *DO NOT read the source until you try running the script first and find that a customized solution is absolutely necessary. These scripts can be very large and thus pollute your context window. They exist to be called directly as black-box scripts rather than ingested into your context window.*

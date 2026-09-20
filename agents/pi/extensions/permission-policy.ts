@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, readFileSync, realpathSync } from "node:fs";
-import { join, normalize, resolve } from "node:path";
+import { dirname, join, normalize, relative, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { resolveAgentDir } from "./lib/agent-dir";
 
@@ -188,17 +188,8 @@ export function pathMatchesPolicy(
 ): string | undefined {
 	const normalized = normalizeCandidatePath(cwd, path);
 	const relative = normalize(path.replace(/^\.\//, ""));
-	// A symlink inside the project can point at a protected file; match the
-	// resolved target too, not just the literal string.
-	let resolvedReal: string | undefined;
-	try {
-		if (existsSync(normalized)) {
-			const real = realpathSync(normalized);
-			if (real !== normalized) resolvedReal = real;
-		}
-	} catch {
-		resolvedReal = undefined;
-	}
+	// Resolve existing parents too: writes can create new files beneath a symlink.
+	const resolvedReal = canonicalFuturePath(normalized);
 
 	for (const glob of protectedPathGlobs) {
 		const regex = globToRegExp(glob);
@@ -207,6 +198,19 @@ export function pathMatchesPolicy(
 	}
 
 	return undefined;
+}
+
+function canonicalFuturePath(path: string): string {
+	let ancestor = path;
+	while (true) {
+		try {
+			return resolve(realpathSync(ancestor), relative(ancestor, path));
+		} catch (error) {
+			const parent = dirname(ancestor);
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT" || parent === ancestor) throw error;
+			ancestor = parent;
+		}
+	}
 }
 
 function extractInputPaths(input: unknown): string[] {
@@ -259,11 +263,25 @@ function allInputStrings(value: unknown): string[] {
 
 function privateBrowserDomain(input: unknown, domains: string[]): string | undefined {
 	for (const value of allInputStrings(input)) {
-		const lowered = value.toLowerCase();
-		for (const domain of domains) {
-			const needle = domain.toLowerCase();
-			if (lowered.includes(`://${needle}`) || lowered.includes(`://${needle}/`)) return domain;
-			if (lowered.includes(`.${needle}/`) || lowered.endsWith(`.${needle}`)) return domain;
+		// Browser navigation also accepts bare hostnames and protocol-relative URLs.
+		const candidates = [
+			...Array.from(value.matchAll(/\b[a-z][a-z\d+.-]*:\/\/[^\s"'<>]+/gi), ([url]) => url),
+			...value.split(/[\s"'<>]+/).filter(Boolean),
+		];
+		for (const candidate of candidates) {
+			let hostname: string;
+			try {
+				const url = /^[a-z][a-z\d+.-]*:\/\//i.test(candidate)
+					? candidate
+					: `https:${candidate.startsWith("//") ? "" : "//"}${candidate}`;
+				hostname = new URL(url).hostname.toLowerCase().replace(/\.$/, "");
+			} catch {
+				continue;
+			}
+			for (const domain of domains) {
+				const needle = domain.toLowerCase().replace(/\.$/, "");
+				if (hostname === needle || hostname.endsWith(`.${needle}`)) return domain;
+			}
 		}
 	}
 	return undefined;

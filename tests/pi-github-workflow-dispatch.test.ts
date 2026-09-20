@@ -28,11 +28,17 @@ describe("GitHub workflow dispatch", () => {
 			"octocat/hello-world",
 			"--ref",
 			"main",
-			"--field",
+			"--raw-field",
 			"date=2026-08-10",
-			"--field",
+			"--raw-field",
 			"dry_run=false",
 		]);
+	});
+
+	test("passes file-shaped inputs literally as displayed in the confirmation", () => {
+		const input = { ...dispatch, inputs: [{ name: "message", value: "@/tmp/private.txt" }] };
+		expect(confirmationText(input)).toContain("message=@/tmp/private.txt");
+		expect(buildDispatchArgs(input).slice(-2)).toEqual(["--raw-field", "message=@/tmp/private.txt"]);
 	});
 
 	test("shows every outward-facing parameter in the confirmation", () => {

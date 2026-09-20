@@ -2,35 +2,37 @@
 
 Timestamped map of maintained agent-intelligence capabilities in this repository.
 
-**Snapshot:** 2026-09-07. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
+**Snapshot:** 2026-09-19. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
 
 ## Scale snapshot
 
-Counts are physical lines in tracked text blobs, including comments and blank lines. Tracked symlinks count as their one-line Git blob rather than duplicating their target. Every tracked file belongs to exactly one group:
+Run `just catalogue` to reproduce the scale table from the current tracked working tree. During an uncommitted review, `just catalogue --include-untracked` also includes new files that Git does not ignore. Deleted files and submodule directories are excluded. Counts are physical lines, including comments, blank lines, and a final unterminated line. Symlinks count as one line without following their targets.
 
-- **Code - source:** executable implementation and styling maintained here.
-- **Code - tests:** executable verification, including test helpers and fixtures.
-- **Text:** documentation, instructions, configuration, prompts, and human-maintained examples.
-- **Generated/vendor:** generated dependency state or third-party code retained in the repository.
+The script assigns each text file to the first applicable group:
 
-Binary assets are reported by file count and bytes, not fake line counts. Attribution is file-based; these repository totals deliberately avoid speculative per-capability splitting.
+- **Generated/vendor:** files named `uv.lock`, `pnpm-lock.yaml`, or `package-lock.json`, and files beneath the root `vendor/` directory.
+- **Code - tests:** every remaining text file beneath `tests/`, including helpers and declarative fixtures.
+- **Code - source:** remaining `.py`, `.ts`, `.js`, `.mjs`, `.c`, `.sh`, `.zsh`, `.css`, and `.html` files, plus files beneath `bin/`. Files ending in `.config.ts` are configuration and stay in Text.
+- **Text:** all remaining text, including documentation, instructions, configuration, prompts, and human-maintained examples.
+
+Text must be UTF-8 without NUL bytes; other files are binary assets, reported by file count and bytes. Attribution is file-based; these repository totals deliberately avoid speculative per-capability splitting.
 
 | Group | Files | Lines |
 |---|---:|---:|
-| Code - source | 36 | 7,034 |
-| Code - tests | 18 | 2,419 |
-| Text | 166 | 18,349 |
-| Generated/vendor | 1 | 621 |
-| **Tracked text total** | **221** | **28,423** |
+| Code - source | 44 | 8,771 |
+| Code - tests | 29 | 5,030 |
+| Text | 169 | 18,553 |
+| Generated/vendor | 3 | 1,734 |
+| **Source tree text total** | **245** | **34,088** |
 
-Binary assets: 3 tracked files, 227,224 bytes. Workbench contains 31 local skills and one externally managed skill. Archify's reviewed wrapper and release pin are tracked here; its checksum-verified upstream runtime lives only in the machine-local cache and deployed agent directories.
+Binary assets: 2 files, 223,107 bytes. Workbench contains 31 local skills and one externally managed skill. Archify's reviewed wrapper and release pin are tracked here; its checksum-verified upstream runtime lives only in the machine-local cache and deployed agent directories.
 
 ## Registry
 
 | Capability | Posture |
 |---|---|
 | Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | Core deployment engine |
-| Pi extensions and direct connector adapters | Core local runtime layer |
+| Pi extensions and direct connector adapters | Shared harness; operations depend on inference and launch authority |
 | Shared rules, safety hooks, permission policy, and launchers | Core trust boundary |
 | Reusable skills and their references | Core portable workflow library; 31 local skills after repeated consolidation passes |
 | Archify diagram generation | Active external skill; reviewed wrapper plus checksum-pinned upstream release |
@@ -55,6 +57,7 @@ Binary assets: 3 tracked files, 227,224 bytes. Workbench contains 31 local skill
 ### Safety and permission boundary
 
 - Shared destructive-shell and sensitive-file guards.
+- Native restricted terminal boundary around Pi, Claude Code, Codex, and their children; explicit unrestricted launch modes remain separate authority choices.
 - Pi command classification, protected-path handling, connector trust rules, and remote MCP denial.
 - Claude permissions and Codex safety-rule merging.
 - Public/private boundary: public rules may point to optional machine-local private context, but never publish its contents.
@@ -63,7 +66,8 @@ Binary assets: 3 tracked files, 227,224 bytes. Workbench contains 31 local skill
 
 ### Pi runtime extensions
 
-- Activity naming, welcome, footer and quota display, one development preset, explicit local/frontier inference routing, consult, worker delegation, and Git safety.
+- Activity naming, welcome, footer and quota display, one development preset, explicit local/frontier inference routing, and Git safety in the shared harness.
+- Worker delegation in unrestricted sessions and consult in hosted unrestricted sessions; restricted sessions load the extensions but refuse these operations.
 - Confirmed GitHub workflow dispatch and confirmed ingress discard.
 - Read-only Google, Calendar, and Strava integration surfaces. Apple Notes is blocked.
 - Agent Browser integration through the pinned native package rather than a competing browser layer.
@@ -77,7 +81,7 @@ Binary assets: 3 tracked files, 227,224 bytes. Workbench contains 31 local skill
 - Testing and test-suite health, systematic debugging, code review, security review, and dependency audits.
 - Frontend design, prototyping, project files, repository ontology, release, GitHub workflow, workspace recovery, and document and presentation design.
 - Agent instruction, skill authoring, and public-tool discovery through `tool-radar`.
-- Adversarial assessment, Paseo operations, Pi guidance, handoffs, reflection, and validated system-diagram generation through the vendored `archify` skill.
+- Adversarial assessment, Paseo operations, Pi guidance, handoffs, reflection, and validated system-diagram generation through the externally managed `archify` skill.
 
 **Assessment:** Keep, with aggressive deduplication. Skills should remain triggers and workflows that point to canonical doctrine. The health family separates portfolio value, repository operations, and implementation quality; `project-health-review` composes them without duplicating their rubrics. Prior consolidation removed duplicate skills and expired aliases. Merge overlapping skills when they prescribe the same sequence or output contract; do not duplicate project-specific workflow instances here.
 

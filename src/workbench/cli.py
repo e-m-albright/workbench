@@ -104,15 +104,17 @@ def drift(
     no_plugins: Annotated[
         bool, typer.Option("--no-plugins", help="skip declared-plugin verification")
     ] = False,
-) -> int:
+) -> None:
     """Compare live vendor configuration directly with canonical Workbench sources."""
-    return drift_module.drift(_home(), _vendors(vendor.value), verify_plugins=not no_plugins)
+    raise typer.Exit(
+        drift_module.drift(_home(), _vendors(vendor.value), verify_plugins=not no_plugins)
+    )
 
 
 @app.command(short_help="validate canonical repository sources", rich_help_panel=COMMANDS_PANEL)
-def lint() -> int:
+def lint() -> None:
     """Validate skills, local links, JSON, TOML, and shell syntax."""
-    return lint_module.lint()
+    raise typer.Exit(lint_module.lint())
 
 
 native_app = typer.Typer(help="Prepare and use the native restricted terminal boundary.")

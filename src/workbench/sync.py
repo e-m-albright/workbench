@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import shutil
+import stat
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -32,7 +34,7 @@ from workbench.core import (
     write_text,
 )
 from workbench.external_skills import external_skill_source, external_skills
-from workbench.mcp import _desktop_mcp, merge_mcp, retired_mcp_names
+from workbench.mcp import merge_mcp
 from workbench.native_config import install_harness
 
 
@@ -170,14 +172,14 @@ def _remove_retired_subagents(destination: Path) -> None:
             _remove_deployed_path(destination / f"{name}{suffix}")
 
 
-def managed_claude_settings(data: Path) -> dict[str, Any]:
-    """Workbench-managed keys of ~/.claude/settings.json.
+def merge_claude_settings(existing: dict[str, Any], data: Path) -> dict[str, Any]:
+    """Reconcile owned entries while retaining owner plugins and hook commands.
 
     Single source for `sync` (the writer) and `drift` (the verifier) so the
     two commands can never diverge on what "managed" means.
     """
     plugins = _string_array(AGENTS / "claude/plugins.json")
-    return {
+    managed = {
         "enabledPlugins": dict.fromkeys(plugins, True),
         "permissions": _settings(AGENTS / "claude/permissions.json"),
         "hooks": _settings(AGENTS / "shared/hooks.json").get("hooks", {}),
@@ -195,6 +197,47 @@ def managed_claude_settings(data: Path) -> dict[str, Any]:
         "outputStyle": "Concise",
         "sandbox": CLAUDE_SANDBOX,
     }
+    result = {**existing, **managed}
+    for key in ("enabledPlugins", "permissions"):
+        retained = existing.get(key, {})
+        result[key] = {**(retained if isinstance(retained, dict) else {}), **managed[key]}
+    result["permissions"].pop("defaultMode", None)
+
+    hooks = {}
+    existing_hooks = existing.get("hooks", {})
+    if not isinstance(existing_hooks, dict):
+        raise WorkbenchError("Claude hooks must be an object")
+    for event, groups in existing_hooks.items():
+        if not isinstance(groups, list):
+            raise WorkbenchError(f"Claude hook event {event} must contain a list")
+        kept = []
+        for group in groups:
+            if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+                raise WorkbenchError(f"Claude hook event {event} has an invalid group")
+            if any(
+                not isinstance(hook, dict)
+                or (hook.get("type") == "command" and not isinstance(hook.get("command"), str))
+                for hook in group["hooks"]
+            ):
+                raise WorkbenchError(f"Claude hook event {event} has an invalid hook")
+            commands = [
+                hook
+                for hook in group.get("hooks", [])
+                if not (
+                    hook.get("type") == "command"
+                    and hook.get("command", "").startswith(
+                        "bash $HOME/.local/share/workbench/hooks/"
+                    )
+                )
+            ]
+            if commands:
+                kept.append({**group, "hooks": commands})
+        if kept:
+            hooks[event] = kept
+    for event, groups in managed["hooks"].items():
+        hooks.setdefault(event, []).extend(groups)
+    result["hooks"] = hooks
+    return result
 
 
 def sync_claude(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
@@ -204,17 +247,7 @@ def sync_claude(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> Non
 
     settings_path = claude_home / "settings.json"
     settings = _settings(settings_path)
-    managed = managed_claude_settings(data)
-
-    existing_permissions = settings.get("permissions", {})
-    if not isinstance(existing_permissions, dict):
-        existing_permissions = {}
-    # Legacy-location cleanup: defaultMode now lives at the settings top level;
-    # a stale nested copy would shadow the managed value.
-    existing_permissions.pop("defaultMode", None)
-    settings.update(managed)
-    settings["permissions"] = {**existing_permissions, **managed["permissions"]}
-    write_json(settings_path, settings)
+    write_json(settings_path, merge_claude_settings(settings, data))
 
     claude_root = home / ".claude.json"
     root_settings = _settings(claude_root)
@@ -239,8 +272,7 @@ def _sync_claude_desktop(home: Path) -> None:
     live_mcp = settings.get("mcpServers", {})
     if not isinstance(live_mcp, dict):
         live_mcp = {}
-    kept = {name: value for name, value in live_mcp.items() if name not in retired_mcp_names()}
-    settings["mcpServers"] = {**kept, **_desktop_mcp()}
+    settings["mcpServers"] = merge_mcp(live_mcp, "desktop")
 
     source = _settings(AGENTS / "claude/desktop-preferences.json")
     defaults = source.get("preferences", {})
@@ -349,11 +381,34 @@ def _sync_pi_skills(home: Path) -> None:
 def _harden_pi_session_permissions(destination: Path) -> None:
     """Keep persisted conversations private without inspecting or owning them."""
     sessions = destination / "sessions"
-    if not sessions.exists():
+    if not sessions.exists() and not sessions.is_symlink():
         return
-    sessions.chmod(0o700)
-    for path in sessions.rglob("*"):
-        path.chmod(0o700 if path.is_dir() else 0o600)
+
+    def harden(descriptor: int) -> None:
+        metadata = os.fstat(descriptor)
+        directory = stat.S_ISDIR(metadata.st_mode)
+        if not directory and not stat.S_ISREG(metadata.st_mode):
+            raise WorkbenchError("Pi session paths must be regular files or directories")
+        os.fchmod(descriptor, 0o700 if directory else 0o600)
+        if directory:
+            for name in os.listdir(descriptor):
+                child = os.open(
+                    name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor
+                )
+                try:
+                    harden(child)
+                finally:
+                    os.close(child)
+
+    # Descriptor-relative traversal never follows a replaced root or nested symlink.
+    try:
+        root = os.open(sessions, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            harden(root)
+        finally:
+            os.close(root)
+    except OSError as exc:
+        raise WorkbenchError(f"Cannot safely harden Pi session paths: {sessions}: {exc}") from exc
 
 
 def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:

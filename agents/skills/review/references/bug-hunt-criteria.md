@@ -4,16 +4,18 @@ The defect-finding lens: what could break when this change lands. Threads T1–T
 
 _Merged from `premerge-review` (review-criteria.md + SKILL.md checklists), originally promoted from `.ai/rules/process/code-review.mdc`._
 
-## Fix-First Classification
+## Follow-up Classification
 
 Classify every finding before reporting:
 
 | Classification | Action | Criteria |
 |---------------|--------|----------|
-| **AUTO-FIX** | Fix silently | A senior engineer would apply without discussion. Mechanical, unambiguous. |
-| **ASK** | Report and recommend | Reasonable engineers could disagree. Trade-offs, architecture, judgment. |
+| **QUICK FIX** | Report a mechanical follow-up | A senior engineer would apply without discussion once fixes are authorized. Mechanical, unambiguous. |
+| **JUDGMENT** | Report the decision and alternatives | Reasonable engineers could disagree. Trade-offs, architecture, judgment. |
 
-### AUTO-FIX Examples (just fix)
+Review is read-only. Neither classification authorizes edits.
+
+### QUICK FIX Examples
 
 - Unused imports/variables, dead code, import ordering
 - Formatting/naming inconsistencies with surrounding code
@@ -21,7 +23,7 @@ Classify every finding before reporting:
 - Obvious null guards at system boundaries
 - Deprecated API with a drop-in replacement
 
-### ASK Examples (report, don't touch)
+### JUDGMENT Examples
 
 - Architectural changes (new abstractions, data flow)
 - Security-sensitive changes (auth, validation, secrets)
@@ -29,7 +31,7 @@ Classify every finding before reporting:
 - Dependency additions or removals
 - Test strategy decisions
 
-**Default to ASK when uncertain.** Batch ASK findings into a single summary; never make a judgment-call change silently.
+**Default to JUDGMENT when uncertain.** Group related decisions in the report.
 
 ## T1 — Correctness (the non-obvious)
 

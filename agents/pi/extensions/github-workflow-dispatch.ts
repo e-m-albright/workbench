@@ -46,7 +46,7 @@ export function validateDispatch(dispatch: WorkflowDispatch): void {
 export function buildDispatchArgs(dispatch: WorkflowDispatch): string[] {
 	validateDispatch(dispatch);
 	const args = ["workflow", "run", dispatch.workflow, "--repo", dispatch.repository, "--ref", dispatch.ref];
-	for (const input of dispatch.inputs) args.push("--field", `${input.name}=${input.value}`);
+	for (const input of dispatch.inputs) args.push("--raw-field", `${input.name}=${input.value}`);
 	return args;
 }
 

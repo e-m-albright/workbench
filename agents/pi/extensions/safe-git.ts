@@ -14,7 +14,7 @@
  * session" options. Non-interactive (headless `pi -p`, RPC, SDK): BLOCKS matched
  * commands entirely (fail-safe). For automation repos that need git in headless
  * mode, set `"safeGit": { "enabledByDefault": false }` in that repo's
- * .pi/settings.json. See docs/adr/0006 and docs/pi-power-setup.md.
+ * trusted .pi/settings.json. Untrusted project settings cannot change protection.
  *
  * Config (~/.pi/agent/settings.json):
  *   { "safeGit": { "promptLevel": "high" | "medium" | "none", "enabledByDefault": true } }
@@ -30,6 +30,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { loadSettings } from "./lib/settings";
 
 type PromptLevel = "high" | "medium" | "none";
 type Severity = "high" | "medium";
@@ -106,14 +107,18 @@ export default function (pi: ExtensionAPI) {
 
 	// Helper to get effective config
 	function getEffectiveConfig(ctx: ExtensionContext): { enabled: boolean; promptLevel: PromptLevel } {
-		// Unofficial settings surface; cast kept identical across extensions.
-		const settings =
-			(
-				ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
-			).settingsManager?.getSettings() ?? {};
+		const settings = loadSettings(ctx, "safeGit");
 		const config: Required<SafeGitConfig> = {
-			...DEFAULT_CONFIG,
-			...(settings.safeGit ?? {}),
+			promptLevel:
+				settings.promptLevel === "high" ||
+				settings.promptLevel === "medium" ||
+				settings.promptLevel === "none"
+					? settings.promptLevel
+					: DEFAULT_CONFIG.promptLevel,
+			enabledByDefault:
+				typeof settings.enabledByDefault === "boolean"
+					? settings.enabledByDefault
+					: DEFAULT_CONFIG.enabledByDefault,
 		};
 
 		const enabled = sessionEnabledOverride !== null ? sessionEnabledOverride : config.enabledByDefault;
@@ -190,20 +195,12 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("safegit-status", {
 		description: "Show safe-git status and settings",
 		handler: async (_args, ctx) => {
-			const settings =
-				(
-					ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
-				).settingsManager?.getSettings() ?? {};
-			const globalConfig: Required<SafeGitConfig> = {
-				...DEFAULT_CONFIG,
-				...(settings.safeGit ?? {}),
-			};
 			const { enabled, promptLevel } = getEffectiveConfig(ctx);
 
 			const lines = [
 				"─── Safe Git Status ───",
 				"",
-				"Session State:",
+				"Effective Settings:",
 				`  Enabled: ${enabled ? "🔒 ON" : "🔓 OFF"}${sessionEnabledOverride !== null ? " (session override)" : ""}`,
 				`  Prompt Level: ${promptLevel}${sessionPromptLevelOverride !== null ? " (session override)" : ""}`,
 			];
@@ -228,10 +225,6 @@ export default function (pi: ExtensionAPI) {
 				lines.push("  (Auto-blocks reset when session ends)");
 			}
 
-			lines.push("");
-			lines.push("Global Defaults:");
-			lines.push(`  Enabled: ${globalConfig.enabledByDefault ? "ON" : "OFF"}`);
-			lines.push(`  Prompt Level: ${globalConfig.promptLevel}`);
 			lines.push("");
 			lines.push("Prompt Levels:");
 			lines.push(`  🔴 high   - force push, hard reset, clean, delete branch`);

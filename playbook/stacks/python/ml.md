@@ -173,6 +173,7 @@ image = modal.Image.debian_slim().pip_install("torch", "transformers")
 @app.function(gpu="A10G", image=image)
 def run_inference(prompt: str) -> str:
     from transformers import pipeline
+
     pipe = pipeline("text-generation", model="gpt2")
     return pipe(prompt)[0]["generated_text"]
 ```

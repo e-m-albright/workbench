@@ -63,13 +63,15 @@ def active_mcp(
         if name.startswith("$") or not isinstance(value, dict):
             continue
         targets = value.get("targets", [])
-        if isinstance(targets, list) and target in targets:
+        if isinstance(targets, list) and (
+            target in targets or (target == "desktop" and "claude" in targets)
+        ):
             servers[name] = {
                 key: _expand_env(item)
                 for key, item in value.items()
                 if key != "targets" and not key.startswith("$")
             }
-    return servers
+    return _desktop_servers(servers) if target == "desktop" else servers
 
 
 def merge_mcp(existing: Mapping[str, object], target: str) -> dict[str, object]:
@@ -89,8 +91,8 @@ def merge_mcp(existing: Mapping[str, object], target: str) -> dict[str, object]:
     return {**kept, **desired}
 
 
-def _desktop_mcp() -> dict[str, dict[str, object]]:
-    raw = {**active_mcp("claude"), **active_mcp("desktop")}
+def _desktop_servers(raw: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
+    """Translate the shared Desktop target into its native stdio transport."""
     result: dict[str, dict[str, object]] = {}
     for name, config in raw.items():
         if config.get("type") == "http" and isinstance(config.get("url"), str):

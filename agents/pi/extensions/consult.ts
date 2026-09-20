@@ -22,6 +22,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { loadSettings } from "./lib/settings";
 
 type Provider = "claude" | "codex";
 
@@ -37,19 +38,13 @@ const MAX_NOTIFY_CHARS = 6000;
 const FABLE_MODEL = "claude-fable-5";
 
 function getSettings(ctx: ExtensionContext): Required<ConsultSettings> {
-	// Unofficial settings surface (no public getSettings on ExtensionContext yet);
-	// keep this cast identical across extensions so a Pi API change breaks them uniformly.
-	const settings =
-		(
-			ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
-		).settingsManager?.getSettings() ?? {};
-	const consult = (settings.consult ?? {}) as ConsultSettings;
+	const consult = loadSettings(ctx, "consult");
 	const provider =
 		consult.provider === "codex" || consult.provider === "claude" ? consult.provider : DEFAULT_PROVIDER;
 	const model = typeof consult.model === "string" && consult.model.trim() ? consult.model.trim() : "";
 	const timeoutMs =
-		Number.isFinite(consult.timeoutMs) && Number(consult.timeoutMs) > 0
-			? Number(consult.timeoutMs)
+		typeof consult.timeoutMs === "number" && Number.isFinite(consult.timeoutMs) && consult.timeoutMs > 0
+			? consult.timeoutMs
 			: DEFAULT_TIMEOUT_MS;
 	return { provider, model, timeoutMs };
 }
@@ -153,6 +148,16 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("consult", {
 		description: "Read-only second opinion: /consult [--claude|--codex|--fable|--model <id>] <question>",
 		handler: async (args, ctx) => {
+			if (
+				process.env.WORKBENCH_AGENT_AUTHORITY === "restricted" ||
+				process.env.WORKBENCH_PI_MODE === "hosted-restricted"
+			) {
+				ctx.ui.notify(
+					"Consult is unavailable in a restricted session: only Pi's login is admitted. Use a separate explicitly unrestricted hosted session for cross-vendor review.",
+					"error",
+				);
+				return;
+			}
 			if (process.env.WORKBENCH_PI_MODE?.startsWith("local-") || ctx.model?.provider === "omlx") {
 				ctx.ui.notify(
 					"Cloud consult is unavailable in a local session. Start a separate hosted session with explicitly released context.",

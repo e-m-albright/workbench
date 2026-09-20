@@ -29,10 +29,9 @@ export interface QuotaWindow {
 
 type QuotaState =
 	| { kind: "unknown" }
-	| { kind: "percent"; usedPercent: number; source: string }
+	| { kind: "percent"; usedPercent: number }
 	| {
 			kind: "codex";
-			planType?: string;
 			primary?: QuotaWindow;
 			secondary?: QuotaWindow;
 	  };
@@ -163,7 +162,7 @@ async function getGitState(pi: ExtensionAPI, cwd: string): Promise<GitState> {
 		branch = detached.stdout.trim() || "detached";
 	}
 
-	const lines = statusResult.stdout.trim().split("\n").filter(Boolean);
+	const lines = statusResult.stdout.split("\n").filter(Boolean);
 	const counts = countPorcelain(lines);
 
 	const gitDir = gitDirResult.stdout.trim();
@@ -315,18 +314,18 @@ function parsePositiveNumber(value: string | undefined): number | undefined {
 
 function quotaFromHeaders(headers: Record<string, string>): QuotaState {
 	const get = (name: string) => headers[name.toLowerCase()] ?? headers[name];
-	const candidates: Array<[string, string, string]> = [
-		["x-ratelimit-limit-tokens", "x-ratelimit-remaining-tokens", "tokens"],
-		["x-ratelimit-limit-requests", "x-ratelimit-remaining-requests", "requests"],
-		["openai-processing-ms-limit", "openai-processing-ms-remaining", "processing"],
+	const candidates: Array<[string, string]> = [
+		["x-ratelimit-limit-tokens", "x-ratelimit-remaining-tokens"],
+		["x-ratelimit-limit-requests", "x-ratelimit-remaining-requests"],
+		["openai-processing-ms-limit", "openai-processing-ms-remaining"],
 	];
 
-	for (const [limitHeader, remainingHeader, source] of candidates) {
+	for (const [limitHeader, remainingHeader] of candidates) {
 		const limit = parsePositiveNumber(get(limitHeader));
 		const remaining = parsePositiveNumber(get(remainingHeader));
 		if (!limit || remaining === undefined) continue;
 		const usedPercent = Math.max(0, Math.min(100, ((limit - remaining) / limit) * 100));
-		return { kind: "percent", usedPercent, source };
+		return { kind: "percent", usedPercent };
 	}
 
 	return { kind: "unknown" };
@@ -373,7 +372,6 @@ async function codexQuota(): Promise<QuotaState> {
 				const rateLimits = result.rateLimits as Record<string, unknown>;
 				finish({
 					kind: "codex",
-					planType: typeof rateLimits.planType === "string" ? rateLimits.planType : undefined,
 					primary: quotaWindow(rateLimits.primary),
 					secondary: quotaWindow(rateLimits.secondary),
 				});
@@ -393,13 +391,12 @@ async function codexQuota(): Promise<QuotaState> {
 	});
 }
 
-let lastSpeed: number | undefined;
-
 export function renderFooter(
 	ctx: ExtensionContext,
 	gitState: GitState,
 	quotaState: QuotaState,
 	width: number,
+	lastSpeed?: number,
 ): string[] {
 	const theme = ctx.ui.theme;
 	const entries = ctx.sessionManager.getEntries();
@@ -509,6 +506,7 @@ export function renderFooter(
 }
 
 export default function (pi: ExtensionAPI) {
+	let lastSpeed: number | undefined;
 	let gitState: GitState = { kind: "not-git" };
 	let quotaState: QuotaState = { kind: "unknown" };
 	let refreshTimer: ReturnType<typeof setInterval> | undefined;
@@ -517,15 +515,19 @@ export default function (pi: ExtensionAPI) {
 	let quotaRefreshInFlight = false;
 	let lastQuotaRefresh = 0;
 	let requestRender: (() => void) | undefined;
+	let session = 0;
 
 	const refresh = async (ctx: ExtensionContext) => {
 		if (refreshInFlight) return;
+		const currentSession = session;
 		refreshInFlight = true;
 		try {
-			gitState = await getGitState(pi, ctx.cwd);
+			const state = await getGitState(pi, ctx.cwd);
+			if (currentSession !== session) return;
+			gitState = state;
 			requestRender?.();
 		} finally {
-			refreshInFlight = false;
+			if (currentSession === session) refreshInFlight = false;
 		}
 	};
 
@@ -534,20 +536,35 @@ export default function (pi: ExtensionAPI) {
 		if (process.env.WORKBENCH_AGENT_AUTHORITY === "restricted") return;
 		if (ctx.model?.provider !== "openai-codex" || authClass(ctx) !== "subscription") return;
 		if (quotaRefreshInFlight || (!force && Date.now() - lastQuotaRefresh < 60_000)) return;
+		const currentSession = session;
 		quotaRefreshInFlight = true;
 		try {
 			const value = await codexQuota();
+			if (currentSession !== session) return;
 			if (value.kind !== "unknown") quotaState = value;
 			lastQuotaRefresh = Date.now();
 			requestRender?.();
 		} finally {
-			quotaRefreshInFlight = false;
+			if (currentSession === session) quotaRefreshInFlight = false;
 		}
 	};
 
 	pi.on("session_start", async (_event, ctx) => {
+		const currentSession = ++session;
+		refreshInFlight = false;
+		quotaRefreshInFlight = false;
+		gitState = { kind: "not-git" };
+		lastSpeed = undefined;
+		quotaState = { kind: "unknown" };
+		turnStart = 0;
+		turnEntryCount = 0;
+		lastQuotaRefresh = 0;
+		if (refreshTimer) clearInterval(refreshTimer);
+		if (quotaTimer) clearInterval(quotaTimer);
+		requestRender = undefined;
 		if (!ctx.hasUI) return;
 		await refresh(ctx);
+		if (currentSession !== session) return;
 		void refreshQuota(ctx, true);
 
 		ctx.ui.setFooter((tui, _theme, footerData) => {
@@ -558,7 +575,7 @@ export default function (pi: ExtensionAPI) {
 				},
 				invalidate() {},
 				render(width: number): string[] {
-					const lines = renderFooter(ctx, gitState, quotaState, width);
+					const lines = renderFooter(ctx, gitState, quotaState, width, lastSpeed);
 					const provider = footerData as unknown as {
 						getExtensionStatuses?: () => ReadonlyMap<string, string>;
 					};
@@ -576,11 +593,9 @@ export default function (pi: ExtensionAPI) {
 			};
 		});
 
-		refreshTimer && clearInterval(refreshTimer);
 		refreshTimer = setInterval(() => {
 			void refresh(ctx);
 		}, 15_000);
-		quotaTimer && clearInterval(quotaTimer);
 		quotaTimer = setInterval(() => {
 			void refreshQuota(ctx, true);
 		}, 300_000);
@@ -626,6 +641,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", async () => {
+		session++;
 		if (refreshTimer) {
 			clearInterval(refreshTimer);
 			refreshTimer = undefined;

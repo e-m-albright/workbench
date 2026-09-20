@@ -55,27 +55,32 @@ For every candidate session, extract first user message + last assistant message
 
 ```python
 import json, sys
+
 p = sys.argv[1]
 first_user, last_asst, last_cwd, last_branch = None, None, None, None
 with open(p) as f:
     for l in f:
         try:
             d = json.loads(l)
-            t = d.get('type')
-            last_cwd = d.get('cwd', last_cwd)
-            last_branch = d.get('gitBranch', last_branch)
-            content = d.get('message', {}).get('content', [])
-            if isinstance(content, str): content = [{'type':'text','text':content}]
+            t = d.get("type")
+            last_cwd = d.get("cwd", last_cwd)
+            last_branch = d.get("gitBranch", last_branch)
+            content = d.get("message", {}).get("content", [])
+            if isinstance(content, str):
+                content = [{"type": "text", "text": content}]
             for b in content:
-                if isinstance(b, dict) and b.get('type') == 'text':
-                    txt = b['text']
-                    if t == 'user' and not txt.startswith('<') and first_user is None:
+                if isinstance(b, dict) and b.get("type") == "text":
+                    txt = b["text"]
+                    if t == "user" and not txt.startswith("<") and first_user is None:
                         first_user = txt[:300]
-                    elif t == 'assistant':
+                    elif t == "assistant":
                         last_asst = txt[:400]
-        except: pass
-print('cwd:', last_cwd); print('branch:', last_branch)
-print('FIRST:', first_user); print('LAST:', last_asst)
+        except:
+            pass
+print("cwd:", last_cwd)
+print("branch:", last_branch)
+print("FIRST:", first_user)
+print("LAST:", last_asst)
 ```
 
 The first user message often names the chat letter or feature ("pursue Chat F", "@docs/...pursue Chat A"). The last assistant message reveals state ("Ready to merge", "Worktree safe to remove", "Clean. Ready to close.").

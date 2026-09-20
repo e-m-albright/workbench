@@ -542,6 +542,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
+
 def setup_telemetry(app):
     """Initialize OpenTelemetry tracing."""
     provider = TracerProvider()

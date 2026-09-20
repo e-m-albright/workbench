@@ -12,4 +12,4 @@ if ! command -v uv >/dev/null 2>&1; then
     echo "workbench: uv is required (install via dotfiles or 'brew install uv')" >&2
     exit 1
 fi
-exec uv run --quiet --project "$ROOT" workbench "$@"
+exec uv run --locked --quiet --project "$ROOT" workbench "$@"

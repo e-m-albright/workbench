@@ -34,7 +34,7 @@ provisioning order, never cross-repository Python imports.
 Workbench gives me one place to answer four questions:
 
 1. **How should my coding agents behave?** Shared rules, safety boundaries,
-   reusable skills, and specialist-agent instructions live under `agents/`.
+   reusable skills, and review guidance live under `agents/`.
 2. **How do those instructions reach each harness?** `workbench sync` translates
    and deploys the canonical sources into Pi, Claude Code, and Codex configuration.
 3. **Has live configuration drifted?** `workbench drift` compares the deployed
@@ -239,7 +239,7 @@ bin/workbench            relocatable shell launcher (execs via uv)
 Choose the smallest durable surface that fits the need:
 
 1. Update `agents/shared/rules.md` only for behavior that should always apply to
-   both coding agents.
+   Pi, Claude Code, and Codex.
 2. Add or revise a skill for a recurring workflow that should load on demand.
 3. Add a prompt when reusable wording is useful but executable workflow or
    automatic triggering is not.

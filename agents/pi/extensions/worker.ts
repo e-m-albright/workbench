@@ -11,7 +11,8 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ExecResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
+import { loadSettings } from "./lib/settings";
 import { buildWorkerPrompt, reviewInstructions, workerSlug } from "./lib/worker-core";
 
 const DEFAULT_TIMEOUT_MS = 900_000;
@@ -59,13 +60,8 @@ function truncate(text: string): string {
 }
 
 function timeoutMs(ctx: ExtensionContext): number {
-	// Unofficial settings surface (no public getSettings on ExtensionContext yet).
-	const settings =
-		(
-			ctx as unknown as { settingsManager?: { getSettings(): Record<string, any> } }
-		).settingsManager?.getSettings() ?? {};
-	const value = Number(settings.worker?.timeoutMs);
-	return Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
+	const value = loadSettings(ctx, "worker").timeoutMs;
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
 }
 
 function elapsedMs(state: WorkerState): number {
@@ -179,6 +175,17 @@ export default function workerExtension(pi: ExtensionAPI) {
 	}
 
 	async function delegate(task: string, ctx: ExtensionContext): Promise<WorkerResponse> {
+		if (
+			process.env.WORKBENCH_AGENT_AUTHORITY === "restricted" ||
+			process.env.WORKBENCH_PI_MODE === "hosted-restricted"
+		) {
+			return {
+				text: "Worker delegation is unavailable in a restricted session: its sibling worktree is outside the admitted checkout. Continue in this checkout or use a separate explicitly unrestricted session.",
+				isError: true,
+			};
+		}
+		// Validate settings before Git creates the branch or worktree.
+		const timeout = timeoutMs(ctx);
 		const boundedTask = task.trim();
 		if (!boundedTask) return { text: "delegate requires a non-empty task.", isError: true };
 		if (active) {
@@ -222,7 +229,7 @@ export default function workerExtension(pi: ExtensionAPI) {
 		void pi
 			.exec("pi", ["--route", route, "-p", "--no-session", buildWorkerPrompt(boundedTask, branch)], {
 				cwd: dir,
-				timeout: timeoutMs(ctx),
+				timeout,
 				signal: state.abortController.signal,
 			})
 			.then((result) => finishWorker(state, result, ctx))

@@ -195,6 +195,32 @@ describe("Pi permission policy", () => {
 		expect(reason("agent_browser", { args: ["open", "https://example.com/docs"] })).toBeUndefined();
 	});
 
+	test("checks browser URL hostnames despite credentials, ports, and trailing dots", () => {
+		for (const url of [
+			"github.com/settings",
+			"sub.github.com/path",
+			"github.com:443/path",
+			"//github.com/path",
+			"https://user:password@github.com/settings/profile",
+			"https://user@mail.google.com:443/mail/u/0/",
+			"https://user@sub.github.com/",
+			"https://GITHUB.COM./settings",
+		]) {
+			expect(reason("agent_browser", { args: ["open", url] }), url).toContain("private local provider");
+			expect(reason("agent_browser", { args: ["open", url] }, "omlx"), url).toBeUndefined();
+		}
+		for (const url of [
+			"github.com.example.org",
+			"github.com@example.org",
+			"example.org/github.com",
+			"https://github.com.example.org/",
+			"https://github.com@example.org/",
+			"https://example.org/github.com/settings",
+		]) {
+			expect(reason("agent_browser", { args: ["open", url] }), url).toBeUndefined();
+		}
+	});
+
 	test("blocks nested agent invocation for both cloud and local models", () => {
 		for (const command of [
 			"pi --route private --print 'read my email'",
@@ -310,6 +336,22 @@ describe("Pi permission policy", () => {
 		expect(
 			policyBlockReason("bash", { command: "cat innocent.txt" }, base, policy, "openai-codex"),
 		).toContain("secrets");
+	});
+
+	test("protects future files beneath a symlinked protected directory", () => {
+		const base = mkdtempSync(join(tmpdir(), "wb-policy-future-"));
+		mkdirSync(join(base, "secrets"));
+		mkdirSync(join(base, "ordinary"));
+		symlinkSync(join(base, "secrets"), join(base, "alias"));
+		symlinkSync(join(base, "ordinary"), join(base, "safe-alias"));
+		for (const [tool, key] of [
+			["write", "path"],
+			["edit", "path"],
+			["workspace_files", "target"],
+		]) {
+			expect(reason(tool, { [key]: join(base, "alias/new/nested.txt") })).toContain("secrets");
+			expect(reason(tool, { [key]: join(base, "safe-alias/new/nested.txt") })).toBeUndefined();
+		}
 	});
 
 	test("denies all remote MCP tools now that the allowlist is empty", () => {

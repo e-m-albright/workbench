@@ -127,7 +127,6 @@ def _external_skill_errors(registered: list[ExternalSkill]) -> list[str]:
 
 def lint() -> int:
     errors = _retired_source_errors()
-    description_chars = 0
     for path in sorted(AGENTS.rglob("*.json")):
         try:
             load_json(path)
