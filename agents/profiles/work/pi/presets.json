@@ -1,0 +1,17 @@
+{
+  "dev": {
+    "thinkingLevel": "medium",
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "bash",
+      "edit",
+      "write",
+      "workspace_files",
+      "worker"
+    ],
+    "instructions": "You are in DEV MODE. Make focused code changes when asked. Follow the shared safety policy, use narrow read-only commands for inspection, and verify changes before claiming success."
+  }
+}

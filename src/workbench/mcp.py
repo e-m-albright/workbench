@@ -74,10 +74,12 @@ def active_mcp(
     return _desktop_servers(servers) if target == "desktop" else servers
 
 
-def merge_mcp(existing: Mapping[str, object], target: str) -> dict[str, object]:
+def merge_mcp(
+    existing: Mapping[str, object], target: str, *, include_active: bool = True
+) -> dict[str, object]:
     registry = _registry()
     retired = retired_mcp_names(registry)
-    desired = active_mcp(target, registry)
+    desired = active_mcp(target, registry) if include_active else {}
     managed = {
         name
         for name, value in registry.items()

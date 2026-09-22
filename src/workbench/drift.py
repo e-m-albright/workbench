@@ -27,6 +27,7 @@ from workbench.core import (
 )
 from workbench.external_skills import external_skills, validated_external_skill_source
 from workbench.mcp import active_mcp, merge_mcp, retired_mcp_names
+from workbench.profiles import WORK_PI, WORK_PI_EXTENSIONS, Profile
 from workbench.sync import (
     _canonical_hooks,
     _canonical_shell_fragments,
@@ -77,10 +78,11 @@ def _check_skills(
     external: list[str],
     *,
     home: Path | None = None,
+    profile: Profile = "personal",
 ) -> None:
-    canonical = _canonical_skills()
+    canonical = _canonical_skills(profile)
     managed_names = set(canonical)
-    if home is not None:
+    if home is not None and profile == "personal":
         for skill in external_skills():
             managed_names.add(skill.name)
             source = validated_external_skill_source(home, skill)
@@ -119,9 +121,11 @@ def _check_skills(
             external.append(f"EXTERNAL {vendor} skill: {name}")
 
 
-def _check_pi_native_skills(skill_root: Path, findings: list[str], external: list[str]) -> None:
+def _check_pi_native_skills(
+    skill_root: Path, findings: list[str], external: list[str], profile: Profile = "personal"
+) -> None:
     """Pi-native skills may be external, but shared copies are duplicate drift."""
-    canonical = _canonical_skills()
+    canonical = _canonical_skills(profile)
     deployed = {path.parent.name for path in skill_root.glob("*/SKILL.md")}
     for name in sorted(deployed):
         if name in canonical:
@@ -168,7 +172,13 @@ def _check_plugins(vendor: str, home: Path, findings: list[str], external: list[
         external.append(f"EXTERNAL {vendor} plugin: {plugin}")
 
 
-def _check_claude(home: Path, data: Path, findings: list[str], external: list[str]) -> object:
+def _check_claude(
+    home: Path,
+    data: Path,
+    findings: list[str],
+    external: list[str],
+    profile: Profile = "personal",
+) -> object:
     """Verify Claude-managed state; returns the live MCP mapping."""
     _compare(
         AGENTS / "shared/rules.md",
@@ -183,29 +193,44 @@ def _check_claude(home: Path, data: Path, findings: list[str], external: list[st
         findings,
     )
     settings = _settings(home / ".claude/settings.json")
-    reconciled = merge_claude_settings(settings, data)
+    reconciled = merge_claude_settings(settings, data, profile)
     for key in settings.keys() | reconciled.keys():
         if settings.get(key) != reconciled.get(key):
             findings.append(f"DRIFT Claude settings.{key}")
     claude_root = home / ".claude.json"
-    desktop_path = home / "Library/Application Support/Claude/claude_desktop_config.json"
     _check_private_mode(claude_root, "Claude root configuration", findings)
-    _check_private_mode(desktop_path, "Claude Desktop configuration", findings)
-    desktop = _settings(desktop_path)
-    _check_mcp(desktop.get("mcpServers"), "desktop", "Claude Desktop MCP", findings, external)
-    desktop_defaults = _settings(AGENTS / "claude/desktop-preferences.json").get("preferences", {})
-    live_preferences = desktop.get("preferences", {})
-    if not isinstance(desktop_defaults, dict) or not isinstance(live_preferences, dict):
-        findings.append("DRIFT Claude Desktop preferences is not an object")
-    else:
-        for key in desktop_defaults.keys() - live_preferences.keys():
-            findings.append(f"DRIFT Claude Desktop preference missing: {key}")
+    if profile == "personal":
+        desktop_path = home / "Library/Application Support/Claude/claude_desktop_config.json"
+        _check_private_mode(desktop_path, "Claude Desktop configuration", findings)
+        desktop = _settings(desktop_path)
+        _check_mcp(
+            desktop.get("mcpServers"),
+            "desktop",
+            "Claude Desktop MCP",
+            findings,
+            external,
+        )
+        desktop_defaults = _settings(AGENTS / "claude/desktop-preferences.json").get(
+            "preferences", {}
+        )
+        live_preferences = desktop.get("preferences", {})
+        if not isinstance(desktop_defaults, dict) or not isinstance(live_preferences, dict):
+            findings.append("DRIFT Claude Desktop preferences is not an object")
+        else:
+            for key in desktop_defaults.keys() - live_preferences.keys():
+                findings.append(f"DRIFT Claude Desktop preference missing: {key}")
     _check_agents("claude", home / ".claude/agents", findings, external)
     return _settings(claude_root).get("mcpServers", {})
 
 
-def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
+def _check_pi(
+    home: Path,
+    findings: list[str],
+    external: list[str],
+    profile: Profile = "personal",
+) -> None:
     pi_home = home / ".pi/agent"
+    source = AGENTS / "pi" if profile == "personal" else WORK_PI
     if not shutil.which("pi"):
         findings.append("DRIFT Pi CLI is not installed or not on PATH")
     sessions = pi_home / "sessions"
@@ -228,16 +253,19 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
         "Pi permission policy",
         findings,
     )
-    _compare(
-        AGENTS / "pi/inference-router.json",
-        pi_home / "inference-router.json",
-        "Pi inference router",
-        findings,
-    )
+    if profile == "personal":
+        _compare(
+            AGENTS / "pi/inference-router.json",
+            pi_home / "inference-router.json",
+            "Pi inference router",
+            findings,
+        )
+    elif (pi_home / "inference-router.json").exists():
+        findings.append("DRIFT personal Pi inference router present in work profile")
     findings.extend(
         _managed_value_errors(
             _settings(pi_home / "settings.json"),
-            _settings(AGENTS / "pi/settings.json"),
+            _settings(source / "settings.json"),
             "Pi settings",
         )
     )
@@ -250,7 +278,7 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
         ("presets.json", None),
     ):
         actual = _settings(pi_home / filename)
-        expected = _settings(AGENTS / "pi" / filename)
+        expected = _settings(source / filename)
         if nested_key:
             actual = actual.get(nested_key, {})
             expected = expected.get(nested_key, {})
@@ -264,7 +292,12 @@ def _check_pi(home: Path, findings: list[str], external: list[str]) -> None:
                 else:
                     external.append(f"EXTERNAL Pi {filename} entry: {name}")
 
-    expected_extensions = {path.name: path for path in (AGENTS / "pi/extensions").glob("*.ts")}
+    all_extensions = {path.name: path for path in (AGENTS / "pi/extensions").glob("*.ts")}
+    expected_extensions = (
+        all_extensions
+        if profile == "personal"
+        else {name: all_extensions[name] for name in WORK_PI_EXTENSIONS}
+    )
     deployed_extensions = {path.name: path for path in (pi_home / "extensions").glob("*.ts")}
     for name, source in expected_extensions.items():
         _compare(source, pi_home / "extensions" / name, f"Pi extension {name}", findings)
@@ -329,28 +362,41 @@ def _check_codex(home: Path, findings: list[str], external: list[str]) -> object
 
 
 def _check_mcp(
-    actual: object, target: str, label: str, findings: list[str], external: list[str]
+    actual: object,
+    target: str,
+    label: str,
+    findings: list[str],
+    external: list[str],
+    *,
+    include_active: bool = True,
 ) -> None:
     if not isinstance(actual, dict):
         findings.append(f"DRIFT {label} configuration is not an object")
         actual = {}
-    merged = merge_mcp(actual, target)
+    merged = merge_mcp(actual, target, include_active=include_active)
     for name, value in merged.items():
         if actual.get(name) != value:
             findings.append(f"DRIFT {label} {name}")
     for name in actual.keys() - merged.keys():
         reason = "retired" if name in retired_mcp_names() else "untargeted"
         findings.append(f"DRIFT {reason} {label} still present: {name}")
-    for name in actual.keys() & merged.keys() - active_mcp(target).keys():
+    desired = active_mcp(target) if include_active else {}
+    for name in actual.keys() & merged.keys() - desired.keys():
         external.append(f"EXTERNAL {label}: {name}")
 
 
-def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) -> int:
+def drift(
+    home: Path,
+    vendors: Iterable[str],
+    *,
+    verify_plugins: bool = True,
+    profile: Profile = "personal",
+) -> int:
     findings: list[str] = []
     external: list[str] = []
     selected = tuple(vendors)
     data = home / DATA_REL
-    if selected:
+    if selected and profile == "personal":
         for name, fragment in _canonical_shell_fragments().items():
             _compare(fragment, data / "shell" / name, f"shell fragment {name}", findings)
         for name in RETIRED_AGENT_SHELL_FILES:
@@ -378,21 +424,35 @@ def drift(home: Path, vendors: Iterable[str], *, verify_plugins: bool = True) ->
 
     for vendor in selected:
         if vendor == "pi":
-            _check_pi(home, findings, external)
-            _check_skills(home / ".agents/skills", vendor, findings, external, home=home)
-            _check_pi_native_skills(home / ".pi/agent/skills", findings, external)
+            _check_pi(home, findings, external, profile)
+            _check_skills(
+                home / ".agents/skills",
+                vendor,
+                findings,
+                external,
+                home=home,
+                profile=profile,
+            )
+            _check_pi_native_skills(home / ".pi/agent/skills", findings, external, profile)
             continue
         if vendor == "claude":
-            mcp = _check_claude(home, data, findings, external)
+            mcp = _check_claude(home, data, findings, external, profile)
             skill_root = home / ".claude/skills"
         else:
             mcp = _check_codex(home, findings, external)
             skill_root = home / ".agents/skills"
 
-        _check_mcp(mcp, vendor, f"{vendor} MCP", findings, external)
+        _check_mcp(
+            mcp,
+            vendor,
+            f"{vendor} MCP",
+            findings,
+            external,
+            include_active=profile == "personal",
+        )
 
-        _check_skills(skill_root, vendor, findings, external, home=home)
-        if verify_plugins:
+        _check_skills(skill_root, vendor, findings, external, home=home, profile=profile)
+        if verify_plugins and profile == "personal":
             _check_plugins(vendor, home, findings, external)
 
     # NOTE lines record skipped verification, not external additions; keep

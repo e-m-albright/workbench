@@ -4,8 +4,15 @@ The exhaustive map of what `workbench sync` deploys and `workbench drift`
 verifies, per harness. The README keeps only the summary; this document is the
 reference.
 
-The table describes the shared harness configuration. Restricted terminal
-sessions use the same instructions, skills, extensions, and presentation through
+The default `personal` profile is the complete configuration described by the
+table. The fail-closed `work` profile targets only Claude Code and Pi. It deploys
+shared rules, tracked skills, hooks, and permission guards, but omits Codex,
+Claude plugins and Desktop configuration, MCP servers, externally downloaded
+skills, local-model routing, browser and personal connector extensions, and the
+native personal launcher projection. Run both sync and drift with the same
+`--profile` value.
+
+Restricted terminal sessions use the same instructions, skills, extensions, and presentation through
 a derived configuration that excludes host history and connector credentials.
 Their isolated state and access boundary are described below and in the
 [boundary reference](restricted-agents.md).

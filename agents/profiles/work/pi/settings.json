@@ -1,0 +1,12 @@
+{
+  "defaultThinkingLevel": "medium",
+  "doubleEscapeAction": "tree",
+  "treeFilterMode": "user-only",
+  "tuiMode": "fullscreen",
+  "defaultPreset": "dev",
+  "safeGit": {
+    "promptLevel": "high",
+    "enabledByDefault": true
+  },
+  "theme": "dark"
+}

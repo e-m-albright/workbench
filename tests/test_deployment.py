@@ -12,6 +12,49 @@ import pytest
 from workbench import cli, core, drift, lint, mcp, sync
 
 
+def test_work_profile_sync_is_fail_closed_and_drift_clean(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORKBENCH_HOME", str(tmp_path))
+    monkeypatch.setattr(drift.shutil, "which", lambda name: f"/usr/local/bin/{name}")
+
+    assert cli.main(["sync", "all", "--profile", "work"]) == 0
+
+    assert not (tmp_path / ".codex").exists()
+    assert not (tmp_path / "Library/Application Support/Claude").exists()
+    claude_root = json.loads((tmp_path / ".claude.json").read_text())
+    assert "exa" not in claude_root.get("mcpServers", {})
+    claude_settings = json.loads((tmp_path / ".claude/settings.json").read_text())
+    assert not any(
+        name.endswith("@claude-plugins-official")
+        for name in claude_settings.get("enabledPlugins", {})
+    )
+
+    pi_home = tmp_path / ".pi/agent"
+    pi_settings = json.loads((pi_home / "settings.json").read_text())
+    assert "defaultProvider" not in pi_settings
+    assert "defaultModel" not in pi_settings
+    assert pi_settings.get("packages", []) == []
+    assert not (pi_home / "inference-router.json").exists()
+    assert json.loads((pi_home / "models.json").read_text()).get("providers", {}) == {}
+    assert {path.name for path in (pi_home / "extensions").glob("*.ts")} == {
+        "activity-title.ts",
+        "footer.ts",
+        "permission-policy.ts",
+        "presets.ts",
+        "safe-git.ts",
+        "welcome.ts",
+        "worker.ts",
+        "workspace-files.ts",
+    }
+    assert not (tmp_path / ".agents/skills/paseo-management").exists()
+    assert not (tmp_path / ".agents/skills/archify").exists()
+    assert drift.drift(tmp_path, ("claude", "pi"), verify_plugins=False, profile="work") == 0
+
+
+def test_work_profile_rejects_codex_target():
+    assert cli.main(["sync", "codex", "--profile", "work"]) == 2
+    assert cli.main(["drift", "codex", "--profile", "work"]) == 2
+
+
 def test_drift_failure_reaches_process_exit_status(tmp_path):
     result = subprocess.run(
         [sys.executable, "-m", "workbench.cli", "drift", "codex", "--no-plugins"],

@@ -36,6 +36,7 @@ from workbench.core import (
 from workbench.external_skills import external_skill_source, external_skills
 from workbench.mcp import merge_mcp
 from workbench.native_config import install_harness
+from workbench.profiles import WORK_PI, WORK_PI_EXTENSIONS, WORK_SKILL_EXCLUDES, Profile
 
 
 def _sync_plugins(vendor: str, home: Path) -> None:
@@ -86,16 +87,20 @@ def _retire_agent_runtime(home: Path) -> None:
                 _remove_deployed_path(retired)
 
 
-def _canonical_skills() -> dict[str, Path]:
+def _canonical_skills(profile: Profile = "personal") -> dict[str, Path]:
     """Skill name -> canonical source tree, shared by sync and drift."""
-    return {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    skills = {path.parent.name: path.parent for path in (AGENTS / "skills").glob("*/SKILL.md")}
+    if profile == "work":
+        return {name: path for name, path in skills.items() if name not in WORK_SKILL_EXCLUDES}
+    return skills
 
 
-def _install_runtime_files(home: Path) -> Path:
+def _install_runtime_files(home: Path, *, deploy_shell: bool = True) -> Path:
     data = home / DATA_REL
-    for name, fragment in _canonical_shell_fragments().items():
-        copy_file(fragment, data / "shell" / name)
-    _retire_agent_runtime(home)
+    if deploy_shell:
+        for name, fragment in _canonical_shell_fragments().items():
+            copy_file(fragment, data / "shell" / name)
+        _retire_agent_runtime(home)
     hooks = _canonical_hooks()
     hook_dir = data / "hooks"
     if hook_dir.exists():
@@ -144,26 +149,32 @@ def _replace_tree(source: Path, destination: Path) -> None:
     _remove_deployed_path(backup)
 
 
-def _managed_skill_sources(home: Path) -> dict[str, Path]:
-    """Resolve local trees plus checksum-verified external trees; external pins win."""
-    sources = _canonical_skills()
-    for skill in external_skills():
-        sources[skill.name] = external_skill_source(home, skill)
+def _managed_skill_sources(home: Path, profile: Profile = "personal") -> dict[str, Path]:
+    """Resolve profile-approved skill trees; external pins are personal-only."""
+    sources = _canonical_skills(profile)
+    if profile == "personal":
+        for skill in external_skills():
+            sources[skill.name] = external_skill_source(home, skill)
     return sources
 
 
-def _sync_skill_tree(root: Path, home: Path) -> None:
-    for name in RETIRED_SKILLS:
+def _sync_skill_tree(root: Path, home: Path, profile: Profile = "personal") -> None:
+    managed = _managed_skill_sources(home, profile)
+    removed = set(RETIRED_SKILLS)
+    if profile == "work":
+        removed |= set(_canonical_skills("personal")) - set(managed)
+        removed |= {skill.name for skill in external_skills()}
+    for name in removed:
         _remove_deployed_path(root / name)
-    for name, source in _managed_skill_sources(home).items():
+    for name, source in managed.items():
         _replace_tree(source, root / name)
 
 
-def _sync_skills(vendor: str, home: Path) -> None:
+def _sync_skills(vendor: str, home: Path, profile: Profile = "personal") -> None:
     if vendor not in {"claude", "codex"}:
         raise WorkbenchError(f"unsupported skill target: {vendor}")
     root = home / (".claude/skills" if vendor == "claude" else ".agents/skills")
-    _sync_skill_tree(root, home)
+    _sync_skill_tree(root, home, profile)
 
 
 def _remove_retired_subagents(destination: Path) -> None:
@@ -172,13 +183,16 @@ def _remove_retired_subagents(destination: Path) -> None:
             _remove_deployed_path(destination / f"{name}{suffix}")
 
 
-def merge_claude_settings(existing: dict[str, Any], data: Path) -> dict[str, Any]:
+def merge_claude_settings(
+    existing: dict[str, Any], data: Path, profile: Profile = "personal"
+) -> dict[str, Any]:
     """Reconcile owned entries while retaining owner plugins and hook commands.
 
     Single source for `sync` (the writer) and `drift` (the verifier) so the
     two commands can never diverge on what "managed" means.
     """
-    plugins = _string_array(AGENTS / "claude/plugins.json")
+    declared_plugins = _string_array(AGENTS / "claude/plugins.json")
+    plugins = declared_plugins if profile == "personal" else []
     managed = {
         "enabledPlugins": dict.fromkeys(plugins, True),
         "permissions": _settings(AGENTS / "claude/permissions.json"),
@@ -198,9 +212,17 @@ def merge_claude_settings(existing: dict[str, Any], data: Path) -> dict[str, Any
         "sandbox": CLAUDE_SANDBOX,
     }
     result = {**existing, **managed}
-    for key in ("enabledPlugins", "permissions"):
-        retained = existing.get(key, {})
-        result[key] = {**(retained if isinstance(retained, dict) else {}), **managed[key]}
+    retained_plugins = existing.get("enabledPlugins", {})
+    retained_plugins = retained_plugins if isinstance(retained_plugins, dict) else {}
+    result["enabledPlugins"] = {
+        **{key: value for key, value in retained_plugins.items() if key not in declared_plugins},
+        **managed["enabledPlugins"],
+    }
+    retained_permissions = existing.get("permissions", {})
+    result["permissions"] = {
+        **(retained_permissions if isinstance(retained_permissions, dict) else {}),
+        **managed["permissions"],
+    }
     result["permissions"].pop("defaultMode", None)
 
     hooks = {}
@@ -240,30 +262,40 @@ def merge_claude_settings(existing: dict[str, Any], data: Path) -> dict[str, Any
     return result
 
 
-def sync_claude(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
-    data = _install_runtime_files(home)
+def sync_claude(
+    home: Path,
+    *,
+    deploy_skills: bool,
+    deploy_plugins: bool,
+    profile: Profile = "personal",
+) -> None:
+    data = _install_runtime_files(home, deploy_shell=profile == "personal")
     claude_home = home / ".claude"
     copy_file(AGENTS / "shared/rules.md", claude_home / "CLAUDE.md")
 
     settings_path = claude_home / "settings.json"
     settings = _settings(settings_path)
-    write_json(settings_path, merge_claude_settings(settings, data))
+    write_json(settings_path, merge_claude_settings(settings, data, profile))
 
     claude_root = home / ".claude.json"
     root_settings = _settings(claude_root)
     live_mcp = root_settings.get("mcpServers", {})
     if not isinstance(live_mcp, dict):
         live_mcp = {}
-    root_settings["mcpServers"] = merge_mcp(live_mcp, "claude")
+    root_settings["mcpServers"] = merge_mcp(
+        live_mcp, "claude", include_active=profile == "personal"
+    )
     write_json(claude_root, root_settings, mode=0o600)
 
-    _sync_claude_desktop(home)
+    if profile == "personal":
+        _sync_claude_desktop(home)
     _remove_retired_subagents(claude_home / "agents")
     if deploy_skills:
-        _sync_skills("claude", home)
-    if deploy_plugins:
+        _sync_skills("claude", home, profile)
+    if deploy_plugins and profile == "personal":
         _sync_plugins("claude", home)
-    install_harness(home, "claude")
+    if profile == "personal":
+        install_harness(home, "claude")
 
 
 def _sync_claude_desktop(home: Path) -> None:
@@ -368,11 +400,16 @@ def _remove_deployed_path(path: Path) -> None:
         shutil.rmtree(path)
 
 
-def _sync_pi_skills(home: Path) -> None:
+def _sync_pi_skills(home: Path, profile: Profile = "personal") -> None:
     """Deploy shared skills once where Pi and Codex both discover them."""
-    managed_names = set(_canonical_skills()) | {skill.name for skill in external_skills()}
-    _sync_skill_tree(home / ".agents/skills", home)
-    for name in sorted(managed_names | set(RETIRED_SKILLS)):
+    managed_names = set(_canonical_skills(profile))
+    if profile == "personal":
+        managed_names |= {skill.name for skill in external_skills()}
+    _sync_skill_tree(home / ".agents/skills", home, profile)
+    cleanup_names = managed_names | set(RETIRED_SKILLS)
+    if profile == "work":
+        cleanup_names |= set(_canonical_skills("personal"))
+    for name in sorted(cleanup_names):
         # Older Workbench versions copied shared skills here too. Pi discovers
         # both roots, so retaining those copies produces a collision warning.
         _remove_deployed_path(home / ".pi/agent/skills" / name)
@@ -411,47 +448,73 @@ def _harden_pi_session_permissions(destination: Path) -> None:
         raise WorkbenchError(f"Cannot safely harden Pi session paths: {sessions}: {exc}") from exc
 
 
-def sync_pi(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None:
+def sync_pi(
+    home: Path,
+    *,
+    deploy_skills: bool,
+    deploy_plugins: bool,
+    profile: Profile = "personal",
+) -> None:
     """Deploy Pi's transparent local configuration; packages remain settings-owned."""
     del deploy_plugins  # Pi packages are declared in settings.json, not a separate plugin registry.
-    for name, fragment in _canonical_shell_fragments().items():
-        copy_file(fragment, home / DATA_REL / "shell" / name)
-    _retire_agent_runtime(home)
-    ensure_private_path_policy(home / ".config/workbench/private-paths")
-    source = AGENTS / "pi"
+    if profile == "personal":
+        for name, fragment in _canonical_shell_fragments().items():
+            copy_file(fragment, home / DATA_REL / "shell" / name)
+        _retire_agent_runtime(home)
+        ensure_private_path_policy(home / ".config/workbench/private-paths")
+    source = AGENTS / "pi" if profile == "personal" else WORK_PI
     destination = home / ".pi/agent"
     _harden_pi_session_permissions(destination)
     for path in RETIRED_PI_STATE_PATHS:
         _remove_deployed_path(home / path)
     _replace_pi_file(AGENTS / "shared/rules.md", destination / "AGENTS.md")
+    retired_settings = set(RETIRED_PI_SETTINGS)
+    if profile == "work":
+        retired_settings |= set(_settings(AGENTS / "pi/settings.json")) - set(
+            _settings(WORK_PI / "settings.json")
+        )
     _merge_pi_object(
         source / "settings.json",
         destination / "settings.json",
-        retired_keys=set(RETIRED_PI_SETTINGS),
+        retired_keys=retired_settings,
     )
     _merge_pi_object(
         source / "models.json",
         destination / "models.json",
         nested_key="providers",
-        retired_nested_keys=set(RETIRED_PI_PROVIDERS),
+        retired_nested_keys=set(RETIRED_PI_PROVIDERS)
+        | (
+            set(_settings(AGENTS / "pi/models.json").get("providers", {}))
+            if profile == "work"
+            else set()
+        ),
     )
     _merge_pi_object(
         source / "presets.json",
         destination / "presets.json",
         retired_keys=set(RETIRED_PI_PRESETS),
     )
-    _replace_pi_file(source / "inference-router.json", destination / "inference-router.json")
-    _replace_pi_file(source / "permission-policy.json", destination / "permission-policy.json")
+    if profile == "personal":
+        _replace_pi_file(source / "inference-router.json", destination / "inference-router.json")
+    else:
+        _remove_deployed_path(destination / "inference-router.json")
+    _replace_pi_file(AGENTS / "pi/permission-policy.json", destination / "permission-policy.json")
     for name in RETIRED_PI_EXTENSIONS:
         retired = destination / "extensions" / name
         _remove_deployed_path(retired)
         _remove_deployed_path(retired.with_name(f"{retired.name}.bak"))
-    for extension in sorted((source / "extensions").glob("*.ts")):
-        _replace_pi_file(extension, destination / "extensions" / extension.name)
+    extensions = {path.name: path for path in (AGENTS / "pi/extensions").glob("*.ts")}
+    selected_extensions = set(extensions) if profile == "personal" else WORK_PI_EXTENSIONS
+    if profile == "work":
+        for name in set(extensions) - selected_extensions:
+            _remove_deployed_path(destination / "extensions" / name)
+    for name in sorted(selected_extensions):
+        _replace_pi_file(extensions[name], destination / "extensions" / name)
     # Helper modules live one level down: Pi loads every top-level extensions/*.ts
     # as an extension, and ignores a subdirectory with no index or manifest.
-    for helper in sorted((source / "extensions/lib").glob("*.ts")):
+    for helper in sorted((AGENTS / "pi/extensions/lib").glob("*.ts")):
         _replace_pi_file(helper, destination / "extensions/lib" / helper.name)
     if deploy_skills:
-        _sync_pi_skills(home)
-    install_harness(home, "pi")
+        _sync_pi_skills(home, profile)
+    if profile == "personal":
+        install_harness(home, "pi")

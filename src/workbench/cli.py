@@ -18,8 +18,14 @@ from workbench import drift as drift_module
 from workbench import lint as lint_module
 from workbench import native as native_module
 from workbench.core import VENDOR_CHOICES, WorkbenchError, _vendors, drain_changed_paths
+from workbench.profiles import vendors as profile_vendors
 from workbench.render import ALIAS_NOTE, DESCRIPTION, gradient_banner, print_error
 from workbench.sync import sync_claude, sync_codex, sync_pi, sync_rules
+
+
+class DeploymentProfile(StrEnum):
+    PERSONAL = "personal"
+    WORK = "work"
 
 
 class Vendor(StrEnum):
@@ -70,20 +76,31 @@ def sync(
     rules_only: Annotated[
         bool, typer.Option("--rules-only", help="deploy only global instruction files")
     ] = False,
+    profile: Annotated[
+        DeploymentProfile,
+        typer.Option("--profile", help="deployment profile (default: personal)"),
+    ] = DeploymentProfile.PERSONAL,
 ) -> None:
     """Deploy Workbench-managed configuration to supported coding agents."""
+    if profile is DeploymentProfile.WORK and vendor is Vendor.CODEX:
+        raise typer.BadParameter("the work profile supports only claude, pi, or all")
     home = _home()
     deployers = {"claude": sync_claude, "codex": sync_codex, "pi": sync_pi}
     drain_changed_paths()
-    for name in _vendors(vendor.value):
+    selected = profile_vendors(profile.value, _vendors(vendor.value))
+    for name in selected:
         if rules_only:
             sync_rules(home, name)
             continue
-        deployers[name](
-            home,
-            deploy_skills=not no_skills,
-            deploy_plugins=not no_plugins,
-        )
+        if name == "codex":
+            sync_codex(home, deploy_skills=not no_skills, deploy_plugins=not no_plugins)
+        else:
+            deployers[name](
+                home,
+                deploy_skills=not no_skills,
+                deploy_plugins=not no_plugins,
+                profile=profile.value,
+            )
     changed = drain_changed_paths()
     for path in changed:
         try:
@@ -104,10 +121,21 @@ def drift(
     no_plugins: Annotated[
         bool, typer.Option("--no-plugins", help="skip declared-plugin verification")
     ] = False,
+    profile: Annotated[
+        DeploymentProfile,
+        typer.Option("--profile", help="deployment profile (default: personal)"),
+    ] = DeploymentProfile.PERSONAL,
 ) -> None:
     """Compare live vendor configuration directly with canonical Workbench sources."""
+    if profile is DeploymentProfile.WORK and vendor is Vendor.CODEX:
+        raise typer.BadParameter("the work profile supports only claude, pi, or all")
     raise typer.Exit(
-        drift_module.drift(_home(), _vendors(vendor.value), verify_plugins=not no_plugins)
+        drift_module.drift(
+            _home(),
+            profile_vendors(profile.value, _vendors(vendor.value)),
+            verify_plugins=not no_plugins,
+            profile=profile.value,
+        )
     )
 
 

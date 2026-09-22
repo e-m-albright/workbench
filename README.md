@@ -167,7 +167,20 @@ Skip the slower external installers when only configuration files need repair:
 workbench sync all --no-skills --no-plugins
 ```
 
-`just deploy` chains sync and drift so a deploy is verified in one command.
+Managed work computers use the fail-closed work profile:
+
+```bash
+workbench sync all --profile work
+workbench drift all --profile work
+```
+
+That profile targets only Claude Code and Pi. It keeps shared rules, tracked
+skills, hooks, and permission guards while omitting Codex, Claude plugins and
+Desktop configuration, MCP servers, externally downloaded skills, local-model
+routing, browser and personal connector extensions, and the native personal
+launcher projection.
+
+`just deploy` chains the default personal sync and drift so a deploy is verified in one command.
 
 ### Validate repository sources
 
@@ -195,10 +208,12 @@ Run `workbench`, `wb`, or either launcher's `--help` flag for the complete tree:
 ```text
 workbench
 ├── sync [claude|codex|pi|all] deploy canonical configuration
+│   ├── --profile              personal (default) or work
 │   ├── --no-skills            skip shared-skill installation
 │   ├── --no-plugins           skip declared-plugin installation
 │   └── --rules-only           deploy only global instruction files
 ├── drift [claude|codex|pi|all] report managed drift and external additions
+│   └── --profile              personal (default) or work
 ├── lint                       validate canonical repository sources
 └── native
     ├── prepare [--authorize]  install the restricted runtime and optional model logins
