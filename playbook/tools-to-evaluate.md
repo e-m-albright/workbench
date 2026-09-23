@@ -393,7 +393,6 @@ Sync-simplifying upgrades the improvement hunt confirmed are not ready yet;
 re-check occasionally.
 
 - **`uv audit`** ([astral.sh/blog/uv-audit](https://astral.sh/blog/uv-audit), 2026-06-08) -- uv-native pip-audit replacement; would delete the pip-audit dev-dependency tree. Explicitly preview/unstable as of June 2026 — adopt when stabilized.
-- **Claude Code native AGENTS.md** ([anthropics/claude-code#34235](https://github.com/anthropics/claude-code/issues/34235)) -- open enhancement, no roadmap. Landing would let `workbench sync` drop the CLAUDE.md translation surface.
 - **Exa hosted MCP** ([docs.exa.ai/reference/exa-mcp](https://docs.exa.ai/reference/exa-mcp)) -- remote Streamable HTTP endpoint at `mcp.exa.ai/mcp` could replace the stdio server and the stamp-time key-baking workaround; evaluate the auth tradeoff (OAuth vs key-in-URL) before switching.
 - **Pi Packages** ([extensions docs](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md)) -- npm/git distribution for Pi extensions/skills/themes. The real-file deployment remains the deliberate choice for owned, drift-checked config; revisit if extension count grows.
 

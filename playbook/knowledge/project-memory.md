@@ -7,8 +7,8 @@ contract without reconstructing a conversation.
 ## Current instructions
 
 `AGENTS.md` owns project purpose, architecture, conventions, and operating rules.
-Keep it concise enough to load on every task. `CLAUDE.md` and `GEMINI.md` expose
-the same instructions through symlinks; maintain one source.
+Keep it concise enough to load on every task. Claude Code reads it natively;
+retain a `GEMINI.md` symlink only where Gemini compatibility is needed.
 
 Keep a small domain glossary in `AGENTS.md`. Move it to `DOMAIN.md` when it needs
 independent structure or multiple bounded contexts, and link it from `AGENTS.md`.

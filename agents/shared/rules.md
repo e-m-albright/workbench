@@ -2,7 +2,7 @@
 
 This is the canonical global instruction file for Pi, Claude Code, and Codex. It is maintained at `agents/shared/rules.md` in the Workbench repository and deployed by `workbench sync`.
 
-Project-specific context and rules belong in the project's hand-written `AGENTS.md`, with `CLAUDE.md` and `GEMINI.md` symlinked to it. Put a repository's purpose and architecture in `AGENTS.md`; move large domain glossaries to `DOMAIN.md`.
+Project-specific context and rules belong in the project's hand-written `AGENTS.md`; Claude Code reads it natively. Keep a `GEMINI.md` symlink only where Gemini compatibility is needed. Put a repository's purpose and architecture in `AGENTS.md`; move large domain glossaries to `DOMAIN.md`.
 
 ## Personal operating state and capability routing
 

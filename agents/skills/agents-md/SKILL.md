@@ -1,15 +1,15 @@
 ---
 name: agents-md
-description: Create or upgrade a project's AGENTS.md as the canonical agent instruction file, with CLAUDE.md/GEMINI.md symlinked to it. Use for "set up AGENTS.md", "onboard this repo for agents", or "create CLAUDE.md" (redirect to this convention).
+description: Create or upgrade a project's AGENTS.md as the canonical agent instruction file. Use for "set up AGENTS.md", "onboard this repo for agents", or "create CLAUDE.md" (redirect to the native shared convention).
 ---
 
 # AGENTS.md Setup
 
-The convention: one hand-written `AGENTS.md` is canonical; `CLAUDE.md` and `GEMINI.md` are symlinks to it so every harness loads the same instructions. If the user asks for a CLAUDE.md, build this instead and explain why — a real CLAUDE.md file forks instructions per vendor.
+The convention: one hand-written `AGENTS.md` is canonical. Claude Code reads it natively. Keep a `GEMINI.md` symlink only when Gemini compatibility is needed. If the user asks for a `CLAUDE.md`, build `AGENTS.md` instead and explain that a real `CLAUDE.md` forks instructions per vendor while a symlink is now redundant.
 
 ## 1. Inventory what exists
 
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` — files or already symlinks? A pre-existing CLAUDE.md with real content becomes the seed for AGENTS.md, then gets replaced by a symlink. Never leave two competing instruction files.
+- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` — files or symlinks? Merge any unique instructions from a real `CLAUDE.md` into `AGENTS.md`, then remove `CLAUDE.md`. Preserve a `GEMINI.md` symlink only when that harness is in use. Never leave competing instruction files.
 - `README.md`, `CONTRIBUTING.md`, `docs/` — what's already recorded there stays there. AGENTS.md points at it or omits it; it never duplicates it.
 - Generated candidates (e.g. `/init` output): treat as raw material to prune hard, not as a finished file.
 
@@ -49,14 +49,17 @@ Treat project instructions as review guidance only when they capture a consequen
 
 Source: OpenAI, [Custom Code Review rules for Codex](https://developers.openai.com/blog/custom-code-review-rules-for-codex).
 
-## 4. Set up the symlinks
+## 4. Remove compatibility duplication
+
+If `CLAUDE.md` exists, confirm that any unique content has been merged into `AGENTS.md`, then remove it. Claude Code now reads repository `AGENTS.md` directly.
+
+If Gemini compatibility is required, expose the canonical file without duplicating content:
 
 ```bash
-ln -sf AGENTS.md CLAUDE.md
 ln -sf AGENTS.md GEMINI.md
 ```
 
-If a real CLAUDE.md existed, confirm its content is merged into AGENTS.md before replacing it. Verify with `ls -la` that both are symlinks, and check `.gitignore` doesn't exclude them.
+Verify the resulting files with `ls -la` and check that `.gitignore` does not exclude `AGENTS.md`.
 
 ## 5. Upgrading an existing AGENTS.md
 
