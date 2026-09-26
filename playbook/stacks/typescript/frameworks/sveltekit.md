@@ -134,6 +134,14 @@ deno task db:studio        # Open Drizzle Studio
 - Use `{@render children?.()}` with snippets — NOT `<slot>`.
 - Use `onclick` (lowercase, no colon) — NOT `on:click`.
 
+## Verified integration notes
+
+These are version-specific observations, not permanent compatibility assumptions:
+
+- **Biome 2.5.11 with Svelte 5:** enable `html.experimentalFullSupportEnabled` to parse templates fully; without it, imports used only in templates were falsely reported as unused. Recheck the option and diagnostics when upgrading Biome rather than suppressing unused-import checks.
+- **Knip 6.38 with Deno 2.9 tasks:** tools invoked only through `deno.json` tasks were reported as unused dependencies. Keep narrowly documented `ignoreDependencies` entries for actual task executables, and declare native test entrypoints that discovery misses. Revisit exceptions when task discovery improves; do not suppress all development dependencies.
+- **Playwright server isolation:** give browser tests dedicated frontend and backend ports, pass the same backend port to the frontend proxy, and set `reuseExistingServer: false` for both servers. An occupied port should fail visibly rather than silently testing an unrelated development process.
+
 ## See also
 
 - [../README.md](../README.md) — TypeScript stack selection and idioms

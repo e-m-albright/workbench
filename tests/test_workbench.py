@@ -1184,7 +1184,7 @@ js_repl = false
         self.assertNotIn("gcmw()", launchers)
         gcai = launchers.split("# Pi modes", maxsplit=1)[0]
         self.assertIn("git diff --staged", gcai)
-        self.assertIn("--model openai-codex/gpt-5.6-luna --no-extensions", gcai)
+        self.assertIn("--model openai-codex/gpt-5.3-codex-spark --no-extensions", gcai)
         self.assertIn('"$HOME/code/private/"*', gcai)
         self.assertIn("--route private", gcai)
         self.assertIn("pi_launcher=_wb_local_commit_message", gcai)

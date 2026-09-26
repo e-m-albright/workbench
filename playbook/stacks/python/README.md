@@ -11,14 +11,14 @@
 | Package manager | **uv** | pip (slow), Poetry (complex) |
 | Python version | **3.14** | older versions |
 | Lint + format | **Ruff** (one tool) | Black + isort + flake8 (three tools) |
-| Type checker | **Pyright strict** blocking; **ty** advisory; **Pyrefly** watch | mypy (slower) |
+| Type checker | **ty** blocking; **Pyright strict** compatibility fallback; **Pyrefly** watch | Multiple permanent blocking checkers |
 | Task runner | **Just** | Make (arcane) |
 | Git hooks | **Lefthook** | Husky, pre-commit |
 | Logging | **structlog** | stdlib `logging`, Loguru |
 
 Ruff target stays `py313` until Ruff supports 3.14.
 
-**Type checker, in practice:** Keep **Pyright strict as the blocking gate**. `ty` remains the Astral-aligned advisory candidate but is pre-1.0. [Pyrefly](https://pyrefly.org/blog/v1.0/) is now a second credible Rust-native candidate: Meta declared it production-ready at 1.0, uses it on Instagram and PyTorch, and ships one CLI and language server with built-in Pydantic and Django support, coverage reporting, and migration from Pyright configuration. Those are first-party claims and compatibility matters more than benchmark speed. Before replacing Pyright, run both candidates over a representative strict project and compare missed errors, false positives, library behavior, editor latency, and suppression burden. Promote one only when it clears that gate; do not carry three permanent checkers.
+**Type checker, in practice (owner decision, 2026-09-23):** **ty is the endorsed blocking checker for new Python projects.** This is a stack preference, not a claim of perfect library compatibility or a license to weaken checks. Existing repositories migrate deliberately: compare representative errors, library behavior, configuration coverage, and suppression burden before removing Pyright. Retain Pyright strict as a compatibility fallback when a demonstrated gap matters; do not carry two permanent blocking checkers merely for reassurance. Workbench's own current Pyright gate is unchanged until its migration is separately verified. [Pyrefly](https://pyrefly.org/blog/v1.0/) remains watch-only; its upstream production-readiness claims do not establish a need to add another checker.
 
 ### Phase 2 — when needed
 
