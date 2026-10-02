@@ -383,6 +383,8 @@ and cap total task spend.
 
 ## Operating posture
 
+The [supplied AI Explained video summary](https://www.youtube.com/watch?v=R9momwXV9w4) raises automated research, long-horizon evaluation, and safety-governance questions. Use [Anthropic's Opus 5.5 release](https://www.anthropic.com/claude-opus-5-5) and [system-card index](https://www.anthropic.com/system-cards) for primary evidence. The video's quoted internal benchmark percentage and proposed industry outcomes have not been verified from those sources; keep them as questions for a specific agent capability review, not platform facts.
+
 1. Keep direct, provider-neutral model calls as the default for ordinary product
    features.
 2. Prefer application-owned tools and state until a hosted agent runtime solves

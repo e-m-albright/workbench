@@ -343,6 +343,8 @@ re-derive it.
 
 ## Open-model inference
 
+[Cursor's Git at any scale](https://cursor.com/blog/git-at-any-scale) describes version-control infrastructure for very high concurrent agent traffic. It is an infrastructure reference for a fleet with measured contention, not a reason to replace ordinary Git worktrees in Workbench. The [agent capability patterns](agent-capability-patterns.md#6-bounded-local-delegation) own the current concurrency ceiling.
+
 The model, runtime, router, managed-host, and serverless-GPU landscape now lives in
 [open-model-inference.md](open-model-inference.md). This page owns agent harnesses;
 it should refer to that comparison rather than preserving another volatile provider
