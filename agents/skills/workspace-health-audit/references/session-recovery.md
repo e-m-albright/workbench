@@ -15,7 +15,7 @@ Optional but helpful — work without them if missing:
 Sessions and worktrees decay independently. Always cross-check at least two sources before reporting status.
 
 1. **Claude Code session logs** — `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`
-   - `<encoded-cwd>` is the cwd with `/` → `-` and a trailing `--` for hidden dirs (so `/Users/alice/repo/.worktrees/foo` → `-Users-alice-repo--worktrees-foo`).
+   - `<encoded-cwd>` is the cwd with `/` → `-` and a trailing `--` for hidden dirs (so `/home/dev/repo/.worktrees/foo` → `-home-dev-repo--worktrees-foo`).
    - The JSONL contains the full conversation. Each line is one event with a `cwd`, `sessionId`, `gitBranch`, `slug`, `timestamp`, and either a user message or assistant content.
    - **A session is resumable from any cwd** via `claude --resume <session-id>` — the worktree being gone does not delete the conversation history.
 1b. **Codex session logs** — `~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<uuid>.jsonl` (date-partitioned, not cwd-partitioned; grep the JSONL for the repo path). Resume via `codex resume <session-id>` or `codex resume --last`.
