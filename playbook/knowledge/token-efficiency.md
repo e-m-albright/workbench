@@ -147,6 +147,16 @@ Compare the tool's dashboard with the provider bill. Check whether the tool:
 - ignores context outside its interception point
 - omits retries or extra turns induced by compression
 
+## Research watch: SoL-Pi
+
+[SoL-Pi: Scaling Auto-Research Loops for Efficient Agent Harnesses](https://nvlabs.github.io/SoL-Pi/) is an NVIDIA research lead captured on 2026-10-02. The supplied paper image identifies [arXiv 2609.20519](https://arxiv.org/abs/2609.20519). Public search located the NVlabs project page, but direct retrieval timed out; the full paper, code, ablations, and statistical claims have not been reviewed here. Do not install or fork from the social summary alone.
+
+The supplied abstract reports automated searches over harness mechanisms across repository-derived and verifier-driven environments, retaining four mechanisms: **Action Fusion**, **Online Context Compact**, **ObservationPack**, and **Evidence-Preserving Reducer**. These concern action execution, in-run compaction, observation handling, and delegated reading respectively. On its reported 51-task EdgeBench evaluation, the authors claim 44.7-49.0% less token traffic and about one-third lower API cost relative to the baseline Pi harness. Those are attributed results, not local measurements or guaranteed savings under another provider's caching and pricing.
+
+The displayed figure shows lower average scores for SoL-Pi than baseline Pi in both model comparisons. The authors' assertion of comparable performance therefore needs the actual tolerance, uncertainty, task mix, and per-task outcomes; it is not established by a cost chart. Estimated hourly savings depend on workload and throughput and should not become a budget forecast.
+
+**Disposition:** retain as a high-interest mechanism study, not evidence that everyone should build a harness. Test individual mechanisms against the current implementation only after inspecting the primary paper and code. Apply the paired evaluation procedure above, including compaction evidence loss, extra recovery reads, source attribution, and whether fused actions preserve authorization and inspection boundaries. Never fuse a read and consequential write in a way that bypasses required approval.
+
 ## Evidence: Caveman and RTK
 
 JetBrains evaluated both tools using paired SkillsBench runs on pinned Claude Code

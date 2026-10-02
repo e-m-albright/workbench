@@ -44,6 +44,8 @@ We do not limit lines of code; we pursue reusability and clarity. LOC is a proxy
 
 **Gate examples**: file-size ratchet (per-file ceiling, monotonic decrease); cyclomatic-complexity suppressions can only decrease.
 
+For build-versus-buy decisions, count maintained behavior and operating responsibility, not only visible lines. Include tests, configuration, vendor workflow definitions, glue, incident handling, and exit cost. A managed component may eliminate substantial risk with little code reduction, or merely move complexity out of the repository. Identify the necessary job and compare exact requirements; use the smallest representative proof that resolves uncertainty rather than building two complete alternatives or requiring a ceremonial trial. Keep security, data custody, and failure ownership explicit. This decision rubric is advisory, not an automated correctness gate.
+
 ### 6. Dead code is dead weight
 
 Delete confidently; git has history. Commented-out code is a lie that decays faster than any other artifact. `#[allow(dead_code)]` and equivalent suppressions are deferred decisions with a shelf life.

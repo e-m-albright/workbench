@@ -129,21 +129,30 @@ typecheck-pi:
 
 # ── Documents ────────────────────────────────────────────────────────────────
 
+# Render the reusable long-form reading HTML template.
+[group('documents')]
+reading-template output='artifacts/reading-template':
+    bash agents/templates/documents/render-reading.sh "{{output}}"
+
 # Render the reusable Notes-style call-script HTML template.
 [group('documents')]
 call-script-template output='artifacts/call-script-template':
     bash agents/templates/documents/render-examples.sh "{{output}}"
 
-# Verify that the maintained document template renders as standalone HTML.
+# Verify that the maintained document templates render as standalone HTML.
 [group('documents')]
 check-documents:
     #!/usr/bin/env bash
     set -euo pipefail
     output="$(mktemp -d)"
     trap 'find "$output" -depth -delete' EXIT
-    bash agents/templates/documents/render-examples.sh "$output"
-    test -s "$output/index.html"
-    grep -q '<!doctype html>' "$output/index.html"
+    bash agents/templates/documents/render-reading.sh "$output/reading"
+    bash agents/templates/documents/render-examples.sh "$output/call-script"
+    for document in "$output/reading/index.html" "$output/call-script/index.html"; do
+        test -s "$document"
+        grep -q '<!doctype html>' "$document"
+    done
+    grep -q 'class="table-wrap"' "$output/reading/index.html"
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 

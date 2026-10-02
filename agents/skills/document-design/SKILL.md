@@ -51,7 +51,7 @@ Preserve supplied tables semantically: keep every material row, column, value, u
 
 Keep judgment in this skill or a project-local design document. Keep repeatable mechanics in CSS, templates, or components. Keep objective failures in deterministic checks. A project-specific decision belongs in the project that owns the surface.
 
-Maintain one canonical prose source when generating HTML. For conversation material, use `agents/templates/documents/call-script.html` through its documented renderer. Add another reusable template only after a distinct document job recurs and needs different retrieval or interaction behavior.
+Maintain one canonical prose source when generating HTML. For reports, briefs, research, and other long-form reading, start with `agents/templates/documents/reading.html`; keep the material-specific hierarchy and evidence geometry in the Markdown source. For conversation material, use `agents/templates/documents/call-script.html`. Use both through their documented renderers. Add another reusable template only after a distinct document job recurs and needs different retrieval or interaction behavior.
 
 ## Write for trust
 

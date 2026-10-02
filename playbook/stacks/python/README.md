@@ -39,7 +39,22 @@ Ruff target stays `py313` until Ruff supports 3.14.
 | MCP server | **FastMCP** | raw MCP SDK (verbose) |
 | Full-stack app | **Reflex** | Streamlit (limited), Dash (verbose) |
 
-**Jobs vs. durable workflows:** reach for **Arq** for simple background jobs (one-shot, retryable). When a *multi-step* workflow must survive a crash and resume from the last completed step (and not re-run side effects), that's durable execution — **DBOS** is the lightweight default (a library that checkpoints to your existing Postgres, no new infra); **Temporal** is the heavy-duty escape hatch when correctness-at-scale genuinely demands a cluster. See [services.md](../services.md#durable-execution--workflows).
+**Jobs vs. durable workflows:** reach for **Arq** for simple background jobs (one-shot, retryable). When a *multi-step* workflow must survive a crash and resume from recorded progress, that's durable execution — **DBOS** is the lightweight default (a library that checkpoints to your existing Postgres, no new infra); **Temporal** is the heavy-duty escape hatch when correctness-at-scale genuinely demands a cluster. See [services.md](../services.md#durable-execution--workflows).
+
+### Enterprise authentication and source adapters
+
+Use maintained protocol and source clients, conditionally rather than installing every option:
+
+| Need | Candidate | Responsibility that remains |
+| --- | --- | --- |
+| Microsoft Entra token acquisition | [MSAL Python](https://learn.microsoft.com/en-us/entra/msal/python/) | Select a supported flow; configure consent, secure session/cache integration, and actor mapping. A login token is not a downstream API token. |
+| OAuth/OpenID Connect outside provider-specific coverage | [Authlib](https://docs.authlib.org/) | Configure provider behavior, connection lifecycle, and secure persistence. Avoid overlapping OAuth libraries without a need. |
+| Snowflake access | [Official Python connector](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector) | Select the authorized token/role, isolate sessions by actor, bound queries, and test revocation. |
+| Salesforce operations | Thin HTTPX adapter or [simple-salesforce](https://github.com/simple-salesforce/simple-salesforce) | Choose required operations and validate source rights; an API wrapper alone does not provide the application's full delegated-token lifecycle. |
+
+Keep source calls behind a small module, not a speculative universal integration framework. Compare managed execution using the [integration candidate criteria](../../tools-to-evaluate.md#enterprise-integration-and-workflow-candidates-reviewed-2026-10-02). Maintained libraries save protocol work; neither libraries nor connection vendors eliminate application authorization.
+
+Durable execution does not guarantee exactly-once external effects. Use source idempotency where available and reconcile uncertain write outcomes before retrying.
 
 ### Phase 3 — at scale
 

@@ -122,7 +122,7 @@
 - **Tinybird**: Real-time analytics APIs, user-facing dashboards, event streaming.
 - **ClickHouse**: When DuckDB isn't fast enough (rare). Petabyte-scale analytics.
 
-> **Note**: Most SaaS apps should start with Postgres + DuckDB. Add ClickHouse/Tinybird when you have millions of events and need sub-second queries. Snowflake/BigQuery are for enterprise data integrations — large pharma almost certainly has Snowflake.
+> **Note**: Most SaaS apps should start with Postgres + DuckDB. Add ClickHouse/Tinybird when you have millions of events and need sub-second queries. Snowflake or BigQuery may be needed when an application must integrate with an existing enterprise warehouse.
 
 ---
 
