@@ -15,7 +15,6 @@ Durable, opinionated knowledge that isn't tied to one language stack. Reference 
 - [knowledge-graph-tooling.md](knowledge-graph-tooling.md) — code-graph and agent-memory landscape, adoption boundaries, and lessons for existing knowledge systems
 - [agent-capability-patterns.md](agent-capability-patterns.md) — emerging harness capabilities: advisor strategy, monitors, managed runtimes, visual builders
 - [agent-control-plane-landscape.md](agent-control-plane-landscape.md) — integration, action, policy, business-state ownership, and agent identity boundaries
-- [agent-workflow-prior-art.md](agent-workflow-prior-art.md) — Pi's local workflow, verification and software-factory patterns, decision boundaries, supplied video claims, and current Workbench fit
 - [agent-harness-landscape.md](agent-harness-landscape.md) — coding-agent harness landscape, current tool posture, and upstream capability watch
 - [agent-ready-interfaces.md](agent-ready-interfaces.md) — Cloudflare and Vercel patterns for semantic interfaces, authority boundaries, sandboxes, workflows, and evaluation
 - [token-efficiency.md](token-efficiency.md) — token efficiency, task decomposition, model routing

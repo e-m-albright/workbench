@@ -105,6 +105,8 @@ Do not build a scheduler or workflow engine into Pi. The operating system, conti
 
 Vercel's design guidance, agent software factory, Run SDK, and AI SDK telemetry all preserve the configuration that produced an output. Cloudflare's code-review system similarly emphasizes local and continuous-integration parity, structured findings, bounded retries, and observable human overrides.
 
+The [agent harness operations overview](https://www.infoq.com/articles/agent-harness-build-one/) is a useful secondary checklist for evaluation, observability, and cost alongside model and tool design. Its recommendations should be tested against a concrete workload before adding harness machinery.
+
 For stochastic work, retain:
 
 - Input, model, reasoning level, harness version, guidance version, and tool policy.

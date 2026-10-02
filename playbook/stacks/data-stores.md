@@ -17,6 +17,8 @@ engines — SQLite for transactional writes (multi-process safe via WAL), DuckDB
 attached read-only for analytics and ad-hoc SQL. A deterministic text dump
 committed via pre-commit hook keeps every agent write reviewable as a git diff.
 
+The [supplied DuckDB first-impressions video](https://www.youtube.com/watch?v=KJao6oq9MKM) describes its embedded, columnar, file-querying design. It adds no new adoption decision: use DuckDB for analytical reads over files and data frames, and keep concurrent application writes in the transactional source.
+
 ## Guiding principles
 
 - **Storage engines don't do "agent memory."** Across every "database for
