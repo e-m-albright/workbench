@@ -66,6 +66,10 @@ role. A stronger planner can sometimes reduce total worker spend by producing a
 clearer decomposition, but planner price alone is not the metric: a weak plan can
 multiply worker turns. Evaluate the complete run.
 
+For a high-volume typed decision, compare [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev), open [GLiClass](https://github.com/Knowledgator/GLiClass), ordinary structured model output, and deterministic rules on the same labelled cases. [Vercel's form-router example](https://vercel.com/kb/guide/jev-ai-sdk-form-router) shows a classifier with fallback. Measure calibration, abstention, tail latency, total cost, and downstream errors; a well-formed prediction cannot authorize an action or establish source truth. No evidence here establishes that one project copied the other, and a reported OpenAI Decisions API needs a public contract before comparison.
+
+Effort controls also belong in a paired task benchmark. [Anthropic's effort documentation](https://platform.claude.com/docs/en/build-with-claude/effort) makes medium the Opus 5.5 default and says supported per-message effort changes can preserve prompt caching, while a changed top-level setting may invalidate it. Verify the client request shape and actual cache charges before treating that as a general optimization.
+
 ## Evaluating token-saving claims
 
 Use this ladder for tools such as prompt compressors, terse-output skills, shell

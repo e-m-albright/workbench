@@ -126,6 +126,8 @@ Short, memorable rules to embed in CLAUDE.md or AGENTS.md.
 
 ## Session Management
 
+The [supplied twelve-tip video summary](https://www.youtube.com/watch?v=vsGwx28z4jk) contains a few durable prompting practices: keep shared rules in the canonical `AGENTS.md`, use a task checklist when several steps must converge, give concrete design constraints, and crop dense visuals to the relevant region. Ask for conclusions and evidence rather than hidden reasoning. Treat time limits as task scope, not as permission to skip required checks. Do not globally mark earlier answers settled: an open user request remains open until completed or explicitly closed. Promotional usage resets and model-specific cache behavior do not belong in permanent prompt rules.
+
 ### Context Budget
 
 The #1 insight from experienced users: **keep context under 250K tokens**.

@@ -86,6 +86,8 @@ Modern harnesses increasingly provide detached tasks, recurring prompts, event-t
 
 Do not combine these into a homemade scheduler inside a coding harness. Use the operating system, CI, or an automation repository for scheduled instances. Use Paseo for agent process continuity and mobile control. Use a hosted harness when cloud execution is the required trust and availability boundary.
 
+[Kiro's software factory account](https://kiro.dev/blog/software-factory-1000-prs/) describes a progression from one interactive session through multiple tabs, remembered and scheduled work, a queued pipeline, and a coordinator. Each stage answers a coordination bottleneck created by the prior one. Its reported 1,000 merged pull requests in a week measures throughput without a quality or rework denominator. Keep Workbench's bounded worker until measured waiting, review time, or recovery failures justify another stage.
+
 ## 8. Session continuity and mobile control
 
 Terminal multiplexers and agent-aware clients solve different problems:

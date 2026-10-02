@@ -5,6 +5,8 @@ list. Vendor quotas and beta terms change quickly; verify pricing before a trial
 
 ## Decision
 
+[Moda](https://moda.app/) is an editable AI canvas reference for document and design review. Try it only against a concrete visual artifact; it does not imply a need for another agent runtime. The [Gemini avatar page](https://gemini.google.com/avatar) remains an unreviewed product reference until its contents can be read directly.
+
 Use **design-first, blank-canvas tools** for visual-direction discovery. Use
 **code-aware design tools** only after a direction wins. Use **app builders** to
 make the winner interactive, not to decide what the product should look like.

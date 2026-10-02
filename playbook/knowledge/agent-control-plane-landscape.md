@@ -30,6 +30,8 @@ Revocation spans source grants, tokens, application/source sessions, caches, gen
 
 ## Persistent personal agents to monitor
 
+[Lefos](https://earendil.com/posts/announcing-pi-and-lefos/) is an adjacent email-first assistant in public alpha. Its durable channel and collaborative correspondence are worth watching alongside dedicated agent computers. The cited first-party announcement does not establish every integration or communication channel claimed in secondary summaries; verify those before comparing permissions.
+
 | Product | Published mechanism | Open question for a serious deployment |
 | --- | --- | --- |
 | [Meta Muse](https://research.meta.ai/blog/security-and-safety-for-ai-agents-our-approach-with-muse) | Dedicated cloud computer; separate credential service and privileged connector workers; Sentinel mediates connector actions and network egress; credential surrogation keeps real tokens outside the agent runtime | How completely the boundary covers new connectors, browser behavior, and recovery from mistaken actions; Meta presents this as its design, not an independent security audit |

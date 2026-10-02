@@ -64,6 +64,8 @@ Do not mirror every REST endpoint as a tool. Expose recognizable outcomes, keep 
 
 ## 4. Authority belongs outside generated code
 
+[OpenAPPA](https://github.com/archestra-ai/OpenAPPA) is an information-flow policy reference: labels on untrusted material can constrain later tool actions at an enforcement point outside the model. Its [paper](https://arxiv.org/abs/2607.24625) reports project evaluations, not complete coverage of shell, browser, network, or side-channel effects. Compare it only for a bounded untrusted-content workflow, with independent bypass and fail-closed tests. [Meta Muse's design](https://research.meta.ai/blog/security-and-safety-for-ai-agents-our-approach-with-muse) uses a different external authority point, including credential surrogation and action review; the [control-plane landscape](agent-control-plane-landscape.md#persistent-personal-agents-to-monitor) tracks its product boundary.
+
 Recent Cloudflare and Vercel work independently separates untrusted execution from credentials and consequential tools:
 
 - Cloudflare routes sandbox egress through a trusted outbound worker that can inject credentials, restrict destinations, log requests, and reduce permissions during a run.
@@ -85,6 +87,8 @@ Workbench's read-only connectors, confirmed writes, protected credential paths, 
 ## 5. Durable execution is a replay contract
 
 Vercel Workflows and Cloudflare Workflows both express long-running coordination as ordinary code with durable step boundaries. The infrastructure records an event history, replays completed steps instead of repeating side effects, resumes after interruption, and exposes traces. Vercel also pins in-flight runs to the code version that started them.
+
+[Pi Durable](https://earendil.com/posts/pi-durable/) is another experimental reference for checkpointed tasks, resumable conversations, and safe-versus-unsafe replay. It is separate from Pi's terminal coding agent. [Stateless MCP transport](https://blog.modelcontextprotocol.io/posts/2026-07-28/) and [AWS deployment guidance](https://aws.amazon.com/blogs/architecture/mcp-went-stateless-is-your-aws-mcp-server-deployment-well-architected/) simplify server deployment but do not make business operations stateless. An interrupted external write still requires an operation identifier, source read-back, and an explicit unknown-outcome state before retry.
 
 If Workbench or a private layer gains a real durable workflow, require:
 

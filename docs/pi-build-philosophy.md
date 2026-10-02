@@ -8,6 +8,8 @@ owns rejected approaches that should stay absent.
 
 Last reviewed: 2026-09-11.
 
+The [Ronacher interview](https://www.youtube.com/watch?v=SxuQs9GGYbk) is useful prior art for this local engineering loop: work in the real repository with shell, Git, and project tests, while a human inspects the change. Pi's [default tools](https://pi.dev/docs/latest/cli) are `read`, `bash`, `edit`, and `write`; optional [extensions](https://pi.dev/docs/latest/extensions) add capability. Pi was created by Mario Zechner, not Ronacher, and later [joined Earendil](https://earendil.com/posts/announcing-pi-and-lefos/). Shell composition is efficient for trusted local files, but it does not enforce connector permissions or safely hold credentials. The trust model below is the adoption boundary for that workflow.
+
 ## Goal
 
 Build a compact, legible daily-driver harness that takes advantage of Pi's native

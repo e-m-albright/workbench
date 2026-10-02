@@ -12,6 +12,8 @@ knowledge graph (people, organizations, meetings, events) queried by agents
 through a CLI. This survey asks what the code-graph and agent-memory tools are
 doing that we should internalize — not whether to replace what works.
 
+[Hindsight](https://hindsight.vectorize.io/) is a separate agent-memory candidate to revisit only if bounded handoffs and repository knowledge repeatedly fail. Compare answer provenance, correction and deletion of wrong beliefs, stale-memory handling, and cross-project scope before retaining transcripts.
+
 ---
 
 ## The anchor: Graphify
