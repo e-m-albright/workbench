@@ -161,7 +161,7 @@ check-documents:
 audit:
     uv run --locked pip-audit --cache-dir tmp/pip-audit-cache
     pnpm audit
-    npm --prefix agents/shared/sandbox audit --package-lock-only --ignore-scripts
+    uv run --locked python -m workbench.native_dependencies
 
 # ── Deployment ────────────────────────────────────────────────────────────────
 

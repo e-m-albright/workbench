@@ -18,6 +18,7 @@ from workbench.core import (
     write_json,
 )
 from workbench.native_config import install_harness
+from workbench.native_dependencies import patch_forge
 
 
 def _binary(name: str) -> Path:
@@ -49,6 +50,8 @@ def prepare(home: Path | None = None) -> None:
     for vendor in agents:
         (home / DATA_REL / "model-auth" / vendor).mkdir(parents=True, exist_ok=True, mode=0o700)
     ensure_private_path_policy(home / ".config/workbench/private-paths")
+    # A failed reinstall must never advertise a partially prepared runtime.
+    (runtime / "tools.json").unlink(missing_ok=True)
     for name in ("package.json", "package-lock.json"):
         copy_file(AGENTS / "shared/sandbox" / name, runtime / name)
     subprocess.run(
@@ -56,6 +59,10 @@ def prepare(home: Path | None = None) -> None:
         cwd=runtime,
         env={"HOME": str(home), "PATH": f"{node.parent}:/opt/homebrew/bin:/usr/bin:/bin"},
         check=True,
+    )
+    patch_forge(runtime)
+    subprocess.run(
+        [str(node), str(AGENTS / "shared/sandbox/verify-forge.cjs"), str(runtime)], check=True
     )
     for name in ("native-sandbox.py", "native-sandbox.mjs"):
         copy_file(AGENTS / "shared/shell" / name, home / DATA_REL / "shell" / name)

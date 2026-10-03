@@ -46,6 +46,7 @@ workbench native run shell -- -c 'git status --short'
 ```
 
 Preparation installs a pinned dependency tree with lifecycle scripts disabled,
+applies the verified [dependency repair](dependencies.md),
 resolves available agent binaries, and copies the small launch runtime outside
 the checkout. A missing vendor does not block the other vendors. Provider
 authentication and subscriptions remain separate prerequisites for model use.

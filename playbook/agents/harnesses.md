@@ -7,7 +7,7 @@ coding-agent tooling landscape and where our own harness ambitions sit.
 step-change, or roughly quarterly.
 
 **Project this belongs to:** *own our coding surface.* The install-manifest side
-of this watch lives in [`macos/packages.toml`](https://github.com/e-m-albright/dotfiles/blob/main/config/packages.toml) (the
+of this watch lives in [`config/packages.toml`](https://github.com/e-m-albright/dotfiles/blob/main/config/packages.toml) (the
 `AI CLI Tools` / `IDE` sections). This doc is the reasoning and capability view.
 
 ---

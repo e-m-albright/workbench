@@ -1,7 +1,10 @@
 """Native preparation resolves tools once, outside restricted sessions."""
 
 import json
+import subprocess
 from types import SimpleNamespace
+
+import pytest
 
 from workbench import core, native
 
@@ -17,6 +20,7 @@ def test_prepare_copies_a_protected_runtime_without_copying_credentials(tmp_path
     monkeypatch.setattr(
         native.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs))
     )
+    monkeypatch.setattr(native, "patch_forge", lambda runtime: None)
     native.prepare(home)
     runtime = home / ".local/share/workbench"
     assert (runtime / "shell/native-sandbox.py").is_file()
@@ -88,3 +92,31 @@ def test_authorize_does_not_treat_empty_claude_tokens_as_a_login(tmp_path, monke
     value["claudeAiOauth"]["accessToken"] = "synthetic-restored-login"
     assert native.authorize(home)["claude"] is True
     assert json.loads(destination.read_text()) == value
+
+
+@pytest.mark.parametrize("failure", ["install", "patch", "probe"])
+def test_failed_reprepare_invalidates_previous_readiness(tmp_path, monkeypatch, failure):
+
+    home = tmp_path / "home"
+    runtime = home / ".local/share/workbench/native"
+    runtime.mkdir(parents=True)
+    manifest = runtime / "tools.json"
+    manifest.write_text('{"previously": "ready"}')
+    monkeypatch.setattr(native, "_binary", lambda name: tmp_path / name)
+    monkeypatch.setattr(native.shutil, "which", lambda name: None)
+
+    def run(command, **kwargs):
+        if (failure == "install" and command[1] == "ci") or (
+            failure == "probe" and command[1].endswith("verify-forge.cjs")
+        ):
+            raise subprocess.CalledProcessError(1, command)
+
+    def patch(runtime):
+        if failure == "patch":
+            raise subprocess.CalledProcessError(1, "patch")
+
+    monkeypatch.setattr(native.subprocess, "run", run)
+    monkeypatch.setattr(native, "patch_forge", patch)
+    with pytest.raises(subprocess.CalledProcessError):
+        native.prepare(home)
+    assert not manifest.exists()
