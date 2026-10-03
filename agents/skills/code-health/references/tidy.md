@@ -1,6 +1,6 @@
 # Tidy
 
-> **Canon** — enacts Principle 5 (*Simplicity is the goal*) via named, behavior-preserving transforms. See [health/README.md](../../../../health/README.md).
+> **Canon** — enacts Principle 5 (*Simplicity is the goal*) via named, behavior-preserving transforms. See [health/README.md](https://github.com/e-m-albright/workbench/blob/main/health/README.md).
 
 The **mechanical, behavior-preserving execution lens** (Fowler's *Refactoring*, Beck's *Tidy First?*). Where `deepen` decides *what* design to pursue, `tidy` is how you safely make a specific structural change *now*: pick a named transform, apply it in tiny steps, keep the tests green, commit it separately.
 

@@ -74,9 +74,9 @@ def test_lint_failure_and_success_reach_cli_status(tmp_path, monkeypatch):
     (agents / "codex/default.rules").write_text("")
     (agents / "shared").mkdir()
     (agents / "shared/external-skills.json").write_text('{"$comment":"test", "skills":[]}')
-    index = tmp_path / "playbook/knowledge/README.md"
+    index = tmp_path / "playbook/README.md"
     index.parent.mkdir(parents=True)
-    index.write_text("# Knowledge\n")
+    index.write_text("# Playbook\n")
     bad_link = tmp_path / "README.md"
     bad_link.write_text("[missing](missing.md)\n")
     monkeypatch.setattr(lint, "ROOT", tmp_path)

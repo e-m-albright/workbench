@@ -13,7 +13,7 @@ Find promising public developer tools, then separate attention from utility. Thi
 - **Focused scan:** Investigate one named topic, language, workflow bottleneck, or comparison question.
 - **Landscape scan:** Map a category only when the user needs a broader decision. Keep the shortlist bounded and name the strongest incumbent.
 
-Infer scope from the current repository's stack and stated needs. Ask for topics only when no useful scope is available. In Workbench, read `STACK.md` and relevant sections of `playbook/tools-to-evaluate.md`; do not load the entire watchlist when a targeted section is enough.
+Infer scope from the current repository's stack and stated needs. Ask for topics only when no useful scope is available. In Workbench, discover the relevant subject with `rg --files playbook` and read its existing comparison before searching. Use `playbook/watchlist.md` for open questions and revisit triggers.
 
 ## Discover
 
@@ -66,12 +66,13 @@ Then list notable rejected candidates and the reason each failed. Cite every ext
 
 ## Durable watchlist
 
-Keep discovery read-only by default. When the user explicitly asks to save results in Workbench, update the relevant section of `playbook/tools-to-evaluate.md`:
+Keep discovery read-only by default. When the user asks to save research in Workbench, update the page that owns its subject:
 
 - Search for the repository and aliases first to avoid duplicates.
-- Record a dated posture and a concrete evaluation trigger.
+- Record the dated conclusion, supporting sources, uncertainty, and evaluation trigger beside the comparison.
 - Preserve the distinction between vendor claims and verified evidence.
-- Promote an adopted default into the appropriate stack or knowledge document instead of leaving it duplicated in the watchlist.
+- Keep detailed evidence in one subject page as a tool moves from candidate to adopted. Add a short linked question to `playbook/watchlist.md` only when a future review has a concrete trigger.
+- Name a new page for the question or capability it owns. Directory scope and filenames provide discovery; individual pages need no registration.
 
 Use `capability-health` for portfolio decisions and `dependency-upgrades` for software already adopted. Tool Radar owns discovery before either workflow begins.
 

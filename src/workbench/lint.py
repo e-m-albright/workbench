@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import html
+import os
 import re
 import subprocess
 import tomllib
+from collections.abc import Iterator
 from pathlib import Path
+from urllib.parse import unquote
 
 import yaml
 
@@ -41,59 +45,111 @@ def _frontmatter_mapping(text: str, path: Path) -> dict[str, object]:
     return raw
 
 
-def _markdown_link_errors(root: Path) -> list[str]:
-    errors: list[str] = []
-    link_pattern = re.compile(r"\[[^]]+\]\(([^)]+)\)")
-    for path in sorted(root.rglob("*.md")):
-        # Skip dot-directories (.venv, .git): vendored docs are not repository sources.
-        if any(part.startswith(".") for part in path.relative_to(root).parts):
+def _markdown_sources(root: Path) -> Iterator[Path]:
+    for directory, folders, files in os.walk(root):
+        folders[:] = sorted(
+            name
+            for name in folders
+            if not name.startswith(".") and name not in {"node_modules", "tmp", "artifacts"}
+        )
+        for name in sorted(files):
+            if name.endswith(".md"):
+                yield Path(directory) / name
+
+
+def _markdown_prose(path: Path) -> Iterator[tuple[int, str]]:
+    """Yield source lines outside fenced examples, preserving diagnostic positions."""
+    fence = ""
+    for number, line in enumerate(path.read_text().splitlines(), 1):
+        match = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if match:
+            marker, tail = match.groups()
+            if not fence:
+                fence = marker
+            elif marker[0] == fence[0] and len(marker) >= len(fence) and not tail.strip():
+                fence = ""
             continue
-        # Ceiling: fences toggle on any ``` prefix, so a ````-wrapped block
-        # containing ``` examples inverts the state. Fine at current usage;
-        # match fence lengths if that ever appears in repository docs.
-        fenced = False
-        for line_number, line in enumerate(path.read_text().splitlines(), 1):
-            if line.lstrip().startswith("```"):
-                fenced = not fenced
-                continue
-            if fenced:
-                continue
-            for match in link_pattern.finditer(line):
-                raw = match.group(1).split("#", 1)[0].strip().strip("<>")
-                if not raw or "://" in raw or raw.startswith("mailto:"):
+        if not fence:
+            yield number, line
+
+
+def _markdown_anchors(path: Path) -> set[str]:
+    anchors: set[str] = set()
+    for _, line in _markdown_prose(path):
+        anchors.update(re.findall(r'\b(?:id|name)=["\']([^"\']+)["\']', line))
+        heading = re.match(r"^ {0,3}#{1,6}\s+(.+?)(?:\s+#+)?$", line)
+        if not heading:
+            continue
+        title = re.sub(r"\[([^]]+)\]\([^)]+\)", r"\1", heading[1])
+        title = html.unescape(re.sub(r"<[^>]+>", "", title)).lower()
+        slug = re.sub(r"[^\w\s-]", "", title).replace(" ", "-")
+        anchor, suffix = slug, 0
+        while anchor in anchors:
+            suffix += 1
+            anchor = f"{slug}-{suffix}"
+        anchors.add(anchor)
+    return anchors
+
+
+def _markdown_link_errors(root: Path, *, repository_root: Path | None = None) -> list[str]:
+    """Validate local links and, when supplied, this repository's public references offline."""
+    errors: list[str] = []
+    heading_cache: dict[Path, set[str]] = {}
+    skills = (root / "agents/skills").resolve()
+    for path in _markdown_sources(root):
+        for line_number, line in _markdown_prose(path):
+            for match in re.finditer(r"\[[^]]+\]\(([^)]+)\)", line):
+                raw = match[1].strip().strip("<>")
+                repository_link = raw.startswith(
+                    "https://github.com/e-m-albright/workbench/blob/main/"
+                )
+                if repository_link and repository_root is not None:
+                    name, _, fragment = unquote(raw.split("/blob/main/", 1)[1]).partition("#")
+                    target = repository_root / name
+                elif "://" in raw or raw.startswith("mailto:"):
                     continue
-                # Root-absolute links resolve against the repository root; the
-                # convention is relative links, but a typo'd /path should fail
-                # rather than being skipped.
-                base = root / raw.lstrip("/") if raw.startswith("/") else path.parent / raw
-                if not base.resolve().exists():
-                    # External wrappers link into files supplied by the verified
-                    # upstream archive, which intentionally is not in this tree.
-                    external_wrappers = root / "agents/external-skills"
-                    if path.is_relative_to(external_wrappers):
-                        continue
-                    relative = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
-                    errors.append(f"broken local link: {relative}:{line_number}: {raw}")
+                else:
+                    name, _, fragment = unquote(raw).partition("#")
+                    target = (
+                        (root / name.lstrip("/") if name.startswith("/") else path.parent / name)
+                        if name
+                        else path
+                    )
+                target = target.resolve()
+                location = f"{path.relative_to(root)}:{line_number}: {raw}"
+                if (
+                    not repository_link
+                    and path.resolve().is_relative_to(skills)
+                    and not target.is_relative_to(skills)
+                ):
+                    errors.append(f"skill link leaves deployed tree: {location}")
+                elif not target.exists():
+                    # External wrappers reference files from their verified upstream archive.
+                    if not path.is_relative_to(root / "agents/external-skills"):
+                        errors.append(f"broken local link: {location}")
+                elif fragment and target.suffix == ".md" and target.is_file():
+                    if target not in heading_cache:
+                        heading_cache[target] = _markdown_anchors(target)
+                    if fragment not in heading_cache[target]:
+                        errors.append(f"broken local heading: {location}")
     return errors
 
 
-def _knowledge_index_errors(root: Path) -> list[str]:
-    knowledge = root / "playbook/knowledge"
-    index = knowledge / "README.md"
-    if not index.exists():
-        return ["knowledge index missing: playbook/knowledge/README.md"]
-
-    linked: set[Path] = set()
-    for match in re.finditer(r"\[[^]]+\]\(([^)]+)\)", index.read_text()):
-        raw = match.group(1).split("#", 1)[0].strip().strip("<>")
-        if raw and "://" not in raw and not raw.startswith("mailto:"):
-            linked.add((knowledge / raw).resolve())
-
-    return [
-        f"knowledge document missing from index: {path.relative_to(root)}"
-        for path in sorted(knowledge.rglob("*.md"))
-        if path != index and path.resolve() not in linked
-    ]
+def _playbook_structure_errors(root: Path) -> list[str]:
+    """Require subject placement and short scope overviews, not a document register."""
+    playbook = root / "playbook"
+    errors = []
+    if not (playbook / "README.md").is_file():
+        errors.append("playbook overview missing: playbook/README.md")
+    for path in sorted(playbook.glob("*.md")):
+        if path.name not in {"README.md", "watchlist.md"}:
+            errors.append(f"place knowledge under a subject: {path.relative_to(root)}")
+    if not playbook.is_dir():
+        return errors
+    for path in sorted(playbook.iterdir()):
+        if path.is_dir() and not (path / "README.md").is_file():
+            errors.append(f"subject overview missing: {path.relative_to(root)}/README.md")
+    return errors
 
 
 def _retired_source_errors() -> list[str]:
@@ -251,11 +307,14 @@ def lint() -> int:
         result = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
         if result.returncode:
             errors.append(result.stderr.strip())
-    errors.extend(_markdown_link_errors(ROOT))
-    errors.extend(_knowledge_index_errors(ROOT))
+    errors.extend(_markdown_link_errors(ROOT, repository_root=ROOT))
+    errors.extend(_playbook_structure_errors(ROOT))
     for error in errors:
         print(f"ERROR {error}")
     if errors:
         return 1
-    print(f"OK {len(names)} skills ({external_count} external), JSON, TOML, and shell syntax")
+    print(
+        f"OK {len(names)} skills ({external_count} external), Markdown links, "
+        "subject placement, JSON, TOML, and shell syntax"
+    )
     return 0

@@ -66,5 +66,5 @@ An MCP server taxes every session's context with its tool schemas whether or not
 
 ## See also
 
-- Full guide with examples: [browser-tooling.md](../../../playbook/knowledge/browser-tooling.md)
+- Full guide with examples: [browser-tooling.md](https://github.com/e-m-albright/workbench/blob/main/playbook/agents/browser.md)
 - [testing](../testing/SKILL.md) — writing the actual deterministic tests

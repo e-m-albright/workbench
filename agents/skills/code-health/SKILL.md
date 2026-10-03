@@ -70,4 +70,4 @@ Generative, structural refactoring on a weekly cron, auto-merged, is an anti-pat
 The review and security-review skills provide advisory assessment on demand. Automation is optional; deterministic project gates remain the default guardrail.
 
 ## See also
-- Shared guidance: [playbook/engineering-philosophy.md](../../../playbook/engineering-philosophy.md) (12 principles), [playbook/knowledge/engineering-gates.md](../../../playbook/knowledge/engineering-gates.md) (ratchet mechanics), and [health/README.md](../../../health/README.md) (the adoption boundary).
+- Shared guidance: [playbook/engineering-philosophy.md](https://github.com/e-m-albright/workbench/blob/main/playbook/engineering/principles.md) (12 principles), [Verification](https://github.com/e-m-albright/workbench/blob/main/playbook/engineering/verification.md) (ratchet mechanics), and [health/README.md](https://github.com/e-m-albright/workbench/blob/main/health/README.md) (the adoption boundary).

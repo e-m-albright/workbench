@@ -88,7 +88,7 @@ describe("Pi permission policy", () => {
 
 	test("allows harmless documentation reads regardless of path wording", () => {
 		expect(reason("read", { path: "node_modules/pkg/README.md" })).toBeUndefined();
-		expect(reason("read", { path: "playbook/knowledge/token-efficiency.md" })).toBeUndefined();
+		expect(reason("read", { path: "playbook/agents/models/efficiency.md" })).toBeUndefined();
 	});
 
 	test("blocks dependency-tree writes and credential reads", () => {
@@ -296,7 +296,7 @@ describe("Pi permission policy", () => {
 			"~/.pi/agent/extensions/permission-policy.ts",
 			"~/.pi/agent/settings.json",
 			"~/code/public/workbench/agents/pi/settings.json",
-			"~/code/public/dotfiles/shell/.zshrc",
+			"~/code/public/dotfiles/config/zsh/.zshrc",
 		]) {
 			expect(reason("edit", { path })).toContain("hosted-unrestricted");
 			expect(reason("edit", { path }, "openai-codex", "hosted-unrestricted")).toBeUndefined();

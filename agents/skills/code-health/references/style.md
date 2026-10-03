@@ -1,10 +1,10 @@
 # Style
 
-> **Canon** — the aesthetic enforcement of Principle 5 (*Simplicity is the goal*), Principle 2 (*Type the domain, not the plumbing*), Principle 3 (*One source of truth per concept*) and the kernel's "write code that reads like the surrounding code." Behavior-preserving (Tier A); safety verified by tests, "better" gated by taste and recorded. See [health/README.md](../../../../health/README.md).
+> **Canon** — the aesthetic enforcement of Principle 5 (*Simplicity is the goal*), Principle 2 (*Type the domain, not the plumbing*), Principle 3 (*One source of truth per concept*) and the kernel's "write code that reads like the surrounding code." Behavior-preserving (Tier A); safety verified by tests, "better" gated by taste and recorded. See [health/README.md](https://github.com/e-m-albright/workbench/blob/main/health/README.md).
 
 The **aesthetic pole** of the portfolio. Tier B establishes correctness, safety, and speed; the other form lenses make code *deep* (deepen), *legible to a newcomer* (clarify), *minimal* (prune), *testable* (purify), and *tidy* (tidy). This one does the last thing, the thing none of them name: it makes code **elegant** — the work of a senior, grumpy, aesthetically uncompromising principal who reads your already-passing, already-clear code and is still not satisfied.
 
-Its standard is not "match the average neighbor." Its standard is **the best code that could exist here** — and it uses the surrounding code and `playbook/stacks/` taste as the *floor* it must clear, never the ceiling it settles for.
+Use the surrounding code and the project's language guidance as context, then judge whether the implementation is clear, maintainable, and consistent with its intended design.
 
 ## The bar: read it aloud as the grumpy principal
 
@@ -26,8 +26,8 @@ Elegance is recognized, not measured. So the core move is a **reading**: voice t
 ### 1. Tune the aesthetic to *this house*
 
 Read first, so the taste you apply is the repo's, not a generic one:
-- [`health/README.md`](../../../../health/README.md) — the doctrine the elegance must serve (the IDs give you the *why* to cite).
-- `playbook/stacks/<lang>.md` — the per-language pick/avoid idioms (the house dialect).
+- [`health/README.md`](https://github.com/e-m-albright/workbench/blob/main/health/README.md) — the doctrine the elegance must serve (the IDs give you the *why* to cite).
+- In a Workbench checkout, `playbook/languages/<language>/README.md` owns language idioms and library choices.
 - **The surrounding module** — the existing best code in this area. Find the most elegant thing already here; that's the floor. Match its register where it's already good; raise it where it isn't.
 
 This is what keeps the pass from importing a foreign aesthetic — elegance *here* means elegant *in our dialect*.
@@ -67,4 +67,4 @@ Each is behavior-preserving, each *removes* something, each makes the next reade
 
 ## See also
 - [code-health](../SKILL.md) — the router; reach for it if unsure which lens fits.
-- [health/README.md](../../../../health/README.md) — the doctrine the aesthetic serves; cite IDs in findings so a taste call is anchored, not asserted.
+- [health/README.md](https://github.com/e-m-albright/workbench/blob/main/health/README.md) — the doctrine the aesthetic serves; cite IDs in findings so a taste call is anchored, not asserted.

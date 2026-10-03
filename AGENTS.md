@@ -9,6 +9,10 @@ tools. Reusable automation mechanics may live here when one earns its place
 `CATALOGUE.md` is a timestamped capability-health snapshot, refreshed on demand
 rather than maintained during routine implementation.
 
+Reusable knowledge lives by subject under `playbook/`; `docs/` owns Workbench's
+current implementation. Discover topics from directory and file names. The
+watchlist holds revisit questions and links to the subject that owns the evidence.
+
 The adjacent public host repository owns fresh-Mac setup, packages,
 shell/editor configuration, drift reconciliation, and remote-host access.
 Exact private repository names, paths, and routing belong only in the

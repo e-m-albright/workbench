@@ -1,0 +1,17 @@
+# Voice interfaces
+
+Compare dictation and conversational agent interfaces. Preserve the distinction between transcribing speech and authorizing actions.
+
+## Voice input and conversational agents (2026-07 watch)
+
+**Baseline:** OpenWhispr is the active trial for one local app covering system dictation and meeting transcription with speaker diarization. Current preference order is OpenWhispr, TypeWhisper, Wispr Flow, then Granola. TypeWhisper remains the fallback and a candidate for local FluidAudio diarization; Wispr Flow is cloud-only; Granola failed repeatedly in meeting capture. Handy remains unevaluated because it does not address a demonstrated gap yet. Prefer local, open-source options. Stars and activity below are a 2026-07-25 snapshot, not quality scores.
+
+**System dictation**
+
+- **[Awesome Voice Typing](https://github.com/primaprashant/awesome-voice-typing)** (MIT; 162 stars; active Jul 2026) -- Maintained cross-platform directory of open-source dictation tools, including TypeWhisper. Use it as the category index before adding another candidate here; its rankings are discovery guidance, not comparative testing.
+- **[Handy](https://github.com/cjpais/Handy)** (MIT; macOS/Windows/Linux; 27.5k stars; active Jul 2026) -- Strong FOSS general-purpose dictation: offline Whisper.cpp/Parakeet, push-to-talk, transcript history/dictionary, signed releases, CLI remote control, configurable post-processing, and a large community. Do not trial it while OpenWhispr is being evaluated: Handy does not currently solve the combined meeting-capture and speaker-diarization requirement that motivated the switch.
+- **[VoiceInk](https://github.com/Beingpax/VoiceInk)** (GPLv3; macOS; 5.7k stars; active Jul 2026) -- Native Apple-Silicon dictation with per-app tuning, custom dictionary, WhisperKit/BYOK engines, and an optional AI-polish layer. Source builds are free; the signed convenience binary is paid. Most interesting feature comparison for TypeWhisper, but not a current replacement need.
+- **[OpenWhispr](https://github.com/OpenWhispr/openwhispr)** (MIT; macOS/Windows/Linux; 4.9k stars; active Jul 2026) -- **Active trial.** It combines local Whisper/Parakeet dictation, microphone and system-audio meeting capture, and on-device speaker diarization. Acceptance depends on dictation latency, diarization quality, reliable complete meeting capture, and clarification of whether plan limits constrain locally processed meetings.
+- **[VoiceTypr](https://github.com/moinulmoin/voicetypr)** (AGPLv3; macOS/Windows; 609 stars; active Jul 2026) -- Local Tauri/Whisper dictation; source is open while distributed binaries require a one-time license. Strong network copyleft matters only if distributing a modified service; ordinary local use or an unpublished fork is not a problem.
+- **[nerd-dictation](https://github.com/ideasman42/nerd-dictation)** (GPLv3; Linux; 1.9k stars; last push Oct 2025) / **[Speech Note](https://github.com/mkiol/dsnote)** (MPL-2.0; Linux; 1.6k stars; active Jul 2026) -- Linux-only local dictation. Keep as portability references; neither supplies the polished macOS workflow being used today.
+- **[Buzz](https://github.com/chidiwilliams/buzz)** (MIT; macOS/Windows/Linux; 20.4k stars; active Jul 2026) -- Mature local microphone/file transcription UI, but text stays in Buzz rather than flowing into the active application. Track for batch media transcription, not system dictation.

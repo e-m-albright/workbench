@@ -1,6 +1,6 @@
 # Deepen
 
-> **Canon** — enacts Principle 5 (*Simplicity is the goal — small files are a proxy*): deep modules over shallow. See [health/README.md](../../../../health/README.md).
+> **Canon** — enacts Principle 5 (*Simplicity is the goal — small files are a proxy*): deep modules over shallow. See [health/README.md](https://github.com/e-m-albright/workbench/blob/main/health/README.md).
 
 Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability, found by *judgment*, not measured by a gate.
 

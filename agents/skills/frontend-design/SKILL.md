@@ -42,7 +42,7 @@ Use `document-design` for reports, proposals, briefs, benchmarks, and standalone
 Use `review` instead when the change is backend or logic work and the primary question is correctness or security rather than interface quality.
 
 For visual-direction examples and creative implementation tools, read
-[`references/inspiration.md`](references/inspiration.md). For current AI design generators, design-to-code bridges, and the anti-anchoring evaluation protocol, read [`../../../playbook/knowledge/ai-interface-design-tools.md`](../../../playbook/knowledge/ai-interface-design-tools.md). For a scroll-driven
+[`references/inspiration.md`](references/inspiration.md). For current AI design generators, design-to-code bridges, and the anti-anchoring evaluation protocol, read [Design tools](https://github.com/e-m-albright/workbench/blob/main/playbook/product/design-tools.md). For a scroll-driven
 narrative, cinematic product presentation, or fixed visual that transforms
 between sections, read
 [`references/scrollytelling.md`](references/scrollytelling.md). Do not load that

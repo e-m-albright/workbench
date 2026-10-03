@@ -94,16 +94,17 @@ vocabulary, and safety policy.
 
 ### Engineering guidance
 
-- `playbook/` records durable engineering principles, stack preferences, and
-  researched technology guidance.
+- [The playbook](playbook/README.md) groups reusable knowledge by agents,
+  engineering, languages, systems, and product. Filenames expose the subjects;
+  [the watchlist](playbook/watchlist.md) holds only unresolved questions and triggers.
 - `health/` provides deterministic project-check patterns and adoption contracts;
   advisory review behavior lives in the relevant skills.
 - `agents/prompts/` contains reusable prompts that do not warrant an always-on
   skill.
 - `docs/decisions/tombstones.md` prevents rejected tools and approaches from
   being casually rediscovered and reintroduced.
-- `docs/pi-build-philosophy.md` records what the Pi harness adopts, rejects, and
-  holds for evidence, while `docs/pi-capabilities.md` records current behavior.
+- `docs/agents/pi/decisions.md` records what the Pi harness adopts, rejects, and
+  holds for evidence, while `docs/agents/pi/README.md` records current behavior.
 
 ## Install
 
@@ -199,7 +200,7 @@ workbench drift all
 
 `DRIFT` (managed value missing or different, non-zero exit) is distinguished
 from `EXTERNAL` (valid unmanaged addition, reported but passing). Details in
-[`docs/managed-surfaces.md`](docs/managed-surfaces.md).
+[`docs/configuration.md`](docs/configuration.md).
 
 ## Command Tree
 
@@ -227,7 +228,7 @@ agent configuration; Just recipes develop and validate this repository.
 
 `sync` deploys each harness's managed subset: global instructions, configuration,
 command policy, extensions or hooks, skills, plugins, and MCP servers where supported. The per-harness file map and drift semantics live in
-[`docs/managed-surfaces.md`](docs/managed-surfaces.md).
+[`docs/configuration.md`](docs/configuration.md).
 
 ## Repository Tour
 
@@ -240,9 +241,15 @@ agents/
 ├── skills/              reusable on-demand workflows
 └── prompts/             reusable prompts below the skill threshold
 
-playbook/                engineering doctrine, stack guidance, and research
+playbook/                reusable knowledge, discovered by subject
+├── agents/              models, harnesses, tools, orchestration, and authority
+├── engineering/         design, verification, review, and delivery practices
+├── languages/           language idioms, libraries, and framework guides
+├── systems/             services, data, infrastructure, and host tools
+└── product/             discovery, design tools, and interfaces
+
 health/                  portable deterministic project-check patterns
-docs/decisions/          durable architectural decisions and tombstones
+docs/                    current Workbench behavior, architecture, and decisions
 src/workbench/           Typer + Rich deployment and verification CLI
 pyproject.toml           uv-managed project (Typer, Rich; pytest/Ruff/Pyright dev gate)
 tests/                   deterministic CLI, sync, drift, guard-hook, and Pi extension tests
@@ -284,14 +291,14 @@ conversations, generated memory, or private operational state.
 
 The default terminal commands run the entire agent process and its children
 inside Workbench's native macOS boundary. Restricted and unrestricted launches
-share the harness; access differs. The [restricted-agent contract](docs/restricted-agents.md)
+share the harness; access differs. The [restricted-agent contract](docs/security/isolation.md)
 owns filesystem and network permissions, credential exceptions, uncovered host
 interfaces, and accepted risks. Permission rules and PreToolUse hooks add
 defense in depth against destructive commands. Database and infrastructure
 policy remains the responsibility of the project that owns those resources.
 
 For an independent read-only fact-check, use the
-[`adversarial audit prompt`](docs/security/adversarial-audit-prompt.md).
+[`adversarial audit prompt`](agents/prompts/workbench-audit.md).
 
 Completion and approval notifications use each vendor's native notification
 channel. Workbench installs no notification daemon or background service.

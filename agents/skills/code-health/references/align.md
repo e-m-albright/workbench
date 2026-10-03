@@ -1,6 +1,6 @@
 # Align
 
-> **Canon** — enacts Principle 2 (*Type the domain, not the plumbing*) and Principle 3 (*One source of truth per concept*). See [health/README.md](../../../../health/README.md).
+> **Canon** — enacts Principle 2 (*Type the domain, not the plumbing*) and Principle 3 (*One source of truth per concept*). See [health/README.md](https://github.com/e-m-albright/workbench/blob/main/health/README.md).
 
 The **conceptual lens**: does the code speak the language of the domain? Structure can be clean and modules deep while the codebase still models the wrong concepts or names them after an external API. This lens aligns the code's vocabulary and boundaries with the domain — the backbone everything else hangs on, since names drive module boundaries.
 

@@ -1,6 +1,6 @@
 # Prune
 
-> **Canon** — enacts Principle 6 (*Dead code is dead weight*) and Principle 5 (*Simplicity is the goal*). See [health/README.md](../../../../health/README.md).
+> **Canon** — enacts Principle 6 (*Dead code is dead weight*) and Principle 5 (*Simplicity is the goal*). See [health/README.md](https://github.com/e-m-albright/workbench/blob/main/health/README.md).
 
 The **deletion lens** — worse-is-better, YAGNI, "the best code is no code." Every other lens can add (abstraction, types, comments, structure); this one only asks **what can be removed without losing behavior the system actually needs?** It's the counterweight that keeps the portfolio from accreting, and it's grounded by the GitClear finding that AI assistants overwhelmingly *add* and rarely consolidate.
 

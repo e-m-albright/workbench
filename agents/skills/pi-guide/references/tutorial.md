@@ -6,8 +6,8 @@ in the capability reference rather than serving as current guarantees.
 
 Native references live in the installed `@earendil-works/pi-coding-agent` package
 under `README.md` and `docs/`. Workbench decisions live in
-[Pi build philosophy](../../../../docs/pi-build-philosophy.md) and the current
-[capability inventory](../../../../docs/pi-capabilities.md).
+[Pi build philosophy](https://github.com/e-m-albright/workbench/blob/main/docs/agents/pi/decisions.md) and the current
+[capability inventory](https://github.com/e-m-albright/workbench/blob/main/docs/agents/pi/README.md).
 
 ## Daily workflow
 
@@ -163,6 +163,6 @@ Currently absent on purpose:
 - broad Web Access provider and extraction fallbacks before a recurring gap
 
 Research candidates have explicit evidence thresholds and removal paths in
-[Pi build philosophy](../../../../docs/pi-build-philosophy.md). The right response to an interesting community
+[Pi build philosophy](https://github.com/e-m-albright/workbench/blob/main/docs/agents/pi/decisions.md). The right response to an interesting community
 feature is: name the local problem, test the smallest version, and keep it only if
 it reduces errors, latency, context, or manual rework.

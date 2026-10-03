@@ -31,7 +31,7 @@ def test_documented_pi_and_browser_versions_match_managed_pins():
     assert len(pi_versions) == 1
     pi_version = pi_versions.pop()
     for path in (
-        root / "docs/pi-capabilities.md",
+        root / "docs/agents/pi/README.md",
         root / "agents/skills/pi-guide/references/tutorial.md",
     ):
         assert f"Pi {pi_version}" in path.read_text(), path
@@ -43,7 +43,7 @@ def test_documented_pi_and_browser_versions_match_managed_pins():
         if package.startswith("npm:pi-agent-browser-native@")
     )
     browser_version = browser_pin.rsplit("@", 1)[1]
-    for path in (root / "docs/pi-capabilities.md", root / "docs/pi-build-philosophy.md"):
+    for path in (root / "docs/agents/pi/README.md", root / "docs/agents/pi/decisions.md"):
         assert f"pi-agent-browser-native` {browser_version}" in path.read_text(), path
 
 

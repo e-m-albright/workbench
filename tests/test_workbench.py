@@ -556,26 +556,9 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertIn("missing.md", errors[0])
 
-    def test_knowledge_index_check_finds_unindexed_documents(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            knowledge = root / "playbook/knowledge"
-            nested = knowledge / "nested"
-            nested.mkdir(parents=True)
-            (knowledge / "README.md").write_text("[indexed](indexed.md)\n")
-            (knowledge / "indexed.md").write_text("indexed\n")
-            (nested / "missing.md").write_text("missing\n")
-
-            errors = lint_mod._knowledge_index_errors(root)
-
-            self.assertEqual(
-                errors,
-                ["knowledge document missing from index: playbook/knowledge/nested/missing.md"],
-            )
-
     def test_repository_markdown_links_resolve(self) -> None:
-        self.assertEqual(lint_mod._markdown_link_errors(core.ROOT), [])
-        self.assertEqual(lint_mod._knowledge_index_errors(core.ROOT), [])
+        self.assertEqual(lint_mod._markdown_link_errors(core.ROOT, repository_root=core.ROOT), [])
+        self.assertEqual(lint_mod._playbook_structure_errors(core.ROOT), [])
 
     def test_claude_desktop_preferences_are_seeded_without_overwriting_owner_choices(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
