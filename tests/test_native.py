@@ -94,6 +94,29 @@ def test_authorize_does_not_treat_empty_claude_tokens_as_a_login(tmp_path, monke
     assert json.loads(destination.read_text()) == value
 
 
+def test_concurrent_prepare_cannot_publish_readiness_during_failed_install(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    monkeypatch.setattr(native, "_binary", lambda name: tmp_path / name)
+    monkeypatch.setattr(native.shutil, "which", lambda name: None)
+    monkeypatch.setattr(native.subprocess, "run", lambda *args, **kwargs: None)
+
+    def patch(runtime):
+        # A second preparer must be rejected before it can publish a manifest
+        # while the first still owns a mutable, possibly unpatched installation.
+        monkeypatch.setattr(native, "patch_forge", lambda runtime: None)
+        with pytest.raises(core.WorkbenchError, match="already being prepared"):
+            native.prepare(home)
+        raise subprocess.CalledProcessError(1, "interrupted installation")
+
+    monkeypatch.setattr(native, "patch_forge", patch)
+    with pytest.raises(subprocess.CalledProcessError):
+        native.prepare(home)
+    assert not (home / ".local/share/workbench/native/tools.json").exists()
+    # Failure releases the lock, so a subsequent preparation can repair it.
+    native.prepare(home)
+    assert (home / ".local/share/workbench/native/tools.json").is_file()
+
+
 @pytest.mark.parametrize("failure", ["install", "patch", "probe"])
 def test_failed_reprepare_invalidates_previous_readiness(tmp_path, monkeypatch, failure):
 

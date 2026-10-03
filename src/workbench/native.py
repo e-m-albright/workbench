@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import shutil
@@ -50,6 +51,19 @@ def prepare(home: Path | None = None) -> None:
     for vendor in agents:
         (home / DATA_REL / "model-auth" / vendor).mkdir(parents=True, exist_ok=True, mode=0o700)
     ensure_private_path_policy(home / ".config/workbench/private-paths")
+    # Keep one preparer from publishing readiness during another's npm ci.
+    # The persistent lock file must not be unlinked: waiters must share its inode.
+    with (runtime / "prepare.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise WorkbenchError("Native runtime is already being prepared; retry later") from error
+        _install_runtime(home, runtime, node, npm, agents)
+
+
+def _install_runtime(
+    home: Path, runtime: Path, node: Path, npm: Path, agents: dict[str, object]
+) -> None:
     # A failed reinstall must never advertise a partially prepared runtime.
     (runtime / "tools.json").unlink(missing_ok=True)
     for name in ("package.json", "package-lock.json"):

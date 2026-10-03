@@ -13,10 +13,12 @@ not an upstream release. The actual package version remains 1.4.0.
 
 [The preparation code](../../src/workbench/native_dependencies.py) accepts only
 the exact original RSA source checksum or the exact repaired checksum. A version
-or source change requires fresh review. Preparation invalidates the readiness
-manifest before reinstalling dependencies, applies the repair with lifecycle
-scripts disabled, and verifies malformed and valid signatures before marking the
-runtime ready. Run `workbench native prepare` to repair an existing installation.
+or source change requires fresh review. Preparation holds an exclusive lock from
+readiness invalidation through publication; a concurrent preparer fails rather
+than leaving another process's manifest beside an interrupted installation.
+Preparation invalidates the readiness manifest before reinstalling dependencies,
+applies the repair with lifecycle scripts disabled, and verifies malformed and
+valid signatures before marking the runtime ready. Run `workbench native prepare` to repair an existing installation.
 
 `just audit` installs the locked dependencies in a temporary directory, reproduces
 the original parser defect, applies the same repair, and verifies rejection of
