@@ -27,9 +27,14 @@ happen only after explicit authorization.
    presenting them as discoveries. Do not reopen a recorded rejection unless
    its revisit condition has changed.
 3. **Run the operating-layer sweep.** Work every lens below, using focused
-   specialist skills or native project tools where named.
+   specialist skills or native project tools where named. Inspect commands before
+   execution: read-only assessment does not make install hooks or tests safe.
+   Apply the `security-review` execution boundary for unfamiliar code; report
+   blocked checks instead of granting ambient credentials or network access.
 4. **Verify.** Confirm every finding against a file, command result, or dated
-   primary source. Distinguish a reproduced defect from a recommendation.
+   primary source. Look for counterevidence and existing controls before reporting
+   a defect. Distinguish a reproduced defect from a recommendation. Bind results
+   to the [assessment evidence envelope](https://github.com/e-m-albright/workbench/blob/main/playbook/engineering/verification.md#assessment-evidence-envelope).
 5. **Synthesize.** Deduplicate, group related fixes into workstreams, and rank by
    impact relative to effort. Prefer deletion and native project mechanisms
    over new infrastructure.
@@ -61,6 +66,11 @@ Feature-map drift may be reported here, but portfolio decisions route to
   their trigger, permissions, output, cost ceiling, and verification are clear.
 - Existing automation that no longer catches a real regression and should be
   retired.
+- Review guidance that has never been tested on a known defect, a safe lookalike,
+  and an unrelated change. Use a small synthetic or authorized historical sample;
+  compare misses and false alarms after rubric/model changes. Comment volume and
+  acceptance are not evidence of defect detection. Reuse the security skill's
+  review scenarios where relevant; do not create a benchmark service.
 
 ### Dependency and supply-chain maintenance
 
@@ -87,8 +97,10 @@ current canonical doctrine and delete sediment.
 
 Check tracked files for secrets, private identifiers, personal absolute paths,
 unsupported employment/status signals, and policy drift. Treat history cleanup
-as a separate consequential operation. Use `security-review` when exposure or
-exploitability needs deeper assessment.
+as a separate consequential operation. Check who owns scanner exceptions and
+when they must be revisited; a successful exit with exclusions is not full
+coverage. Use `security-review` for exposure, exploitability, and sensitive-data
+lifecycle review, including permitted recipients and retention.
 
 ### Repository debris
 

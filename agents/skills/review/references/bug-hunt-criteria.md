@@ -39,6 +39,7 @@ Review is read-only. Neither classification authorizes edits.
 - **Off-by-one** — fenceposts, inclusive vs. exclusive ranges, pagination boundaries
 - **Floating-point for money** — use integers/decimals
 - **Ordering assumptions** — async operations, event handlers, map iteration order
+- **Temporal contracts** — expiry boundaries, wall versus monotonic clocks, time zones, stale approvals, replay, retry/idempotency windows, and partially completed operations. State the required ordering and failure behavior rather than relying on timing intuition.
 - **Type assertions lying about reality** — `as any`, unsafe casts, non-null `!` on nullable values
 - **Error paths** — is the failure case handled, or only the happy path? Are errors swallowed?
 
@@ -49,7 +50,7 @@ Review is read-only. Neither classification authorizes edits.
 - **ReDoS** — catastrophic backtracking on user-supplied regex input
 - **Deserialization safety** on untrusted data
 - **Response body filtering** — allowlists not blocklists for serialized fields (no leaking internal fields)
-- **CORS** not `*` in production
+- **Cross-origin access** — distinguish intentional public reads from credentialed or sensitive responses; verify origin and credential handling rather than flagging every wildcard.
 - **Injection** — parameterized queries, escaped shell/HTML, no string-built SQL
 
 ## T3 — Data Integrity

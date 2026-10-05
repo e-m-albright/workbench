@@ -7,9 +7,11 @@ a read-only assessment unless the user separately asks to implement fixes.
 
 1. Read the test configuration, task-runner commands, CI jobs, markers, fixtures,
    and a representative path from each test tier.
-2. Run the project's documented fast suite. Use existing duration, retry, and
-   coverage reporting when available; do not install audit machinery merely to
-   create a score.
+2. Inspect the project's fast-suite command and fixtures before running them.
+   Apply `security-review`'s execution boundary for unfamiliar code; a temporary
+   directory alone cannot contain imports or hooks. Where safe, use existing
+   duration, retry, and coverage reporting; do not install audit machinery merely
+   to create a score. Report dynamic checks that could not safely run.
 3. Inspect failures and high-value samples for:
    - flaky behavior: time, randomness, ordering, shared state, external services;
    - weak assertions that prove execution but not the contract;
@@ -18,6 +20,13 @@ a read-only assessment unless the user separately asks to implement fixes.
    - skipped, quarantined, or expected-failure tests without an active owner;
    - slow tests in the default tier and cheap tests omitted from normal feedback;
    - load-bearing behavior with no effective regression coverage;
+   - boundary tests missing valid counterexamples, so denying every operation
+     would still pass;
+   - time-dependent contracts without controllable clocks, expiry-edge cases,
+     failure injection, or deterministic interleavings; prefer barriers to sleeps;
+   - parsers or state machines where a bounded property-based test could exercise
+     a named invariant better than more happy-path examples; use the existing
+     stack and preserve minimized failing cases;
    - tests coupled to implementation details that block safe refactoring;
    - inconsistent placement, naming, fixtures, and tier markers.
 4. Separate observed evidence from inference. A slow-looking integration test is

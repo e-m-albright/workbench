@@ -40,6 +40,14 @@ Start read-only and rank a short list with evidence, payoff, risk, and required 
 
 ## Full-pass sequence
 
+Before structural edits, identify the load-bearing behavior and security/privacy
+invariants with their existing tests. If correctness is uncertain, run focused
+Tier B review first rather than making a suspect design cleaner. Prioritize
+observed defects, change frequency, and comprehension friction over file size or
+cosmetic scores. Preserve error, denial, retry, and concurrent behavior as well
+as happy paths; name unverified contracts instead of assuming green tests cover
+them. Use `testing` for stronger proof, not another scoring system.
+
 Lenses have a natural order that minimizes rework:
 
 1. **prune** — delete first; never restructure code you could remove. Smaller surface for everything after.

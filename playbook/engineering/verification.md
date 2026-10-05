@@ -40,6 +40,18 @@ No general gate can establish absolute correctness for an open-ended application
 
 People should review the specification, architecture, threat model, evidence quality, and residual risk rather than every implementation line. Keep human authorization for novel architecture and consequential changes until a narrowly defined class has passed an advisory period with measured false negatives and safe production outcomes. An AI reviewer can discover hypotheses and propose tests; it cannot certify its own implementation.
 
+### Assessment evidence envelope
+
+Bind a persisted review to its scope, base and reviewed revision, dirty-tree state,
+relevant environment, and evidence date. Record commands with outcomes and exit
+status, skipped or unavailable checks, and whether evidence was reproduced or
+only read from another report. For model judgments, include the rubric/skill
+revision and model identifier when available; say unknown rather than inventing
+provenance. Keep evidence references sanitized and inside the approved boundary.
+Use a short paragraph or table, not a new tracking service. Later edits invalidate
+the affected conclusions until rechecked; a green result is not transferable to
+a different revision or environment.
+
 ## Turn repeated manual checks into runnable verification
 
 When the same human correction recurs, write down the exact user path, starting state, observable success condition, and cleanup step. Put the executable check in the owning project, exposed by one native command such as `just verify-ui`. A short agent skill may start the application and call that command, but the assertion and evidence should live in code that another operator can run. Keep screenshots or traces with the revision and environment that produced them. Promote stable failures into deterministic tests; retain a human review step for judgments that cannot yet be asserted reliably. This is the transferable mechanism in [Anthropic's Claude Code verification loop](https://claude.com/blog/building-verification-loops-in-claude-code-with-skills) and the [supplied demonstration](https://www.youtube.com/watch?v=mQZB0l-rhxE).
