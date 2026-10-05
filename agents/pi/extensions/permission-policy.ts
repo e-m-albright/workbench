@@ -23,6 +23,7 @@ export interface PermissionPolicy {
 	privateReadPaths?: string[];
 	privateWritePaths?: string[];
 	controlWritePaths?: string[];
+	hardDenyPaths?: string[];
 }
 
 export type LoadedPermissionPolicy = {
@@ -38,6 +39,7 @@ export type LoadedPermissionPolicy = {
 	privateReadPaths: string[];
 	privateWritePaths: string[];
 	controlWritePaths: string[];
+	hardDenyPaths: string[];
 };
 
 const SECRET_PATHS = [
@@ -72,6 +74,7 @@ const FALLBACK_POLICY: LoadedPermissionPolicy = {
 	privateReadPaths: [],
 	privateWritePaths: [],
 	controlWritePaths: [],
+	hardDenyPaths: [],
 };
 
 function readPolicyFile(path: string): PermissionPolicy {
@@ -155,6 +158,12 @@ function loadPolicy(cwd: string): LoadedPermissionPolicy {
 			...(globalPolicy.controlWritePaths ?? []),
 			...(projectPolicy.controlWritePaths ?? []),
 		],
+		hardDenyPaths: [
+			...FALLBACK_POLICY.hardDenyPaths,
+			...(globalPolicy.hardDenyPaths ?? []),
+			...(projectPolicy.hardDenyPaths ?? []),
+			...readPrivatePathFile(join(process.env.HOME ?? "~", ".config", "workbench", "hard-deny-paths")),
+		],
 	};
 }
 
@@ -192,6 +201,11 @@ export function pathMatchesPolicy(
 	const resolvedReal = canonicalFuturePath(normalized);
 
 	for (const glob of protectedPathGlobs) {
+		if (
+			(glob === ".env.*" || glob === "**/.env.*") &&
+			/[\\/][.]env[.](?:example|sample|template)$/i.test(normalized)
+		)
+			continue;
 		const regex = globToRegExp(glob);
 		if (regex.test(normalized) || regex.test(relative)) return glob;
 		if (resolvedReal && regex.test(resolvedReal)) return glob;
@@ -387,13 +401,29 @@ export function policyBlockReason(
 	if (policy.privateOnlyTools.includes(toolName) && !privateProvider) {
 		return `Tool requires a private local provider: ${toolName}`;
 	}
-	if (toolName === "agent_browser" && !privateProvider) {
-		const domain = privateBrowserDomain(input, policy.privateBrowserDomains);
-		if (domain) return `Authenticated private browser domain requires a private local provider: ${domain}`;
+	if (toolName === "agent_browser") {
+		const invariantDomain = privateBrowserDomain(input, [
+			"mail.google.com",
+			"outlook.live.com",
+			"outlook.office.com",
+			"drive.google.com",
+			"docs.google.com",
+			"sheets.google.com",
+			"slides.google.com",
+			"googleapis.com",
+			"googleusercontent.com",
+		]);
+		if (invariantDomain)
+			return `Email and Google Drive browser access is disabled for every agent authority: ${invariantDomain}`;
+		if (!privateProvider) {
+			const domain = privateBrowserDomain(input, policy.privateBrowserDomains);
+			if (domain) return `Authenticated private browser domain requires a private local provider: ${domain}`;
+		}
 	}
 
 	const readTools = new Set(["read", "grep", "find", "ls", "agent_browser"]);
 	const writeTools = new Set(["write", "edit", "workspace_files"]);
+	const hardPaths = readTools.has(toolName) || writeTools.has(toolName) ? (policy.hardDenyPaths ?? []) : [];
 	const protectedPaths = readTools.has(toolName)
 		? policy.protectedReadPaths
 		: writeTools.has(toolName)
@@ -406,6 +436,8 @@ export function policyBlockReason(
 			? policy.privateWritePaths
 			: [];
 	for (const candidate of extractInputPaths(input)) {
+		const hardDenied = pathMatchesPolicy(cwd, candidate, hardPaths);
+		if (hardDenied) return `Path denied to every agent authority: ${hardDenied}`;
 		const matched = pathMatchesPolicy(cwd, candidate, protectedPaths);
 		if (matched) return `Protected path blocked by policy: ${matched}`;
 		const controlled = pathMatchesPolicy(cwd, candidate, controlPaths);
@@ -434,6 +466,8 @@ export function policyBlockReason(
 
 	if (toolName !== "bash") return undefined;
 	const command = String((input as Record<string, unknown>).command ?? "");
+	const hardPath = protectedPathMention(cwd, command, policy.hardDenyPaths ?? []);
+	if (hardPath) return `Command mentions path denied to every agent authority: ${hardPath}`;
 	const protectedPath = protectedPathMention(cwd, command, policy.protectedReadPaths);
 	if (protectedPath) return `Command mentions protected path: ${protectedPath}`;
 	const privatePath = protectedPathMention(cwd, command, policy.privateReadPaths);
@@ -470,7 +504,8 @@ export default function permissionPolicyExtension(pi: ExtensionAPI) {
 					`  Private read globs: ${policy.privateReadPaths.length}`,
 					`  Private write globs: ${policy.privateWritePaths.length}`,
 					`  Control-only write globs: ${policy.controlWritePaths.length}`,
-					"  Source: ~/.pi/agent/permission-policy.json, ~/.config/workbench/private-paths, plus optional .pi/permission-policy.json",
+					`  Hard-deny globs: ${policy.hardDenyPaths.length}`,
+					"  Source: ~/.pi/agent/permission-policy.json, ~/.config/workbench/{private-paths,hard-deny-paths}, plus optional .pi/permission-policy.json",
 				].join("\n"),
 				"info",
 			);

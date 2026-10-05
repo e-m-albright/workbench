@@ -396,7 +396,7 @@ def drift(
     external: list[str] = []
     selected = tuple(vendors)
     data = home / DATA_REL
-    if selected and profile == "personal":
+    if selected:
         for name, fragment in _canonical_shell_fragments().items():
             _compare(fragment, data / "shell" / name, f"shell fragment {name}", findings)
         for name in RETIRED_AGENT_SHELL_FILES:
@@ -405,6 +405,11 @@ def drift(
         for name in RETIRED_PI_SANDBOX_PROFILES:
             if (data / "sandbox" / name).exists():
                 findings.append(f"DRIFT retired Pi sandbox profile still present: {name}")
+    if selected:
+        hard_deny = home / ".config/workbench/hard-deny-paths"
+        if not hard_deny.is_file():
+            findings.append(f"DRIFT invariant agent denylist is missing: {hard_deny}")
+        _check_private_mode(hard_deny, "Invariant agent denylist", findings)
     if "pi" in selected:
         _check_private_mode(
             home / ".config/workbench/private-paths", "Pi private path denylist", findings

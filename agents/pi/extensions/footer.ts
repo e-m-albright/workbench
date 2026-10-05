@@ -434,9 +434,11 @@ export function renderFooter(
 		mode?.split("-")[0] ||
 		(ctx.model?.provider === "omlx" ? "local" : "hosted");
 	const authority = process.env.WORKBENCH_AGENT_AUTHORITY || mode?.split("-")[1] || "unrestricted";
-	const authorityText = `${color(location === "local" ? "#81a2be" : "#f0c674", location)} > ${color(
+	const locationLabel = location === "local" ? "local" : "cloud";
+	const authorityLabel = authority === "restricted" ? "repo" : "host";
+	const authorityText = `${color(location === "local" ? "#81a2be" : "#f0c674", locationLabel)} > ${color(
 		authority === "restricted" ? "#81a2be" : "#ff5050",
-		authority,
+		authorityLabel,
 	)}`;
 	const coloredPathLine = `${truncateToWidth(pathLine, Math.max(0, width - visibleWidth(authorityText) - 3), dim("..."))}${dim(" │ ")}${authorityText}`;
 

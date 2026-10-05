@@ -92,6 +92,11 @@ def merge_codex_config(text: str) -> str:
         parsed["approval_policy"] == "never" and parsed.get("sandbox_mode") == "danger-full-access"
     ):
         replacements["approval_policy"] = "on-request"
+    # The auto reviewer duplicates the outer boundary's decision and generated
+    # dozens of approval-only sessions; remove that one known redundant mode.
+    dropped_root = {
+        "approvals_reviewer" if parsed.get("approvals_reviewer") == "auto_review" else ""
+    } - {""}
     # Line-oriented like _drop_tables; the semantic comparison below fails closed
     # if a multiline string happens to look like a root assignment.
     lines = []
@@ -100,7 +105,8 @@ def merge_codex_config(text: str) -> str:
         if line.lstrip().startswith("["):
             in_root = False
         if in_root and any(
-            re.match(rf"^\s*(?:{key}|\"{key}\"|'{key}')\s*=", line) for key in replacements
+            re.match(rf"^\s*(?:{key}|\"{key}\"|'{key}')\s*=", line)
+            for key in {*replacements, *dropped_root}
         ):
             continue
         lines.append(line)
@@ -114,7 +120,7 @@ def merge_codex_config(text: str) -> str:
         reparsed = tomllib.loads(merged)
     except tomllib.TOMLDecodeError as exc:
         raise WorkbenchError(f"generated invalid Codex TOML: {exc}") from exc
-    managed = {"mcp_servers", "tui", "sandbox_mode", "approval_policy"}
+    managed = {"mcp_servers", "tui", "sandbox_mode", "approval_policy", *dropped_root}
     if any(reparsed.get(key) != value for key, value in parsed.items() if key not in managed):
         raise WorkbenchError(
             "Codex merge would change unrelated configuration; manual review required"

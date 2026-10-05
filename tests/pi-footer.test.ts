@@ -151,7 +151,7 @@ test.each([
 		const lines = renderFooter(ctx, { kind: "not-git" }, { kind: "unknown" }, width);
 		expect(lines).toHaveLength(2);
 		expect(lines[0]).toContain("~/code/project");
-		expect(lines[0]).toContain(`hosted > ${authority}`);
+		expect(lines[0]).toContain(`cloud > ${authority === "restricted" ? "repo" : "host"}`);
 		expect(lines[1]).toContain("ctx 0.0% 0/272k");
 		expect(lines[1]).toContain("openai-codex/model");
 	} finally {

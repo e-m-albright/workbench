@@ -15,6 +15,7 @@ from workbench.core import (
     DATA_REL,
     WorkbenchError,
     copy_file,
+    ensure_hard_deny_policy,
     ensure_private_path_policy,
     write_json,
 )
@@ -51,6 +52,7 @@ def prepare(home: Path | None = None) -> None:
     for vendor in agents:
         (home / DATA_REL / "model-auth" / vendor).mkdir(parents=True, exist_ok=True, mode=0o700)
     ensure_private_path_policy(home / ".config/workbench/private-paths")
+    ensure_hard_deny_policy(home / ".config/workbench/hard-deny-paths")
     # Keep one preparer from publishing readiness during another's npm ci.
     # The persistent lock file must not be unlinked: waiters must share its inode.
     with (runtime / "prepare.lock").open("a") as lock:

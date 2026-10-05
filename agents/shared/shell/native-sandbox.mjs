@@ -16,8 +16,9 @@ try {
   // Public HTTP(S) is intentional. The upstream proxy checks resolved addresses
   // before dialing; literal addresses and non-web destination ports stay denied.
   await SandboxManager.initialize(policy, async ({ host, port }) =>
-    !isIP(host) && !host.endsWith(".localhost") && !host.endsWith(".local") &&
-    (port === 80 || port === 443));
+    plan.authority === "unrestricted" ||
+    (!isIP(host) && !host.endsWith(".localhost") && !host.endsWith(".local") &&
+    (port === 80 || port === 443)));
   const command = plan.command.map(quote).join(" ");
   const wrapped = await SandboxManager.wrapWithSandboxArgv(command, "/bin/bash");
   if (wrapped.argv.length !== 3 || wrapped.argv[0] !== "/bin/bash" || wrapped.argv[1] !== "-c") {

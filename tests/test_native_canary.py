@@ -346,7 +346,7 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
                 all(
                     marker in plain
                     for marker in (
-                        "hosted > restricted",
+                        "cloud > repo",
                         "ctx ",
                         "Workbench managed",
                         "BOUNDARY-CANARY-PASS",
@@ -358,7 +358,7 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
                 break
         text = output.decode(errors="replace")
         assert "EPERM" not in text, text
-        assert "hosted > restricted" in plain, text
+        assert "cloud > repo" in plain, text
         assert "ctx " in plain, text
         assert "Workbench managed" in plain, text
         assert "BOUNDARY-CANARY-PASS" in plain, text

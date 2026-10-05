@@ -176,10 +176,10 @@ workbench drift all --profile work
 ```
 
 That profile targets only Claude Code and Pi. It keeps shared rules, tracked
-skills, hooks, and permission guards while omitting Codex, Claude plugins and
-Desktop configuration, MCP servers, externally downloaded skills, local-model
-routing, browser and personal connector extensions, and the native personal
-launcher projection.
+skills, hooks, permission guards, shared shell launchers, and the native Claude
+and Pi harness projections while omitting Codex, Claude plugins and Desktop
+configuration, MCP servers, externally downloaded skills, local-model routing,
+and browser and personal connector extensions.
 
 `just deploy` chains the default personal sync and drift so a deploy is verified in one command.
 
@@ -290,8 +290,9 @@ Workbench is public. It must never contain credentials, personal records,
 conversations, generated memory, or private operational state.
 
 The default terminal commands run the entire agent process and its children
-inside Workbench's native macOS boundary. Restricted and unrestricted launches
-share the harness; access differs. The [restricted-agent contract](docs/security/isolation.md)
+inside Workbench's native macOS boundary. The UI names the modes `cloud > repo`,
+`cloud > host`, and `local > host`; every mode retains invariant exclusions.
+The [isolation contract](docs/security/isolation.md)
 owns filesystem and network permissions, credential exceptions, uncovered host
 interfaces, and accepted risks. Permission rules and PreToolUse hooks add
 defense in depth against destructive commands. Database and infrastructure

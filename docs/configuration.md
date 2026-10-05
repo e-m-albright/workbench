@@ -8,8 +8,8 @@ The default `personal` profile is the complete configuration described by the
 table. The fail-closed `work` profile targets only Claude Code and Pi. It deploys
 shared rules, tracked skills, hooks, and permission guards, but omits Codex,
 Claude plugins and Desktop configuration, MCP servers, externally downloaded
-skills, local-model routing, browser and personal connector extensions, and the
-native personal launcher projection. Run both sync and drift with the same
+skills, local-model routing, and browser and personal connector extensions. It
+still deploys the shared launchers and native Claude/Pi harnesses. Run both sync and drift with the same
 `--profile` value.
 
 Restricted terminal sessions use the same instructions, skills, extensions, and presentation through
@@ -43,13 +43,13 @@ The standalone launch interface is
 `/bin/zsh -f ~/.local/share/workbench/shell/agent-sandbox.zsh VENDOR LOCATION AUTHORITY [native args]`:
 `VENDOR` is `pi`, `claude`, or `codex`; `LOCATION` is `hosted` or `local`
 (local is Pi-only and unrestricted); `AUTHORITY` is `restricted` or
-`unrestricted`. Restricted aliases invoke the installed native entrypoint
-directly; the standalone wrapper routes restricted calls there too. The
-[launch matrix](agents/pi/README.md#launch-modes-and-permission-guardrails) owns
-aliases and access semantics. Unrestricted launches do not load the outer
-Seatbelt policy; native vendor approvals remain active. Editor and Paseo host
-tool callbacks are not contained by this terminal boundary and must not be
-advertised as restricted. Running processes retain their existing boundary.
+`unrestricted`. Those internal names render as `cloud > repo`, `cloud > host`,
+or `local > host`. Every alias enters the installed native boundary; host mode
+broadens filesystem and network grants without overriding invariant exclusions.
+The [launch matrix](agents/pi/README.md#launch-modes-and-permission-guardrails)
+owns aliases and access semantics. Editor and Paseo host tool callbacks are not
+contained by this terminal boundary. Running processes retain their existing
+boundary.
 
 Per-repository state lives under `~/.local/share/workbench/agent-state/`.
 Sync derives shared harness preferences and approved code paths under
@@ -60,8 +60,12 @@ Optional `workbench native prepare --authorize` enrollment copies only selected
 provider login material into `~/.local/share/workbench/model-auth/`; it preserves
 existing usable credentials. These deliberately agent-readable credentials keep
 their provider account scopes and are not inference-only grants. Machine-local
-`~/.config/workbench/private-paths` exclusions remain enforced. The selected
-checkout is otherwise the repository owner's approved decision boundary;
+`~/.config/workbench/private-paths` exclusions remain enforced in restricted
+sessions. `~/.config/workbench/hard-deny-paths` applies to every managed
+launcher authority. Its defaults deny every case variant of a directory named
+`confidential`, all local Google Drive trees, email stores, browser profiles,
+and Google connector credentials. The selected checkout is otherwise the
+repository owner's approved decision boundary;
 current defaults exclude raw meeting recordings rather than an entire curated
 vault.
 

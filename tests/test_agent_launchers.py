@@ -114,9 +114,9 @@ def test_native_cli_forwards_arguments_without_a_lima_command(monkeypatch):
 
 @pytest.mark.parametrize("overrides", [[], ["--sandbox", "read-only"], ["--profile", "quick"]])
 def test_codex_host_footer_does_not_widen_inner_permissions(tmp_path, overrides):
-    stub = tmp_path / "codex"
-    stub.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
-    stub.chmod(0o700)
+    stub = tmp_path / ".local/share/workbench/shell/native-sandbox.py"
+    stub.parent.mkdir(parents=True)
+    stub.write_text('import sys\nprint("\\n".join(sys.argv[1:]))\n')
     result = subprocess.run(
         [
             "/bin/zsh",
@@ -127,15 +127,18 @@ def test_codex_host_footer_does_not_widen_inner_permissions(tmp_path, overrides)
             "unrestricted",
             *overrides,
         ],
-        env={"HOME": str(tmp_path), "PATH": f"{tmp_path}:/usr/bin:/bin"},
+        env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"},
         capture_output=True,
         text=True,
         check=True,
     )
     assert not result.stderr
     assert ":root" not in result.stdout
+    lines = result.stdout.splitlines()
+    assert lines[:3] == ["codex", "hosted", "unrestricted"]
+    forwarded = lines[3:]
     if overrides:
-        assert result.stdout.splitlines() == overrides
+        assert forwarded == overrides
     else:
-        assert 'default_permissions="hosted > unrestricted"' in result.stdout
+        assert 'default_permissions="cloud > host"' in result.stdout
         assert 'extends=":workspace"' in result.stdout

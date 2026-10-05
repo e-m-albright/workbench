@@ -37,6 +37,7 @@ def test_work_profile_sync_is_fail_closed_and_drift_clean(tmp_path, monkeypatch)
     assert json.loads((pi_home / "models.json").read_text()).get("providers", {}) == {}
     assert {path.name for path in (pi_home / "extensions").glob("*.ts")} == {
         "activity-title.ts",
+        "clipboard.ts",
         "footer.ts",
         "permission-policy.ts",
         "presets.ts",
@@ -45,6 +46,18 @@ def test_work_profile_sync_is_fail_closed_and_drift_clean(tmp_path, monkeypatch)
         "worker.ts",
         "workspace-files.ts",
     }
+    assert {path.name for path in (tmp_path / ".local/share/workbench/shell").iterdir()} == {
+        "agent-launchers.zsh",
+        "agent-sandbox.zsh",
+        "native-sandbox.mjs",
+        "native-sandbox.py",
+    }
+    manifest = json.loads(
+        (tmp_path / ".local/share/workbench/native/harness/manifest.json").read_text()
+    )
+    assert manifest["claude"]["files"]
+    assert manifest["pi"]["files"]
+    assert (tmp_path / ".config/workbench/hard-deny-paths").is_file()
     assert not (tmp_path / ".agents/skills/paseo-management").exists()
     assert not (tmp_path / ".agents/skills/archify").exists()
     assert drift.drift(tmp_path, ("claude", "pi"), verify_plugins=False, profile="work") == 0

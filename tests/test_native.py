@@ -34,6 +34,9 @@ def test_prepare_copies_a_protected_runtime_without_copying_credentials(tmp_path
     private_paths = (home / ".config/workbench/private-paths").read_text().splitlines()
     assert core.MEETING_RECORDINGS_PRIVATE_PATH in private_paths
     assert core.LEGACY_VAULT_PRIVATE_PATH not in private_paths
+    hard_deny = (home / ".config/workbench/hard-deny-paths").read_text().splitlines()
+    assert "/**/confidential" in hard_deny
+    assert "~/Library/CloudStorage/GoogleDrive*" in hard_deny
     assert calls[0][0][0][1:3] == ["ci", "--ignore-scripts"]
 
 

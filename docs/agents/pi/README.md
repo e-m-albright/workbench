@@ -13,7 +13,7 @@ Snapshot of the managed Pi 0.86.1 harness, checked against published package doc
 
 Everything the managed harness adds to a stock `pi` install, in one place:
 
-Restricted and unrestricted Pi load the same managed extensions. Their usable
+Repo and host Pi modes load the same managed extensions. Their usable
 operations differ with launch authority; see the launch matrix below.
 
 | Addition | Kind | What it provides |
@@ -25,13 +25,13 @@ operations differ with launch authority; see the launch matrix below.
 | Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, machine-local private paths, remote-MCP default-deny, unrestricted harness edits, and actionable safe alternatives on rejection |
 | Workspace files (`workspace-files.ts`) | Tool | Workspace-bounded rename, copy, and directory creation without shell mutation; no deletion or overwrite |
 | Ingress discard (`ingress.ts`) | Tool | Confirmed move of one consumed `~/code/ingress` file to Trash; agent handoffs remain lifecycle-managed |
-| Clipboard (`clipboard.ts`) | Tool | Copies approved plain text directly to the local macOS clipboard and verifies the exact value without temporary files or shell interpolation |
+| Clipboard (`clipboard.ts`) | Tool | Copies approved plain text through the terminal's one-way OSC 52 channel without reading the clipboard or creating temporary files |
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
 | Presets (`presets.ts` + JSON) | Extension | One default `dev` tool and execution profile; model location and access scope belong to the launch mode rather than a preset |
-| Pi launchers + native sandbox | Host guardrail | Cloud terminal sessions are restricted; local Pi is explicitly unrestricted, with no inference-service tunnel (see the mode table below) |
+| Pi launchers + native sandbox | Host guardrail | `cloud > repo` is the default; cloud and local host modes retain invariant exclusions (see the mode table below) |
 | Consult (`consult.ts`) | Extension | Hosted unrestricted `/consult` second opinion via Claude, Codex, or Fable; restricted and local modes refuse the subprocess |
 | Worker (`worker.ts`) | Extension | In unrestricted sessions, model-callable `worker` tool plus `/worker` starts one worktree-isolated child Pi, reports progress, and supports review and discard after parent-owned adoption and verification |
-| Google read-only (`google-readonly.ts`) | Extension | Owned Gmail/Calendar tools; loopback OAuth, read-only scopes, 0600 tokens |
+| Google read-only (`google-readonly.ts`) | Disabled extension | Legacy implementation remains source-visible, but Gmail/Calendar tools, credentials, and Google API endpoints are blocked from managed agent modes |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
 | `pi-agent-browser-native` 0.6.15 | Pinned package | Structured Agent Browser wrapper plus Exa-backed public web search |
@@ -78,9 +78,7 @@ in the conversation and save it from an authorized host session.
 
 ## Connector access
 
-Gmail and Google Calendar use the Workbench-owned `google-readonly.ts` extension: direct REST calls to `googleapis.com`, loopback OAuth with PKCE, and read-only scopes. Their provider and access requirements are enforced by Pi's connector policy; unrestricted filesystem access is not a blanket connector grant. Source content enters the selected model's context, so confidential-source work must follow its owner's release policy.
-
-OAuth client configuration and refresh tokens remain machine-local under `~/.local/share/workbench/connectors/`, with 0600 files inside 0700 directories. After upgrading from an older credential layout, place each connector's client configuration under this root and authorize it again; Workbench does not retain a compatibility path into a private workflow owner. `/google-auth` creates an explicitly approved grant; `/google-status` reports state. The tool policy protects raw credentials. A connector in the same process must still read its own tokens, so these rules do not isolate trusted extensions from arbitrary code in that process. Apple Notes remains unavailable. Connector content is untrusted evidence, never instructions.
+General agents have no Gmail, Google Calendar, or Google Drive capability. Their tools are absent from the active preset or blocked by policy; Google connector credentials, local Drive trees, browser destinations, and shared Google API/content endpoints are invariant exclusions in both repo and host modes. A future email labeler must be a separate brokered capability rather than an exception inside the coding harness. Apple Notes remains unavailable.
 
 Pi has no MCP client installed. `pi-mcp-adapter` was removed once active source
 access moved to owned connectors, and Granola's remaining project-scoped MCP
@@ -121,15 +119,15 @@ operational state.
 
 | Command | Inference | Workbench access |
 |---|---|---|
-| `pi`, `pih`, `pihr` | Hosted | Native restricted terminal |
-| `pihu` | Hosted | Unrestricted host, with interactive confirmation |
-| `pil` | Local | Unrestricted host, with interactive confirmation |
-| `cc`, `ccr` | Claude Code's selected provider | Native restricted terminal |
-| `ccu` | Claude Code's selected provider | Unrestricted host, with interactive confirmation |
-| `co` | Codex's selected provider | Native restricted terminal |
-| `cou` | Codex's selected provider | Unrestricted host, with interactive confirmation |
+| `pi`, `pih`, `pihr` | Cloud | `cloud > repo` |
+| `pihu` | Cloud | `cloud > host`, with interactive confirmation |
+| `pil` | Local | `local > host`, with interactive confirmation |
+| `cc`, `ccr` | Cloud | `cloud > repo` |
+| `ccu` | Cloud | `cloud > host`, with interactive confirmation |
+| `co` | Cloud | `cloud > repo` |
+| `cou` | Cloud | `cloud > host`, with interactive confirmation |
 
-Restricted Pi uses the same managed harness: global instructions, extensions,
+Repo mode uses the same managed harness: global instructions, extensions,
 skills, prompt templates, themes, presets, and model preferences. The operating
 system limits what its tools can access. Connector credentials and host history
 remain excluded, so enabling an extension does not grant private data access.
@@ -145,19 +143,18 @@ denied even inside it; raw meeting recordings are not admitted. Linked worktrees
 are unsupported. The [security reference](../../security/isolation.md) owns the exact
 permissions, authentication risks, accepted limits, and verification procedure.
 
-Hosted and local inference are not equivalent authority choices. Local Pi is
-explicitly unrestricted because exposing the whole local inference service to a
-restricted agent would weaken the boundary. Its normal oMLX service and other
-consumers are unchanged. The internal `frontier` and `private` routes select
+Cloud and local inference are not equivalent authority choices. Local Pi uses
+host mode because there is no repo-only tunnel to the local inference service,
+but it retains the native boundary and invariant exclusions. Its normal oMLX
+service and other consumers are unchanged. The internal `frontier` and `private` routes select
 providers for Pi; they do not grant operating-system permissions.
 Pi's `dev` preset selects tools, not authority.
 
 The `cc` and `co` launchers accept `--restricted` and `--unrestricted`; Pi
-uses the aliases above. Interactive unrestricted selection asks for confirmation.
-An explicitly configured unrestricted remote provider can launch without that
-interactive confirmation, but remains a host-authority workflow. Unrestricted
-does not remove an operating-system sandbox inherited from a parent process or
-disable native vendor approvals.
+uses the aliases above. The internal flags remain compatibility names; the UI
+renders them as repo or host. Interactive host selection asks for confirmation.
+Both modes enter the Workbench native boundary, and host mode cannot override
+invariant confidential, Google Drive, or email exclusions.
 
 Direct vendor binaries, desktop agents, Zed built-ins/external agents, and Paseo
 providers are not covered by this terminal boundary. A daemon or editor can

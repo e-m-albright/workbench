@@ -978,6 +978,10 @@ other = true
             self.assertEqual(parsed["sandbox_mode"], sandbox)
             self.assertEqual(parsed["approval_policy"], "never")
 
+    def test_codex_merge_removes_redundant_auto_approval_reviewer(self) -> None:
+        parsed = tomllib.loads(codex.merge_codex_config('approvals_reviewer = "auto_review"\n'))
+        self.assertNotIn("approvals_reviewer", parsed)
+
     def test_codex_merge_preserves_structured_approval_policy(self) -> None:
         source = (
             "approval_policy = { granular = { sandbox_approval = false, "

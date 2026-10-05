@@ -119,9 +119,9 @@ read-only adapter named under Source connectors, not a fork.
 | Workbench-managed Pi | Settings, providers, presets, extensions, skills, permission policy, and MCP routing are deployed and drift-checked from one public source. | Credentials, sessions, and trust decisions remain private live state. |
 | Custom footer | Restores native information and adds repository state, context, cost, speed, compaction, and Codex quota evidence. | Every field must earn its width. Remove annotations that do not change behavior. |
 | Activity title and deterministic session name | Terminal tabs now show spinner, repository, concise first-prompt label, and active tool. Resumed unnamed sessions remain findable; explicit names win. | No completion notification. Remove if titles become noisy or inaccurate. |
-| Permission policy and safe Git | Block protected reads/writes, dependency-tree writes, shell network retrieval, destructive Git, and risky shell mutations before execution. External reading stays on dedicated browser and connector tools. | These are not containment. Keep tests aligned with real failure modes. |
+| Permission policy and safe Git | Block protected data, nested agents, privilege escalation, destructive Git, and consequential external mutations while leaving routine repository work to the outer sandbox. | These are guidance, not containment. Keep tests aligned with real failure modes. |
 | Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded; unavailable in local modes because its subprocess uses a hosted provider. |
-| Owned Google read-only connector | `google-readonly.ts` implements Gmail and Calendar search and read directly against `googleapis.com` with loopback OAuth, read-only scopes, and 0600 token storage. Gmail and Calendar remain subject to the provider and access requirements in the connector policy. | Requires a user-created Google Cloud OAuth client; `/google-auth` is explicit; tool-policy rules block raw credential reads; the connector process still needs access to its token files. Unrestricted host access does not itself grant a private-source tool. |
+| Google connector | Disabled for general agents: Gmail and Calendar tools are blocked, Google connector credentials are invariant exclusions, and shared Google API/content endpoints are denied. | A future email labeler must be a separate broker with label-only operations; do not re-enable the broad connector in coding agents. |
 | Bounded worktree worker | The `worker` tool lets either route start one isolated implementation task in the background, continue disjoint work, inspect progress, and later adopt or reject the result; `/worker` remains a manual entrypoint. Frontier workers remain subject to the same private-source path and connector guards as their parent. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and may not commit, push, install, or merge. Elapsed status uses no polling or extra model calls. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save wall-clock time or protect context. |
 | Default dev preset | One coding tool profile; launch modes independently select model location and access. | Do not add another preset without a recurring workflow the inference and access choices cannot express. |
 | Native Agent Browser wrapper | `pi-agent-browser-native` 0.6.15 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an Exa-backed companion search tool. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
@@ -161,17 +161,16 @@ the Codex subscription, OpenRouter, Google, Anthropic, or a local model).
 Working policy:
 
 - The [launch matrix](README.md#launch-modes-and-permission-guardrails)
-  separates hosted/local inference from restricted/unrestricted access. Internal
-  frontier/private provider routes remain useful; automatic prompt
-  classification and a separate control mode do not.
-- Pi, Claude Code, and Codex use one shared outer wrapper. Restricted is the
-  default. Unrestricted permits harness maintenance and has no Workbench outer
-  OS sandbox; native approvals still apply. Vendor integrations invoke the
-  shared policy rather than copy it into competing configurations.
+  presents `cloud > repo`, `cloud > host`, and `local > host`. Internal
+  hosted/local and restricted/unrestricted values remain implementation details.
+- Pi, Claude Code, and Codex use one shared outer wrapper in every mode. Repo is
+  the default. Host permits broad maintenance access but cannot override the
+  invariant exclusions. Vendor integrations invoke the shared policy rather
+  than copy it into competing configurations.
 - Connector grants and data release remain separate from filesystem access.
-  Privileged Strava reads keep their OAuth secrets out of model context.
-  Do not promise uniform source availability across modes, providers, and
-  launchers. Apple Notes remains unavailable.
+  General agents have no Google connector access; a future email labeler must
+  use a separate narrow broker. Privileged Strava reads keep their OAuth secrets
+  out of model context. Apple Notes remains unavailable.
 - Repository privacy and data privacy are separate. Preserve hosted coding in
   private repositories, but do not claim a blacklist protects confidential Git
   history. Splitting code, private state, and recoverable history is the durable

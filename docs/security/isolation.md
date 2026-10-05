@@ -1,6 +1,6 @@
-# Restricted terminal agents
+# Managed terminal agents
 
-Workbench's restricted terminal launchers use a native macOS sandbox around the
+Workbench's terminal launchers use a native macOS sandbox around the
 entire agent process and its children. Lima and its editor/mobile bridges are
 retired. The [launch matrix](../agents/pi/README.md#launch-modes-and-permission-guardrails)
 owns command aliases; this document owns the security boundary and its limits.
@@ -8,7 +8,7 @@ owns command aliases; this document owns the security boundary and its limits.
 ## Daily use
 
 Run `co`, `pi`, or `cc` from an ordinary Git checkout. All three show
-`hosted > restricted` in their footer, without a separate startup banner.
+`cloud > repo` in their footer, without a separate startup banner.
 The boundary admits that checkout without creating a VM, copying a
 repository, or requiring an update step after edits. The selected checkout is
 the decision boundary: its curated source, structured state, and Git history
@@ -17,10 +17,11 @@ Linked Git worktrees are not supported. A launch fails closed if its runtime,
 policy, repository, or sandbox validation fails; it never silently becomes
 unrestricted.
 
-Explicit unrestricted launchers remain available for host workflows. Local Pi
-uses only `pil`, asks for confirmation, and has host authority. There is no
-restricted tunnel to the local inference service, and its other consumers are
-unchanged.
+Explicit host launchers remain available for exceptional workflows and still
+ask for confirmation. They retain the native outer boundary with broad host
+filesystem and network grants except for invariant exclusions. Their footer is
+`cloud > host`, or `local > host` for `pil`. There is no repo-only tunnel to the
+local inference service.
 
 Zed built-ins, external editor agents, Paseo providers, desktop agents, and
 direct vendor binaries are not covered by this boundary. An editor or daemon
@@ -85,17 +86,23 @@ multiple provider logins from its authentication store.
 | --- | --- |
 | Selected checkout | Read and write, including curated vault prose, structured world-model state, reviewed meeting notes, Git history, ignored files, and untracked files unless explicitly excluded. |
 | Machine-local private paths | Denied for reads and writes, including named paths inside the selected checkout. Raw meeting recordings, transcripts, and sidecars remain excluded; choosing a repository does not authorize those sources. |
-| Environment files | `.env` and `.env.*` paths are denied at every depth, including files created after launch. |
+| Environment files | Real `.env` and `.env.*` paths are denied at every depth, including files created after launch. Documentation templates ending in `.example`, `.sample`, or `.template` remain usable. |
 | Other repositories and personal files | Not admitted merely because they are open or used by another agent. |
 | Agent state | One persistent home per repository plus a private temporary directory for the session. |
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
 | Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. |
-| Public network | Public HTTP and HTTPS are permitted through the runtime proxy; literal IP and private resolved destinations are denied. |
+| Public network | Public HTTP and HTTPS are permitted through the runtime proxy; literal IP, private resolved destinations, email endpoints, Google Drive, and shared Google API/content endpoints are denied. |
 | Harness configuration | Shared instructions, skills, extensions, prompts, themes, installed plugin code, model preferences, and interface settings. Host code assets are read-only; settings and caches remain in the isolated home. |
 | Local inference and editor/mobile protocols | Unsupported by the restricted launcher. |
 
-The machine-local policy is `~/.config/workbench/private-paths`; its absence
-fails closed. Its exclusions supplement a default-deny read policy, rather than
+Restricted private-source policy lives at
+`~/.config/workbench/private-paths`; its absence fails closed. Invariant policy
+lives at `~/.config/workbench/hard-deny-paths`; it is required for both
+repo and host launches. The default invariant policy blocks any directory named
+`confidential` regardless of case, all local Google Drive trees, local email
+stores, browser profiles, and Google connector credentials. Owner additions
+remain machine-local rather than entering this public repository. These
+exclusions supplement the restricted default-deny read policy, rather than
 being the sole protection for other Mac files. Necessary system and installed
 tool paths are also admitted. The launcher starts with a clean environment,
 without ambient credential variables, shell startup overrides, or inherited
@@ -118,7 +125,11 @@ programmatic writes through OSC 52; manual paste remains an explicit user
 action. Do not infer that blocking a clipboard command inside the agent also
 blocks terminal callbacks.
 
-Restricted and unrestricted launches use the same harness. `workbench sync`
+Repo and host launches use the same isolated harness. Host mode grants broad
+host reads, writes, and network access inside the outer sandbox but cannot
+override `hard-deny-paths`. Direct vendor binaries,
+editors, desktop applications, and other launch routes remain outside this
+promise. `workbench sync`
 derives a credential-free configuration projection from the installed settings
 under `native/harness/`; there is no separately maintained restricted theme,
 model default, or skill catalogue. Each launch refreshes those preferences into

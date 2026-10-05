@@ -1,6 +1,6 @@
 #!/bin/zsh -f
 # Usage: agent-sandbox.zsh VENDOR LOCATION AUTHORITY [native args...]
-# One native restricted boundary; host workflows remain explicitly unrestricted.
+# One native boundary; unrestricted retains broad authority behind invariant hard bans.
 set -eu
 vendor=${1:?vendor required}
 location=${2:?location required}
@@ -13,10 +13,6 @@ esac
 if [[ "${WORKBENCH_AGENT_AUTHORITY:-}" == restricted && "$authority" == unrestricted ]]; then
     print -u2 'A restricted process cannot start an unrestricted agent'; exit 2
 fi
-if [[ "$authority" == restricted ]]; then
-    exec /usr/bin/python3 -I -S "$HOME/.local/share/workbench/shell/native-sandbox.py" "$vendor" "$location" "$@"
-fi
-binary=$(whence -p "$vendor")
 export WORKBENCH_AGENT_AUTHORITY=$authority
 export WORKBENCH_AGENT_LOCATION=$location
 if [[ "$vendor" == pi ]]; then
@@ -55,9 +51,10 @@ if [[ "$authority" == unrestricted ]]; then
             esac
         done
         if [[ "$label_default" == true ]]; then
-            set -- -c 'default_permissions="hosted > unrestricted"' \
-                -c 'permissions={"hosted > unrestricted"={extends=":workspace"}}' "$@"
+            set -- -c 'default_permissions="cloud > host"' \
+                -c 'permissions={"cloud > host"={extends=":workspace"}}' "$@"
         fi
     fi
-    exec "$binary" "$@"
 fi
+exec /usr/bin/python3 -I -S "$HOME/.local/share/workbench/shell/native-sandbox.py" \
+    "$vendor" "$location" "$authority" "$@"

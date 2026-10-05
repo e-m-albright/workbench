@@ -41,7 +41,7 @@ _wb_agent_run() {
     local vendor="$1" location="$2" authority="$3"
     shift 3
     if [[ "$authority" == restricted ]]; then
-        /usr/bin/python3 -I -S "$HOME/.local/share/workbench/shell/native-sandbox.py" "$vendor" "$location" "$@"
+        /usr/bin/python3 -I -S "$HOME/.local/share/workbench/shell/native-sandbox.py" "$vendor" "$location" restricted "$@"
         return
     fi
     if [[ "$authority" == unrestricted ]]; then
@@ -50,7 +50,7 @@ _wb_agent_run() {
             return 1
         fi
         local reply
-        echo "$vendor: unrestricted permits personal files and control writes without the outer OS sandbox" >&2
+        echo "$vendor: unrestricted permits broad host reads and writes; machine-local hard bans remain enforced" >&2
         read -r "reply?Continue? [y/N] "
         [[ "$reply" == [Yy] ]] || return 1
     fi

@@ -16,6 +16,11 @@ j() {
     printf '%s' "$input" | jq -r "$1 // empty" 2>/dev/null
 }
 
+# Preserve literal false; jq's // operator treats it as absent.
+jb() {
+    printf '%s' "$input" | jq -r "if $1 == null then empty else ($1 | tostring) end" 2>/dev/null
+}
+
 if [[ -z "${NO_COLOR:-}" ]]; then
     # Palette contract: these RGB triples are the hex palette in
     # agents/pi/extensions/footer.ts; a pytest asserts they stay equal.
@@ -107,6 +112,14 @@ git_segment() {
 }
 
 # Compact time-until-reset for a rate-limit window, e.g. (resets 1h) / (resets 3d).
+fmt_tokens() {
+    local n="${1:-0}"
+    if (( n >= 1000000 )); then printf '%d.%dM' $(( n / 1000000 )) $(( (n % 1000000) / 100000 ))
+    elif (( n >= 1000 )); then printf '%dk' $(( (n + 500) / 1000 ))
+    else printf '%d' "$n"
+    fi
+}
+
 eta() {
     local resets_at="$1" now remaining
     [[ -z "$resets_at" ]] && return 0
@@ -135,6 +148,16 @@ model=$(j '.model.display_name')
 cwd=$(j '.workspace.current_dir')
 worktree=$(j '.workspace.git_worktree')
 ctx_pct=$(j '.context_window.used_percentage')
+ctx_size=$(j '.context_window.context_window_size')
+ctx_tokens=$(j '[.context_window.total_input_tokens, .context_window.total_output_tokens] | map(select(. != null)) | if length == 0 then null else add end')
+cost_usd=$(j '.cost.total_cost_usd')
+cache_hit=$(j '.prompt_cache.hit_ratio')
+cache_warm=$(jb '.prompt_cache.warm')
+effort=$(j '.effort.level')
+fast_mode=$(jb '.fast_mode')
+thinking=$(jb '.thinking.enabled')
+spend_used=$(j '.rate_limits.spend_limit.used_percentage')
+spend_reset=$(j '.rate_limits.spend_limit.resets_at')
 five_used=$(j '.rate_limits.five_hour.used_percentage')
 five_reset=$(j '.rate_limits.five_hour.resets_at')
 seven_used=$(j '.rate_limits.seven_day.used_percentage')
@@ -149,15 +172,29 @@ git_text=$(git_segment "$cwd" "$worktree")
 pr_text=$(pr_segment "$pr_number" "$pr_state")
 [[ -n "$pr_text" ]] && out="${out} ${pr_text}"
 
+location="${WORKBENCH_AGENT_LOCATION:-hosted}"
 authority="${WORKBENCH_AGENT_AUTHORITY:-unrestricted}"
+location_label=cloud
+location_color="$HOSTED"
+if [[ "$location" == local ]]; then
+    location_label=local
+    location_color="$BLUE"
+fi
+authority_label=host
 authority_color="$UNRESTRICTED"
-[[ "$authority" == restricted ]] && authority_color="$BLUE"
-out="${out}${sep}${HOSTED}${WORKBENCH_AGENT_LOCATION:-hosted}${R} > ${authority_color}${authority}${R}"
+if [[ "$authority" == restricted ]]; then
+    authority_label=repo
+    authority_color="$BLUE"
+fi
+out="${out}${sep}${location_color}${location_label}${R} > ${authority_color}${authority_label}${R}"
 printf '%s\n' "$out"
 out=""
 
 if [[ -n "$ctx_pct" ]]; then
-    out="$(ramp "$ctx_pct")ctx $(printf '%.0f%%' "$ctx_pct")${R}"
+    out="$(ramp "$ctx_pct")ctx $(printf '%.0f%%' "$ctx_pct")"
+    [[ -n "$ctx_tokens" ]] && out="${out} $(fmt_tokens "$ctx_tokens")"
+    [[ -n "$ctx_size" ]] && out="${out}/$(fmt_tokens "$ctx_size")"
+    out="${out}${R}"
 fi
 if [[ -n "$five_used" ]]; then
     remaining=$(jq -nr --argjson used "$five_used" '100 - $used | [0, .] | max | [100, .] | min')
@@ -167,8 +204,23 @@ if [[ -n "$seven_used" ]]; then
     remaining=$(jq -nr --argjson used "$seven_used" '100 - $used | [0, .] | max | [100, .] | min')
     out="${out}${out:+$sep}$(ramp "$seven_used")1w $(printf '%.0f%%' "$remaining") left$(eta "$seven_reset")${R}"
 fi
+if [[ -n "$spend_used" ]]; then
+    out="${out}${out:+$sep}$(ramp "$spend_used")spend $(printf '%.0f%%' "$spend_used") used$(eta "$spend_reset")${R}"
+fi
+if [[ -n "$cost_usd" ]] && jq -en --argjson usd "$cost_usd" '$usd >= 0.01' >/dev/null; then
+    out="${out}${out:+$sep}${NOTE}~$(printf '$%.2f' "$cost_usd")${R}"
+fi
+if [[ "$cache_warm" == false ]]; then
+    out="${out}${out:+$sep}${WARN}cache cold${R}"
+elif [[ -n "$cache_hit" ]]; then
+    hit_pct=$(jq -nr --argjson ratio "$cache_hit" '$ratio * 100 | [0, .] | max | [100, .] | min')
+    out="${out}${out:+$sep}$(ramp "$(jq -nr --argjson hit "$hit_pct" '100 - $hit')")cache $(printf '%.0f%%' "$hit_pct")${R}"
+fi
 if [[ -n "$model" ]]; then
     out="${out}${out:+$sep}${NOTE}${model}${R}"
+    [[ -n "$effort" ]] && out="${out} ${DIM}${effort}${R}"
+    [[ "$fast_mode" == true ]] && out="${out} ${GOLD}fast${R}"
+    [[ "$thinking" == false ]] && out="${out} ${WARN}think off${R}"
 fi
 
 printf '%s\n' "$out"

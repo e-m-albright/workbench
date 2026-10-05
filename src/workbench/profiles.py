@@ -11,6 +11,7 @@ Profile = Literal["personal", "work"]
 WORK_PI = AGENTS / "profiles/work/pi"
 WORK_PI_EXTENSIONS = {
     "activity-title.ts",
+    "clipboard.ts",
     "footer.ts",
     "permission-policy.ts",
     "presets.ts",

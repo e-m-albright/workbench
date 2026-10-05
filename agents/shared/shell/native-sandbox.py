@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import shlex
+import stat
 import sys
 import tempfile
 import termios
@@ -22,9 +23,11 @@ GUARD = """
 (deny distributed-notification-post)
 (deny sysctl-read (sysctl-name-prefix "kern.proc"))
 (deny process-info*)
-; Match future environment files too, not just files present at launch.
+; Match future environment files and confidential directories too, not just
+; paths present at launch. Character classes make confidential case-insensitive.
 (deny file-read* file-write* file-write-create file-write-unlink
-  (regex "/[.]env($|[./])"))
+  (regex "/[.]env($|/|[.](?!(example|sample|template)($|/)))")
+  (regex "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]($|/)"))
 """
 
 
@@ -74,10 +77,19 @@ def workspace_root(cwd: Path, home: Path) -> Path:
 
 
 def build_plan(
-    cwd: Path, home: Path, tools: dict, vendor: str, location: str, args: list, scratch=None
+    cwd: Path,
+    home: Path,
+    tools: dict,
+    vendor: str,
+    location: str,
+    args: list,
+    scratch=None,
+    authority="restricted",
 ) -> dict:
-    """Build an allowlist around one checkout and a separate per-project agent home."""
-    if location != "hosted":
+    """Build a managed boundary around one checkout and isolated agent state."""
+    if authority not in {"restricted", "unrestricted"}:
+        raise ValueError("Unknown agent authority")
+    if location != "hosted" and not (location == "local" and authority == "unrestricted"):
         raise ValueError("Restricted local inference has no approved inference-only interface")
     if vendor not in {"codex", "claude", "pi", "shell"}:
         raise ValueError("Unknown native agent")
@@ -108,10 +120,9 @@ def build_plan(
     if vendor == "codex":
         command += [
             "-c",
-            'default_permissions="hosted > restricted"',
+            'default_permissions="cloud > repo"',
             "-c",
-            'permissions={"hosted > restricted"='
-            '{filesystem={":root"="write"},network={enabled=true}}}',
+            'permissions={"cloud > repo"={filesystem={":root"="write"},network={enabled=true}}}',
             "-c",
             'approval_policy="on-request"',
             "-c",
@@ -131,7 +142,7 @@ def build_plan(
         auth_files = [str(auth / "auth.json"), str(auth / "auth.json.lock")]
         auth_link = {"path": str(agent_home / ".pi/agent/auth.json"), "target": auth_files[0]}
         auth_env["PI_CODING_AGENT_DIR"] = str(agent_home / ".pi/agent")
-        auth_env["WORKBENCH_PI_MODE"] = "hosted-restricted"
+        auth_env["WORKBENCH_PI_MODE"] = f"{location}-{authority}"
     # Use the canonical target directly: resolving /usr/share/zoneinfo would
     # require traversing /var before the child sandbox policy is installed.
     zoneinfo = Path("/private/var/db/timezone/zoneinfo")
@@ -179,39 +190,74 @@ def build_plan(
             raise ValueError("Read grants must be absolute literal paths, without glob characters")
         if path == home or path in home.parents:
             raise ValueError("Read grants cannot include the host home or its ancestors")
-    private = home / ".config/workbench/private-paths"
-    if not private.is_file():
-        raise ValueError("Missing private-data policy; run workbench native prepare")
-    excludes = [
-        line.strip().replace("~/", f"{home}/", 1)
-        for line in private.read_text().splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
+
+    def exclusions(name: str, required: bool) -> list[str]:
+        path = home / ".config/workbench" / name
+        if not path.is_file():
+            if required:
+                raise ValueError(f"Missing {name} policy; run workbench native prepare")
+            return []
+        return [
+            line.strip().replace("~/", f"{home}/", 1)
+            for line in path.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+
+    hard_excludes = exclusions("hard-deny-paths", True)
+    private_excludes = exclusions("private-paths", authority == "restricted")
+    excludes = [*hard_excludes, *private_excludes] if authority == "restricted" else hard_excludes
+    invariant_domains = [
+        "mail.google.com",
+        "outlook.live.com",
+        "outlook.office.com",
+        "drive.google.com",
+        "docs.google.com",
+        "sheets.google.com",
+        "slides.google.com",
+        "*.googleapis.com",
+        "*.googleusercontent.com",
     ]
-    policy = {
-        "filesystem": {
+    if authority == "restricted":
+        filesystem = {
             "denyRead": ["/", *excludes],
             "allowRead": read,
             "allowWrite": [str(root), str(agent_home), str(temp), *auth_files],
             "denyWrite": ["/tmp/claude", "/private/tmp/claude", *excludes, *harness["read"]],
-        },
+        }
+        denied_domains = ["localhost", *invariant_domains]
+        denied_addresses = [
+            "0.0.0.0/8",
+            "10.0.0.0/8",
+            "100.64.0.0/10",
+            "127.0.0.0/8",
+            "169.254.0.0/16",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "224.0.0.0/4",
+            "::/128",
+            "::1/128",
+            "fc00::/7",
+            "fe80::/10",
+            "ff00::/8",
+        ]
+    else:
+        # Unrestricted means broad host authority, not permission to cross the
+        # owner's invariant machine-local exclusions.
+        filesystem = {
+            "denyRead": hard_excludes,
+            "allowRead": ["/"],
+            "allowWrite": ["/"],
+            "denyWrite": [*hard_excludes, *harness["read"]],
+        }
+        denied_domains = invariant_domains
+        denied_addresses = []
+    policy = {
+        "filesystem": filesystem,
         "network": {
             "allowedDomains": [],
-            "deniedDomains": ["localhost"],
-            "deniedResolvedAddresses": [
-                "0.0.0.0/8",
-                "10.0.0.0/8",
-                "100.64.0.0/10",
-                "127.0.0.0/8",
-                "169.254.0.0/16",
-                "172.16.0.0/12",
-                "192.168.0.0/16",
-                "224.0.0.0/4",
-                "::/128",
-                "::1/128",
-                "fc00::/7",
-                "fe80::/10",
-                "ff00::/8",
-            ],
+            "deniedDomains": denied_domains,
+            "deniedResolvedAddresses": denied_addresses,
+            "allowLocalBinding": True,
         },
     }
     env = {key: os.environ[key] for key in ("TERM", "COLORTERM", "LANG") if key in os.environ}
@@ -229,8 +275,8 @@ def build_plan(
             "DEVELOPER_DIR": "/Library/Developer/CommandLineTools",
             "GIT_CONFIG_NOSYSTEM": "1",
             "PYTHONTZPATH": str(zoneinfo),
-            "WORKBENCH_AGENT_AUTHORITY": "restricted",
-            "WORKBENCH_AGENT_LOCATION": "hosted",
+            "WORKBENCH_AGENT_AUTHORITY": authority,
+            "WORKBENCH_AGENT_LOCATION": location,
             "WORKBENCH_HOST_HOME": str(home),
             **auth_env,
         }
@@ -244,6 +290,7 @@ def build_plan(
         "node": str(node),
         "auth_link": auth_link,
         "harness": harness,
+        "authority": authority,
     }
 
 
@@ -291,8 +338,20 @@ def initialize_home(plan: dict, home: Path) -> None:
                     matches = os.readlink(path.name, dir_fd=descriptor) == target
                 except OSError:
                     matches = False
-                if not matches:
-                    raise ValueError(f"Unexpected {label} link; refusing to overwrite") from None
+                if matches:
+                    continue
+                try:
+                    existing = os.stat(path.name, dir_fd=descriptor, follow_symlinks=False)
+                except OSError:
+                    existing = None
+                # Older projections copied some shared harness assets into the
+                # isolated home. Exact manifest paths remain Workbench-owned, so
+                # migrate only ordinary files; foreign links and directories fail.
+                if label == "harness" and existing and stat.S_ISREG(existing.st_mode):
+                    os.unlink(path.name, dir_fd=descriptor)
+                    os.symlink(target, path.name, dir_fd=descriptor)
+                    continue
+                raise ValueError(f"Unexpected {label} link; refusing to overwrite") from None
     for item in harness["files"]:
         path = agent_home / item["path"]
         path.relative_to(agent_home)
@@ -319,7 +378,7 @@ def main() -> None:
     if sys.platform != "darwin":
         raise ValueError("The native boundary requires macOS")
     if len(sys.argv) < 3:
-        raise ValueError("Usage: native-sandbox.py VENDOR LOCATION [agent arguments]")
+        raise ValueError("Usage: native-sandbox.py VENDOR LOCATION [AUTHORITY] [agent arguments]")
     home = Path.home().resolve()
     runtime = Path(__file__).resolve().parents[1] / "native"
     config = runtime / "tools.json"
@@ -329,25 +388,31 @@ def main() -> None:
     scratch = Path(tempfile.mkdtemp(prefix="wb-native-", dir="/private/tmp"))
     try:
         tools = json.loads(config.read_text())
+        authority = (
+            sys.argv[3]
+            if sys.argv[3:4] and sys.argv[3] in {"restricted", "unrestricted"}
+            else "restricted"
+        )
+        arg_start = 4 if sys.argv[3:4] and sys.argv[3] in {"restricted", "unrestricted"} else 3
         plan = build_plan(
             Path.cwd(),
             home,
             tools,
             sys.argv[1],
             sys.argv[2],
-            sys.argv[3:],
+            sys.argv[arg_start:],
             scratch=scratch,
+            authority=authority,
         )
         initialize_home(plan, home)
     except Exception:
         scratch.rmdir()
         raise
     if sys.argv[1] == "shell":
-        print(
-            f"{sys.argv[1].upper()} · NATIVE RESTRICTED · {Path(plan['root']).name}",
-            file=sys.stderr,
-            flush=True,
-        )
+        location_label = "local" if plan["env"]["WORKBENCH_AGENT_LOCATION"] == "local" else "cloud"
+        authority_label = "repo" if plan["authority"] == "restricted" else "host"
+        label = f"{sys.argv[1].upper()} · {location_label} > {authority_label}"
+        print(f"{label} · {Path(plan['root']).name}", file=sys.stderr, flush=True)
     runner = Path(__file__).with_suffix(".mjs")
     os.execve(plan["node"], [plan["node"], str(runner), json.dumps(plan)], plan["env"])
 

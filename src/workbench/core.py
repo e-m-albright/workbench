@@ -15,6 +15,33 @@ DATA_REL = Path(".local/share/workbench")
 LEGACY_VAULT_PRIVATE_PATH = "~/code/private/*/vault/**"
 MEETING_RECORDINGS_PRIVATE_PATH = "~/code/private/*/vault/work/.data/comm/meeting/recordings/**"
 APPLICATION_SUPPORT_PRIVATE_PATH = "~/Library/Application Support/**"
+HARD_DENY_PATHS_DEFAULT = """\
+# Machine-local paths denied to every managed agent authority, including unrestricted.
+/**/confidential
+/**/confidential/**
+~/Library/CloudStorage/GoogleDrive*
+~/Library/CloudStorage/GoogleDrive*/**
+~/Library/Mail
+~/Library/Mail/**
+~/Library/Containers/com.apple.mail
+~/Library/Containers/com.apple.mail/**
+~/Library/Group Containers/group.com.apple.mail
+~/Library/Group Containers/group.com.apple.mail/**
+~/Library/Containers/com.microsoft.Outlook
+~/Library/Containers/com.microsoft.Outlook/**
+~/Library/Group Containers/UBF8T346G9.Office/Outlook
+~/Library/Group Containers/UBF8T346G9.Office/Outlook/**
+~/Library/Application Support/Google/Chrome
+~/Library/Application Support/Google/Chrome/**
+~/Library/Application Support/Microsoft Edge
+~/Library/Application Support/Microsoft Edge/**
+~/Library/Safari
+~/Library/Safari/**
+~/Library/Containers/com.apple.Safari
+~/Library/Containers/com.apple.Safari/**
+~/.local/share/workbench/connectors/google
+~/.local/share/workbench/connectors/google/**
+"""
 PRIVATE_PATHS_DEFAULT = f"""\
 # Machine-local raw-source and private-data denylist. Unrestricted sessions own changes.
 {MEETING_RECORDINGS_PRIVATE_PATH}
@@ -171,6 +198,7 @@ CLAUDE_SANDBOX = {
     "enabled": True,
     "failIfUnavailable": True,
     "allowUnsandboxedCommands": True,
+    "network": {"allowLocalBinding": True},
     "filesystem": {
         "allowWrite": ["~/.cache"],
         "denyRead": [
@@ -278,6 +306,20 @@ def ensure_private_path_policy(path: Path) -> bool:
             migrated.append(required)
     deduplicated = list(dict.fromkeys(migrated))
     return write_text(path, "\n".join(deduplicated) + "\n", mode=0o600)
+
+
+def ensure_hard_deny_policy(path: Path) -> bool:
+    """Install invariant agent exclusions while preserving machine-local additions."""
+    required = [
+        line for line in HARD_DENY_PATHS_DEFAULT.splitlines() if line and not line.startswith("#")
+    ]
+    if not path.exists():
+        return write_text(path, HARD_DENY_PATHS_DEFAULT, mode=0o600)
+    lines = path.read_text().splitlines()
+    for item in required:
+        if item not in lines:
+            lines.append(item)
+    return write_text(path, "\n".join(lines) + "\n", mode=0o600)
 
 
 def write_json(path: Path, value: Any, *, mode: int | None = None) -> bool:

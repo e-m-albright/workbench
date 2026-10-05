@@ -8,7 +8,7 @@
     "Bash(git branch -D:*)",
     "Bash(git push --force:*)",
     "Bash(git push -f:*)",
-    "Bash(git * --no-verify:*)",
+    "Bash(git * --no-verify)",
     "Bash(diskutil eraseDisk:*)",
     "Bash(diskutil partitionDisk:*)",
     "Read(.env)",

@@ -1,7 +1,14 @@
 {
   "$comment": "Best-effort tool friction backed by launcher-level macOS Seatbelt profiles. Restricted models may use the selected repository as its approved decision boundary, while raw sources, connectors, credentials, ingress writes, and control-plane writes remain bounded.",
   "defaultAction": "allow",
-  "blockedTools": [],
+  "blockedTools": [
+    "gmail_search_threads",
+    "gmail_get_thread",
+    "gmail_create_draft",
+    "gmail_create_reply_draft",
+    "calendar_list_calendars",
+    "calendar_list_events"
+  ],
   "privateProviders": ["omlx"],
   "privateOnlyTools": [
     "gmail_search_threads",
@@ -42,22 +49,9 @@
       "name": "destructive filesystem command",
       "patterns": [
         "(?:^|[;&|()\\s])rm(?:\\s|$)",
-        "\\bchmod\\b",
         "\\bchown\\b",
         "\\bdd\\b",
         "\\bmkfs(?:\\.|\\s|$)"
-      ]
-    },
-    {
-      "name": "filesystem mutation command",
-      "patterns": [
-        "(?:^|[;&|()\\s])cp(?:\\s|$)",
-        "(?:^|[;&|()\\s])mv(?:\\s|$)",
-        "(?:^|[;&|()\\s])ln(?:\\s|$)",
-        "(?:^|[;&|()\\s])mkdir(?:\\s|$)",
-        "(?:^|[;&|()\\s])rmdir(?:\\s|$)",
-        "(?:^|[;&|()\\s])touch(?:\\s|$)",
-        "(?:^|[;&|()\\s])tee(?:\\s|$)"
       ]
     },
     {
@@ -78,43 +72,13 @@
       ]
     },
     {
-      "name": "shell network retrieval, upload, or remote script execution",
-      "patterns": ["\\bcurl\\b", "\\bwget\\b"]
-    },
-    {
-      "name": "shell file redirection",
-      "$comment": "Dedicated file tools keep writes bounded and reviewable. Discarding stdout to /dev/null remains allowed.",
-      "patterns": ["(?:^|[;&|()\\s])(?:[12]?>>?|&>)(?![=])\\s*(?!/dev/null(?:\\s|$|[;&|)]))\\S+"]
-    },
-    {
-      "name": "inline interpreter escape hatch",
-      "patterns": [
-        "\\b(python|python3|node|ruby|perl|bash|sh)\\s+-(c|e)\\b",
-        "\\b(python|python3|node|ruby|perl|bash|sh)\\b[^|;&]*(?:--eval\\b|--exec\\b|<<)",
-        "\\beval\\b"
-      ]
-    },
-    {
-      "name": "process control",
-      "patterns": ["\\bkill\\b", "\\bkillall\\b", "\\bpkill\\b", "\\blaunchctl\\b"]
-    },
-    {
       "name": "destructive or history-changing git",
       "patterns": [
-        "\\bgit\\s+branch\\s+-[dD]\\b",
-        "\\bgit\\s+checkout\\b",
-        "\\bgit\\s+cherry-pick\\b",
-        "\\bgit\\s+clean\\b",
-        "\\bgit\\s+merge\\b",
-        "\\bgit\\s+pull\\b",
-        "\\bgit\\s+push\\s+.*--force(-with-lease)?\\b",
-        "\\bgit\\s+rebase\\b",
-        "\\bgit\\s+reset\\b",
-        "\\bgit\\s+restore\\b",
-        "\\bgit\\s+stash\\s+(drop|clear)\\b",
-        "\\bgit\\s+switch\\b",
-        "\\bgit\\s+tag\\b",
-        "\\bgit\\s+worktree\\b"
+        "\\bgit\\s+branch\\s+-D\\b",
+        "\\bgit\\s+clean\\s+[^;&|]*-[^;&|]*f",
+        "\\bgit\\s+push\\s+.*--force(?:-with-lease)?\\b",
+        "\\bgit\\s+reset\\s+--hard\\b",
+        "\\bgit\\b.*--no-verify\\b"
       ]
     },
     {
@@ -129,22 +93,6 @@
         "\\bgh\\s+repo\\s+(clone|fork)\\b",
         "\\bgh\\s+run\\s+rerun\\b",
         "\\bgh\\s+workflow\\s+run\\b"
-      ]
-    },
-    {
-      "name": "dependency installation or removal",
-      "patterns": [
-        "\\bbrew\\s+(install|uninstall|upgrade)\\b",
-        "\\bnpm\\s+(ci|install|uninstall|update)\\b",
-        "\\bnpx\\b",
-        "\\bpnpm\\s+(add|install|remove)\\b",
-        "\\bbun\\s+(add|install|remove)\\b",
-        "\\byarn\\s+(add|install|remove)\\b",
-        "\\bpip\\s+(install|uninstall)\\b",
-        "\\bpipx\\b",
-        "\\buv\\s+(add|pip|python|remove|sync|tool|venv)\\b",
-        "\\bgo\\s+(get|install)\\b",
-        "\\bcargo\\s+(install|publish)\\b"
       ]
     },
     {

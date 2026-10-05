@@ -11,6 +11,9 @@ SCRIPT = Path(__file__).resolve().parents[1] / "agents/shared/shell/native-sandb
 
 
 def harness_manifest(home, vendor, *, links=(), files=(), read=()):
+    hard = home / ".config/workbench/hard-deny-paths"
+    hard.parent.mkdir(parents=True, exist_ok=True)
+    hard.write_text("~/never-agent-readable/**\n")
     path = home / ".local/share/workbench/native/harness/manifest.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -62,6 +65,7 @@ def test_hardening_preserves_arguments_and_denies_host_process_inspection():
     assert "(deny process-info*)" in hardened[4]
     assert "kern.proc" in hardened[4]
     assert "com.apple.securityd.xpc" in hardened[4]
+    assert "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]" in hardened[4]
     with pytest.raises(ValueError):
         launcher.harden("echo unexpected-runtime-output")
     with pytest.raises(ValueError):
@@ -87,10 +91,10 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     monkeypatch.setenv("NODE_OPTIONS", "--require /untrusted/startup.js")
     monkeypatch.setenv("HTTPS_PROXY", "http://untrusted-proxy")
     harness_manifest(home, "codex")
-    with pytest.raises(ValueError, match="private-data"):
+    with pytest.raises(ValueError, match="private-paths"):
         launcher.build_plan(repo, home, config, "codex", "hosted", ["--version"])
     private = home / ".config/workbench/private-paths"
-    private.parent.mkdir(parents=True)
+    private.parent.mkdir(parents=True, exist_ok=True)
     private.write_text("# synthetic policy\n~/code/*/private-data/**\n")
     plan = launcher.build_plan(repo, home, config, "codex", "hosted", ["--version"])
     assert plan["env"]["HOME"] != str(home)
@@ -126,6 +130,20 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
         launcher.build_plan(repo, home, config, "codex", "local", [])
     with pytest.raises(ValueError, match="terminal"):
         launcher.build_plan(repo, home, config, "codex", "hosted", ["app-server"])
+
+    unrestricted = launcher.build_plan(
+        repo, home, config, "codex", "hosted", [], authority="unrestricted"
+    )
+    assert unrestricted["policy"]["filesystem"]["allowRead"] == ["/"]
+    assert unrestricted["policy"]["filesystem"]["allowWrite"] == ["/"]
+    invariant = str(home / "never-agent-readable/**")
+    assert invariant in unrestricted["policy"]["filesystem"]["denyRead"]
+    assert invariant in unrestricted["policy"]["filesystem"]["denyWrite"]
+    assert unrestricted["env"]["WORKBENCH_AGENT_AUTHORITY"] == "unrestricted"
+    assert unrestricted["policy"]["network"]["deniedResolvedAddresses"] == []
+    assert "mail.google.com" in unrestricted["policy"]["network"]["deniedDomains"]
+    assert "drive.google.com" in unrestricted["policy"]["network"]["deniedDomains"]
+    assert "*.googleapis.com" in unrestricted["policy"]["network"]["deniedDomains"]
 
 
 @pytest.mark.parametrize("vendor", ["codex", "pi", "claude"])
@@ -239,6 +257,37 @@ def test_restricted_home_loads_shared_harness_without_host_state(tmp_path, vendo
     (isolated / config_name).write_text("local mutation")
     launcher.initialize_home(plan, home)
     assert (isolated / config_name).read_text() == source.read_text()
+
+
+def test_harness_link_migrates_a_prior_managed_file(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    state = home / "state"
+    managed = state / ".pi/agent/AGENTS.md"
+    managed.parent.mkdir(parents=True)
+    managed.write_text("old generated copy")
+    source = home / ".pi/agent/AGENTS.md"
+    source.parent.mkdir(parents=True)
+    source.write_text("current shared instructions")
+    plan = {
+        "env": {"HOME": str(state)},
+        "auth_link": None,
+        "harness": {
+            "links": [{"path": ".pi/agent/AGENTS.md", "target": str(source)}],
+            "files": [],
+        },
+    }
+
+    launcher.initialize_home(plan, home)
+
+    assert managed.is_symlink()
+    assert managed.readlink() == source
+    assert managed.read_text() == "current shared instructions"
+
+    managed.unlink()
+    managed.symlink_to(home / "unrelated")
+    with pytest.raises(ValueError, match="harness link"):
+        launcher.initialize_home(plan, home)
 
 
 @pytest.mark.parametrize("attack", ["symlink", "hardlink", "parent"])

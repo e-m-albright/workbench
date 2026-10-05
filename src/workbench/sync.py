@@ -29,6 +29,7 @@ from workbench.core import (
     _settings,
     _string_array,
     copy_file,
+    ensure_hard_deny_policy,
     ensure_private_path_policy,
     write_json,
     write_text,
@@ -95,12 +96,13 @@ def _canonical_skills(profile: Profile = "personal") -> dict[str, Path]:
     return skills
 
 
-def _install_runtime_files(home: Path, *, deploy_shell: bool = True) -> Path:
+def _install_runtime_files(home: Path) -> Path:
     data = home / DATA_REL
-    if deploy_shell:
-        for name, fragment in _canonical_shell_fragments().items():
-            copy_file(fragment, data / "shell" / name)
-        _retire_agent_runtime(home)
+    for name, fragment in _canonical_shell_fragments().items():
+        copy_file(fragment, data / "shell" / name)
+    _retire_agent_runtime(home)
+    ensure_private_path_policy(home / ".config/workbench/private-paths")
+    ensure_hard_deny_policy(home / ".config/workbench/hard-deny-paths")
     hooks = _canonical_hooks()
     hook_dir = data / "hooks"
     if hook_dir.exists():
@@ -269,7 +271,7 @@ def sync_claude(
     deploy_plugins: bool,
     profile: Profile = "personal",
 ) -> None:
-    data = _install_runtime_files(home, deploy_shell=profile == "personal")
+    data = _install_runtime_files(home)
     claude_home = home / ".claude"
     copy_file(AGENTS / "shared/rules.md", claude_home / "CLAUDE.md")
 
@@ -294,8 +296,7 @@ def sync_claude(
         _sync_skills("claude", home, profile)
     if deploy_plugins and profile == "personal":
         _sync_plugins("claude", home)
-    if profile == "personal":
-        install_harness(home, "claude")
+    install_harness(home, "claude")
 
 
 def _sync_claude_desktop(home: Path) -> None:
@@ -457,11 +458,7 @@ def sync_pi(
 ) -> None:
     """Deploy Pi's transparent local configuration; packages remain settings-owned."""
     del deploy_plugins  # Pi packages are declared in settings.json, not a separate plugin registry.
-    if profile == "personal":
-        for name, fragment in _canonical_shell_fragments().items():
-            copy_file(fragment, home / DATA_REL / "shell" / name)
-        _retire_agent_runtime(home)
-        ensure_private_path_policy(home / ".config/workbench/private-paths")
+    _install_runtime_files(home)
     source = AGENTS / "pi" if profile == "personal" else WORK_PI
     destination = home / ".pi/agent"
     _harden_pi_session_permissions(destination)
@@ -516,5 +513,4 @@ def sync_pi(
         _replace_pi_file(helper, destination / "extensions/lib" / helper.name)
     if deploy_skills:
         _sync_pi_skills(home, profile)
-    if profile == "personal":
-        install_harness(home, "pi")
+    install_harness(home, "pi")
