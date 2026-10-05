@@ -13,6 +13,12 @@ The tooling splits into two categories that increasingly overlap:
 
 The most capable production stacks combine one from each category. No single tool does everything well.
 
+## Use model judgment to allocate evaluation, not replace it
+
+MIT and Sakana AI's [Self Improvement via Fast Tree-search](https://arxiv.org/abs/2609.19526) uses a judge model for pairwise comparisons among candidate agent patches, aggregates the win-loss graph with a regularized Bradley-Terry model, and spends expensive benchmark runs only on promising nodes. The reported Polyglot gains and cost reductions are research results for recursive coding-agent optimization, not evidence that an ordinary product evaluation should become self-modifying.
+
+The transferable pattern is staged evaluation. Cheap heuristics or model judgments can rank candidates and allocate a fixed budget, while deterministic or task-level evaluations remain the acceptance authority. Pairwise ranking is often easier to calibrate than absolute scoring, but correlated judge errors can prune the right candidate early. Preserve random exploration, periodically evaluate lower-ranked candidates, record judge and benchmark disagreement, and never let an LLM judge become the sole release gate.
+
 ---
 
 ## 1. Promptfoo

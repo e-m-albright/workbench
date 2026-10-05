@@ -2,6 +2,14 @@
 
 Evaluate replacements against a measured runtime or development bottleneck and preserve application behavior.
 
+## Optimize the user-visible completion path
+
+Uber Eats' 2026 search rebuild is a useful performance method, not a reusable architecture. The team changed its primary metric from backend response time to above-the-fold completion, then removed low-value retrieval, reduced feature hydration, separated ranking data from presentation data, overlapped rendering, hedged selected requests, and reduced serialization and garbage-collection work. The reported 50% end-to-end improvement came from many measured changes rather than one rewrite.
+
+Use the same sequence: measure the user-visible milestone, identify where work and waiting accumulate, remove work before making it faster, start independent work earlier, remove dependencies, and validate every change against the end-to-end metric. Local stage speedups do not count when they fail to improve the user's completion time or damage result quality.
+
+Source: InfoQ, [Uber Eats Rebuilds Search Pipeline to Cut End-to-End Latency by 50%](https://www.infoq.com/news/2026/10/uber-eats-search-latency/), 2026-10-02; figures attributed there to Uber.
+
 ## Drop-in performance swaps
 
 The recurring pattern: a native (usually Rust) reimplementation of a slow

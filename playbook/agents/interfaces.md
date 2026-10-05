@@ -56,6 +56,20 @@ Use a broad local primitive when:
 
 Use narrow tools when they enforce an authority boundary, hide credentials, validate mutations, or provide a stable domain outcome. Workbench should continue pruning redundant tool schemas while retaining connector and safety tools whose narrowness is the security property.
 
+## Agent-facing UI protocols are not policy layers
+
+[AG-UI](https://docs.ag-ui.com/introduction) standardizes the event stream between an agent backend and a user-facing client. It can carry messages, shared-state patches, tool events, typed UI intents, interrupts, and resumable interaction. This is useful when several frontends or agent runtimes need one interaction contract. It is not an authorization, business-policy, or execution-governance layer.
+
+Adopt an agent UI protocol only when custom streaming and state synchronization have become repeated integration work. Keep the application authoritative:
+
+- Authenticate the user and authorize every privileged operation at the service boundary, not from an event or rendered approval control.
+- Validate shared-state patches and UI descriptions against versioned schemas and an allowlisted component or action registry.
+- Treat frontend tool calls as proposals. Route consequential effects through the same application-owned command path, idempotency rules, approval binding, and audit used by every other client.
+- Give runs, messages, effects, and resumptions stable identifiers so reconnects cannot duplicate an action or apply stale state.
+- Render traces and tool events as explanations, not raw chain of thought and not proof that an effect occurred. Verify effects from the owning system.
+
+For a TypeScript frontend and Python service, one generated event schema can keep the wire contract aligned. The durable domain commands beneath it should remain independent of AG-UI so a web app, an assistant client, and a deterministic job all exercise the same policy.
+
 ## Interface and execution research sources
 
 ### Vercel

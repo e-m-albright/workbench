@@ -26,6 +26,20 @@ An MCP server should expose outcomes rather than mirror every REST endpoint. Kee
 
 Source: [Philipp Schmid's MCP server design guidance](https://www.philschmid.de/mcp-best-practices), 2026-01.
 
+## Gateway control when external AI clients call application tools
+
+Treat Claude Desktop, ChatGPT, an IDE agent, and a custom agent as untrusted callers of the same capability plane. A client can help a user formulate an action, but it must not decide its own authority. Enforce controls in the MCP server, gateway, and downstream business service where every client path is covered:
+
+1. Resolve the human, tenant, agent client, and execution separately. Prefer delegated user authority; never infer permission from possession of a server URL or tool name.
+2. Publish only curated semantic operations. Newly discovered or generated tools remain disabled until an owner reviews the schema, description, data classification, and allowed callers.
+3. Apply tool-level authorization, argument validation, rate and spend limits, response minimization, sensitive-data redaction, and network egress policy before returning data or dispatching an effect.
+4. Bind a consequential approval to the exact actor, operation, arguments, target version, and expiration. Re-authorize delayed or retried execution.
+5. Emit an audit record that joins request, policy decision, downstream effect, read-back, model/client identity when known, and override. Do not make prompt text or a model-based runtime review the only blocker.
+
+[Uber's MCP Gateway design](https://www.uber.com/us/en/blog/designing-mcp-gateway/) is a scale reference, not a default blueprint. Its durable patterns are separating registry/control plane from proxy/data plane, deriving candidate tools from existing interface definitions, defaulting them off, retaining service-owner approval and rollback, and applying authorization and redaction in the execution path. Its incremental server/tool/schema discovery and response projection address context cost without presenting thousands of schemas to every model. The central gateway also concentrates credentials, policy mistakes, and availability risk; build it only after actual cross-client and cross-service pressure appears.
+
+A small application should start with one owned MCP surface in front of existing domain commands and one policy enforcement point. Evaluate a cross-client governance product such as Runlayer when unmanaged clients, duplicate server configuration, or organization-wide audit are demonstrated problems. Evaluate an action gateway such as Arcade, Composio, or a cloud-native equivalent when delegated authorization and connector execution are the repeated problem. Neither category replaces domain validation, approval state, reconciliation, or source-system permission checks.
+
 ## Direct agent integrations and application-owned boundaries
 
 Claude or ChatGPT can be an effective investigation and drafting interface over enterprise systems. Connectors and skills make a first supervised workflow cheap to explore: a user can retrieve permitted records, ask follow-up questions, and draft a resolution. The boundary changes when the workflow must decide which source is authoritative, carry a case across sessions, or write back to a system of record. Those decisions need application-owned rules and state that do not depend on one assistant's prompt or memory.

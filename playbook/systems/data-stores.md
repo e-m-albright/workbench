@@ -63,6 +63,15 @@ Revisit any of these only with a written capability case.
 | **LanceDB** | embeddings fallback | If volume ever outgrows brute-force KNN |
 | **Cognee** | optional experiment | Run its LLM extraction over a corpus and diff its graph against curated edges; output imports into SQLite; never canonical (its default graph store is orphaned Kuzu) |
 | **Graphiti** (pattern only) | bitemporal edges | The idea import, not the product — see guiding principles |
+| **chDB Durable Layer** | recoverable embedded analytics | **WATCH for ephemeral single-writer analytical state.** It keeps a local ClickHouse working copy and publishes explicit flushes and checkpoints to owner-controlled object storage. It is not a transactional memory service or a replacement for SQLite/Postgres. |
+
+### Recoverable embedded analytics
+
+The [chDB Durable Layer](https://clickhouse.com/blog/chdb-durable-layer-for-agent-memory) fills a narrow deployment gap: local columnar queries with an authoritative copy in S3-compatible, Google Cloud Storage, or Azure Blob storage. A compare-and-swap head record provides a single-writer lease; `flush()` defines accepted data loss, and `checkpoint()` compacts a base snapshot plus write-ahead log. The V1 log replays statements, so writes must be deterministic.
+
+This is useful when expensive append-only analytical state must move among a laptop, continuous integration job, and disposable sandbox without putting every query over a network. It is the wrong choice for multiple concurrent writers, frequent point updates, centralized compliance controls, or ordinary workflow state. For Workbench and its private knowledge owner, SQLite plus deterministic recovery already solves the actual record-keeping problem with less machinery. Revisit only if ephemeral agent runs accumulate enough derived trace or memory analytics that local query latency and cross-host recovery are both measured bottlenecks.
+
+The vendor's 58-times local-query benchmark and compression figures are first-party examples, not selection evidence. The useful general pattern is independent of chDB: local hot state, explicit durability boundaries, owner-controlled object storage, a fenced single writer, and externally stored binary blobs.
 
 ## When the workhorses win — and when they don't
 

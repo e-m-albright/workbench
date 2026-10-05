@@ -80,6 +80,12 @@ Reviewed 2026-08-26 from Cursor’s Automate product page and public marketplace
 
 The durable conclusion is narrower than the product: copy the workflow contracts, not the scheduler. This is recorded both here and in `docs/decisions/tombstones.md` so future automation design can reuse the intelligence without reopening the Cursor adoption question.
 
+## Earn a software factory from one repeatable workflow
+
+Builder's [one-bug factory walkthrough](https://www.builder.io/blog/build-an-agentic-software-factory-starting-with-one-bug) provides the right adoption sequence even though it promotes Builder's Agent-Native stack. Begin with a small behavior the owner understands. Require the agent to decide whether the report is actionable, reproduce it in an isolated environment, make one reviewable change, prove the behavior before and after, and return evidence with the pull request. Only then turn the successful sequence into a reusable skill. Add review agents, issue intake, schedules, or learning loops one measured bottleneck at a time.
+
+That standard is more credible than throughput headlines. Vercel's [Rogo customer story](https://vercel.com/customers/how-rogo-ships-agent-written-code-to-production-in-5-minutes-on-vercel) reports 73,000 deployments in one month, five-minute agent-written production changes, six production agents, and automatic incident remediation, but publishes almost no architecture, defect, rollback, review, or cost evidence. Treat it as evidence that high-frequency deployment is possible on Vercel, not that the workflow is safe or transferable. A factory trial should report accepted-task rate, human review and rework, escaped defects, rollback, cost, and maintainability alongside cycle time.
+
 ## Durable workflows and replay
 
 Vercel's Workflow SDK expresses orchestration as ordinary program control flow:

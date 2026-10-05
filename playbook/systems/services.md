@@ -272,7 +272,7 @@ such as feature flags, experiments, or session replay.
 | **Lightweight (library)** | DBOS | — | Postgres-only, runs *inside* your app process (Python/TS/Go). The "lightweight Temporal" — durability with zero new infra. Best default. |
 | **Go background jobs** | River | asynq | Postgres-backed, transactional enqueue. A queue, not full durable execution. |
 | **TS event-driven** | Inngest | Trigger.dev | Inngest: light self-host (single binary). Trigger.dev: more of a platform (registry + object storage). |
-| **Heavy-duty** | Temporal | Restate (watch) | Cross-language, mission-critical scale. The cluster (Cassandra/ES) is real ops burden — reach for it only when correctness-at-scale demands it. |
+| **Heavy-duty** | Temporal | Restate (watch) | Cross-language, mission-critical scale. Temporal's cluster is a real operations burden; Restate aims for a lighter event-log-based runtime. Reach for either only when correctness at scale demands it. |
 | **Platform-native** | Vercel Workflows / Cloudflare Workflows | — | Watch when the application already lives on that platform; compare portability and state export with DBOS, Inngest, and Temporal. |
 
 ### When to Use What
@@ -280,6 +280,8 @@ such as feature flags, experiments, or session replay.
 - **DBOS**: Default. A library, not a server — `pip install`/`npm i`, point at existing Postgres, decorate workflow/step functions. Matches the "Postgres as the only dependency" ethos. Free OSS core; only the ops console is paid.
 - **Temporal**: When you genuinely need multi-DC, millions of concurrent workflows, or cross-service orchestration. Self-hosting the cluster is exactly the ops burden most projects should avoid; even Temporal concedes Cloud beats self-host economically below tens of millions of actions/month.
 - **Plain Postgres + cron / Arq / River / QStash**: When the real need is "run on a schedule" or "a few retryable jobs." Durable execution only pays off once you have genuinely multi-step workflows with side effects you must not re-run.
+
+[Restate's September 2026 funding announcement](https://restate.dev/blog/announcing-series-a) is market validation for durable execution, not product validation. Its useful claim is architectural: long-running agent work makes waits, retries, callbacks, partial failure, and duplicate side effects ordinary application concerns. Compare Restate when a real workflow needs those guarantees and its low-latency service or virtual-object model fits better than a Postgres library. Keep the business state machine, idempotency semantics, approvals, and unknown-outcome reconciliation in application-owned code. A $20 million Series A and vendor benchmarks do not displace the default progression from queue to DBOS to a heavier runtime.
 
 ---
 

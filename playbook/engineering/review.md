@@ -125,6 +125,16 @@ Add **stacked PRs** only when review ownership, merge automation, and queue cont
 
 That layered combination is a stronger default than betting on one "best" tool.
 
+## Change comprehension and visualization
+
+A diagram or semantic diff can reduce how much code a person must read, but it changes review navigation rather than establishing correctness.
+
+- [Whiteboard](https://whiteboard.dev.fast/) is an open-source desktop canvas that lets coding agents produce code-linked sequence and entity diagrams, decision traces, and AST-aware semantic diffs. Trial it for a large architecture or specification change where an ordinary patch obscures behavior. Require click-through to source and compare any collapsed or pseudocode summary with the underlying diff before accepting a consequential claim.
+- Archify and Mermaid are better fits for durable repository diagrams generated from or maintained beside canonical architecture. They do not provide Whiteboard's review workspace or semantic-diff interaction.
+- Generated diagrams should identify the base and reviewed revision, distinguish observed code structure from model inference, and remain disposable unless the architecture is stable enough to deserve a maintained source file.
+
+Use visualization to focus scarce human attention on changed contracts, data flow, authority, and failure paths. Keep deterministic gates and runtime evidence underneath it. Do not treat a persuasive diagram, agent trace, or summarized function as proof that omitted code is irrelevant.
+
 ## The Homegrown Alternative
 
 Worth a spike before committing to a SaaS code-review vendor for 12+ months:

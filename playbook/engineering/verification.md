@@ -27,6 +27,19 @@ Prefer a syntax-aware codemod when the relationship is structural and expressibl
 
 An implementer's completion report is not proof, whether the implementer is a person or an agent. Bind proof to the exact revision and environment under review, and have an independent harness or reviewer reproduce it. Prefer machine-readable test, type, security, and runtime results generated outside the implementation transcript. Add screenshots, recordings, traces, or logs when behavior is visual or interactive, but treat them as scoped evidence rather than substitutes for workflow assertions; they can be stale, incomplete, or selectively captured. A second model can challenge the result, but it is another reviewer, not an independent source of truth. Keep credentials, production mutations, acceptance of residual risk, and other consequential authority human-owned.
 
+### Confidence without line-by-line review
+
+No general gate can establish absolute correctness for an open-ended application. Strong assurance is possible only for claims made precise enough to test, prove, or monitor. Replace blanket line review with an evidence case whose strength follows risk:
+
+1. State acceptance examples, prohibited outcomes, trust boundaries, and rollback conditions before implementation. A generated test that merely restates generated code is not an independent oracle.
+2. Encode local guarantees with types, schemas, static analysis, unit and contract tests, architectural dependency rules, and database constraints. Add property, metamorphic, fuzz, mutation, or model-based tests when the input space or state transitions make examples insufficient.
+3. Use formal specification or exhaustive state exploration selectively for small, consequential cores such as authorization decisions, workflow transitions, financial calculations, and migration invariants. It proves the stated model under its assumptions, not the whole product.
+4. Verify user journeys and cross-service effects in an isolated environment. Exercise denied paths, retries, cancellation, duplicate delivery, stale versions, and unknown write outcomes, not only the happy path.
+5. Bind all evidence to the exact revision, then release progressively with feature flags, canaries, invariant telemetry, circuit breakers, and tested rollback. Production observation covers assumptions that static review cannot.
+6. Sample automatically approved changes after merge and inspect escaped defects, overrides, and maintainability over time. Tighten or withdraw the fast lane when outcomes degrade.
+
+People should review the specification, architecture, threat model, evidence quality, and residual risk rather than every implementation line. Keep human authorization for novel architecture and consequential changes until a narrowly defined class has passed an advisory period with measured false negatives and safe production outcomes. An AI reviewer can discover hypotheses and propose tests; it cannot certify its own implementation.
+
 ## Turn repeated manual checks into runnable verification
 
 When the same human correction recurs, write down the exact user path, starting state, observable success condition, and cleanup step. Put the executable check in the owning project, exposed by one native command such as `just verify-ui`. A short agent skill may start the application and call that command, but the assertion and evidence should live in code that another operator can run. Keep screenshots or traces with the revision and environment that produced them. Promote stable failures into deterministic tests; retain a human review step for judgments that cannot yet be asserted reliably. This is the transferable mechanism in [Anthropic's Claude Code verification loop](https://claude.com/blog/building-verification-loops-in-claude-code-with-skills) and the [supplied demonstration](https://www.youtube.com/watch?v=mQZB0l-rhxE).

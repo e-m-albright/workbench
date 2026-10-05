@@ -62,6 +62,14 @@ The decision rule remains: start from repository context, native tools, determin
 
 Sources: OpenAI, [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/); Anthropic, [The new rules of context engineering for Claude 5 generation models](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models); O'Reilly, [Stop Overengineering Your Agent Harness](https://www.oreilly.com/radar/stop-overengineering-your-agent-harness/); Galster et al., [Harness Engineering for Agentic AI Coding Tools](https://arxiv.org/abs/2602.14690); METR, [developer productivity experiment update](https://metr.org/blog/2026-02-24-uplift-update/) and [transcript-analysis note](https://metr.org/notes/2026-02-17-exploratory-transcript-analysis-for-estimating-time-savings-from-coding-agents/).
 
+### Local harness versus hosted agent service
+
+A CNCF commentary summarized the case for separating a scalable agent loop from the filesystems, sandboxes, permissions, context, and client interfaces around it. That is a sensible architecture for hundreds of migratable sessions, but it does not make a cloud-native control plane a requirement for a single operator. Kubernetes' Koordinator GPU-utilization case in the same article is unrelated evidence about workload scheduling, not evidence for agent-harness design.
+
+Keep Pi local and inspectable while one machine and one parent plus bounded worker meet the need. Revisit a hosted split only when measured session recovery, multi-device continuity, shared execution capacity, or tenant isolation cannot be solved by Paseo, hosted vendor tasks, or the current worker. At that point define the agent loop, execution environment, storage, identity, policy, and client protocol as separate contracts before selecting Kubernetes or another substrate.
+
+Source: The New Stack, [What Kubernetes' “monolith” lesson means for AI agent harnesses](https://thenewstack.io/kubecon-agent-harness-koordinator/), 2026-10-02. The article is HPE-sponsored and mainly summarizes Craig McLuckie's argument rather than presenting an implementation evaluation.
+
 ### Executable world models for long-horizon work
 
 [Schema](https://schema-harness.github.io/) adds a sharper pattern for agents that must discover an environment and act over many steps: preserve observations as an append-only ground-truth history; compile the current hypothesis into an executable state-transition model; replay that model against all prior evidence; search and plan cheaply inside the model; use real actions mainly to learn or commit; and invalidate the remaining plan as soon as reality disagrees. The model is useful because it is readable, diffable, replayable, and falsifiable, not because it is a perfect simulation.
