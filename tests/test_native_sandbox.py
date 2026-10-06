@@ -2,7 +2,9 @@
 
 import importlib.util
 import json
+import re
 import shlex
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -72,6 +74,32 @@ def test_hardening_preserves_arguments_and_denies_host_process_inspection():
         launcher.harden(shlex.join(original).replace("deny default", "allow default"))
 
 
+@pytest.mark.parametrize(
+    ("name", "denied"),
+    [
+        (".env", True),
+        (".ENV", True),
+        (".env.local", True),
+        (".Env.Production", True),
+        (".env.", True),
+        (".env.exampl", True),
+        (".env.examples", True),
+        (".env/nested", True),
+        (".env.example", False),
+        (".ENV.Sample", False),
+        (".env.template", False),
+        (".envrc", False),
+        ("app.env", False),
+    ],
+)
+def test_environment_guard_denies_secrets_and_admits_templates(name, denied):
+    # Seatbelt regex is POSIX-like; Python agrees on this lookahead-free subset.
+    guard = load_launcher().GUARD
+    assert "(?" not in guard
+    pattern = re.search(r'\(regex "(/\[\.\]\[Ee\][^"]+)"\)', guard).group(1)
+    assert bool(re.search(pattern, f"/repo/{name}")) is denied
+
+
 def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path, monkeypatch):
     launcher = load_launcher()
     home = tmp_path / "home"
@@ -119,6 +147,14 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     assert str(home / ".bun/bin") not in plan["policy"]["filesystem"]["allowRead"]
     assert plan["policy"]["filesystem"]["denyRead"][0] == "/"
     assert str(home / "code/*/private-data/**") in plan["policy"]["filesystem"]["denyWrite"]
+    for grant in ("allowRead", "allowWrite"):
+        assert str(home / "Desktop") in plan["policy"]["filesystem"][grant]
+    assert "/usr/local/bin" in plan["env"]["PATH"].split(":")
+    managed = "/Library/Application Support/ClaudeCode"
+    assert managed in plan["policy"]["filesystem"]["allowRead"]
+    assert managed not in plan["policy"]["filesystem"]["allowWrite"]
+    assert plan["policy"]["network"]["allowUnixSockets"] == []
+    assert plan["policy"]["network"]["allowLocalBinding"] is False
     assert plan["command"][0] == config["agents"]["codex"]["command"][0]
     assert "--version" in plan["command"]
     assert plan["command"][-1] == "--version"
@@ -141,6 +177,8 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     assert invariant in unrestricted["policy"]["filesystem"]["denyWrite"]
     assert unrestricted["env"]["WORKBENCH_AGENT_AUTHORITY"] == "unrestricted"
     assert unrestricted["policy"]["network"]["deniedResolvedAddresses"] == []
+    assert "/var/run/docker.sock" in unrestricted["policy"]["network"]["allowUnixSockets"]
+    assert unrestricted["policy"]["network"]["allowLocalBinding"] is True
     assert "mail.google.com" in unrestricted["policy"]["network"]["deniedDomains"]
     assert "drive.google.com" in unrestricted["policy"]["network"]["deniedDomains"]
     assert "*.googleapis.com" in unrestricted["policy"]["network"]["deniedDomains"]
@@ -327,3 +365,65 @@ def test_harness_initialization_cannot_overwrite_host_files(tmp_path, attack):
         launcher.initialize_home(plan, home)
         assert target.read_text() == "safe"
     assert victim.read_text() == "must remain untouched"
+
+
+def test_project_sandbox_deny_lists_tighten_both_authorities(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    repo = home / "code/example"
+    (repo / ".git").mkdir(parents=True)
+    (repo / ".claude").mkdir()
+    (repo / ".claude/settings.json").write_text(
+        json.dumps(
+            {
+                "sandbox": {
+                    "filesystem": {
+                        "denyWrite": ["guard.py", "./.githooks", "/opt/shared", "~/notes"],
+                        "denyRead": ["data/**"],
+                        "allowWrite": ["/"],
+                    }
+                }
+            }
+        )
+    )
+    (repo / ".claude/settings.local.json").write_text(
+        json.dumps({"sandbox": {"filesystem": {"denyWrite": ["local-guard"]}}})
+    )
+    config = {
+        "node": str(tmp_path / "tools/node"),
+        "agents": {"codex": {"command": ["codex"], "read": []}},
+    }
+    harness_manifest(home, "codex")
+    (home / ".config/workbench/private-paths").write_text("")
+    for authority in ("restricted", "unrestricted"):
+        policy = launcher.build_plan(
+            repo, home, config, "codex", "hosted", [], authority=authority
+        )["policy"]["filesystem"]
+        for denied in ("guard.py", ".githooks", "local-guard"):
+            assert str(repo / denied) in policy["denyWrite"]
+        assert "/opt/shared" in policy["denyWrite"]
+        assert str(home / "notes") in policy["denyWrite"]
+        assert str(repo / "data/**") in policy["denyRead"]
+        if authority == "restricted":
+            assert "/" not in policy["allowWrite"]
+
+    (repo / ".claude/settings.json").write_text("{broken")
+    with pytest.raises(ValueError, match="project policy"):
+        launcher.build_plan(repo, home, config, "codex", "hosted", [])
+
+
+def test_git_identity_comes_from_the_global_file_only(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    repo = home / "code/example"
+    repo.mkdir(parents=True)
+    subprocess.run(["/usr/bin/git", "init", "--quiet", str(repo)], check=True)
+    (repo / ".git/config").write_text("[user]\n\tname = Planted\n\temail = planted@example.com\n")
+    assert launcher.git_identity(home, repo) == {}
+    (home / ".gitconfig").write_text("[user]\n\tname = Octo Cat\n\temail = octocat@example.com\n")
+    assert launcher.git_identity(home, repo) == {
+        "GIT_AUTHOR_NAME": "Octo Cat",
+        "GIT_COMMITTER_NAME": "Octo Cat",
+        "GIT_AUTHOR_EMAIL": "octocat@example.com",
+        "GIT_COMMITTER_EMAIL": "octocat@example.com",
+    }

@@ -168,7 +168,9 @@ Skip the slower external installers when only configuration files need repair:
 workbench sync all --no-skills --no-plugins
 ```
 
-Managed work computers use the fail-closed work profile:
+Managed work computers use the fail-closed work profile. Both commands
+default to `$DOTFILES_PROFILE`, which the dotfiles shell sets, so plain
+`workbench sync` is enough there:
 
 ```bash
 workbench sync all --profile work
@@ -209,12 +211,12 @@ Run `workbench`, `wb`, or either launcher's `--help` flag for the complete tree:
 ```text
 workbench
 ├── sync [claude|codex|pi|all] deploy canonical configuration
-│   ├── --profile              personal (default) or work
+│   ├── --profile              personal or work (default: $DOTFILES_PROFILE)
 │   ├── --no-skills            skip shared-skill installation
 │   ├── --no-plugins           skip declared-plugin installation
 │   └── --rules-only           deploy only global instruction files
 ├── drift [claude|codex|pi|all] report managed drift and external additions
-│   └── --profile              personal (default) or work
+│   └── --profile              personal or work (default: $DOTFILES_PROFILE)
 ├── lint                       validate canonical repository sources
 └── native
     ├── prepare [--authorize]  install the restricted runtime and optional model logins

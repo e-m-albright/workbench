@@ -7,6 +7,7 @@ import os
 import secrets
 import shlex
 import stat
+import subprocess
 import sys
 import tempfile
 import termios
@@ -24,11 +25,30 @@ GUARD = """
 (deny sysctl-read (sysctl-name-prefix "kern.proc"))
 (deny process-info*)
 ; Match future environment files and confidential directories too, not just
-; paths present at launch. Character classes make confidential case-insensitive.
+; paths present at launch. Character classes make the match case-insensitive.
 (deny file-read* file-write* file-write-create file-write-unlink
-  (regex "/[.]env($|/|[.](?!(example|sample|template)($|/)))")
+  (regex "/[.][Ee][Nn][Vv]($|/|[.]ENV_SUFFIX)")
   (regex "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]($|/)"))
 """
+
+
+def _excluding(words: list[str]) -> str:
+    """Match a path component that is not exactly one of the words, ignoring case.
+
+    Seatbelt regex has no lookahead; an earlier lookahead silently inverted
+    the rule, so the complement is spelled out as a prefix tree instead.
+    """
+    branches = [] if "" in words else ["($|/)"]
+    heads = sorted({word[0].lower() for word in words if word})
+    branches.append("[^/" + "".join(c + c.upper() for c in heads) + "]")
+    for head in heads:
+        rest = [word[1:] for word in words if word and word[0].lower() == head]
+        branches.append(f"[{head}{head.upper()}]{_excluding(rest)}")
+    return "(" + "|".join(branches) + ")"
+
+
+ENV_TEMPLATES = ["example", "sample", "template"]
+GUARD = GUARD.replace("ENV_SUFFIX", _excluding(ENV_TEMPLATES))
 
 
 def harden(command: str) -> list[str]:
@@ -74,6 +94,65 @@ def workspace_root(cwd: Path, home: Path) -> Path:
                 raise ValueError("Linked worktrees are not supported by the native boundary")
             return root
     raise ValueError("Run from a Git repository")
+
+
+def git_identity(home: Path, cwd: Path) -> dict:
+    """Carry the host's commit identity, not its gitconfig, into the isolated home.
+
+    Only the owner's global file is read (cwd still selects includeIf blocks);
+    the agent-writable repository config is never consulted outside the sandbox.
+    """
+    env = {"HOME": str(home), "PATH": "/usr/bin:/bin", "GIT_CONFIG_NOSYSTEM": "1"}
+    identity = {}
+    for key, names in (
+        ("user.name", ("GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME")),
+        ("user.email", ("GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL")),
+    ):
+        try:
+            result = subprocess.run(
+                ["/usr/bin/git", "config", "--global", "--includes", "--get", key],
+                cwd=cwd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        value = result.stdout.strip()
+        if result.returncode == 0 and value:
+            identity.update(dict.fromkeys(names, value))
+    return identity
+
+
+def project_denials(root: Path, home: Path) -> tuple[list[str], list[str]]:
+    """Honor a checkout's Claude sandbox deny lists, which can only tighten the boundary.
+
+    The agent can edit these files, so allow lists are never read from them.
+    Paths follow Claude Code's sandbox rules: absolute, ~/home, or project-relative.
+    """
+    found: dict[str, list[str]] = {"denyRead": [], "denyWrite": []}
+    for name in ("settings.json", "settings.local.json"):
+        path = root / ".claude" / name
+        if not path.is_file():
+            continue
+        try:
+            settings = json.loads(path.read_text())
+        except ValueError as error:
+            raise ValueError(f"Unreadable project policy {path}: {error}") from None
+        filesystem = (settings.get("sandbox") or {}).get("filesystem") or {}
+        for key, paths in found.items():
+            entries = filesystem.get(key, [])
+            if not isinstance(entries, list) or not all(isinstance(e, str) for e in entries):
+                raise ValueError(f"{path}: sandbox.filesystem.{key} must be a list of paths")
+            for entry in entries:
+                if entry == "~" or entry.startswith("~/"):
+                    paths.append(str(home) + entry[1:])
+                elif entry.startswith("/"):
+                    paths.append(entry)
+                else:
+                    paths.append(str(root / entry.removeprefix("./")))
+    return found["denyRead"], found["denyWrite"]
 
 
 def build_plan(
@@ -159,9 +238,12 @@ def build_plan(
         "/private/etc",
         "/private/var/select",
         "/Library/Developer/CommandLineTools",
+        # Organization-managed Claude Code policy; skipping it would drop admin rules.
+        "/Library/Application Support/ClaudeCode",
         "/opt/homebrew/Cellar",
         "/opt/homebrew/opt",
         "/opt/homebrew/bin",
+        "/usr/local/bin",
         "/dev/null",
         "/dev/zero",
         "/dev/random",
@@ -206,6 +288,7 @@ def build_plan(
     hard_excludes = exclusions("hard-deny-paths", True)
     private_excludes = exclusions("private-paths", authority == "restricted")
     excludes = [*hard_excludes, *private_excludes] if authority == "restricted" else hard_excludes
+    project_read, project_write = project_denials(root, home)
     invariant_domains = [
         "mail.google.com",
         "outlook.live.com",
@@ -217,12 +300,20 @@ def build_plan(
         "*.googleapis.com",
         "*.googleusercontent.com",
     ]
+    # The owner's handoff folder; private and hard exclusions still apply inside it.
+    desktop = str(home / "Desktop")
     if authority == "restricted":
         filesystem = {
-            "denyRead": ["/", *excludes],
-            "allowRead": read,
-            "allowWrite": [str(root), str(agent_home), str(temp), *auth_files],
-            "denyWrite": ["/tmp/claude", "/private/tmp/claude", *excludes, *harness["read"]],
+            "denyRead": ["/", *excludes, *project_read],
+            "allowRead": [*read, desktop],
+            "allowWrite": [str(root), str(agent_home), str(temp), desktop, *auth_files],
+            "denyWrite": [
+                "/tmp/claude",
+                "/private/tmp/claude",
+                *excludes,
+                *harness["read"],
+                *project_write,
+            ],
         }
         denied_domains = ["localhost", *invariant_domains]
         denied_addresses = [
@@ -244,20 +335,32 @@ def build_plan(
         # Unrestricted means broad host authority, not permission to cross the
         # owner's invariant machine-local exclusions.
         filesystem = {
-            "denyRead": hard_excludes,
+            "denyRead": [*hard_excludes, *project_read],
             "allowRead": ["/"],
             "allowWrite": ["/"],
-            "denyWrite": [*hard_excludes, *harness["read"]],
+            "denyWrite": [*hard_excludes, *harness["read"], *project_write],
         }
         denied_domains = invariant_domains
         denied_addresses = []
+    # Docker controls the whole host, so only host authority may reach it.
+    sockets = []
+    if authority == "unrestricted":
+        sockets = [
+            "/var/run/docker.sock",
+            "/private/var/run/docker.sock",
+            str(home / ".orbstack/run/docker.sock"),
+            str(home / ".docker/run/docker.sock"),
+        ]
     policy = {
         "filesystem": filesystem,
         "network": {
             "allowedDomains": [],
             "deniedDomains": denied_domains,
             "deniedResolvedAddresses": denied_addresses,
-            "allowLocalBinding": True,
+            # The runtime pairs local binding with outbound loopback, which
+            # would reach every host service, so only host authority gets it.
+            "allowLocalBinding": authority == "unrestricted",
+            "allowUnixSockets": sockets,
         },
     }
     env = {key: os.environ[key] for key in ("TERM", "COLORTERM", "LANG") if key in os.environ}
@@ -268,7 +371,7 @@ def build_plan(
             "CLAUDE_CODE_TMPDIR": str(temp),
             "PATH": (
                 f"{node.parent}:{home}/.npm-global/bin:"
-                "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
             ),
             "SHELL": "/bin/bash",
             "NODE_USE_ENV_PROXY": "1",
@@ -279,6 +382,7 @@ def build_plan(
             "WORKBENCH_AGENT_LOCATION": location,
             "WORKBENCH_HOST_HOME": str(home),
             **auth_env,
+            **git_identity(home, root),
         }
     )
     return {

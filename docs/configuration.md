@@ -9,8 +9,8 @@ table. The fail-closed `work` profile targets only Claude Code and Pi. It deploy
 shared rules, tracked skills, hooks, and permission guards, but omits Codex,
 Claude plugins and Desktop configuration, MCP servers, externally downloaded
 skills, local-model routing, and browser and personal connector extensions. It
-still deploys the shared launchers and native Claude/Pi harnesses. Run both sync and drift with the same
-`--profile` value.
+still deploys the shared launchers and native Claude/Pi harnesses. Both sync and drift
+default `--profile` to `$DOTFILES_PROFILE`, falling back to `personal`.
 
 Restricted terminal sessions use the same instructions, skills, extensions, and presentation through
 a derived configuration that excludes host history and connector credentials.

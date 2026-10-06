@@ -8,6 +8,7 @@ import pty
 import re
 import select
 import shlex
+import shutil
 import signal
 import socket
 import subprocess
@@ -20,6 +21,13 @@ import pytest
 
 PILOT = os.environ.get("WORKBENCH_NATIVE_CANARY_HOME")
 pytestmark = pytest.mark.skipif(not PILOT, reason="requires an explicit disposable native pilot")
+
+
+def require_prepared(vendor):
+    """Work machines omit some vendors; preparation records only installed ones."""
+    tools = Path(PILOT) / ".local/share/workbench/native/tools.json"
+    if vendor not in json.loads(tools.read_text())["agents"]:
+        pytest.skip(f"{vendor} is not installed on this machine")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -79,6 +87,10 @@ export default function(pi) {
 }
 """)
     install_harness(home)
+    # Test the checkout's launcher, not the copy from the pilot's last preparation.
+    shell = Path(__file__).resolve().parents[1] / "agents/shared/shell"
+    for name in ("native-sandbox.py", "native-sandbox.mjs"):
+        shutil.copyfile(shell / name, home / ".local/share/workbench/shell" / name)
 
 
 def launch(repo, vendor, *args, stdin=None):
@@ -105,6 +117,13 @@ def test_real_files_network_and_children(tmp_path, monkeypatch):
     (repo / ".env").write_text("synthetic-only")
     (repo / "nested").mkdir()
     (repo / "nested/.env.production").write_text("nested-synthetic")
+    (repo / ".env.local").write_text("local-synthetic")
+    (repo / ".env.example").write_text("TEMPLATE=1")
+    (repo / "guarded").write_text("guarded-canary")
+    (repo / ".claude").mkdir()
+    (repo / ".claude/settings.json").write_text(
+        json.dumps({"sandbox": {"filesystem": {"denyWrite": ["guarded"]}}})
+    )
     private = tmp_path / "private"
     private.write_text("outside-canary")
     (repo / "escape").symlink_to(private)
@@ -146,6 +165,9 @@ denied /bin/cat .env
 denied /bin/bash -c 'echo overwritten > .env'
 denied /bin/bash -c 'echo appended >> .env'
 denied /bin/cat nested/.env.production
+denied /bin/cat .env.local
+denied /bin/bash -c 'echo bad > guarded'
+test "$(/bin/cat .env.example)" = TEMPLATE=1
 denied /bin/bash -c 'echo bad > nested/.env.production'
 denied /bin/bash -c 'echo bad > nested/.env.future'
 denied /bin/bash -c {shlex.quote("echo bad > " + shlex.quote(str(private)))}
@@ -168,6 +190,7 @@ echo CANARY-PASS
     assert "CANARY-PASS" in result.stdout
     assert private.read_text() == "outside-canary"
     assert (repo / ".env").read_text() == "synthetic-only"
+    assert (repo / "guarded").read_text() == "guarded-canary"
     assert (repo / "nested/.env.production").read_text() == "nested-synthetic"
     assert not (repo / "nested/.env.future").exists()
     assert (repo / "edited").read_text() == "edited\n"
@@ -176,6 +199,7 @@ echo CANARY-PASS
 
 @pytest.mark.parametrize("vendor", ["codex", "claude", "pi"])
 def test_real_vendor_startup_without_credentials(tmp_path, vendor):
+    require_prepared(vendor)
     (tmp_path / ".git").mkdir()
     result = launch(tmp_path, vendor, "--version")
     assert result.returncode == 0, result.stdout + result.stderr
@@ -236,6 +260,7 @@ def synthetic_auth_store():
 
 
 def test_real_codex_shared_login_survives_a_second_repository(tmp_path, synthetic_auth_store):
+    require_prepared("codex")
     first, second = tmp_path / "first", tmp_path / "second"
     for repo in (first, second):
         (repo / ".git").mkdir(parents=True)

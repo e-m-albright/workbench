@@ -86,12 +86,16 @@ multiple provider logins from its authentication store.
 | --- | --- |
 | Selected checkout | Read and write, including curated vault prose, structured world-model state, reviewed meeting notes, Git history, ignored files, and untracked files unless explicitly excluded. |
 | Machine-local private paths | Denied for reads and writes, including named paths inside the selected checkout. Raw meeting recordings, transcripts, and sidecars remain excluded; choosing a repository does not authorize those sources. |
-| Environment files | Real `.env` and `.env.*` paths are denied at every depth, including files created after launch. Documentation templates ending in `.example`, `.sample`, or `.template` remain usable. |
+| Environment files | Real `.env` and `.env.*` paths are denied at every depth and in any letter case, including files created after launch. Exactly `.env.example`, `.env.sample`, and `.env.template` remain usable. |
+| Desktop | Read and write, as the owner's handoff folder for generated documents. Private and invariant exclusions still apply. |
 | Other repositories and personal files | Not admitted merely because they are open or used by another agent. |
 | Agent state | One persistent home per repository plus a private temporary directory for the session. |
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
-| Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. |
+| Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. The Docker socket is blocked because Docker control is host control; host launches (`ccu`, `cou`) can reach it. |
 | Public network | Public HTTP and HTTPS are permitted through the runtime proxy; literal IP, private resolved destinations, email endpoints, Google Drive, and shared Google API/content endpoints are denied. |
+| Project sandbox deny lists | A checkout's `sandbox.filesystem.denyRead` and `denyWrite` in `.claude/settings.json` and `.claude/settings.local.json` are added to the outer policy in both authorities, using Claude Code's path rules. Allow lists there are ignored because the agent can edit those files. Malformed project settings fail the launch. |
+| Git identity | The host's global `user.name` and `user.email` are passed in as commit-identity environment variables. No other host Git configuration, such as credential helpers, is imported. |
+| Organization policy | Claude Code managed settings under `/Library/Application Support/ClaudeCode` are readable, never writable, so administrator rules still load. |
 | Harness configuration | Shared instructions, skills, extensions, prompts, themes, installed plugin code, model preferences, and interface settings. Host code assets are read-only; settings and caches remain in the isolated home. |
 | Local inference and editor/mobile protocols | Unsupported by the restricted launcher. |
 
@@ -146,7 +150,8 @@ their native labels. Pi's separate Codex-login quota probe is disabled inside
 the native boundary. These display settings import no host tools or credentials.
 
 The vendor's nested operating-system sandbox is disabled inside this enforced
-outer policy because macOS does not support nesting those policies. Vendor
+outer policy because macOS does not support nesting those policies. Claude Code
+project deny lists still apply through the outer policy, as described above. Vendor
 action approvals remain a separate layer and cannot expand the outer boundary.
 
 ## Accepted risks and limits

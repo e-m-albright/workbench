@@ -63,8 +63,10 @@ def test_work_profile_sync_is_fail_closed_and_drift_clean(tmp_path, monkeypatch)
     assert drift.drift(tmp_path, ("claude", "pi"), verify_plugins=False, profile="work") == 0
 
 
-def test_work_profile_rejects_codex_target():
+def test_work_profile_rejects_codex_target(monkeypatch):
     assert cli.main(["sync", "codex", "--profile", "work"]) == 2
+    monkeypatch.setenv("DOTFILES_PROFILE", "work")
+    assert cli.main(["sync", "codex"]) == 2
     assert cli.main(["drift", "codex", "--profile", "work"]) == 2
 
 

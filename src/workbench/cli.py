@@ -78,7 +78,11 @@ def sync(
     ] = False,
     profile: Annotated[
         DeploymentProfile,
-        typer.Option("--profile", help="deployment profile (default: personal)"),
+        typer.Option(
+            "--profile",
+            envvar="DOTFILES_PROFILE",
+            help="deployment profile (default: $DOTFILES_PROFILE, else personal)",
+        ),
     ] = DeploymentProfile.PERSONAL,
 ) -> None:
     """Deploy Workbench-managed configuration to supported coding agents."""
@@ -123,7 +127,11 @@ def drift(
     ] = False,
     profile: Annotated[
         DeploymentProfile,
-        typer.Option("--profile", help="deployment profile (default: personal)"),
+        typer.Option(
+            "--profile",
+            envvar="DOTFILES_PROFILE",
+            help="deployment profile (default: $DOTFILES_PROFILE, else personal)",
+        ),
     ] = DeploymentProfile.PERSONAL,
 ) -> None:
     """Compare live vendor configuration directly with canonical Workbench sources."""
