@@ -49,6 +49,11 @@ CLAUDE_KEYS = {
     "spinnerTipsEnabled",
     "terminalProgressBarEnabled",
     "alwaysThinkingEnabled",
+    "autoCompactEnabled",
+    "autoCompactWindow",
+    "precomputeCompactionEnabled",
+    # Natural-language classifier context only; it grants no tool or path access.
+    "autoMode",
 }
 CODEX_KEYS = {
     "model",

@@ -591,6 +591,14 @@ class WorkbenchTests(unittest.TestCase):
             self.assertTrue(actual["sandbox"]["enabled"])
             self.assertTrue(actual["sandbox"]["allowUnsandboxedCommands"])
             self.assertIn("git push *", actual["sandbox"]["excludedCommands"])
+            self.assertIn("git commit *", actual["sandbox"]["excludedCommands"])
+            self.assertIn("pypi.org", actual["sandbox"]["network"]["allowedDomains"])
+            self.assertIn("api.github.com", actual["sandbox"]["network"]["allowedDomains"])
+            self.assertIn("~/.local/share/uv", actual["sandbox"]["filesystem"]["allowWrite"])
+            self.assertEqual(actual["autoMode"]["environment"][0], "$defaults")
+            self.assertEqual(actual["autoMode"]["allow"][0], "$defaults")
+            self.assertNotIn("Bash(git branch -D:*)", actual["permissions"]["deny"])
+            self.assertIn("Bash(git reset --hard:*)", actual["permissions"]["deny"])
             self.assertNotIn("~/Documents", actual["sandbox"]["filesystem"]["denyRead"])
             self.assertEqual((home / ".claude.json").stat().st_mode & 0o777, 0o600)
             desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
@@ -1211,9 +1219,9 @@ js_repl = false
 
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_destructive_guard_blocks_any_recursive_force_delete(self) -> None:
+    def test_destructive_guard_blocks_recursive_force_delete_of_source(self) -> None:
         result = self.run_hook(
-            "guard-destructive-shell.sh", {"tool_input": {"command": "rm -rf build"}}
+            "guard-destructive-shell.sh", {"tool_input": {"command": "rm -rf src"}}
         )
 
         self.assertEqual(result.returncode, 2)
@@ -1238,7 +1246,7 @@ js_repl = false
         self.assertIn("--no-verify", result.stderr)
 
     def test_destructive_guard_blocks_alias_escape_and_eval(self) -> None:
-        for command in (r"\rm -rf build", 'x="rm -rf build"; eval $x'):
+        for command in (r"\rm -rf src", 'x="rm -rf build"; eval $x'):
             with self.subTest(command=command):
                 result = self.run_hook(
                     "guard-destructive-shell.sh",

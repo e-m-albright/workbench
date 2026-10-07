@@ -154,6 +154,39 @@ outer policy because macOS does not support nesting those policies. Claude Code
 project deny lists still apply through the outer policy, as described above. Vendor
 action approvals remain a separate layer and cannot expand the outer boundary.
 
+## Claude Code's own layers
+
+Direct native Claude sessions, started without a launcher, rely on Claude
+Code's sandbox from `CLAUDE_SANDBOX` in `src/workbench/core.py`. Its network
+allowlist admits package registries and GitHub, and it permits macOS
+certificate checks through `com.apple.trustd.agent`. It also admits writes to
+the Deno, uv, tenv, and agent-browser caches. A short list of commands runs
+outside that sandbox only when invoked on its own: network Git, `gh`,
+`git commit`, `docker compose`, `ps`, `pgrep`, and `open` for PDF, HTML, and
+PNG files. Sandboxed commands can reach the keychain, so the destructive guard
+blocks `git push` and `gh` writes that are chained, piped, or redirected. Run
+alone, they match the exclusion list and go through the normal approval.
+
+The destructive guard, `agents/shared/hooks/guard-destructive-shell.sh`, runs
+before every shell command in every hook-capable harness, inside or outside
+the launcher. It is a friction layer, not a security boundary. It parses each
+command with shell quoting respected and applies a rule only when the word is
+the command being run, so text in quotes, grep patterns, and heredocs do not
+trigger it. Recursive deletes are allowed under temporary directories and for
+build output such as `node_modules`, `.venv`, `__pycache__`, and `dist`.
+`git branch -D` is allowed when a tag or remote branch already contains the
+branch's commits. Code run by an interpreter, such as `python -c`, is not
+inspected. If the guard fails internally, it blocks the command.
+
+`CLAUDE_AUTO_MODE` gives Claude Code's auto mode classifier extra context on
+top of its built-in rules. It states that editing, testing, and committing in
+the Workbench checkout is ordinary development, while `workbench sync` and
+edits under `~/.claude`, `~/.codex`, or `~/.pi` remain self-modification. It
+also allows read-only Salesforce CLI queries. This text only informs the
+classifier and grants no tool or path access. Claude Code reads it only from
+user and managed settings, so launcher sessions receive it through the derived
+harness configuration, together with the auto-compaction settings.
+
 ## Accepted risks and limits
 
 Readable repository content can be sent to public destinations. Selecting a

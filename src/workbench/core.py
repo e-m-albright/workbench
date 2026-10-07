@@ -194,13 +194,41 @@ VENDOR_CHOICES = (*VENDORS, "all")
 # ~/.cache. Network Git and gh exclusions and approval-gated unsandboxed retries
 # preserve direct native Claude use. Managed launchers apply the shared outer boundary;
 # the catastrophe guards above still apply to every retry.
+#
+# allowedDomains opens package registries and GitHub so installs, fetches, and
+# read-only gh calls work inside the sandbox. Sandboxed commands can reach the
+# keychain, so a push chained with other commands could authenticate; the
+# destructive guard makes git push and gh writes run alone, where they match
+# excludedCommands and go through review. trustd.agent lets Deno and Go verify
+# TLS certificates. excludedCommands entries must match every part of a call,
+# so agents run them alone; git commit is excluded because hooks start Docker.
 CLAUDE_SANDBOX = {
     "enabled": True,
     "failIfUnavailable": True,
     "allowUnsandboxedCommands": True,
-    "network": {"allowLocalBinding": True},
+    "network": {
+        "allowLocalBinding": True,
+        "allowedDomains": [
+            "pypi.org",
+            "files.pythonhosted.org",
+            "registry.npmjs.org",
+            "jsr.io",
+            "registry.terraform.io",
+            "releases.hashicorp.com",
+            "github.com",
+            "api.github.com",
+            "objects.githubusercontent.com",
+        ],
+        "allowMachLookup": ["com.apple.trustd.agent"],
+    },
     "filesystem": {
-        "allowWrite": ["~/.cache"],
+        "allowWrite": [
+            "~/.cache",
+            "~/Library/Caches/deno",
+            "~/.local/share/uv",
+            "~/.tenv",
+            "~/.agent-browser",
+        ],
         "denyRead": [
             "~/.ssh",
             "~/.gnupg",
@@ -225,6 +253,36 @@ CLAUDE_SANDBOX = {
         "git pull *",
         "gh",
         "gh *",
+        "git commit *",
+        "docker compose *",
+        "ps",
+        "ps *",
+        "pgrep *",
+        "open *.pdf",
+        "open *.html",
+        "open *.png",
+    ],
+}
+
+
+# Context for the auto mode classifier, added to its built-in rules ("$defaults").
+# Claude Code reads autoMode only from user and managed settings, not a checkout.
+CLAUDE_AUTO_MODE = {
+    "environment": [
+        "$defaults",
+        "The Workbench repository (a checkout named workbench under ~/code) is the user's own "
+        "agent-configuration source. Editing, testing, and committing files in that checkout "
+        "is ordinary development work, not self-modification. Running `workbench sync` and "
+        "editing files under ~/.claude, ~/.codex, or ~/.pi still change the live agent "
+        "configuration and remain self-modification.",
+        "Docker Compose services started from a checkout, such as its local development "
+        "database, are disposable development resources owned by the user.",
+    ],
+    "allow": [
+        "$defaults",
+        "Read-only Salesforce CLI calls against an org the user already authenticated: "
+        "`sf data query`, `sf org list`, and `sf api request rest` with the GET method. "
+        "Printing or exporting access tokens remains credential materialization.",
     ],
 }
 

@@ -114,6 +114,8 @@ def test_preferences_are_shared_without_credentials_or_conversation_state(tmp_pa
             "model": "chosen-claude",
             "outputStyle": "Concise",
             "effortLevel": "high",
+            "autoCompactWindow": 400000,
+            "autoMode": {"environment": ["$defaults", "trusted checkout"]},
             "env": {"TOKEN": "private-secret"},
             "apiKeyHelper": "cat private-secret",
             "permissions": {"additionalDirectories": ["/private-records"]},
@@ -142,6 +144,8 @@ def test_preferences_are_shared_without_credentials_or_conversation_state(tmp_pa
     assert claude["model"] == "chosen-claude"
     assert claude["outputStyle"] == "Concise"
     assert claude["effortLevel"] == "high"
+    assert claude["autoCompactWindow"] == 400000
+    assert claude["autoMode"]["environment"] == ["$defaults", "trusted checkout"]
     codex = tomllib.loads(output(home, "codex", ".codex/config.toml"))
     assert codex["model"] == "chosen-codex"
     assert codex["model_reasoning_effort"] == "high"
