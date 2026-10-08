@@ -80,6 +80,57 @@ credential broker is not required for this workflow; reconsider it only if
 provider-token exposure stops being acceptable. Pi enrollment may include
 multiple provider logins from its authentication store.
 
+## Repository credentials
+
+The sandbox protects the Mac; credentials decide what a session can break
+elsewhere. Command-pattern rules, such as denying an AWS profile by name, are
+not a boundary because the same API is reachable through another tool. Give a
+checkout only credentials whose worst case is acceptable, scope them at the
+provider, and keep irreversible protection server-side: branch protection on
+the default branch and no production credentials at all.
+
+`~/.config/workbench/repo-credentials.json` is machine-local and optional.
+It maps a checkout path to what the launcher grants that checkout's sessions:
+
+```json
+{
+  "~/code/example": {
+    "github": "workbench-github-example",
+    "aws": "example-sandbox",
+    "ports": [5432, 8000, 5173]
+  }
+}
+```
+
+- `github` names a Keychain service holding a fine-grained token limited to
+  that repository. The launcher reads it and passes `GH_TOKEN`, plus a Git
+  credential helper set through environment variables, so `git fetch`,
+  `git push`, and `gh` work without a host helper or a writable `.git/config`.
+  Store it with `security add-generic-password -s <service> -a github -w`.
+- `aws` names a host profile whose role reaches only a sandbox account. The
+  launcher sets `AWS_PROFILE` and the region, and writes that profile's
+  short-lived keys into the session's own `~/.aws/credentials`, never `~/.aws`
+  or the SSO cache, which can reach every account the login can. A role assumed
+  from SSO lasts at most an hour, so the launcher refreshes the file every five
+  minutes from the host. Sign in with `aws sso login --profile <name>` first; an
+  expired sign-in fails the launch with that command, and during a session the
+  next refresh after signing in restores access.
+
+- `ports` lists the loopback ports the project's own services use, such as
+  its database, API and test servers. Sessions may then serve on any local
+  port, and connect to loopback only on those ports, so tests that start
+  servers and use a local database run, while other services on the Mac stay
+  unreachable. Without the key, sessions can neither serve nor reach loopback.
+
+The session can use or leak whatever it receives. A typo or unknown key fails
+the launch. Restricted sessions cannot edit the file.
+
+Docker is deliberately absent. The Docker socket can mount any host path into
+a container, so it is host authority; do Docker work in a host launch.
+The pinned sandbox runtime keeps `.git/config` and `.git/hooks` unwritable in
+both authorities because Git executes settings from them later on the host.
+Change remotes or hooks from an ordinary terminal.
+
 ## Enforced permissions
 
 | Resource | Restricted terminal policy |
@@ -91,10 +142,11 @@ multiple provider logins from its authentication store.
 | Other repositories and personal files | Not admitted merely because they are open or used by another agent. |
 | Agent state | One persistent home per repository plus a private temporary directory for the session. |
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
-| Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. The Docker socket is blocked because Docker control is host control; host launches (`ccu`, `cou`) can reach it. |
+| Host integrations | The certificate-trust service is reachable so TLS verification works for Go tools such as `gh`. Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. The Docker socket is blocked because Docker control is host control; host launches (`ccu`, `cou`) can reach it. |
 | Public network | Public HTTP and HTTPS are permitted through the runtime proxy; literal IP, private resolved destinations, email endpoints, Google Drive, and shared Google API/content endpoints are denied. |
 | Project sandbox deny lists | A checkout's `sandbox.filesystem.denyRead` and `denyWrite` in `.claude/settings.json` and `.claude/settings.local.json` are added to the outer policy in both authorities, using Claude Code's path rules. Allow lists there are ignored because the agent can edit those files. Malformed project settings fail the launch. |
 | Git identity | The host's global `user.name` and `user.email` are passed in as commit-identity environment variables. No other host Git configuration, such as credential helpers, is imported. |
+| Repository credentials | Only the GitHub token and AWS profile assigned to the selected checkout, described below. |
 | Organization policy | Claude Code managed settings under `/Library/Application Support/ClaudeCode` are readable, never writable, so administrator rules still load. |
 | Harness configuration | Shared instructions, skills, extensions, prompts, themes, installed plugin code, model preferences, and interface settings. Host code assets are read-only; settings and caches remain in the isolated home. |
 | Local inference and editor/mobile protocols | Unsupported by the restricted launcher. |
@@ -112,8 +164,11 @@ tool paths are also admitted. The launcher starts with a clean environment,
 without ambient credential variables, shell startup overrides, or inherited
 upstream proxy settings.
 
-Managed Python, Node/npm and pnpm installations are readable so existing
-repository tooling works. Their host configuration and package caches are not
+Managed Python, Node/npm and pnpm installations, and the browsers Playwright
+installed under `~/Library/Caches/ms-playwright`, are readable so existing
+repository tooling works. Sessions cannot download browsers themselves,
+because Playwright's download host redirects to Google storage, which the
+invariant domain list denies; install or update them from an ordinary terminal. Their host configuration and package caches are not
 imported; new per-project caches live in the isolated home.
 
 A pinned [Anthropic Sandbox Runtime](https://github.com/anthropics/sandbox-runtime)

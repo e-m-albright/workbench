@@ -24,10 +24,21 @@ try {
   if (wrapped.argv.length !== 3 || wrapped.argv[0] !== "/bin/bash" || wrapped.argv[1] !== "-c") {
     throw new Error("Unexpected sandbox runtime launch shape");
   }
-  child = spawn("/usr/bin/python3", ["-I", "-S", adapter, "--apply", wrapped.argv[2]], {
+  child = spawn("/usr/bin/python3", ["-I", "-S", adapter, "--apply", wrapped.argv[2], JSON.stringify(plan.ports ?? [])], {
     cwd: plan.cwd, env: wrapped.env, stdio: "inherit",
   });
   process.on("SIGTERM", () => child.kill("SIGTERM"));
+  // Roles assumed from SSO last an hour; keep the session's keys current from the host.
+  // A failed refresh is silent here, and the session's AWS calls report the expiry.
+  if (plan.aws_refresh) {
+    const refresh = JSON.stringify(plan.aws_refresh);
+    const timer = setInterval(() => {
+      spawn("/usr/bin/python3", ["-I", "-S", adapter, "--refresh-aws", refresh], {
+        env: { PATH: "/usr/bin:/bin" }, stdio: "ignore",
+      }).on("error", () => {});
+    }, 5 * 60 * 1000);
+    child.once("exit", () => clearInterval(timer));
+  }
   // Terminal SIGINT already reaches the child; keep the proxy alive during its cleanup.
   process.on("SIGINT", () => {});
   process.exitCode = await new Promise((resolve, reject) => {

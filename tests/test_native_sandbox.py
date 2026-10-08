@@ -67,6 +67,8 @@ def test_hardening_preserves_arguments_and_denies_host_process_inspection():
     assert "(deny process-info*)" in hardened[4]
     assert "kern.proc" in hardened[4]
     assert "com.apple.securityd.xpc" in hardened[4]
+    assert '(allow mach-lookup (global-name "com.apple.trustd.agent"))' in hardened[4]
+    assert '(global-name-prefix "org.chromium.Chromium.MachPortRendezvousServer.")' in hardened[4]
     assert "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]" in hardened[4]
     with pytest.raises(ValueError):
         launcher.harden("echo unexpected-runtime-output")
@@ -140,6 +142,11 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
         assert str(home / relative) in plan["policy"]["filesystem"]["allowRead"]
         assert str(home / relative) not in plan["policy"]["filesystem"]["allowWrite"]
     assert str(home / ".npm-global/bin") in plan["env"]["PATH"].split(":")
+    browsers = str(home / "Library/Caches/ms-playwright")
+    assert browsers in plan["policy"]["filesystem"]["allowRead"]
+    assert browsers not in plan["policy"]["filesystem"]["allowWrite"]
+    assert plan["env"]["PLAYWRIGHT_BROWSERS_PATH"] == browsers
+    assert plan["ports"] == []
     zoneinfo = "/private/var/db/timezone/zoneinfo"
     assert zoneinfo in plan["policy"]["filesystem"]["allowRead"]
     assert plan["env"]["PYTHONTZPATH"] == zoneinfo
@@ -410,6 +417,107 @@ def test_project_sandbox_deny_lists_tighten_both_authorities(tmp_path):
     (repo / ".claude/settings.json").write_text("{broken")
     with pytest.raises(ValueError, match="project policy"):
         launcher.build_plan(repo, home, config, "codex", "hosted", [])
+
+
+def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    repo = home / "code/example"
+    repo.mkdir(parents=True)
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        assert kwargs["env"]["HOME"] == str(home)
+        if command[0] == "/usr/bin/security":
+            stdout = "synthetic-github-token\n"
+        elif "export-credentials" in command:
+            stdout = json.dumps(
+                {
+                    "Version": 1,
+                    "AccessKeyId": "AKIASYNTHETIC",
+                    "SecretAccessKey": "synthetic-secret",
+                    "SessionToken": "synthetic-session",
+                    "Expiration": "2030-01-01T00:00:00+00:00",
+                }
+            )
+        else:
+            stdout = "us-west-2\n"
+        return subprocess.CompletedProcess(command, 0, stdout, "")
+
+    assert launcher.repository_credentials(home, repo, run) == {}
+    config = home / ".config/workbench/repo-credentials.json"
+    config.parent.mkdir(parents=True)
+    config.write_text(json.dumps({"~/code/other": {"github": "elsewhere"}}))
+    assert launcher.repository_credentials(home, repo, run) == {}
+    assert calls == []
+
+    config.write_text(json.dumps({"~/code/example": {"github": "example-token", "aws": "sandbox"}}))
+    issued = launcher.repository_credentials(home, repo, run)
+    assert issued["GH_TOKEN"] == "synthetic-github-token"
+    assert issued["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"
+    assert issued["AWS_PROFILE"] == "sandbox"
+    assert issued["AWS_REGION"] == "us-west-2"
+    assert not any(key.startswith("AWS_") and "KEY" in key for key in issued)
+
+    helper = issued["GIT_CONFIG_VALUE_0"].removeprefix("!")
+    answer = subprocess.run(
+        # Git appends the action to a shell helper's command string.
+        ["/bin/sh", "-c", f"{helper} get"],
+        env={"GH_TOKEN": "synthetic-github-token", "PATH": "/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert answer.stdout == "username=x-access-token\npassword=synthetic-github-token\n"
+
+    def expired(command, **kwargs):
+        return subprocess.CompletedProcess(command, 255, "", "token expired")
+
+    agent_home = home / ".local/share/workbench/agent-state/example/home"
+    launcher.refresh_aws(home, agent_home, "sandbox", run)
+    assert calls[-1][1:5] == ["configure", "export-credentials", "--profile", "sandbox"]
+    written = agent_home / ".aws/credentials"
+    assert written.read_text() == (
+        "[sandbox]\naws_access_key_id = AKIASYNTHETIC\n"
+        "aws_secret_access_key = synthetic-secret\naws_session_token = synthetic-session\n"
+    )
+    assert written.stat().st_mode & 0o777 == 0o600
+    victim = home / "victim"
+    victim.write_text("must remain untouched")
+    written.unlink()
+    written.symlink_to(victim)
+    launcher.refresh_aws(home, agent_home, "sandbox", run)
+    assert victim.read_text() == "must remain untouched"
+    assert not written.is_symlink()
+    with pytest.raises(ValueError, match="aws sso login --profile sandbox"):
+        launcher.refresh_aws(home, agent_home, "sandbox", expired)
+    config.write_text(json.dumps({str(repo): {"aws": "sandbox", "docker": "yes"}}))
+    with pytest.raises(ValueError, match="'ports' to a list"):
+        launcher.repository_credentials(home, repo, run)
+    config.write_text(json.dumps({str(repo): {"ports": [5432, "8000"]}}))
+    with pytest.raises(ValueError, match="1 to 65535"):
+        launcher.repository_grants(home, repo)
+    config.write_text(json.dumps({str(repo): {"ports": [5432]}}))
+    assert launcher.repository_grants(home, repo) == {"ports": [5432]}
+    assert launcher.repository_credentials(home, repo, run) == {}
+
+
+def test_loopback_ports_admit_serving_but_only_listed_destinations():
+    launcher = load_launcher()
+    profile = "(version 1)\n(deny default)\n(allow process-exec)"
+    command = shlex.join(
+        ["env", "A=1", "/usr/bin/sandbox-exec", "-p", profile, "/bin/bash", "-c", "true"]
+    )
+    closed = launcher.harden(command)[4]
+    assert "network-bind" not in closed and "network-outbound" not in closed
+    opened = launcher.harden(command, [5432, 15173])[4]
+    assert '(allow network-bind (local ip "*:*"))' in opened
+    assert '(allow network-outbound (remote ip "localhost:5432"))' in opened
+    assert '(allow network-outbound (remote ip "localhost:15173"))' in opened
+    assert '"localhost:*"' not in opened
+    with pytest.raises(ValueError):
+        launcher.harden(command, [0])
 
 
 def test_git_identity_comes_from_the_global_file_only(tmp_path):

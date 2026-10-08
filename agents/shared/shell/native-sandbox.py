@@ -24,6 +24,12 @@ GUARD = """
 (deny distributed-notification-post)
 (deny sysctl-read (sysctl-name-prefix "kern.proc"))
 (deny process-info*)
+; Certificate evaluation only; Go tools such as gh fail TLS checks without it.
+(allow mach-lookup (global-name "com.apple.trustd.agent"))
+; Chromium, as Playwright runs it, hands ports to its own children through a
+; per-process name; refusing it aborts the browser at startup.
+(allow mach-register mach-lookup
+  (global-name-prefix "org.chromium.Chromium.MachPortRendezvousServer."))
 ; Match future environment files and confidential directories too, not just
 ; paths present at launch. Character classes make the match case-insensitive.
 (deny file-read* file-write* file-write-create file-write-unlink
@@ -51,7 +57,23 @@ ENV_TEMPLATES = ["example", "sample", "template"]
 GUARD = GUARD.replace("ENV_SUFFIX", _excluding(ENV_TEMPLATES))
 
 
-def harden(command: str) -> list[str]:
+def loopback_rules(ports: list[int]) -> str:
+    """Let a session serve locally and reach only the owner's listed loopback ports.
+
+    Binding and inbound are local operations, so any address is safe there (the
+    runtime explains why IPv4-mapped sockets need "*:*"). Outbound stays limited
+    to the listed ports, never every service on the Mac's loopback.
+    """
+    if not ports:
+        return ""
+    if not all(isinstance(port, int) and 0 < port < 65536 for port in ports):
+        raise ValueError("Loopback ports must be integers from 1 to 65535")
+    rules = ['(allow network-bind (local ip "*:*"))', '(allow network-inbound (local ip "*:*"))']
+    rules += [f'(allow network-outbound (remote ip "localhost:{port}"))' for port in ports]
+    return "\n" + "\n".join(rules) + "\n"
+
+
+def harden(command: str, ports: list[int] = ()) -> list[str]:
     """Adapt the pinned upstream's quoted argv, refusing an unfamiliar output shape."""
     args = shlex.split(command)
     if not args or args[0] != "env":
@@ -65,7 +87,7 @@ def harden(command: str) -> list[str]:
         raise ValueError("Unexpected sandbox runtime environment")
     if not args[sandbox + 2].startswith("(version 1)\n(deny default"):
         raise ValueError("Sandbox runtime no longer denies by default")
-    args[sandbox + 2] += GUARD
+    args[sandbox + 2] += GUARD + loopback_rules(list(ports))
     # Admit only inherited terminal devices, never every other terminal on the Mac.
     terminals = set()
     for descriptor in (0, 1, 2):
@@ -123,6 +145,145 @@ def git_identity(home: Path, cwd: Path) -> dict:
         if result.returncode == 0 and value:
             identity.update(dict.fromkeys(names, value))
     return identity
+
+
+REPOSITORY_GRANTS = {"github", "aws", "ports"}
+# Git asks this helper for GitHub credentials; it answers from the launch token
+# so neither a host credential helper nor the protected .git/config is needed.
+GITHUB_HELPER = (
+    '!f() { test "$1" = get && '
+    "printf 'username=x-access-token\\npassword=%s\\n' \"$GH_TOKEN\"; }; f"
+)
+
+
+def host_output(home: Path, command: list[str], failure: str, run=subprocess.run) -> str:
+    """Run a host credential tool with the owner's home, returning its trimmed output."""
+    env = {"HOME": str(home), "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"}
+    try:
+        result = run(command, env=env, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        raise ValueError(failure) from None
+    if result.returncode != 0 or not result.stdout.strip():
+        raise ValueError(failure)
+    return result.stdout.strip()
+
+
+def aws_command() -> str:
+    candidates = ("/opt/homebrew/bin/aws", "/usr/local/bin/aws")
+    return next((path for path in candidates if Path(path).exists()), "aws")
+
+
+def repository_grants(home: Path, root: Path) -> dict:
+    """Read what the owner assigned to this checkout, failing on any typo.
+
+    `~/.config/workbench/repo-credentials.json` maps a checkout path to a
+    Keychain service holding a GitHub token scoped to that repository, an AWS
+    profile whose role should reach only a sandbox account, and the loopback
+    ports its own services use. Provider-side scope is the real credential
+    limit; the session can use or leak what it receives.
+    """
+    path = home / ".config/workbench/repo-credentials.json"
+    if not path.is_file():
+        return {}
+    try:
+        config = json.loads(path.read_text())
+    except ValueError as error:
+        raise ValueError(f"Unreadable {path}: {error}") from None
+    if not isinstance(config, dict):
+        raise ValueError(f"{path} must map checkout paths to credentials")
+    entry = None
+    for key, value in config.items():
+        checkout = Path(str(home) + key[1:] if key.startswith("~/") else key)
+        if checkout.resolve() == root:
+            entry = value
+    if entry is None:
+        return {}
+    names = (
+        {key: value for key, value in entry.items() if key != "ports"}
+        if isinstance(entry, dict)
+        else None
+    )
+    if (
+        names is None
+        or not set(entry) <= REPOSITORY_GRANTS
+        or not all(isinstance(v, str) and v for v in names.values())
+        or not isinstance(entry.get("ports", []), list)
+    ):
+        raise ValueError(
+            f"{path}: each checkout maps 'github' and 'aws' to names and 'ports' to a list"
+        )
+    loopback_rules(entry.get("ports", []))
+    return entry
+
+
+def repository_credentials(home: Path, root: Path, run=subprocess.run) -> dict:
+    """Issue the GitHub token and AWS profile settings assigned to this checkout.
+
+    AWS keys are written by `refresh_aws`, not passed here.
+    """
+    entry = repository_grants(home, root)
+    issued = {}
+    if "github" in entry:
+        service = entry["github"]
+        token = host_output(
+            home,
+            ["/usr/bin/security", "find-generic-password", "-s", service, "-w"],
+            f"No GitHub token in Keychain service {service!r}; add it with "
+            f"`security add-generic-password -s {service} -a github -w`",
+            run,
+        )
+        issued.update(
+            {
+                "GH_TOKEN": token,
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "credential.https://github.com.helper",
+                "GIT_CONFIG_VALUE_0": GITHUB_HELPER,
+            }
+        )
+    if "aws" in entry:
+        profile = entry["aws"]
+        # The session's profile shares the host profile's name, so a project
+        # setting such as AWS_PROFILE resolves the same way inside and outside.
+        issued["AWS_PROFILE"] = profile
+        with contextlib.suppress(ValueError):
+            command = [aws_command(), "configure", "get", "region", "--profile", profile]
+            region = host_output(home, command, "", run)
+            issued.update({"AWS_REGION": region, "AWS_DEFAULT_REGION": region})
+    return issued
+
+
+def refresh_aws(home: Path, agent_home: Path, profile: str, run=subprocess.run) -> None:
+    """Write one profile's short-lived keys into the session's own credentials file.
+
+    A role assumed from an SSO session lasts at most an hour, so the supervisor
+    calls this again during the session; the host CLI reuses its cached keys
+    until they near expiry. The SSO cache itself never enters the session.
+    """
+    # A role profile signs in through its source profile, so name that one.
+    try:
+        source = host_output(
+            home,
+            [aws_command(), "configure", "get", "source_profile", "--profile", profile],
+            "",
+            run,
+        )
+    except ValueError:
+        source = profile
+    failure = f"AWS profile {profile!r} has no session; run `aws sso login --profile {source}`"
+    command = [aws_command(), "configure", "export-credentials", "--profile", profile]
+    exported = host_output(home, [*command, "--format", "process"], failure, run)
+    try:
+        keys = json.loads(exported)
+        lines = [
+            f"[{profile}]",
+            f"aws_access_key_id = {keys['AccessKeyId']}",
+            f"aws_secret_access_key = {keys['SecretAccessKey']}",
+        ]
+    except (ValueError, KeyError, TypeError):
+        raise ValueError(failure) from None
+    if keys.get("SessionToken"):
+        lines.append(f"aws_session_token = {keys['SessionToken']}")
+    write_state_file(home, agent_home / ".aws/credentials", "\n".join(lines).encode() + b"\n")
 
 
 def project_denials(root: Path, home: Path) -> tuple[list[str], list[str]]:
@@ -255,6 +416,9 @@ def build_plan(
         str(node.parent.parent / "lib/node_modules/npm"),
         # Managed tool installations only, not host settings or package caches.
         str(home / ".local/share/uv/python"),
+        # Browsers the host installed; Playwright's download host redirects to
+        # Google storage, which the invariant domain list denies.
+        str(home / "Library/Caches/ms-playwright"),
         str(home / ".npm-global/bin"),
         str(home / ".npm-global/global"),
         str(home / ".npm-global/lib/node_modules/agent-browser"),
@@ -383,6 +547,8 @@ def build_plan(
             "WORKBENCH_HOST_HOME": str(home),
             **auth_env,
             **git_identity(home, root),
+            "PLAYWRIGHT_BROWSERS_PATH": str(home / "Library/Caches/ms-playwright"),
+            **repository_credentials(home, root),
         }
     )
     return {
@@ -395,6 +561,8 @@ def build_plan(
         "auth_link": auth_link,
         "harness": harness,
         "authority": authority,
+        "aws_profile": env.get("AWS_PROFILE"),
+        "ports": repository_grants(home, root).get("ports", []),
     }
 
 
@@ -463,22 +631,32 @@ def initialize_home(plan: dict, home: Path) -> None:
         if item["path"] == ".codex/config.toml":
             escaped_home = json.dumps(str(agent_home), ensure_ascii=False)[1:-1].encode()
             content = content.replace(b"__WORKBENCH_AGENT_HOME__", escaped_home)
-        with state_directory(home, path.parent) as descriptor:
-            # Atomic replacement also breaks hostile hardlinks; never truncate a state file.
-            temporary = f".workbench-{secrets.token_hex(12)}"
-            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=descriptor)
-            try:
-                with os.fdopen(fd, "wb") as stream:
-                    stream.write(content)
-                os.replace(temporary, path.name, src_dir_fd=descriptor, dst_dir_fd=descriptor)
-            finally:
-                with contextlib.suppress(FileNotFoundError):
-                    os.unlink(temporary, dir_fd=descriptor)
+        write_state_file(home, path, content)
+
+
+def write_state_file(home: Path, path: Path, content: bytes) -> None:
+    """Replace a file in agent-writable state without following planted links."""
+    with state_directory(home, path.parent) as descriptor:
+        # Atomic replacement also breaks hostile hardlinks; never truncate a state file.
+        temporary = f".workbench-{secrets.token_hex(12)}"
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=descriptor)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(content)
+            os.replace(temporary, path.name, src_dir_fd=descriptor, dst_dir_fd=descriptor)
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(temporary, dir_fd=descriptor)
 
 
 def main() -> None:
     if sys.argv[1:2] == ["--apply"]:
-        os.execv("/usr/bin/env", harden(sys.argv[2]))
+        ports = json.loads(sys.argv[3]) if len(sys.argv) > 3 else []
+        os.execv("/usr/bin/env", harden(sys.argv[2], ports))
+    if sys.argv[1:2] == ["--refresh-aws"]:
+        request = json.loads(sys.argv[2])
+        refresh_aws(Path(request["home"]), Path(request["agent_home"]), request["profile"])
+        return
     if sys.platform != "darwin":
         raise ValueError("The native boundary requires macOS")
     if len(sys.argv) < 3:
@@ -509,6 +687,13 @@ def main() -> None:
             authority=authority,
         )
         initialize_home(plan, home)
+        if plan["aws_profile"]:
+            refresh_aws(home, Path(plan["env"]["HOME"]), plan["aws_profile"])
+            plan["aws_refresh"] = {
+                "home": str(home),
+                "agent_home": plan["env"]["HOME"],
+                "profile": plan["aws_profile"],
+            }
     except Exception:
         scratch.rmdir()
         raise
