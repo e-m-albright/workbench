@@ -563,7 +563,19 @@ def build_plan(
         "authority": authority,
         "aws_profile": env.get("AWS_PROFILE"),
         "ports": repository_grants(home, root).get("ports", []),
+        "resume_hint": resume_hint(vendor, authority),
     }
+
+
+def resume_hint(vendor: str, authority: str):
+    """Name the launcher that can see this checkout's isolated session history."""
+    if vendor != "claude":
+        return None
+    launcher = "ccu" if authority == "unrestricted" else "cc"
+    return (
+        "workbench: sessions live in this checkout's managed agent home, so bare "
+        f"`claude --resume` cannot find them; run `{launcher} --resume <id>` from this checkout"
+    )
 
 
 @contextlib.contextmanager

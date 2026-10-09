@@ -237,6 +237,13 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
         assert plan["env"]["WORKBENCH_PI_MODE"] == "hosted-restricted"
     else:
         assert plan["env"]["CLAUDE_SECURESTORAGE_CONFIG_DIR"] == str(store)
+        assert "`cc --resume <id>`" in plan["resume_hint"]
+        unrestricted = launcher.build_plan(
+            repo, home, config, vendor, "hosted", [], authority="unrestricted"
+        )
+        assert "`ccu --resume <id>`" in unrestricted["resume_hint"]
+    if vendor != "claude":
+        assert plan["resume_hint"] is None
 
 
 def test_home_initialization_refuses_agent_planted_parent_symlinks(tmp_path):

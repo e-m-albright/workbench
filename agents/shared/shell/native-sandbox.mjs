@@ -45,6 +45,7 @@ try {
     child.once("error", reject);
     child.once("exit", (code, signal) => resolve(code ?? (signal === "SIGINT" ? 130 : 1)));
   });
+  if (plan.resume_hint && process.stderr.isTTY) console.error(plan.resume_hint);
 } catch (error) {
   console.error(`native sandbox: ${error.message}`);
   process.exitCode = 1;
