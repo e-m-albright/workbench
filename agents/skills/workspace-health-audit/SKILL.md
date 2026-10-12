@@ -64,11 +64,12 @@ Automated workflows often push branches without opening PRs. Common prefixes: `w
 **Bulk-delete pattern** — only branches that are fully merged AND have no open PR. A pushed-for-backup branch with unmerged commits must never be auto-deleted, even if its name matches a cleanup prefix:
 
 ```bash
-pr_heads=$(mktemp)
+pr_heads=$(mktemp) delete_list=$(mktemp)
 gh pr list --state open --json headRefName --jq '.[].headRefName' > "$pr_heads"
 git branch -r --merged origin/main | grep -E 'origin/(worktree-|auto-ratchet/|audit/)' \
   | sed 's|^ *origin/||' | grep -vFf "$pr_heads" \
-  | xargs -n1 -I{} git push origin --delete {}
+  > "$delete_list"
+cat "$delete_list"   # review, then delete each per "Executing an Authorized Cleanup"
 ```
 
 Branches the prefix matched but `--merged` excluded are unmerged: list them (`git branch -r --no-merged origin/main`) and review by hand — `git cherry main <branch>` distinguishes genuinely-unique commits from rebased duplicates.
@@ -123,4 +124,11 @@ Read [audit-checklists.md](references/audit-checklists.md) for: duplicate defini
 
 - This skill is **read-mostly**. Only take destructive actions (dropping stashes, removing worktrees, deleting branches) when the user explicitly authorizes cleanup, not just audit.
 - When in doubt about whether work is superseded, flag for review rather than deleting.
+
+## Executing an Authorized Cleanup
+
+- **Re-inventory immediately before acting.** Other agents may be cleaning, rebasing, or switching branches in the same repository between the audit and the cleanup. Rerun `git worktree list`, `git branch`, and `git stash list` first; if anything moved, find out where the work went (`git branch -a --contains <sha>`, `git cherry`) and leave alone any worktree or branch another session is actively using.
+- **Delete remote branches without triggering push hooks.** `git push origin --delete` runs the repository's `pre-push` hook, which may run a full test or build gate and fail for environmental reasons. Delete merged remote branches with one `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` per branch, run as its own command, then `git remote prune origin`. Do not reach for `--no-verify`.
+- **Hand off force deletions of unpushed branches.** The Workbench destructive-command guard blocks `git branch -D` when no remote or tag holds the commits. After proving the work is superseded, give the owner the exact `git branch -D` command in an Instructions section rather than retrying or working around the guard.
+- **Expect sandbox write limits on `.git/config`.** Branch deletions can succeed while failing to remove their `[branch "…"]` config sections. The leftovers are harmless; mention them rather than escalating.
 - The duplicate-definition check ([audit-checklists.md](references/audit-checklists.md) §5) is the highest-value section — parallel agents creating conflicting types is the most dangerous failure mode because it compiles fine but produces runtime bugs.
