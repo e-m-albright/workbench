@@ -65,3 +65,86 @@ The resulting requirements are stronger than “put secrets in a vault”:
 Compare any deployment against those requirements explicitly. Workbench's [implemented boundary and accepted limits](../../docs/security/isolation.md) are separate from these stronger design criteria; local isolation alone does not establish brokered credentials or default-deny network access.
 
 - **[OpenAPPA](https://github.com/archestra-ai/OpenAPPA)** -- **WATCH FOR UNTRUSTED-CONTENT POLICY.** Trial only when a bounded workflow needs information-flow restrictions at the tool boundary; independently test bypasses and fail-closed behavior. The [authority boundary](#authority-belongs-outside-generated-code) owns the mechanism and its limits.
+
+## Hosted sandboxes and credential gateways
+
+Reviewed 2026-10-10. These are candidates for specific gaps, not an active
+deployment. The [TypeScript runtime exploration](../languages/typescript/runtimes.md)
+owns Deno/Bun selection; choosing an execution service does not require choosing
+the same vendor's application runtime.
+
+### Why the existing coding sandbox is local
+
+Workbench already wraps managed terminal agents and their children in a native
+macOS boundary using the pinned Anthropic Sandbox Runtime. The
+[isolation contract](../../docs/security/isolation.md) records the decision to
+remove Lima's VM provisioning, duplicate guest tools, mounts, and login
+management. It also states that editor, desktop, daemon, and direct-binary
+routes do not inherit that promise automatically. This review reads the
+documented contract; it does not independently verify a running session.
+
+The [Sandcastle and cloud-only tombstones](../../docs/decisions/tombstones.md)
+record the related judgment: remote execution must solve a demonstrated
+unattended or untrusted-workflow need. The records inspected do not establish
+a previous Claw Patrol or Deno Sandbox trial. Their absence is not evidence
+that either product was tested and found inadequate.
+
+A hosted environment would provide disposable execution away from the Mac,
+but still needs repository transfer, toolchain images, agent authentication,
+network rules, preview access, recovery, patch export, and cleanup. The existing
+local path avoids those integration responsibilities for interactive work.
+This is a workflow-fit judgment, not a claim that local isolation is stronger.
+
+Two accepted local limits deserve explicit reconsideration: admitted provider
+credentials are readable by the agent, and broad public HTTP/HTTPS egress means
+readable repository data can leave the boundary. Local execution also shares
+the host kernel and edits the live checkout. A VM and a credential gateway
+address different parts of that exposure.
+
+### Candidate roles
+
+| Candidate | What it supplies | Selection |
+| --- | --- | --- |
+| [Deno Sandbox](https://docs.deno.com/sandbox/) | Hosted Linux microVMs, command execution, storage, network controls, and secret substitution; SDKs are usable from Node and Python as well as Deno | Architecture worth learning from. Do not make a new long-term dependency until its lifecycle after the Deploy announcement is clarified. |
+| [Claw Patrol](https://deno.com/blog/clawpatrol) | External gateway with HTTP, SQL, and Kubernetes-aware rules, credential injection, and approval chains | First candidate to inspect when agents need controlled service access. It complements execution isolation; it does not provide the coding workspace. The announcement labels it alpha. |
+| [E2B](https://e2b.dev/docs) and [Daytona](https://www.daytona.io/docs/en/) | Programmable environments for agent code execution | Compare for a disposable remote coding job. No local benchmark or product ranking has been established. |
+| [Cloudflare Sandbox](https://developers.cloudflare.com/sandbox/) and [Vercel Sandbox](https://vercel.com/docs/sandbox) | Hosted sandbox services integrated with their respective platforms | Compare when an application already benefits from that platform; validate isolation and lifecycle rather than assuming all services use identical VM boundaries. |
+| Existing CI or one disposable local VM | Execution with an established runner or a separately isolated machine | Include as the simpler baseline before building a service or another orchestrator. |
+
+Deno's [acquisition announcement](https://deno.com/blog/cloudflare) gives Deploy
+six months, but does not separately specify Sandbox or Claw Patrol's future.
+Sandbox depends on Deploy according to its documentation. Treat that as an
+unresolved dependency risk, not a separately announced Sandbox shutdown date.
+
+Claw Patrol routes agent traffic through a gateway that holds real credentials
+and evaluates requests. To make it an enforceable boundary, the execution
+environment must prevent direct credential access and alternate network routes.
+Credential substitution alone does not prevent misuse of permitted operations.
+Use least-privilege service accounts and server-side authorization; SQL parsing
+and model judgment must not be the sole protection against destructive access.
+Do not assume API-key injection supports existing subscription OAuth flows.
+
+### Smallest useful trial
+
+Trial only one missing capability at a time. Use a disposable coding workspace
+for an unattended repository task, or a gateway with one read-only service for
+an agent that needs remote data. Do not couple both to a new scheduler, agent
+harness, memory system, or application-runtime migration.
+
+Before a paid or external run, select an approved source boundary, authentication
+route, spending limit, expiration, and output destination. Canary with a public
+or synthetic repository, fake secrets, and one representative job. Verify denied
+host access, denied egress, credential handling, cleanup, interruption recovery,
+and patch retrieval. Confirm real keys stay out of process environments, files,
+logs, and model context if credential isolation is the claimed benefit.
+
+The result should be a patch and test evidence against a known base revision.
+Keep review, adoption, and consequential external actions outside the worker.
+Compare useful completed work, intervention, setup time, operating cost, and
+recovery with the existing local or CI path. Expand only after the canary works.
+Remove the experimental credentials, environment, and adapter if it adds more
+work than the isolation or unattended execution benefit justifies.
+
+The [experiment record](../../docs/experiments.md) owns activation and removal.
+No infrastructure, credentials, or external execution is authorized merely by
+recording this exploration.

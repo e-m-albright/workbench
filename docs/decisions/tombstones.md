@@ -6,6 +6,17 @@ evaluation. Reconsider one only when its stated trigger becomes true.
 
 This file covers decisions with no Workbench code off-switch and cross-repository architecture choices whose lesson belongs with agent-tool research. Workbench retirements that code enforces live with their enforcement: `RETIRED_SUBAGENTS` / `RETIRED_SKILLS` / `RETIRED_PI_EXTENSIONS` in `src/workbench/core.py` and the `_*_disabled` entries in `agents/shared/mcp-servers.json`, each carrying its own reason. Host package retirements remain enforced in the adjacent host repository's package manifest.
 
+## Retired stack defaults
+
+| Default | Decision and reason | Revisit when |
+| --- | --- | --- |
+| Deno in maintained tooling | Retired following the announced runtime maintenance horizon and Deploy wind-down. The owner authorized removal from maintained applications and host tooling on 2026-10-12; experimental prototypes are excluded. The [runtime exploration](../../playbook/languages/typescript/runtimes.md) owns the evidence and alternatives. | A credible successor establishes continuing releases, security response, and dependency compatibility. |
+
+The earlier blanket Bun exclusion is superseded by the same exploration: Bun
+is eligible for evaluation, but local compatibility findings favor Node as the
+common runtime. Vite+ remains watch-only until it demonstrates configuration
+removal or useful feedback improvements. Bun is not installed by this decision.
+
 ## Retired Pi harness experiments
 
 This table is the readable memory of Pi additions that were implemented or actively exercised, not ideas that were merely discussed. The inventory was reconstructed in 2026-09 from Workbench and Dotfiles history plus past Pi, Claude, and Codex transcripts. Code-enforced extension reasons remain canonical in `RETIRED_PI_EXTENSIONS`; the table keeps the experiments discoverable as one set.

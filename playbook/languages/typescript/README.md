@@ -6,13 +6,15 @@
 
 Selection is *what* to reach for. Idioms below are *how* to use them. Detect the existing stack from project files before applying any of this — never switch package managers, linters, or frameworks in a project that already chose otherwise.
 
+Reviewed 2026-10-12: **Node LTS + pnpm is the maintained default.** Keep framework-owned Vite, Biome, and focused Oxlint promise checks. Vite+ stays on the watchlist; Bun remains an alternative pending application compatibility. Deno is retired from maintained tooling; experimental prototypes are excluded from this migration. The [runtime exploration](runtimes.md) owns the local comparison, alternatives, AI tooling map, and promotion criteria. Svelte/SvelteKit stays the application default; [Solid/SolidStart](frameworks/solid.md) is the first alternative to evaluate.
+
 ### Phase 1 — every project
 
 | Category | Pick | Avoid (why) |
 |----------|------|-------------|
-| Runtime | **Deno** | Bun; Node.js remains the compatibility fallback |
-| Lint + format | **Deno native** for pure Deno; **Biome** for broader projects | ESLint + Prettier unless inherited |
-| Task runner | **Just / Deno tasks** | A second orchestration layer without a demonstrated need |
+| Runtime and packages | **Node LTS + pnpm** | New long-lived Deno foundations during the announced wind-down |
+| Lint + format | **Biome** plus focused **Oxlint** promise checks | Replacing adequate framework coverage merely to reduce tool count |
+| Task runner | **Just / project scripts** | A second orchestration layer without a demonstrated need |
 | Git hooks | **Lefthook** | Husky (slower, JS-based) |
 | Styling | **Tailwind CSS v4** | CSS-in-JS (runtime cost), Sass (verbose) |
 
@@ -20,7 +22,7 @@ Selection is *what* to reach for. Idioms below are *how* to use them. Detect the
 
 | Need | Pick | Avoid (why) |
 |------|------|-------------|
-| Full-stack app | **SvelteKit 2** | Next.js (React bloat, Vercel-coupled), Nuxt (Vue) |
+| Full-stack app | **SvelteKit**; SolidStart is the leading alternative | Changing frameworks without a concrete product or authoring advantage |
 | Content site | **Astro** | Gatsby (stagnant), Hugo (non-JS) |
 | Vite build layer | **Vite 8** | Direct bundler configuration without a concrete need |
 | UI components | **shadcn-svelte + Bits UI** | Chakra/MUI (React-only, heavy). Original shadcn/ui creator shadcn works on Vercel's AI team; the Svelte port is a separate project. |
@@ -32,7 +34,7 @@ Selection is *what* to reach for. Idioms below are *how* to use them. Detect the
 | Data fetching | **TanStack Query** | SWR (React-only) |
 | Charts | **LayerChart** | Recharts (React-only), Chart.js (limited) |
 | i18n (SvelteKit) | **Paraglide JS 2.0** | i18next (runtime overhead) |
-| Unit testing | **Deno test** for pure Deno; **Vitest** for Vite apps and components | Replacing Deno test merely for uniformity |
+| Unit testing | **Vitest** for Vite apps and components | Replacing framework transforms with a different runtime test runner |
 | E2E testing | **Playwright** (+ `@axe-core/playwright` for a11y) | Cypress (heavier) |
 | LLM client | **Vercel AI SDK** (`ai` + `@ai-sdk/svelte`) | Provider-locked SDKs. AI SDK provides provider adapters, streaming UI, structured output, tools, agent loops, runtime context, and harness adapters. TanStack AI is the closest composable TypeScript alternative; Mastra and LangGraph are larger agent runtimes. |
 | Typed API contract | **SvelteKit remote functions** in-app; **oRPC** for external clients | tRPC (use only if you need it; oRPC also emits OpenAPI) |
@@ -49,32 +51,32 @@ Selection is *what* to reach for. Idioms below are *how* to use them. Detect the
 | Published JS/TS library | **tsdown**, when declarations or multiple outputs are required | Adding a library packager to ordinary apps |
 | Dead code | **Knip** | Finds unused exports, deps, files |
 | Code health (advisory) | **fallow** | Knip-superset: complexity/CRAP, semantic dup, architecture-layer import enforcement, regression-gated. Optional deep tier |
-| Supply chain | **deno audit** | See [security.md](../../systems/security.md) |
+| Supply chain | **pnpm audit** | See [security.md](../../systems/security.md) |
 | Component dev | **Histoire** | Vite-native; lighter than Storybook |
 | Docs site | **Starlight** (Astro) | Best docs DX in the ecosystem |
 
 ### Don't install
 
 - **Prettier / ESLint** — Biome does both.
-- **Bun** — retired from the owner environment; recognize its lockfiles only when auditing inherited repositories.
-- **Vite+ as a blanket toolchain** — it duplicates Deno, fnm, Just, and project checks.
+- **Deno in maintained tooling** — maintenance ends under the announced team plan; a credible successor could change the decision.
+- **Vite+ as a blanket toolchain** — stable 1.0 is eligible for evaluation, but must replace existing configuration and responsibilities rather than duplicate them.
 - **Oxfmt** — still beta; reassess after stable framework-file support.
 - **Storybook** — Histoire is lighter and Vite-native.
 - **Next.js** — Vercel-coupled, complexity creep.
 
 ### Version floors
 
-Deno >=2.8, pnpm >=12.0, Vite >=8.0, Svelte >=5.0, SvelteKit >=2.0, Astro >=4.0, Tailwind >=4.0, Biome >=2.3.
+Use a supported Node LTS release for the default runtime. Existing compatibility floors: pnpm >=12.0, Vite >=8.0, Svelte >=5.0, SvelteKit >=2.0, Astro >=4.0, Tailwind >=4.0, Biome >=2.3. Pin actual project versions; a floor is not a migration instruction.
 
 ## Idioms
 
 ### Runtime & package management
 
-- **Deno** is the runtime, package manager, and default toolchain. Use Node via fnm only when a dependency or deployment target requires it.
-- When Node is required, use **[pnpm 12](https://pnpm.io/blog/releases/12.0)**. Its Rust rewrite keeps pnpm 11's commands, settings, lockfile format, and `node_modules` layout while materially reducing warm-install overhead. npm or Yarn remain inherited-project choices, not new defaults.
-- Prefer `deno.json` + `deno.lock` for new projects. Deno can also consume an existing `package.json` and run its scripts with `deno task`.
-- Detect the lockfile (`deno.lock`, `pnpm-lock.yaml`, …) and use the matching package manager in existing projects. A migration is an explicit project decision, never an incidental tool switch. Before moving a pnpm 11 project to 12, review the [compatibility differences](https://pnpm.io/blog/whats-different-in-pnpm-12), grep CI for the removed `pnpm install --resolution-only` flag, and expect a possible one-time lockfile diff when cyclic peer dependencies are re-resolved.
-- Pin the project's exact pnpm version. Do not adopt pnpm 12's project-aware runtime or package-manager shims by default: fnm, Deno, and the repository's declared package manager retain those ownership boundaries unless a project explicitly consolidates them.
+- **Node LTS + pnpm** is the maintained default. Vite+ is watch-only; Bun remains an alternative where compatibility and whole-workflow gains are demonstrated. See the [comparison and adoption gate](runtimes.md#local-comparison-and-next-adoption-gate).
+- Use **[pnpm 12](https://pnpm.io/blog/releases/12.0)** for the default Node workflow. Its Rust rewrite keeps pnpm 11's commands, settings, lockfile format, and `node_modules` layout. npm or Yarn remain inherited-project choices, not new defaults.
+- Use `package.json` + `pnpm-lock.yaml` in maintained projects. Retire Deno tasks, configuration, and lockfiles as part of the authorized migration; preserve the security properties of any permission-bounded automation.
+- Detect the lockfile (`pnpm-lock.yaml`, `package-lock.json`, …) and use the matching package manager in existing projects. A migration is an explicit project decision, never an incidental tool switch. Before moving a pnpm 11 project to 12, review the [compatibility differences](https://pnpm.io/blog/whats-different-in-pnpm-12), grep CI for the removed `pnpm install --resolution-only` flag, and expect a possible one-time lockfile diff when cyclic peer dependencies are re-resolved.
+- Pin the project's exact runtime and package-manager versions. Keep one dependency installer per project. Runtime managers, pnpm shims, Bun, and Vite+ should not compete to own the same responsibility.
 - **workerd** is the deployment runtime for Cloudflare Workers, not a local package-management or task-running competitor to Deno.
 
 ### Posture: thin frontend over polyglot backends
@@ -83,23 +85,22 @@ When the data/auth/jobs layer lives in backend services (Rust/Python/Go), the Sv
 
 ### Formatting & linting
 
-- Prefer `deno fmt`, `deno lint`, and `deno test` when their native coverage is sufficient.
 - Use **Biome** for broader JS/TS projects that need one stable formatter/linter across more file types. Don't introduce Prettier/ESLint alongside it.
 - Keep **svelte-check** for Svelte semantics. Biome and Oxlint can inspect parts of `.svelte` files but do not own framework semantics.
-- Consider **Oxlint** for large repositories where lint latency or type-aware rules are material. Its JavaScript-plugin support remains incomplete, so adopt it against demonstrated coverage rather than benchmark appeal.
+- Use **Oxlint** for the explicitly selected `typescript/no-floating-promises` and `typescript/no-misused-promises` checks. Disable the default correctness category so this supplement does not duplicate every Biome rule. Keep the type-aware companion pinned; verify broken and valid promise fixtures before broadening the policy.
 - With no Biome config, fall back to whatever the repo already uses. Don't add new lint rules or config files without asking.
 
 ### Vite and the VoidZero toolchain
 
 - **[Vite 8](https://vite.dev/blog/announcing-vite8) is adopted** for Vite-based frameworks. It already delivers Rolldown and Oxc transitively; applications should not configure either directly by default.
-- **[Vitest](https://vitest.dev/guide/why.html) is adopted for Vite applications** because it shares Vite transforms, aliases, and plugins. Pure Deno libraries keep `deno test`.
+- **[Vitest](https://vitest.dev/guide/why.html) is adopted for Vite applications** because it shares Vite transforms, aliases, and plugins.
 - **[Rolldown 1.0](https://voidzero.dev/posts/announcing-rolldown-1-0) is conditional** for custom bundlers, unusual library packaging, or tooling that genuinely needs its Rollup-compatible API.
 - **[tsdown](https://tsdown.dev/guide/) is conditional** for published Node/npm libraries needing declarations, multiple formats, source maps, minification, or executable packaging.
-- **[Oxfmt](https://oxc.rs/blog/2026-02-24-oxfmt-beta) is watch-only** while beta. Its JS/TS compatibility and speed are promising, but it does not yet displace Deno native formatting or stable Biome coverage.
-- **[Vite+](https://voidzero.dev/posts/announcing-vite-plus) is beta and watch-only**. It is credible for Node-centric Vite monorepos, but `vp env`, package installation, `vp run`, and `vp check` create a competing Node/package/task control plane. Revisit at 1.0 or when Deno integration becomes credible.
+- **[Oxfmt](https://oxc.rs/blog/2026-02-24-oxfmt-beta) is watch-only** while beta. Its JS/TS compatibility and speed are promising, but it does not yet displace stable Biome coverage.
+- **[Vite+ 1.0](https://voidzero.dev/posts/announcing-vite-plus-1-0) is stable and a consolidation candidate**. Compare it with Bun and the default Node/pnpm workflow using the [runtime exploration](runtimes.md). It coordinates Node and the project's package manager; adoption must remove overlapping configuration and retain framework semantic checks.
 - **Vite Task is watch-only** until a monorepo demonstrates a need for its caching and dependency scheduling beyond Just and native project tasks.
 
-[VoidZero joined Cloudflare on 2026-06-04](https://voidzero.dev/posts/voidzero-cloudflare). Vite, Vitest, Rolldown, Oxc, Oxlint, Oxfmt, and Vite+ remain open source under their existing project leadership. The acquisition improves funding durability while increasing ecosystem-concentration risk. Keep Biome as the broad formatter and linter today; keep Oxlint and the other VoidZero products on explicit watch for migration-worthy rules, compatibility, or performance. Adopt individual tools on merit rather than treating the suite as one endorsement. See the [Vercel and Cloudflare stack watch](../../systems/cloud-platforms.md) for product roles and ownership ties.
+[VoidZero joined Cloudflare on 2026-06-04](https://voidzero.dev/posts/voidzero-cloudflare). Vite, Vitest, Rolldown, Oxc, Oxlint, Oxfmt, and Vite+ remain open source under their existing project leadership. The acquisition improves funding durability while increasing ecosystem-concentration risk. Keep Biome as the broad formatter and linter today; use Oxlint for the demonstrated promise checks and keep the remaining VoidZero products on explicit watch for migration-worthy compatibility or workflow improvements. Adopt individual tools on merit rather than treating the suite as one endorsement. See the [Vercel and Cloudflare stack watch](../../systems/cloud-platforms.md) for product roles and ownership ties.
 
 ### Types
 
@@ -126,7 +127,7 @@ When the data/auth/jobs layer lives in backend services (Rust/Python/Go), the Sv
 
 ### Always
 
-- Run the project check task before committing (`deno task check`).
+- Run the repository's declared check task before committing (`just check`, `pnpm run check`, or its existing equivalent).
 - Handle loading and error states in UI components.
 
 ## Code patterns
@@ -210,7 +211,9 @@ Not adopted — evaluation notes, argue before pulling in.
 ## See also
 
 - [tanstack.md](tanstack.md) — TanStack package map, alternatives, and AI tooling layers
+- [runtimes.md](runtimes.md) — runtime defaults, Bun/Vite+ consolidation, Deno maintenance, and AI tools
 - [frameworks/README.md](frameworks/README.md) — full-stack web framework selection with ownership and deployment ties
-- [frameworks/sveltekit.md](frameworks/sveltekit.md) — SvelteKit 2 + Svelte 5 patterns
+- [frameworks/sveltekit.md](frameworks/sveltekit.md) — SvelteKit + Svelte 5 patterns
+- [frameworks/solid.md](frameworks/solid.md) — leading alternative to Svelte/SvelteKit and a bounded comparison
 - [frameworks/astro.md](frameworks/astro.md) — Astro content sites and islands
 - [../../engineering-philosophy.md](../../engineering/principles.md) — universal code-health principles

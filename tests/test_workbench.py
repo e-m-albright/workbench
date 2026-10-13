@@ -899,6 +899,7 @@ class WorkbenchTests(unittest.TestCase):
                     'prefix_rule(pattern=["gh", "pr", "view"], decision="allow")',
                     'prefix_rule(pattern=["git", "commit", "--no-verify"], decision="allow")',
                     'prefix_rule(pattern=["rm", "-rf"], decision="allow")',
+                    'prefix_rule(pattern=["deno", "add"], decision="allow")',
                 ]
             )
         )
@@ -908,6 +909,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn('["gh", "pr", "view"]', merged)
         self.assertNotIn("--no-verify", merged)
         self.assertNotIn('["rm", "-rf"]', merged)
+        self.assertNotIn('["deno", "add"]', merged)
 
     def test_codex_rule_merge_preserves_approvals_outside_marker_section(self) -> None:
         canonical = 'prefix_rule(pattern=["git", "status"], decision="allow")\n'

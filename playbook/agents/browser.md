@@ -32,9 +32,9 @@ Once a source URL is known, read it directly. In Pi, `agent_browser read <url>` 
 **Goal**: Catch regressions automatically, forever, free per run.
 
 ```bash
-# Inside the project
-deno x -A npm:playwright install chromium
-deno x -A npm:playwright test
+# Inside a pnpm project with Playwright declared; use the existing manager otherwise
+pnpm exec playwright install chromium
+pnpm exec playwright test
 ```
 
 **WebRTC / Daily.co setup** — Daily's "headless robot" pattern uses Chromium launch flags:

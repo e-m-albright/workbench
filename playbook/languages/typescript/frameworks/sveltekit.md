@@ -1,12 +1,13 @@
 # SvelteKit
 
-> Curated taste, not mandate — patterns for SvelteKit 2 + Svelte 5 on Deno.
+> Curated taste, not mandate — patterns for SvelteKit + Svelte 5 on Node LTS.
 
 ## Stack at a glance
 
 ```yaml
-Framework:   SvelteKit 2 + Svelte 5 (runes)
-Runtime:     Deno (@deno/svelte-adapter for production)
+Framework:   SvelteKit + Svelte 5 (runes)
+Runtime:     Node LTS (@sveltejs/adapter-node for a standalone server)
+Packages:    pnpm (evaluate Vite+ for toolchain coordination)
 Database:    Drizzle ORM + PostgreSQL
 Auth:        Better Auth (or Lucia for lightweight)
 Forms:       Superforms + Zod
@@ -114,23 +115,23 @@ src/
 ## Commands
 
 ```bash
-deno install               # Install from deno.json/package.json
-deno task dev              # Vite development server
-deno task build            # Production build
-deno task preview          # Preview production build
-deno task check            # Svelte type check
-deno task lint             # Project lint task
-deno test                  # Pure TypeScript tests
-deno task db:generate      # Generate migration
-deno task db:migrate       # Run migrations
-deno task db:studio        # Open Drizzle Studio
+pnpm install               # Install declared dependencies
+pnpm run dev               # Vite development server
+pnpm run build             # Production build
+pnpm run preview           # Preview production build
+pnpm run check             # Svelte type check
+pnpm run lint              # Project lint task
+pnpm exec vitest run       # Unit and component tests
+pnpm run db:generate       # Generate migration
+pnpm run db:migrate        # Run migrations
+pnpm run db:studio         # Open Drizzle Studio
 ```
 
 ## Critical / common mistakes
 
 - **Tailwind plugin order:** `tailwindcss()` BEFORE `sveltekit()` in `vite.config`.
-- **Production adapter:** use the official `@deno/svelte-adapter`; install it with `deno install -D npm:@deno/svelte-adapter` and run the built server with only the permissions it needs.
-- Run package scripts through `deno task`; Deno reads existing `package.json` scripts as well as `deno.json` tasks.
+- **Production adapter:** use [`@sveltejs/adapter-node`](https://svelte.dev/docs/kit/adapter-node) for a standalone Node server, or the supported adapter for the chosen host. Build and run the artifact on the actual deployment runtime.
+- Existing Deno projects keep their declared tasks and adapter until a deliberate migration. The [runtime exploration](../runtimes.md) explains the maintenance horizon and Bun evaluation; changing documentation does not migrate an application.
 - Use `{@render children?.()}` with snippets — NOT `<slot>`.
 - Use `onclick` (lowercase, no colon) — NOT `on:click`.
 
@@ -145,5 +146,6 @@ These are version-specific observations, not permanent compatibility assumptions
 ## See also
 
 - [../README.md](../README.md) — TypeScript stack selection and idioms
+- [solid.md](solid.md) — leading candidate alternative to Svelte/SvelteKit
 - [astro.md](astro.md) — content sites and islands
 - [../../../engineering-philosophy.md](../../../engineering/principles.md) — universal code-health principles

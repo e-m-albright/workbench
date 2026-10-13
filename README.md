@@ -132,10 +132,14 @@ just check
 
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
 provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
-[Node 24](https://nodejs.org/) and [pnpm](https://pnpm.io/) for the locked Pi
+[Node 24 LTS](https://nodejs.org/) and [pnpm](https://pnpm.io/) for the locked Pi
 extension test and development tools, and the installed Pi/Claude/Codex
 CLIs. [Pandoc](https://pandoc.org/) is required only to render and verify the
 maintained call-script document template. Workbench stages and atomically replaces managed skills; Pi and Codex discover one shared real-file deployment under `~/.agents/skills`, avoiding duplicate Pi skill warnings.
+
+TypeScript formatting stays with Biome. `just lint-ts` runs the two selected
+Oxlint promise checks; `just check` includes formatting, linting, tests, and
+type checking. Vite+ remains on the [watchlist](playbook/watchlist.md).
 
 Most skills are tracked directly. Reviewed third-party skills may instead be declared in `agents/shared/external-skills.json` with an immutable release URL and SHA-256. Sync downloads a missing or invalid archive into `~/.cache/workbench/external-skills`, verifies and safely extracts it, applies the tracked wrapper under `agents/external-skills/`, and deploys the composed tree atomically. Drift verifies the cache and deployment offline.
 

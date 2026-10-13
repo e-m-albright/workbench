@@ -14,6 +14,8 @@ it does not imply a scheduled monitoring service.
 | Workato, Runlayer, AgentCore | An organization needs centralized integration, policy, or hosted execution | [Control-plane layers](agents/integrations.md#what-a-company-can-buy-or-own) |
 | Muse, Grok Bot, Dots, Lefos | Credential isolation, memory correction, action recovery, or enterprise controls materially change | [Persistent assistants](agents/assistants.md) |
 | OpenAPPA | A bounded workflow needs policy over actions influenced by untrusted content | [Agent security](agents/security.md) |
+| Claw Patrol and credential gateways | A concrete agent task needs service access without exposing reusable credentials; verify non-bypassable routing and authentication compatibility | [Sandbox and gateway exploration](agents/security.md#hosted-sandboxes-and-credential-gateways) |
+| Deno Sandbox, E2B, Daytona, Cloudflare Sandbox, Vercel Sandbox | Unattended or untrusted coding work outgrows local isolation; clarify Deno Sandbox's lifecycle before adoption | [Sandbox roles and trial](agents/security.md#hosted-sandboxes-and-credential-gateways) |
 | Jev, GLiClass, documented OpenAI decision APIs | Typed decision volume makes measured latency, calibration, or cost material | [Model efficiency](agents/models/efficiency.md) |
 | Pi Durable, Kiro, Mastra Factory | A real workflow needs durable execution or repeatedly stalls on coordination | [Orchestration](agents/orchestration.md), [application frameworks](agents/frameworks.md) |
 | Pydantic AI, Agno, LangGraph, Microsoft Agent Framework, Strands | An application needs agents with specific state, recovery, and operator requirements | [Framework comparison](agents/frameworks.md) |
@@ -36,6 +38,9 @@ it does not imply a scheduled monitoring service.
 | Performance replacements | Profiling identifies the component a proposed replacement would improve | [Performance tooling](engineering/performance.md) |
 | OpenSpec and spec-kit | The existing planning workflow repeatedly loses requirements or acceptance criteria | [Project documentation](engineering/documentation.md) |
 | Ownership changes across developer vendors | Control, licensing, data handling, or portability changes | [Vendor ownership](engineering/vendor-ownership.md) |
+| Node + Vite+, Bun, Nub | Vite+ must close formatting and configuration gaps; Bun must resolve observed jsdom compatibility. Local build gains alone did not justify migration; Node/pnpm remains the default | [Runtime consolidation](languages/typescript/runtimes.md) |
+| A credible Deno successor | Maintained Deno usage is retired. Revisit only if a successor establishes ongoing releases, security response, and ecosystem compatibility | [Deno disposition](languages/typescript/runtimes.md#why-denos-outlook-changes-the-choice) |
+| Solid / SolidStart | A complete interactive feature can test authoring clarity and operational fit; first alternative to Svelte/SvelteKit | [Framework comparison](languages/typescript/frameworks/solid.md) |
 
 ## Systems and product
 

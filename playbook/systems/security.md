@@ -13,7 +13,7 @@ The cheapest, highest-leverage engineering discipline most projects skip. Three 
 | Dependency vulns (Go, reachability) | **govulncheck** | keep alongside OSV-Scanner — it does call-graph reachability OSV doesn't |
 | Dependency vulns (Rust) | **cargo-deny** (advisories + licenses + bans + sources) | cargo-audit alone (cargo-deny is a superset) |
 | Dependency vulns (Python) | **pip-audit** | — |
-| Dependency vulns (JS/TS) | **deno audit** / `pnpm audit --audit-level=high` for existing pnpm projects | — |
+| Dependency vulns (JS/TS) | **pnpm audit --audit-level=high** | Match the repository's declared package manager |
 | Automated dependency updates | **Renovate** | Dependabot is fine and zero-ops *if* you're GitHub-only |
 | Malicious-package detection | **Socket** (free GitHub App) | the one SaaS exception — catches typosquat/install-script exfil that CVE scanners miss |
 | Secrets at runtime | **Infisical** (or Doppler / SOPS+age) | `.env` files as the source of truth; plaintext secrets in any tracked file |
@@ -40,7 +40,7 @@ Wire a uniform `audit-<lang>` recipe per stack, aggregated under one `just audit
 ```
 cargo deny check advisories && cargo deny check licenses   # Rust
 uv run pip-audit                                           # Python
-deno audit                                                 # JS/TS
+pnpm audit --audit-level=high                              # Maintained JavaScript/TypeScript stack
 govulncheck ./...                                          # Go
 osv-scanner --lockfile=...                                 # cross-language gate
 ```
@@ -92,7 +92,7 @@ Sources: [BleepingComputer summary](https://www.bleepingcomputer.com/news/securi
 ## Quick reference: adopt in this order
 
 1. **gitleaks** (pre-commit + CI) — blocks the single worst mistake; ~5-minute setup.
-2. **One cross-language vuln gate** — OSV-Scanner, plus `govulncheck` if you ship Go seriously; `cargo-deny`/`pip-audit`/`deno audit` per-stack if you prefer native tools.
+2. **One cross-language vuln gate** — OSV-Scanner, plus `govulncheck` if you ship Go seriously; `cargo-deny`/`pip-audit`/`pnpm audit` per-stack if you prefer native tools.
 3. **Renovate** (or Dependabot if GitHub-only) — most vulns are fixed simply by staying patched.
 4. **Secrets via a manager**, `.env.example` names-only — the structural fix.
 5. **+1 if you touch npm/PyPI/crates often:** the free **Socket** GitHub App.

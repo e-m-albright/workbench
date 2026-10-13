@@ -12,6 +12,11 @@ lint:
 lint-py:
     uv run --locked ruff check .
 
+# Check promise handling in TypeScript; Biome retains formatting ownership.
+[group('quality')]
+lint-ts:
+    pnpm exec oxlint agents/pi/extensions tests vitest.config.ts
+
 # Biome format for the TypeScript surface. `just fmt-ts check` verifies only.
 [group('quality')]
 fmt-ts mode='write':
@@ -63,6 +68,7 @@ check:
     just lint
     just lint-shell
     just fmt-ts check
+    just lint-ts
     just check-documents
 
 # Print reproducible catalogue counts; add --include-untracked during a review.

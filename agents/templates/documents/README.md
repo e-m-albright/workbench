@@ -38,7 +38,7 @@ The source may use ordinary Markdown tables and raw HTML `details` elements. Kee
 
 ## Call-script template
 
-Use this template for conversation material that must be quickly retrieved while speaking. The design follows the Notes site directly:
+Use this template for conversation material that must be quickly retrieved while speaking. The design follows the established reading interface:
 
 - The same warm paper, raised surface, ink, rule, muted text, and blue accent tokens.
 - Native interface typography with a restrained reading serif for the subtitle.

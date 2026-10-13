@@ -1,4 +1,4 @@
-"""Keep the retired runtime out of the active development toolchain."""
+"""Keep the maintained runtime and quality checks consistent."""
 
 import json
 import os
@@ -20,8 +20,42 @@ def test_development_toolchain_uses_node_and_pnpm():
         *root.glob("tests/pi-*.test.ts"),
     ]
     for path in active:
-        assert not re.search(r"\bbun(?:x|:test)?\b", path.read_text(), re.IGNORECASE), path
+        assert not re.search(r"\b(?:bun(?:x|:test)?|deno)\b", path.read_text(), re.IGNORECASE), path
     assert not list(root.glob("bun.lock*"))
+    assert not list(root.glob("deno.*"))
+
+
+def test_typescript_lint_checks_promises_and_accepts_awaited_work(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    (tmp_path / "tsconfig.json").write_text(
+        json.dumps({"compilerOptions": {"target": "ES2022", "module": "ESNext", "strict": True}})
+    )
+    source = tmp_path / "promises.ts"
+    command = [
+        "pnpm",
+        "exec",
+        "oxlint",
+        "--config",
+        str(root / ".oxlintrc.json"),
+        "--tsconfig",
+        str(tmp_path / "tsconfig.json"),
+        "--format=json",
+        str(source),
+    ]
+    source.write_text(
+        "export async function save(): Promise<boolean> { return true; }\n"
+        "save();\nif (save()) { console.log('saved'); }\n"
+    )
+    broken = subprocess.run(command, cwd=root, capture_output=True, text=True)
+    assert broken.returncode == 1, broken.stderr
+    codes = {diagnostic["code"] for diagnostic in json.loads(broken.stdout)["diagnostics"]}
+    assert codes == {"typescript(no-floating-promises)", "typescript(no-misused-promises)"}
+    source.write_text(
+        "export async function save(): Promise<boolean> { return true; }\n"
+        "if (await save()) { console.log('saved'); }\n"
+    )
+    valid = subprocess.run(command, cwd=root, capture_output=True, text=True)
+    assert valid.returncode == 0, valid.stdout + valid.stderr
 
 
 def test_documented_pi_and_browser_versions_match_managed_pins():

@@ -138,6 +138,9 @@ def merge_codex_rules(canonical: str, live: str) -> str:
     """
     canonical_lines = set(canonical.splitlines())
     marker = "# --- Locally approved additions ---"
+    # Deno was retired from maintained tooling on 2026-10-12. Do not preserve
+    # its former managed approval as though it were a new local exception.
+    retired_rules = {'prefix_rule(pattern=["deno", "add"], decision="allow")'}
     unsafe_fragments = (
         '"--no-verify"',
         '["git", "reset", "--hard"]',
@@ -152,6 +155,7 @@ def merge_codex_rules(canonical: str, live: str) -> str:
             line.startswith("prefix_rule(")
             and line not in canonical_lines
             and line not in additions
+            and line not in retired_rules
             and not any(fragment in line for fragment in unsafe_fragments)
         ):
             additions.append(line)

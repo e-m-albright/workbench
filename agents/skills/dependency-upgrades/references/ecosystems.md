@@ -26,16 +26,6 @@ yarn outdated
 
 Use the matching update and frozen-install commands documented by the repository. Do not generate a second lockfile with another package manager.
 
-### Deno
-
-```bash
-deno outdated
-deno audit
-deno task check
-```
-
-Keep Deno as owner when the repository uses `deno.json` and `deno.lock`.
-
 For browser-facing majors, inspect framework adapters, compiler peers, browser support, test-runner browsers, and production-build behavior together.
 
 ## Python

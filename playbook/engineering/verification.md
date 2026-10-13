@@ -158,7 +158,7 @@ Secrets never live in files: `.env` holds non-secret local config; real secrets 
 
 - **gitleaks at pre-commit AND CI** (`fetch-depth: 0` so history is scanned), with the **action version pinned** — stock/unpinned versions silently ignore your `[[allowlists]]`. Allowlist surgically: path glob + content regex + a written reason.
 - **Pin third-party Actions by commit SHA, not tag.** Tags get force-pushed to malware (the trivy-action compromise, Mar 2026). Treat transport/security-default dependency bumps as manual review, not auto-merge.
-- **One `audit-<lang>` recipe per stack** (`pip-audit`, `cargo audit`, `deno audit`…), run on lockfile change; pinned ignores each carry a removal condition.
+- **One `audit-<lang>` recipe per stack** (`pip-audit`, `cargo audit`, `pnpm audit`…), run on lockfile change; pinned ignores each carry a removal condition.
 - **Provisioning ≠ rotation.** A brand-new auth path has no hot fallback, so it gates on a mint→stage→verify→smoke checklist, not merely on merge.
 
 Full detail: [Systems security](../systems/security.md).

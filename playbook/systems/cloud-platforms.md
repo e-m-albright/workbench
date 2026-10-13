@@ -66,12 +66,12 @@ Ownership and effective-control relationships are maintained in [Developer Tool 
 | Observability | **Baselime and Workers observability** | Logs, traces, and serverless debugging. | Convenient platform integration; preserve OpenTelemetry portability. |
 | Developer interface | **Wrangler, workerd, Miniflare** | Deploy Workers, run the runtime, and emulate locally. | Required or useful when choosing Workers, not general replacements for the local language toolchain. |
 | JavaScript toolchain | **Vite** | Development server and front-end build entrypoint. | Adopted for Vite frameworks. VoidZero is Cloudflare-owned. |
-| Testing | **Vitest** | Vite-aware unit and component tests. | Adopted for Vite applications; pure Deno code keeps native tests. |
+| Testing | **Vitest** | Vite-aware unit and component tests. | Adopted for Vite applications. |
 | Bundling | **Rolldown** | Rust-based Rollup-compatible bundler and Vite production foundation. | Use transitively through Vite; configure directly only for a demonstrated packaging need. |
 | Compiler infrastructure | **Oxc** | JavaScript and TypeScript parser, resolver, transformer, minifier, linter, and formatter foundation. | Usually consumed through higher-level tools. |
 | Linting | **Oxlint** | Fast linter with growing typed and ESLint-plugin compatibility. | Explicit watch candidate. Keep Biome today; reassess when rules or migration compatibility solve a real gap. |
 | Formatting | **Oxfmt** | Fast Prettier-compatible formatter. | Watch while maturing; does not displace Biome today. |
-| Unified toolchain | **Vite+** | Runtime, package, task, build, test, lint, format, and type-check command surface. | Watch while beta. It overlaps Deno, pnpm, Just, Biome, and repository checks. |
+| Unified toolchain | **Vite+** | Runtime, package, task, build, test, lint, format, and type-check command surface. | Watch-only; require demonstrated configuration removal using the [runtime comparison](../languages/typescript/runtimes.md). |
 | Network and security | **DNS, content delivery, Tunnel, Access, WAF, Turnstile** | Delivery, private ingress, identity-aware access, application filtering, and bot protection. | Cloudflare's strongest cross-project platform layer. Adopt individual primitives when they solve a real boundary. |
 
 ## Model gateways: Vercel, Cloudflare, and OpenRouter
@@ -134,7 +134,7 @@ Biome remains the default formatter and linter for broad JavaScript and TypeScri
 | **Oxfmt** | Stable framework-file and Prettier compatibility exceed Biome's coverage without adding a second configuration burden. |
 | **Rolldown** | A project needs custom bundler behavior or library packaging beyond Vite's transitive use. |
 | **Oxc** | A maintained tool needs parser, transform, resolver, or minifier primitives directly. |
-| **Vite+** | It reaches stable release and replaces several existing tools with less configuration while preserving Deno and deployment portability. |
+| **Vite+** | A representative application demonstrates that stable 1.0 replaces several existing configurations while preserving framework checks and deployment portability. |
 | **Vite Task** | A monorepo requires caching and dependency scheduling beyond Just and native tasks. |
 
 Do not run two permanent formatter or linter stacks merely to keep options open. A migration candidate earns a bounded comparison against real repository fixtures before adoption.
