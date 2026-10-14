@@ -144,11 +144,12 @@ and environment files. Only the inherited terminal devices are admitted, and
 terminal input injection through `TIOCSTI` is denied.
 
 The terminal application remains outside the child process sandbox. Host
-terminal configuration must deny programmatic clipboard reads and confirm
-programmatic writes through OSC 52; manual paste remains an explicit user
-action. Do not infer that blocking a clipboard command inside the agent also
+terminal configuration denies programmatic clipboard reads. The owner accepts
+prompt-free writes through OSC 52 for convenient copying; terminal programs can
+replace clipboard contents. Manual paste remains an explicit user action.
+Do not infer that blocking a clipboard command inside the agent also
 blocks terminal callbacks. The installed Ghostty configuration has
-`clipboard-read = deny` and `clipboard-write = ask`; its parser and host gate
+`clipboard-read = deny` and `clipboard-write = allow`; its parser and host gate
 pass. Existing Ghostty windows require **Command+Shift+Comma** or **Reload Config**
 to load the settings. Other terminal applications are not verified by this check.
 
@@ -251,13 +252,30 @@ The supervisor starts a fresh browser inside containment before the vendor
 starts. It validates that browser's `DevToolsActivePort` port and UUID against
 the endpoint before pinning Agent Browser to it. A process that claims the chosen
 port cannot silently become the automation endpoint; startup fails closed.
-Final live acceptance for this revised startup path remains required.
+Installed acceptance verified both free-port startup and collision rejection.
+
+Existing Playwright exporters must honor the managed browser interface. In a
+managed session, connect with `chromium.connectOverCDP(process.env.AGENT_BROWSER_CDP)`
+and create a page in `browser.contexts()[0]`. Do not launch the desktop Chrome
+channel or create an additional browser context: the contained browser uses
+one fresh context and a single process. Missing managed endpoints must fail
+clearly rather than falling back to host Chrome.
+
+Playwright's streamed `page.pdf()` transfer fails with `IO.read: Read failed`
+in this contained browser. For bounded documents, use the Chromium DevTools
+`Page.printToPDF` command with `transferMode: "ReturnAsBase64"`, then write the
+returned PDF bytes to an admitted output path. Preserve the document's explicit
+print options, tagging, and page ranges. This buffers the PDF in memory; large
+document workflows need a separately verified streaming design. Installed Pi
+acceptance exercised an actual project exporter producing tagged 2-, 3-, and
+16-page PDFs, including overflow and content checks. Agent Browser's successful
+PDF command alone does not establish compatibility with every project exporter.
 
 Lifecycle cleanup applies the policy once through macOS `libsandbox`, with a
 contained guardian and inherited policy for the vendor and its descendants.
 The guardian reports the vendor's exit through a private descriptor and uses
-same-sandbox process termination to remove remaining children. Final lifecycle
-canaries must verify the revised path before claiming complete cleanup. A
+same-sandbox process termination to remove remaining children. Live synthetic
+checks verified ordinary exit cleanup, including detached children. A
 malicious child can kill the guardian first; forced supervisor termination also
 cannot promise graceful cleanup or revoke every surviving descendant's rights.
 

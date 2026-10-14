@@ -112,8 +112,9 @@ Preparation and startup reject bootstrap executable placement beneath managed
 write grants. Installed plugin and extension trees remain trusted code assets,
 not recursively sanitized collections; keep credentials outside those trees.
 
-The host's Ghostty configuration denies clipboard queries and asks before
-programmatic writes. Existing Ghostty windows require **Command+Shift+Comma**
+The host's Ghostty configuration denies clipboard queries and permits
+prompt-free writes. The owner accepts clipboard replacement by terminal programs
+for convenient copying. Existing Ghostty windows require **Command+Shift+Comma**
 or **Reload Config** to load that policy. The child sandbox cannot enforce
 terminal callbacks by itself.
 

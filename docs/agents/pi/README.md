@@ -188,8 +188,9 @@ access permits disclosure. Live edits may affect later host execution. The
 boundary shares the Mac kernel and is not VM-equivalent isolation. Local
 inference does not imply network or filesystem isolation. Terminal clipboard
 callbacks need separate host-terminal configuration. Ghostty is configured to
-deny programmatic reads and ask before writes; existing windows require
-**Command+Shift+Comma** to reload. Manual paste remains user-controlled.
+deny programmatic reads and allow writes without prompts; existing windows require
+**Command+Shift+Comma** to reload. Terminal programs can replace clipboard contents,
+an owner-accepted tradeoff. Manual paste remains user-controlled.
 Pre-existing admitted hardlinks can expose excluded bytes under another name;
 keep private aliases outside admitted paths.
 

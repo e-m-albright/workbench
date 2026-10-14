@@ -31,7 +31,7 @@ A native binary started inside a managed process retains the parent's policy.
 | Desktop and Downloads | Host paths subject to vendor permissions | Read/write host directories mapped into isolated HOME, with exclusions |
 | Network | Vendor-specific | Public TCP destinations on ports 80/443 through a proxy; private destinations denied |
 | Browser and PDF | Installed tool behavior | Fresh contained browser; no personal profile; endpoint identity checked before vendor startup |
-| Host callbacks | Native authority and host settings | Separate host controls required; Ghostty configured to deny clipboard reads and prompt for writes |
+| Host callbacks | Native authority and host settings | Ghostty denies clipboard reads; owner-approved prompt-free writes permit clipboard replacement |
 | Session exit | Vendor/process dependent | Contained guardian cleanup; malicious termination of that guardian remains a limit |
 
 A native sandbox is not an unconditional promise: configuration, flags, and
@@ -59,7 +59,7 @@ checks provide separate evidence. Final installed acceptance is recorded below.
 | Global Git identity overrode repository settings | **Corrected.** Repository `user.name` and `user.email` override global scalar defaults. | Local includes, credential helpers, and arbitrary host Git configuration are not imported. |
 | Bootstrap placement could be managed-writable | **Corrected.** Preparation and launch reject unsafe bootstrap paths and overlapping write roots. | Host-installed code is still trusted; no deployed compromise was established by review. |
 | Background descendants could survive | **Corrected and verified for ordinary exit.** A same-sandbox guardian uses exit reporting and process termination. | Detached synthetic children ignoring SIGTERM were terminated; unrelated host processes survived. A malicious child may kill the guardian first; forced supervisor death is not guaranteed cleanup. |
-| Terminal callbacks lacked installed evidence | **Host configuration verified and corrected.** Ghostty denies reads and asks before programmatic clipboard writes. | Installed parse/status and host gate pass; existing windows need Command+Shift+Comma. Other terminals are not covered by this evidence. |
+| Terminal callbacks lacked installed evidence | **Host configuration verified; write risk accepted.** Ghostty denies reads and permits prompt-free writes at the owner's explicit request. | Terminal programs can replace clipboard contents. Installed parse/status and host gate pass; existing windows need Command+Shift+Comma. Other terminals are not covered by this evidence. |
 | Network wording promised HTTP protocol checks | **Clarified.** The proxy permits public TCP ports 80/443, not verified application protocols. | Resolved private addresses remain denied. Public exfiltration of admitted content is possible. |
 | Recursive plugin grants might admit data | **Accepted trust boundary, claims narrowed.** Installed plugin/extension trees are trusted code assets, not sanitized data trees. | Synthetic fixtures cover admission behavior; no real plugin secrets were read. Keep credentials outside those trees. |
 | Hardlink behavior lacked coverage | **Verified accepted alias limit.** A pre-existing admitted hardlink remains readable even if another name is excluded. | Synthetic probes separately deny new protected hardlink creation and protected ancestor renaming. This is path containment, not content labeling. |
