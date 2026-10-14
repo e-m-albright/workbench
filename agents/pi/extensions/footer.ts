@@ -210,7 +210,12 @@ function authClass(ctx: ExtensionContext): "local" | "subscription" | "paid" {
 	const baseUrl = (model.baseUrl ?? "").toLowerCase();
 	const isLocalHost =
 		baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1") || baseUrl.includes("[::1]");
-	if (model.provider.includes("lm-studio") || model.provider.includes("ollama") || isLocalHost)
+	if (
+		model.provider === "omlx" ||
+		model.provider.includes("lm-studio") ||
+		model.provider.includes("ollama") ||
+		isLocalHost
+	)
 		return "local";
 	if (ctx.modelRegistry.isUsingOAuth(model)) return "subscription";
 	return "paid";
@@ -428,17 +433,12 @@ export function renderFooter(
 	const pathLine = gitText
 		? `${statusColor("note", "π")} ${dim(cwd)} ${gitText}`
 		: `${statusColor("note", "π")} ${dim(cwd)}`;
-	const mode = process.env.WORKBENCH_PI_MODE;
-	const location =
-		process.env.WORKBENCH_AGENT_LOCATION ||
-		mode?.split("-")[0] ||
-		(ctx.model?.provider === "omlx" ? "local" : "hosted");
-	const authority = process.env.WORKBENCH_AGENT_AUTHORITY || mode?.split("-")[1] || "unrestricted";
-	const locationLabel = location === "local" ? "local" : "cloud";
-	const authorityLabel = authority === "restricted" ? "repo" : "host";
-	const authorityText = `${color(location === "local" ? "#81a2be" : "#f0c674", locationLabel)} > ${color(
-		authority === "restricted" ? "#81a2be" : "#ff5050",
-		authorityLabel,
+	const managed =
+		process.env.WORKBENCH_AGENT_AUTHORITY === "managed" || process.env.WORKBENCH_PI_MODE === "hosted-managed";
+	const local = ctx.model?.provider === "omlx";
+	const authorityText = `${color(local ? "#81a2be" : "#f0c674", local ? "local" : "cloud")} > ${color(
+		managed ? "#81a2be" : "#ff5050",
+		managed ? "managed" : "native",
 	)}`;
 	const coloredPathLine = `${truncateToWidth(pathLine, Math.max(0, width - visibleWidth(authorityText) - 3), dim("..."))}${dim(" │ ")}${authorityText}`;
 
@@ -534,8 +534,12 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	const refreshQuota = async (ctx: ExtensionContext, force = false) => {
-		// Native Pi must not gain another vendor's login just to decorate its footer.
-		if (process.env.WORKBENCH_AGENT_AUTHORITY === "restricted") return;
+		// Managed Pi does not admit another vendor's login for footer telemetry.
+		if (
+			process.env.WORKBENCH_AGENT_AUTHORITY === "managed" ||
+			process.env.WORKBENCH_PI_MODE === "hosted-managed"
+		)
+			return;
 		if (ctx.model?.provider !== "openai-codex" || authClass(ctx) !== "subscription") return;
 		if (quotaRefreshInFlight || (!force && Date.now() - lastQuotaRefresh < 60_000)) return;
 		const currentSession = session;

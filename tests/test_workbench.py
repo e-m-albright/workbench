@@ -979,10 +979,26 @@ other = true
             parsed = tomllib.loads(codex.merge_codex_config(source))
             self.assertEqual(parsed["sandbox_mode"], sandbox)
             self.assertEqual(parsed["approval_policy"], "never")
+            self.assertNotIn("approvals_reviewer", parsed)
 
-    def test_codex_merge_removes_redundant_auto_approval_reviewer(self) -> None:
-        parsed = tomllib.loads(codex.merge_codex_config('approvals_reviewer = "auto_review"\n'))
-        self.assertNotIn("approvals_reviewer", parsed)
+    def test_codex_merge_preserves_explicit_approval_reviewer(self) -> None:
+        for reviewer in ("auto_review", "user"):
+            with self.subTest(reviewer=reviewer):
+                source = f'approvals_reviewer = "{reviewer}"\n'
+                parsed = tomllib.loads(codex.merge_codex_config(source))
+                self.assertEqual(parsed["approvals_reviewer"], reviewer)
+
+    def test_codex_merge_defaults_to_auto_review_without_widening_permissions(self) -> None:
+        for source in ("", 'sandbox_mode = "read-only"\napproval_policy = "on-request"\n'):
+            with self.subTest(source=source):
+                merged = codex.merge_codex_config(source)
+                parsed = tomllib.loads(merged)
+                self.assertEqual(parsed["approvals_reviewer"], "auto_review")
+                self.assertEqual(parsed["approval_policy"], "on-request")
+                self.assertEqual(
+                    parsed["sandbox_mode"], "read-only" if source else "workspace-write"
+                )
+                self.assertEqual(codex.merge_codex_config(merged), merged)
 
     def test_codex_merge_preserves_structured_approval_policy(self) -> None:
         source = (
@@ -1171,7 +1187,7 @@ js_repl = false
 
         self.assertIn("gcai()", launchers)
         self.assertNotIn("gcmw()", launchers)
-        gcai = launchers.split("# Pi modes", maxsplit=1)[0]
+        gcai = launchers.split("gcai() {", maxsplit=1)[1].split("\n}", maxsplit=1)[0]
         self.assertIn("git diff --staged", gcai)
         self.assertIn("--model openai-codex/gpt-5.3-codex-spark --no-extensions", gcai)
         self.assertIn('"$HOME/code/private/"*', gcai)

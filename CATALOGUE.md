@@ -4,6 +4,12 @@ Timestamped map of maintained agent-intelligence capabilities in this repository
 
 **Snapshot:** 2026-09-20. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
 
+The [terminal launch design catalogue](docs/agents/launch-design.md) records the
+October 13, 2026 launcher design and the owner-approved
+[six-model review corrections](docs/decisions/managed-launch-review.md).
+The historical capability snapshot and counts
+below have not been refreshed as part of that change.
+
 ## Scale snapshot
 
 Run `just catalogue` to reproduce the scale table from the current tracked working tree. During an uncommitted review, `just catalogue --include-untracked` also includes new files that Git does not ignore. Deleted files and submodule directories are excluded. Counts are physical lines, including comments, blank lines, and a final unterminated line. Symlinks count as one line without following their targets.

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, type ExtensionContext, parseArgs } from "@earendil-works/pi-coding-agent";
 import { resolveAgentDir } from "./lib/agent-dir";
 
 export type Route = "frontier" | "private";
@@ -54,15 +54,15 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 	let stickyPrivate = false;
 	let routeReady = false;
 	let configValid = false;
-	const mode = process.env.WORKBENCH_PI_MODE;
-	const pinnedRoute: Route | undefined = mode?.startsWith("local-")
-		? "private"
-		: mode?.startsWith("hosted-")
-			? "frontier"
-			: undefined;
+	let startupBlocked = false;
+	const blockedMessage =
+		"Managed sessions cannot honor private inference. Start pi --route private from your host terminal; no input will be submitted in this session.";
+	const managed =
+		process.env.WORKBENCH_PI_MODE === "hosted-managed" || process.env.WORKBENCH_AGENT_AUTHORITY === "managed";
+	const pinnedRoute: Route | undefined = managed ? "frontier" : undefined;
 
 	async function selectRoute(next: Route, ctx: ExtensionContext): Promise<boolean> {
-		if (!configValid) return false;
+		if (!configValid || startupBlocked) return false;
 		const target = config[next];
 		const model = ctx.modelRegistry.find(target.provider, target.model);
 		if (!model) {
@@ -87,6 +87,10 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 	pi.registerCommand("route", {
 		description: "Select inference route: frontier or private",
 		handler: async (args, ctx) => {
+			if (startupBlocked) {
+				ctx.ui.notify(blockedMessage, "error");
+				return;
+			}
 			const requested = args.trim();
 			let next: Route | undefined;
 			if (requested) {
@@ -103,7 +107,7 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 
 			if ((pinnedRoute && next !== pinnedRoute) || (next === "frontier" && stickyPrivate)) {
 				ctx.ui.notify(
-					"The launch mode fixes inference location. Start a new session to change modes.",
+					"Managed sessions use cloud inference, and private sessions cannot switch to cloud. Start a new native pi session to change inference location.",
 					"error",
 				);
 				return;
@@ -115,6 +119,18 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		routeReady = false;
 		configValid = false;
+		// Use the vendor parser so prompt text and restored models are not mistaken for flags.
+		const startup = managed ? parseArgs(process.argv.slice(2)) : undefined;
+		startupBlocked = Boolean(
+			managed &&
+				(pi.getFlag("route") === "private" ||
+					startup?.provider === "omlx" ||
+					(startup?.model && (ctx.model?.provider === "omlx" || startup.model.startsWith("omlx/")))),
+		);
+		if (startupBlocked) {
+			ctx.ui.notify(blockedMessage, "error");
+			return;
+		}
 		try {
 			config = loadConfig(ctx.cwd);
 			configValid = true;
@@ -122,9 +138,11 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 			ctx.ui.notify(`Inference routing blocked: ${String(error)}`, "error");
 			return;
 		}
-		route = pinnedRoute ?? routeFrom(pi.getFlag("route"), config.defaultMode);
+		route =
+			pinnedRoute ??
+			routeFrom(pi.getFlag("route"), ctx.model?.provider === "omlx" ? "private" : config.defaultMode);
 		stickyPrivate = route === "private";
-		// The launch fixes location, while --model and desktop profiles select a model within it.
+		// Managed sessions pin cloud inference; native startup models retain their location.
 		const current = ctx.model;
 		routeReady = Boolean(
 			current && (route === "private" ? current.provider === "omlx" : current.provider !== "omlx"),
@@ -133,12 +151,23 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("model_select", async (_event, ctx) => {
+		if (startupBlocked) return;
+		if (!managed && ctx.model?.provider === "omlx") {
+			route = "private";
+			stickyPrivate = true;
+			routeReady = configValid;
+		}
 		if (route === "private" && ctx.model?.provider !== "omlx") routeReady = await selectRoute("private", ctx);
 		if (pinnedRoute === "frontier" && ctx.model?.provider === "omlx")
 			routeReady = await selectRoute("frontier", ctx);
 	});
 
 	pi.on("input", async (event, ctx) => {
+		if (startupBlocked) {
+			ctx.ui.setEditorText(event.text);
+			ctx.ui.notify(blockedMessage, "error");
+			return { action: "handled" as const };
+		}
 		if (routeReady && (route !== "private" || ctx.model?.provider === "omlx"))
 			return { action: "continue" as const };
 		if (await selectRoute(route, ctx)) return { action: "continue" as const };

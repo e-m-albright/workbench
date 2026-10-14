@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -13,6 +13,8 @@ const { default: workerExtension } = await import("../agents/pi/extensions/worke
 
 beforeEach(() => {
 	vi.stubEnv("PI_CODING_AGENT_DIR", "/nonexistent-workbench-test-agent");
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", undefined);
+	vi.stubEnv("WORKBENCH_PI_MODE", undefined);
 });
 afterEach(() => {
 	vi.unstubAllEnvs();
@@ -35,7 +37,7 @@ function deferred<T>() {
 
 function createHarness(
 	run: Promise<ExecResult>,
-	options: { branchDeleteFails?: boolean; parentStatus?: string; provider?: string } = {},
+	options: { branchDeleteFails?: boolean; parentStatus?: string; provider?: string; root?: string } = {},
 ) {
 	let workerTool: WorkerTool | undefined;
 	let shutdown: ((event: unknown, ctx: any) => Promise<void>) | undefined;
@@ -45,7 +47,7 @@ function createHarness(
 	const calls: string[][] = [];
 	const statuses: Array<string | undefined> = [];
 	const notifications: Array<{ text: string; level: string }> = [];
-	const root = `/tmp/wb-worker-${Date.now()}-${Math.random()}`;
+	const root = options.root ?? `/tmp/wb-worker-${Date.now()}-${Math.random()}`;
 	const pi = {
 		registerTool(tool: WorkerTool) {
 			workerTool = tool;
@@ -124,10 +126,64 @@ async function settleBackground(): Promise<void> {
 	await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+const managedHomes: string[] = [];
+function managedRepo(parent: string): string {
+	const home = realpathSync(mkdtempSync(join(tmpdir(), "wb-worker-managed-")));
+	managedHomes.push(home);
+	vi.stubEnv("WORKBENCH_HOST_HOME", home);
+	const root = join(home, parent, "project");
+	mkdirSync(join(root, ".git"), { recursive: true });
+	return root;
+}
+afterEach(() => {
+	for (const home of managedHomes.splice(0)) rmSync(home, { recursive: true, force: true });
+});
+
 describe("Pi worker delegate", () => {
-	test("restricted delegation rejects before creating a branch or worktree", async () => {
-		vi.stubEnv("WORKBENCH_PI_MODE", "hosted-restricted");
-		const harness = createHarness(Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false }));
+	test("managed delegation permits a sibling worktree under public code", async () => {
+		vi.stubEnv("WORKBENCH_PI_MODE", "hosted-managed");
+		vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false }), {
+			root: managedRepo("code/public"),
+		});
+		await harness.tool?.execute(
+			"delegate",
+			{ action: "delegate", task: "test" },
+			undefined,
+			undefined,
+			harness.ctx,
+		);
+		expect(harness.calls.some((call) => call[0] === "pi")).toBe(true);
+		const add = harness.calls.find((call) => call[1] === "worktree" && call[2] === "add");
+		expect(add?.[5]).toContain("/code/public/");
+		await settleBackground();
+		await harness.tool?.execute("discard", { action: "discard" }, undefined, undefined, harness.ctx);
+	});
+
+	test.each(["Desktop", "Downloads"])(
+		"managed delegation permits sibling worktrees under %s",
+		async (parent) => {
+			vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
+			const harness = createHarness(Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false }), {
+				root: managedRepo(parent),
+			});
+			await harness.tool?.execute(
+				"delegate",
+				{ action: "delegate", task: "test" },
+				undefined,
+				undefined,
+				harness.ctx,
+			);
+			expect(harness.calls.some((call) => call[0] === "pi")).toBe(true);
+			await settleBackground();
+		},
+	);
+
+	test("managed private checkout rejects sibling placement before any Git mutation", async () => {
+		vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false }), {
+			root: managedRepo("code/private"),
+		});
 		await expect(
 			harness.tool?.execute(
 				"delegate",
@@ -136,8 +192,29 @@ describe("Pi worker delegate", () => {
 				undefined,
 				harness.ctx,
 			),
-		).rejects.toThrow("restricted");
-		expect(harness.calls).toEqual([]);
+		).rejects.toThrow("outside managed write roots");
+		expect(harness.calls.some((call) => call.includes("worktree") || call[0] === "pi")).toBe(false);
+	});
+
+	test.each(["file", "symlink"])("managed worker rejects a %s .git before mutating Git", async (kind) => {
+		vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
+		const root = managedRepo("code/public");
+		rmSync(join(root, ".git"), { recursive: true });
+		if (kind === "file") writeFileSync(join(root, ".git"), "gitdir: ../outside");
+		else symlinkSync(join(root, ".."), join(root, ".git"));
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false }), {
+			root,
+		});
+		await expect(
+			harness.tool?.execute(
+				"delegate",
+				{ action: "delegate", task: "test" },
+				undefined,
+				undefined,
+				harness.ctx,
+			),
+		).rejects.toThrow("ordinary checkout");
+		expect(harness.calls.some((call) => call.includes("worktree") || call[0] === "pi")).toBe(false);
 	});
 
 	test("rejects delegation when the parent has tracked or untracked changes", async () => {

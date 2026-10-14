@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -78,7 +79,11 @@ def sync(
     ] = False,
     profile: Annotated[
         DeploymentProfile,
-        typer.Option("--profile", help="deployment profile (default: personal)"),
+        typer.Option(
+            "--profile",
+            envvar="DOTFILES_PROFILE",
+            help="deployment profile (default: $DOTFILES_PROFILE, else personal)",
+        ),
     ] = DeploymentProfile.PERSONAL,
 ) -> None:
     """Deploy Workbench-managed configuration to supported coding agents."""
@@ -123,7 +128,11 @@ def drift(
     ] = False,
     profile: Annotated[
         DeploymentProfile,
-        typer.Option("--profile", help="deployment profile (default: personal)"),
+        typer.Option(
+            "--profile",
+            envvar="DOTFILES_PROFILE",
+            help="deployment profile (default: $DOTFILES_PROFILE, else personal)",
+        ),
     ] = DeploymentProfile.PERSONAL,
 ) -> None:
     """Compare live vendor configuration directly with canonical Workbench sources."""
@@ -145,7 +154,7 @@ def lint() -> None:
     raise typer.Exit(lint_module.lint())
 
 
-native_app = typer.Typer(help="Prepare and use the native restricted terminal boundary.")
+native_app = typer.Typer(help="Prepare and use the managed terminal boundary.")
 app.add_typer(native_app, name="native")
 
 
@@ -157,7 +166,44 @@ def native_prepare(
     native_module.prepare()
     if authorize:
         for vendor, ready in native_module.authorize().items():
-            print(f"{vendor}: {'saved model login ready' if ready else 'no reusable model login'}")
+            status = (
+                "model login enrolled; authentication unverified"
+                if ready
+                else "no reusable model login"
+            )
+            print(f"{vendor}: {status}")
+
+
+@native_app.command("authorize")
+def native_authorize(
+    vendor: Annotated[Vendor, typer.Argument(help="codex, claude, or pi")],
+    replace: Annotated[
+        bool,
+        typer.Option(
+            "--replace", help="Back up and replace this managed login from its native source"
+        ),
+    ] = False,
+) -> None:
+    """Enroll one native model login without reinstalling dependencies."""
+    enrolled = native_module.authorize(_home(), vendor=vendor.value, replace=replace)
+    if not enrolled[vendor.value]:
+        raise WorkbenchError(
+            "Existing managed login is empty; use --replace after signing in natively"
+        )
+    print(f"{vendor.value}: model login enrolled; authentication unverified")
+
+
+@native_app.command("status")
+def native_status(
+    vendor: Annotated[Vendor, typer.Argument(help="vendor to inspect (default: all)")] = Vendor.ALL,
+) -> None:
+    """Show managed paths, preparation, and login presence without reading tokens or history."""
+    print(
+        json.dumps(
+            native_module.status(_home(), vendor=None if vendor is Vendor.ALL else vendor.value),
+            indent=2,
+        )
+    )
 
 
 @native_app.command(

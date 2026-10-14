@@ -89,11 +89,13 @@ def test_authorize_does_not_treat_empty_claude_tokens_as_a_login(tmp_path, monke
     assert native.authorize(home)["claude"] is False
     destination = home / ".local/share/workbench/model-auth/claude/.credentials.json"
     assert not destination.exists()
-    destination.parent.mkdir(parents=True)
+    destination.parent.mkdir(parents=True, mode=0o700)
     destination.write_text(json.dumps(value))
     destination.chmod(0o600)
     value["claudeAiOauth"]["accessToken"] = "synthetic-restored-login"
-    assert native.authorize(home)["claude"] is True
+    assert native.authorize(home)["claude"] is False
+    assert json.loads(destination.read_text()) != value
+    assert native.authorize(home, vendor="claude", replace=True)["claude"] is True
     assert json.loads(destination.read_text()) == value
 
 
@@ -146,3 +148,151 @@ def test_failed_reprepare_invalidates_previous_readiness(tmp_path, monkeypatch, 
     with pytest.raises(subprocess.CalledProcessError):
         native.prepare(home)
     assert not manifest.exists()
+
+
+def test_reenroll_is_explicit_vendor_scoped_and_backs_up_existing_login(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    source = home / ".codex/auth.json"
+    source.parent.mkdir(parents=True)
+    source.write_text('{"tokens":{"access_token":"new-synthetic"}}')
+    source.chmod(0o600)
+    destination = home / ".local/share/workbench/model-auth/codex/auth.json"
+    destination.parent.mkdir(parents=True, mode=0o700)
+    destination.write_text('{"tokens":{"access_token":"old-synthetic"}}')
+    destination.chmod(0o600)
+    monkeypatch.setattr(native.subprocess, "run", lambda *a, **kw: pytest.fail("other vendor read"))
+    old, new = destination.read_bytes(), source.read_bytes()
+    assert native.authorize(home, vendor="codex") == {"codex": True}
+    assert destination.read_bytes() == old
+    assert native.authorize(home, vendor="codex", replace=True) == {"codex": True}
+    assert json.loads(destination.read_bytes()) == json.loads(new)
+    assert source.read_bytes() == new
+    backups = list((home / ".local/state/workbench/backups").glob("model-login-*/codex/auth.json"))
+    assert len(backups) == 1 and backups[0].read_bytes() == old
+    assert backups[0].stat().st_mode & 0o077 == 0
+    assert backups[0].parent.stat().st_mode & 0o077 == 0
+
+
+def test_reenroll_invalid_source_preserves_existing_login(tmp_path):
+    home = tmp_path / "home"
+    source = home / ".codex/auth.json"
+    source.parent.mkdir(parents=True)
+    source.write_text('{"unexpected":"not-a-login"}')
+    source.chmod(0o600)
+    destination = home / ".local/share/workbench/model-auth/codex/auth.json"
+    destination.parent.mkdir(parents=True, mode=0o700)
+    destination.write_text('{"tokens":{"access_token":"existing-synthetic"}}')
+    destination.chmod(0o600)
+    old = destination.read_bytes()
+    with pytest.raises(core.WorkbenchError, match="No reusable"):
+        native.authorize(home, vendor="codex", replace=True)
+    assert destination.read_bytes() == old
+    assert not (home / ".local/state/workbench/backups").exists()
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "Desktop/node",
+        "Downloads/node",
+        "code/public/tool/bin/node",
+        ".local/share/workbench/agent-state/node",
+    ],
+)
+def test_bootstrap_refuses_managed_writable_locations(tmp_path, monkeypatch, relative):
+    home = tmp_path / "home"
+    unsafe = home / relative
+    unsafe.parent.mkdir(parents=True)
+    unsafe.write_text("synthetic")
+    monkeypatch.setattr(native, "_binary", lambda name: unsafe)
+    with pytest.raises(core.WorkbenchError, match="bootstrap"):
+        native.prepare(home)
+    assert not (home / ".local/share/workbench/native/tools.json").exists()
+
+
+def test_status_reports_presence_without_reading_credentials_or_history(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    token = home / ".local/share/workbench/model-auth/codex/auth.json"
+    token.parent.mkdir(parents=True)
+    token.write_text("sensitive malformed text must never be read")
+    token.chmod(0o600)
+    monkeypatch.setattr(native, "_credential_json", lambda *a: pytest.fail("credential read"))
+    status = native.status(home, vendor="codex", cwd=tmp_path)
+    assert status["agents"]["codex"]["login"] == "present; authentication unverified"
+    assert status["agents"]["codex"]["executable_ready"] is False
+    assert "sensitive" not in json.dumps(status)
+    assert status["state_path"].endswith("/home")
+
+
+@pytest.mark.parametrize("kind", ["symlink", "hardlink", "public-mode"])
+def test_reenroll_rejects_unsafe_source_without_replacing_login(tmp_path, kind):
+    home = tmp_path / "home"
+    source = home / ".codex/auth.json"
+    source.parent.mkdir(parents=True)
+    original = tmp_path / "source-login"
+    original.write_text('{"tokens":{"access_token":"synthetic"}}')
+    original.chmod(0o600)
+    if kind == "symlink":
+        source.symlink_to(original)
+    elif kind == "hardlink":
+        source.hardlink_to(original)
+    else:
+        source.write_bytes(original.read_bytes())
+        source.chmod(0o644)
+    with pytest.raises((core.WorkbenchError, OSError)):
+        native.authorize(home, vendor="codex", replace=True)
+    assert not (home / ".local/share/workbench/model-auth/codex/auth.json").exists()
+
+
+def test_native_cli_enrollment_is_separate_and_never_claims_verified_login(
+    tmp_path, monkeypatch, capsys
+):
+    from workbench import cli
+
+    calls = []
+    monkeypatch.setenv("WORKBENCH_HOME", str(tmp_path))
+    monkeypatch.setattr(native, "prepare", lambda: pytest.fail("dependency install"))
+    monkeypatch.setattr(
+        native, "authorize", lambda home, **kwargs: calls.append((home, kwargs)) or {"codex": True}
+    )
+    assert cli.main(["native", "authorize", "codex", "--replace"]) == 0
+    assert calls == [(tmp_path, {"vendor": "codex", "replace": True})]
+    assert "enrolled; authentication unverified" in capsys.readouterr().out
+
+
+def test_status_cli_reports_synthetic_state_without_launching_tools(tmp_path, monkeypatch, capsys):
+    from workbench import cli
+
+    monkeypatch.setenv("WORKBENCH_HOME", str(tmp_path))
+    monkeypatch.setattr(native, "status", lambda home, **kwargs: {"login": "absent"})
+    assert cli.main(["native", "status", "codex"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"login": "absent"}
+
+
+def test_bootstrap_refuses_loader_installation_symlink_into_scratch(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    scratch = home / "Downloads"
+    scratch.mkdir(parents=True)
+    share = home / ".local/share"
+    share.mkdir(parents=True)
+    (share / "workbench").symlink_to(scratch, target_is_directory=True)
+    monkeypatch.setattr(native, "_binary", lambda name: tmp_path / "tools" / name)
+    with pytest.raises(core.WorkbenchError, match="bootstrap"):
+        native.prepare(home)
+    assert list(scratch.iterdir()) == []
+
+
+def test_explicit_reenroll_recovers_corrupt_managed_login_and_backs_it_up(tmp_path):
+    home = tmp_path / "home"
+    source = home / ".codex/auth.json"
+    source.parent.mkdir(parents=True)
+    source.write_text('{"tokens":{"access_token":"synthetic-valid"}}')
+    source.chmod(0o600)
+    destination = home / ".local/share/workbench/model-auth/codex/auth.json"
+    destination.parent.mkdir(parents=True, mode=0o700)
+    destination.write_text("interrupted previous write")
+    destination.chmod(0o600)
+    assert native.authorize(home, vendor="codex", replace=True) == {"codex": True}
+    backups = list((home / ".local/state/workbench/backups").glob("model-login-*/codex/auth.json"))
+    assert backups[0].read_text() == "interrupted previous write"
+    assert json.loads(destination.read_text()) == json.loads(source.read_text())

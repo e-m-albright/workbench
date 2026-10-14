@@ -13,24 +13,24 @@ Snapshot of the managed Pi 0.86.1 harness, checked against published package doc
 
 Everything the managed harness adds to a stock `pi` install, in one place:
 
-Repo and host Pi modes load the same managed extensions. Their usable
-operations differ with launch authority; see the launch matrix below.
+Managed `p` and native `pi` share deployed extensions. Their usable operations
+differ because only `p` adds the Workbench outer boundary; see the launch matrix below.
 
 | Addition | Kind | What it provides |
 |---|---|---|
 | Workbench deploy + drift | Infrastructure | One public source of truth for settings, providers, presets, policy, extensions, and shared skills; `workbench sync pi` / `workbench drift pi` |
 | Custom footer (`footer.ts`) | Extension | Git state refreshed every 15 seconds and after tools or user shell commands; model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
 | Activity title (`activity-title.ts`) | Extension | Local working row with elapsed time, terminal-tab spinner, repository, deterministic first-prompt session name, active tool, and immediate `/rename` during active work |
-| Welcome mark (`welcome.ts`) | Extension | Branded confirmation that managed configuration loaded, including the authoritative installed Pi version |
+| Welcome mark (`welcome.ts`) | Extension | Branded confirmation that shared configuration loaded, including the authoritative installed Pi version; authority is shown separately |
 | Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, machine-local private paths, remote-MCP default-deny, unrestricted harness edits, and actionable safe alternatives on rejection |
 | Workspace files (`workspace-files.ts`) | Tool | Workspace-bounded rename, copy, and directory creation without shell mutation; no deletion or overwrite |
 | Ingress discard (`ingress.ts`) | Tool | Confirmed move of one consumed `~/code/ingress` file to Trash; agent handoffs remain lifecycle-managed |
 | Clipboard (`clipboard.ts`) | Tool | Copies approved plain text through the terminal's one-way OSC 52 channel without reading the clipboard or creating temporary files |
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
 | Presets (`presets.ts` + JSON) | Extension | One default `dev` tool and execution profile; model location and access scope belong to the launch mode rather than a preset |
-| Pi launchers + native sandbox | Host guardrail | `cloud > repo` is the default; cloud and local host modes retain invariant exclusions (see the mode table below) |
-| Consult (`consult.ts`) | Extension | Hosted unrestricted `/consult` second opinion via Claude, Codex, or Fable; restricted and local modes refuse the subprocess |
-| Worker (`worker.ts`) | Extension | In unrestricted sessions, model-callable `worker` tool plus `/worker` starts one worktree-isolated child Pi, reports progress, and supports review and discard after parent-owned adoption and verification |
+| Pi shortcut + native sandbox | Host guardrail | `p` shows `cloud > managed`; full `pi` retains native behavior |
+| Consult (`consult.ts`) | Extension | Native hosted `/consult` provides a second opinion via Claude, Codex, or Fable; managed sessions direct the owner to native Pi, and local sessions refuse cloud consult |
+| Worker (`worker.ts`) | Extension | Starts one child Pi in a sibling Git worktree, reports progress, and supports review and discard; managed children inherit the parent boundary and require an admitted sibling path |
 | Google read-only (`google-readonly.ts`) | Disabled extension | Legacy implementation remains source-visible, but Gmail/Calendar tools, credentials, and Google API endpoints are blocked from managed agent modes |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
@@ -62,23 +62,29 @@ context; Enter intentionally rewinds and branches.
 
 ## Bounded orchestration
 
-Worker delegation requires an explicitly unrestricted session. Restricted Pi
-rejects worker start before creating a sibling worktree, which lies outside its
-admitted checkout. `/consult` also rejects restricted sessions because the
-boundary admits only Pi's selected provider login, not another agent's login.
-Local sessions refuse cloud consult to preserve the inference boundary.
+A managed worker preflights an ordinary checkout and sibling placement beneath
+`~/code/public`, `~/Desktop`, or `~/Downloads` before creating Git state. It launches a direct
+child Pi binary, which inherits the parent's outer policy. This does not make
+linked worktrees valid entrypoints for `p`; the managed entrypoint still requires
+an ordinary checkout. Worktrees outside those shared roots fail with native-continuation guidance. Worker workflow
+availability is not a claim that every Git operation succeeds under the boundary.
+`/consult` directs managed sessions to native Pi because another vendor's login
+is not admitted. Native hosted Pi can consult; local sessions refuse cloud consult.
 
 The model-callable `worker` tool is the Pi harness's answer to one independent parallel implementation thread. It creates a separate Git worktree, starts one child Pi in the background, and returns control to the parent after setup. A lightweight footer status reports elapsed time without polling or extra model calls; completion produces one notification. `worker review` or `/worker-status` reads the live diff or finished report on demand. The child cannot commit, push, install dependencies, or merge, and adoption remains with the parent. In the `dev` preset the model may delegate without user approval, continue disjoint parent work, review and adopt useful changes, verify them in the parent checkout, and discard the worktree. `/worker <task>`, `/worker-status`, and `/worker-done` remain manual controls.
 
-This does not provide workflow fleets, background schedules, or autonomous merging. A worker must start from committed state and must not receive a task that depends on uncommitted parent files. In hosted unrestricted sessions, `/consult` covers read-only independent judgment.
+This does not provide workflow fleets, background schedules, or autonomous merging. A worker must start from committed state and must not receive a task that depends on uncommitted parent files. In native hosted sessions, `/consult` covers read-only independent judgment.
 
-The shared handoff skill uses a private global queue outside a restricted
-checkout. A restricted session cannot save there; return the continuation text
-in the conversation and save it from an authorized host session.
+The shared handoff skill uses a private global queue outside the managed grants.
+A managed session cannot save there; return continuation text in the conversation
+and save it from an authorized native session. Native history is separate from
+managed history. Resume from the same checkout path; moving it changes its state
+identity. Do not import private transcripts into hosted inference automatically.
 
 ## Connector access
 
-General agents have no Gmail, Google Calendar, or Google Drive capability. Their tools are absent from the active preset or blocked by policy; Google connector credentials, local Drive trees, browser destinations, and shared Google API/content endpoints are invariant exclusions in both repo and host modes. A future email labeler must be a separate brokered capability rather than an exception inside the coding harness. Apple Notes remains unavailable.
+General agents have no Gmail, Google Calendar, or Google Drive capability. Their tools are absent from the active preset or blocked by policy; Google connector credentials, local Drive trees, browser destinations, and shared Google API/content endpoints are enforced exclusions in managed sessions. Native Pi retains soft connector guards,
+which do not contain arbitrary code running with host authority. A future email labeler must be a separate brokered capability rather than an exception inside the coding harness. Apple Notes remains unavailable.
 
 Pi has no MCP client installed. `pi-mcp-adapter` was removed once active source
 access moved to owned connectors, and Granola's remaining project-scoped MCP
@@ -101,10 +107,12 @@ CLI. It adds structured tool results, bounded context spills, secret redaction,
 stale-reference guards, session recovery, artifact metadata, and the
 `agent_browser_web_search` companion backed by a machine-local Exa credential.
 Use search to discover public sources, `agent_browser read <url>` to read a known
-source without launching Chrome, and a full browser only for rendered state,
+source with the lightest available reader, and a full browser only for rendered state,
 JavaScript-only content, authentication, interaction, screenshots, or diagnostics.
-Authenticated browser profiles remain opt-in, and temporary sessions stay the
-safe baseline. The wrapper's required CLI baseline belongs in its package contract;
+Managed sessions use a fresh contained browser; personal profiles are denied.
+The installed Agent Browser proxy path may launch this browser even for `read`;
+do not describe that path as browserless. Native authenticated profiles remain
+an explicit host workflow. The wrapper's required CLI baseline belongs in its package contract;
 transient machine install state belongs in live drift or doctor output, not this
 document.
 
@@ -117,82 +125,73 @@ operational state.
 
 ## Launch modes and permission guardrails
 
-| Command | Inference | Workbench access |
+| Command | Inference | Workbench outer boundary |
 |---|---|---|
-| `pi`, `pih`, `pihr` | Cloud | `cloud > repo` |
-| `pihu` | Cloud | `cloud > host`, with interactive confirmation |
-| `pil` | Local | `local > host`, with interactive confirmation |
-| `cc`, `ccr` | Cloud | `cloud > repo` |
-| `ccu` | Cloud | `cloud > host`, with interactive confirmation |
-| `co` | Cloud | `cloud > repo` |
-| `cou` | Cloud | `cloud > host`, with interactive confirmation |
+| `p` | Hosted | `cloud > managed`; selected ordinary checkout, `~/code/public`, `~/Desktop`, and `~/Downloads`, with exclusions |
+| `co` | Hosted Codex | Same managed policy |
+| `cc`, `ccr` | Hosted Claude | Same managed policy; `ccr` requests native plan mode |
+| `pi`, `codex`, `claude` | Native vendor selection | No added Workbench boundary when started from the host |
+| `pi --route private --provider omlx` | Local | Native Pi; no added Workbench boundary |
 
-Repo mode uses the same managed harness: global instructions, extensions,
-skills, prompt templates, themes, presets, and model preferences. The operating
-system limits what its tools can access. Connector credentials and host history
-remain excluded, so enabling an extension does not grant private data access.
-Its selected provider login persists across repositories while conversation
-storage remains per repository.
+Full vendor commands retain shared configuration, skills, extensions, and soft
+permission guards. They do not disable their vendor's own approval or sandbox
+features. Native binaries launched by a managed parent inherit its outer policy;
+a command name or environment change cannot escape it.
 
-The installed native launcher wraps the entire process and its children in a
-default-deny macOS policy. It admits the selected ordinary Git checkout, necessary
-tools, isolated state, and the selected provider's login paths. That checkout
-is the approved decision boundary, including curated vault and structured state
-when present. Machine-local raw-source exclusions and environment files remain
-denied even inside it; raw meeting recordings are not admitted. Linked worktrees
-are unsupported. The [security reference](../../security/isolation.md) owns the exact
-permissions, authentication risks, accepted limits, and verification procedure.
+The shortcut authority is always `managed`. The old `--restricted`, `--daily`,
+and `--unrestricted` flags fail with guidance to choose the shortcut or native
+command. Reloading the launcher removes old functions including `pih`, `pihr`,
+`pihu`, `pil`, `cou`, and `ccu`. Pi's native `-r` still resumes a session. Arguments
+after `--` are forwarded literally. Local inference uses native Pi because the
+managed policy does not admit the host inference service. The internal `frontier`
+and `private` routes select providers; they do not grant operating-system access.
+Managed Pi rejects explicit private/local route requests before model input;
+it never silently converts that request into hosted inference. Pi's `dev` preset
+selects tools, not authority. The isolated HOME maps `~/Desktop` and `~/Downloads`
+to the real host scratch directories with the same private exclusions.
 
-Cloud and local inference are not equivalent authority choices. Local Pi uses
-host mode because there is no repo-only tunnel to the local inference service,
-but it retains the native boundary and invariant exclusions. Its normal oMLX
-service and other consumers are unchanged. The internal `frontier` and `private` routes select
-providers for Pi; they do not grant operating-system permissions.
-Pi's `dev` preset selects tools, not authority.
+The managed harness derives instructions, skills, extensions, prompt templates,
+themes, presets, and model preferences from the native configuration. Host code
+assets are read-only; conversations and mutable settings use an isolated home
+per repository. The selected provider login is shared across those isolated
+homes. A valid `worker.timeoutMs` preference survives projection. Connector
+credentials and host conversations are not imported. Installed plugin and
+extension trees are trusted code assets, not sanitized file collections.
+`workbench native status pi` reports paths and login metadata; after native
+sign-in, `workbench native authorize pi --replace` backs up and replaces only
+Pi's managed login. Presence does not prove authentication.
 
-The `cc` and `co` launchers accept `--restricted` and `--unrestricted`; Pi
-uses the aliases above. The internal flags remain compatibility names; the UI
-renders them as repo or host. Interactive host selection asks for confirmation.
-Both modes enter the Workbench native boundary, and host mode cannot override
-invariant confidential, Google Drive, or email exclusions.
+Machine-local exclusions, confidential directories, and real environment files
+remain denied inside every admitted directory. The
+[launch design catalogue](../launch-design.md) compares all layers; the
+[security reference](../../security/isolation.md) owns exact access, accepted
+risks, and dated verification evidence. The
+[managed-surfaces reference](../../configuration.md) owns deployment paths.
 
-Direct vendor binaries, desktop agents, Zed built-ins/external agents, and Paseo
-providers are not covered by this terminal boundary. A daemon or editor can
-execute tool requests outside the agent process's sandbox. Neither an alias nor
-a sandbox around one provider process contains those host callbacks. Restricted
-Codex app-server and browser-integration routes are unsupported; the former
-app-server helper and permissive static profiles are retired.
-
-Use the [managed-surfaces reference](../../configuration.md) for deployment paths.
-Prepare the native runtime, sync launchers, reload the shell, and start a fresh
-process. Running processes keep their launch-time permissions and extensions.
-Resuming a conversation also carries its old content: do not move confidential
-local history to hosted inference without the owner's release.
+Editor and Paseo callbacks may execute tools with their own host permissions.
+The terminal boundary does not contain those callbacks or desktop agents.
+Prepare the runtime, sync, reload the shell, and start a fresh process after
+configuration changes; existing processes retain launch-time permissions.
+Resuming a conversation carries its old content, so confidential local history
+must not move to hosted inference without the owner's release.
 
 ### What the guards prove
 
-The operating-system policy, not Pi's extension policy, enforces the restricted
-terminal boundary. Positive controls must prove a program started before a
-failed operation counts as a denial. Synthetic tests and interactive startup
-probes verify specific blocked routes; they are not proof against every kernel
-exploit, terminal callback, or future vendor feature.
+The operating-system policy enforces the managed boundary. Pi's permission
+extension and Git guard provide readable denials and approval prompts, but do
+not isolate arbitrary native code. Positive controls must show that a program
+started before a failed operation counts as a denial. Synthetic tests verify
+specific routes, not every kernel exploit, terminal callback, or future feature.
 
-Host Pi's permission-policy extension adds readable denials for credential
-requests, connector access, browser operations, raw-source paths, and shell
-effects. Canonical repository commands remain available inside the restricted
-checkout. Personal connectors such as Gmail require local unrestricted access;
-hosted unrestricted access does not automatically grant those connector calls. These
-tool-level checks are useful guidance, not isolation from arbitrary code in an
-unrestricted process.
-
-### Deliberate limits
-
-- Admitted repository data, including Git history and ignored files, can leave through the permitted public network.
-- Provider login files are deliberately readable by the selected restricted agent; existing provider account scopes may exceed inference access.
-- Live repository edits can affect later host execution; there is no separate clone or required installation ceremony.
-- Native containment shares the Mac kernel and is not VM-equivalent isolation or a confidentiality-compliance guarantee.
-- Local inference does not imply network isolation; unrestricted extensions, browsers, credentials, and services retain host authority.
-- Terminal clipboard callbacks are host actions and need separate terminal configuration; manual paste remains user-controlled.
+Admitted files and provider logins remain readable to the agent; public network
+access permits disclosure. Live edits may affect later host execution. The
+boundary shares the Mac kernel and is not VM-equivalent isolation. Local
+inference does not imply network or filesystem isolation. Terminal clipboard
+callbacks need separate host-terminal configuration. Ghostty is configured to
+deny programmatic reads and ask before writes; existing windows require
+**Command+Shift+Comma** to reload. Manual paste remains user-controlled.
+Pre-existing admitted hardlinks can expose excluded bytes under another name;
+keep private aliases outside admitted paths.
 
 Architectural choices and candidate replacements belong in
 [Pi design decisions](decisions.md).

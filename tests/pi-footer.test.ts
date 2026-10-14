@@ -56,7 +56,7 @@ function footerHarness() {
 
 test("a slow previous-session refresh cannot replace the current footer", async () => {
 	vi.stubEnv("NO_COLOR", "1");
-	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "restricted");
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
 	const harness = footerHarness();
 	let finish!: (result: { code: number; stdout: string; stderr: string }) => void;
 	harness.exec.mockImplementationOnce(
@@ -80,7 +80,7 @@ test("a slow previous-session refresh cannot replace the current footer", async 
 
 test("footer preserves the unstaged column in the first porcelain record", async () => {
 	vi.stubEnv("NO_COLOR", "1");
-	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "restricted");
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
 	const harness = footerHarness();
 	try {
 		await harness.handlers.get("session_start")?.({}, harness.ctx);
@@ -96,7 +96,7 @@ test("a new footer session discards previous speed and quota telemetry", async (
 	vi.useFakeTimers();
 	vi.setSystemTime(1000);
 	vi.stubEnv("NO_COLOR", "1");
-	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "restricted");
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
 	const harness = footerHarness();
 	try {
 		await harness.handlers.get("session_start")?.({}, harness.ctx);
@@ -130,14 +130,15 @@ test("a new footer session discards previous speed and quota telemetry", async (
 });
 
 test.each([
-	[80, "restricted"],
-	[120, "restricted"],
-	[80, "unrestricted"],
-	[120, "unrestricted"],
-] as const)("footer at %i columns shows %s authority", (width, authority) => {
+	[80, true, "openai-codex"],
+	[120, true, "openai-codex"],
+	[80, false, "openai-codex"],
+	[120, false, "openai-codex"],
+	[80, false, "omlx"],
+] as const)("footer at %i columns shows managed=%s provider=%s", (width, managed, provider) => {
 	vi.stubEnv("NO_COLOR", "1");
-	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", authority);
-	vi.stubEnv("WORKBENCH_AGENT_LOCATION", "hosted");
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", managed ? "managed" : undefined);
+	vi.stubEnv("WORKBENCH_PI_MODE", managed ? "hosted-managed" : undefined);
 	vi.stubEnv("WORKBENCH_HOST_HOME", "/example");
 	try {
 		const ctx = {
@@ -145,15 +146,17 @@ test.each([
 			ui: { theme: {} },
 			sessionManager: { getEntries: () => [] },
 			getContextUsage: () => ({ percent: 0, tokens: 0, contextWindow: 272000 }),
-			model: { provider: "openai-codex", id: "model", contextWindow: 272000 },
-			modelRegistry: { isUsingOAuth: () => true },
+			model: { provider, id: "model", contextWindow: 272000 },
+			modelRegistry: { isUsingOAuth: () => provider !== "omlx" },
 		} as Parameters<typeof renderFooter>[0];
 		const lines = renderFooter(ctx, { kind: "not-git" }, { kind: "unknown" }, width);
 		expect(lines).toHaveLength(2);
 		expect(lines[0]).toContain("~/code/project");
-		expect(lines[0]).toContain(`cloud > ${authority === "restricted" ? "repo" : "host"}`);
+		expect(lines[0]).toContain(
+			`${provider === "omlx" ? "local" : "cloud"} > ${managed ? "managed" : "native"}`,
+		);
 		expect(lines[1]).toContain("ctx 0.0% 0/272k");
-		expect(lines[1]).toContain("openai-codex/model");
+		expect(lines[1]).toContain(`${provider}/model`);
 	} finally {
 		vi.unstubAllEnvs();
 	}

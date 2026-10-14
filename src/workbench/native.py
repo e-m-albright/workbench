@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
 import shutil
 import stat
 import subprocess
+import tempfile
 from pathlib import Path
 
 from workbench.core import (
@@ -30,10 +32,54 @@ def _binary(name: str) -> Path:
     return Path(found).resolve(strict=True)
 
 
+def _safe_bootstrap(home: Path, *paths: Path) -> None:
+    """The pre-sandbox executable and loader directory must resist managed writes."""
+    writable = [
+        home / name
+        for name in (
+            "code/public",
+            "Desktop",
+            "Downloads",
+            f"{DATA_REL}/agent-state",
+            f"{DATA_REL}/model-auth",
+        )
+    ]
+    for path in paths:
+        loader = path.resolve().parent
+        for root in writable:
+            if loader.is_relative_to(root.resolve()):
+                raise WorkbenchError(
+                    "Unsafe bootstrap tool location overlaps managed writable paths; "
+                    "install Node and npm outside public code, scratch, and managed state"
+                )
+
+
+def installed_browser(home: Path) -> str | None:
+    """Use the host's installed Playwright Headless Shell; never download at launch."""
+    candidates = list(
+        (home / "Library/Caches/ms-playwright").glob(
+            "chromium_headless_shell-*/chrome-headless-shell-mac-*/chrome-headless-shell"
+        )
+    )
+    candidates = [path for path in candidates if path.is_file() and os.access(path, os.X_OK)]
+    return (
+        str(max(candidates, key=lambda path: path.stat().st_mtime).resolve())
+        if candidates
+        else None
+    )
+
+
 def prepare(home: Path | None = None) -> None:
     """Install locked upstream dependencies and copies, without provider credentials."""
     home = (home or Path.home()).resolve()
     node, npm = _binary("node"), _binary("npm")
+    _safe_bootstrap(
+        home,
+        node,
+        npm,
+        home / DATA_REL / "shell/native-sandbox.mjs",
+        home / DATA_REL / "native/node_modules/bootstrap",
+    )
     agents: dict[str, object] = {}
     for vendor in ("codex", "claude", "pi"):
         if not shutil.which(vendor):
@@ -83,91 +129,232 @@ def _install_runtime(
     for name in ("native-sandbox.py", "native-sandbox.mjs"):
         copy_file(AGENTS / "shared/shell" / name, home / DATA_REL / "shell" / name)
     install_harness(home)
-    write_json(runtime / "tools.json", {"node": str(node), "agents": agents})
+    write_json(
+        runtime / "tools.json",
+        {"node": str(node), "agents": agents, "browser": installed_browser(Path.home())},
+    )
 
 
-def _credential_json(path: Path) -> dict:
-    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)) as stream:
+def _credential_bytes(path: Path) -> bytes:
+    if any(parent.is_symlink() for parent in path.parents):
+        raise WorkbenchError("Model login directories must not traverse symlinks")
+    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
         metadata = os.fstat(stream.fileno())
         if (
             not stat.S_ISREG(metadata.st_mode)
             or metadata.st_uid != os.getuid()
             or metadata.st_mode & 0o077
+            or metadata.st_nlink != 1
+            or metadata.st_size > 1024 * 1024
         ):
-            raise WorkbenchError("Model login file must be an owner-only regular file")
-        value = json.load(stream)
+            raise WorkbenchError("Model login file must be a small owner-only regular file")
+        value = stream.read(1024 * 1024 + 1)
+    if len(value) > 1024 * 1024:
+        raise WorkbenchError("Model login file exceeds the size limit")
+    return value
+
+
+def _credential_value(raw: bytes) -> dict:
+    value = json.loads(raw)
     if not isinstance(value, dict):
         raise WorkbenchError("Model login file must contain an object")
     return value
 
 
+def _credential_json(path: Path) -> dict:
+    return _credential_value(_credential_bytes(path))
+
+
+LOGIN_FILES = {"codex": "auth.json", "pi": "auth.json", "claude": ".credentials.json"}
+
+
+def _token(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
 def _has_login(vendor: str, value: dict) -> bool:
     if vendor == "claude":
         credential = value.get("claudeAiOauth")
-        return isinstance(credential, dict) and bool(credential.get("accessToken"))
-    return bool(value)
+        return isinstance(credential, dict) and _token(credential.get("accessToken"))
+    if vendor == "codex":
+        tokens = value.get("tokens")
+        return _token(value.get("OPENAI_API_KEY")) or (
+            isinstance(tokens, dict) and _token(tokens.get("access_token"))
+        )
+    return any(
+        isinstance(item, dict) and item.get("type") == "oauth" and _token(item.get("access"))
+        for item in value.values()
+    )
 
 
-def authorize(home: Path | None = None) -> dict[str, bool]:
-    """Seed shared model-only caches once; never replace refreshed native credentials."""
-    home = (home or Path.home()).resolve()
-    store = home / DATA_REL / "model-auth"
-    enrolled: dict[str, bool] = dict.fromkeys(("codex", "pi", "claude"), False)
-    for vendor, filename in (
-        ("codex", "auth.json"),
-        ("pi", "auth.json"),
-        ("claude", ".credentials.json"),
-    ):
-        destination = store / vendor / filename
-        exists = destination.exists() or destination.is_symlink()
-        if exists and _has_login(vendor, _credential_json(destination)):
-            enrolled[vendor] = True
+def _private_directory(path: Path, home: Path) -> None:
+    for parent in reversed((path, *path.parents)):
+        if parent == home or not parent.is_relative_to(home):
             continue
-        if vendor == "claude":
-            result = subprocess.run(
-                [
-                    "/usr/bin/security",
-                    "find-generic-password",
-                    "-s",
-                    "Claude Code-credentials",
-                    "-w",
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=10,
-            )
-            if result.returncode:
-                continue
+        if parent.is_symlink():
+            raise WorkbenchError("Model login directories must not traverse symlinks")
+        parent.mkdir(exist_ok=True, mode=0o700)
+    if path.stat().st_uid != os.getuid() or path.stat().st_mode & 0o077:
+        raise WorkbenchError("Model login directory must be owner-only")
+
+
+def _source_login(home: Path, vendor: str) -> dict:
+    if vendor == "claude":
+        result = subprocess.run(
+            ["/usr/bin/security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        if result.returncode:
+            return {}
+        try:
             credential = json.loads(result.stdout).get("claudeAiOauth")
-            value = {"claudeAiOauth": credential} if isinstance(credential, dict) else {}
-        else:
-            source = home / (".codex/auth.json" if vendor == "codex" else ".pi/agent/auth.json")
-            if not source.exists():
-                continue
-            value = _credential_json(source)
-            if vendor == "pi":
-                # Command-backed keys can invoke host credential tools; do not import them.
-                value = {
-                    key: item
-                    for key, item in value.items()
-                    if isinstance(item, dict) and item.get("type") == "oauth"
-                }
-        if not _has_login(vendor, value):
+        except (ValueError, AttributeError) as error:
+            raise WorkbenchError("Claude model login is not a valid credential object") from error
+        return {"claudeAiOauth": credential} if isinstance(credential, dict) else {}
+    source = home / (".codex/auth.json" if vendor == "codex" else ".pi/agent/auth.json")
+    if not source.exists():
+        return {}
+    value = _credential_json(source)
+    if vendor == "pi":
+        # Command-backed keys can invoke host credential tools; do not import them.
+        return {
+            key: item
+            for key, item in value.items()
+            if isinstance(item, dict) and item.get("type") == "oauth"
+        }
+    return value
+
+
+def authorize(
+    home: Path | None = None,
+    *,
+    vendor: str | None = None,
+    replace: bool = False,
+) -> dict[str, bool]:
+    """Enroll logins; replacement requires an explicit vendor and preserves a backup."""
+    home = (home or Path.home()).resolve()
+    if vendor is not None and vendor not in LOGIN_FILES:
+        raise WorkbenchError("Choose codex, claude, or pi for model login enrollment")
+    if replace and vendor is None:
+        raise WorkbenchError("Replacing a model login requires an explicit vendor")
+    enrolled = {}
+    for name in [vendor] if vendor else LOGIN_FILES:
+        destination = home / DATA_REL / "model-auth" / name / LOGIN_FILES[name]
+        exists = destination.exists() or destination.is_symlink()
+        previous_raw = _credential_bytes(destination) if exists else None
+        previous = (
+            _credential_value(previous_raw) if previous_raw is not None and not replace else None
+        )
+        if exists and not replace:
+            # Presence is not proof of validity, and may contain a refreshed schema.
+            enrolled[name] = bool(previous) and (name != "claude" or _has_login(name, previous))
             continue
-        destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with os.fdopen(
-            os.open(
-                destination,
-                os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | (os.O_TRUNC if exists else os.O_EXCL),
-                0o600,
-            ),
-            "w",
-        ) as stream:
-            json.dump(value, stream)
-            stream.write("\n")
-        enrolled[vendor] = True
+        value = _source_login(home, name)
+        if not _has_login(name, value):
+            if vendor is not None:
+                raise WorkbenchError(f"No reusable {name} model login; sign in natively first")
+            enrolled[name] = False
+            continue
+        _private_directory(destination.parent, home)
+        if replace and exists:
+            backups = home / ".local/state/workbench/backups"
+            _private_directory(backups, home)
+            backup_root = Path(tempfile.mkdtemp(prefix="model-login-", dir=backups))
+            backup = backup_root / name / LOGIN_FILES[name]
+            _private_directory(backup.parent, home)
+            # Preserve exact bytes, including tokens rotated by the native harness.
+            with os.fdopen(
+                os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb"
+            ) as target:
+                target.write(previous_raw or b"")
+        fd, temporary = tempfile.mkstemp(prefix=".enroll-", dir=destination.parent)
+        try:
+            with os.fdopen(fd, "w") as stream:
+                json.dump(value, stream)
+                stream.write("\n")
+            Path(temporary).replace(destination)
+        finally:
+            Path(temporary).unlink(missing_ok=True)
+        enrolled[name] = True
     return enrolled
+
+
+def _status_json(path: Path) -> dict:
+    """Read only bounded control manifests, never token or conversation files."""
+    if any(parent.is_symlink() for parent in path.parents):
+        raise WorkbenchError("Managed status paths must not traverse symlinks")
+    if not path.exists():
+        return {}
+    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)) as stream:
+        metadata = os.fstat(stream.fileno())
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 1024 * 1024:
+            raise WorkbenchError("Managed status manifest must be a small regular file")
+        raw = stream.read(1024 * 1024 + 1)
+        if len(raw) > 1024 * 1024:
+            raise WorkbenchError("Managed status manifest exceeds the size limit")
+        value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise WorkbenchError("Managed status manifest must contain an object")
+    return value
+
+
+def status(
+    home: Path | None = None,
+    *,
+    vendor: str | None = None,
+    cwd: Path | None = None,
+) -> dict:
+    """Inspect preparation and file metadata without authenticating or reading sessions."""
+    home = (home or Path.home()).resolve()
+    root = (cwd or Path.cwd()).resolve()
+    for candidate in (root, *root.parents):
+        if (candidate / ".git").exists():
+            root = candidate
+            break
+    if vendor is not None and vendor not in LOGIN_FILES:
+        raise WorkbenchError("Choose codex, claude, or pi for managed status")
+    runtime = home / DATA_REL
+    tools = _status_json(runtime / "native/tools.json")
+    projection = _status_json(runtime / "native/harness/manifest.json")
+    state = runtime / "agent-state" / hashlib.sha256(os.fsencode(root)).hexdigest()[:20] / "home"
+    result = {
+        "runtime_path": str(runtime / "native"),
+        "workspace_path": str(root),
+        "state_path": str(state),
+        "state_exists": state.is_dir(),
+        "agents": {},
+    }
+    for name in [vendor] if vendor else LOGIN_FILES:
+        token = runtime / "model-auth" / name / LOGIN_FILES[name]
+        metadata = token.lstat() if token.exists() or token.is_symlink() else None
+        login = "absent"
+        if metadata:
+            login = (
+                "present; authentication unverified"
+                if (
+                    stat.S_ISREG(metadata.st_mode)
+                    and metadata.st_uid == os.getuid()
+                    and not metadata.st_mode & 0o077
+                )
+                else "unsafe file metadata; enrollment required"
+            )
+        command = tools.get("agents", {}).get(name, {}).get("command", [])
+        result["agents"][name] = {
+            "login_path": str(token),
+            "login": login,
+            "executable_ready": bool(command)
+            and all(
+                isinstance(part, str) and Path(part).is_file() and os.access(part, os.X_OK)
+                for part in command
+            ),
+            "projection_path": str(runtime / "native/harness" / name),
+            "projection_present": name in projection,
+            "admitted_asset_roots": len(projection.get(name, {}).get("read", [])),
+        }
+    return result
 
 
 def run_agent(vendor: str, location: str, args: list[str]) -> int:

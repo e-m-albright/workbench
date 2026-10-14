@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import shlex
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,127 @@ def load_launcher():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_git_identity_respects_repository_values_without_following_local_includes(tmp_path):
+    launcher = load_launcher()
+    home, repo = tmp_path / "home", tmp_path / "repo"
+    home.mkdir()
+    repo.mkdir()
+    (home / ".gitconfig").write_text("[user]\nname = Example Owner\nemail = owner@example.test\n")
+    subprocess.run(["/usr/bin/git", "init", "--quiet", str(repo)], check=True)
+    subprocess.run(
+        ["/usr/bin/git", "-C", str(repo), "config", "user.email", "project@example.test"],
+        check=True,
+    )
+    identity = launcher.git_identity(home, repo)
+    assert identity["GIT_AUTHOR_EMAIL"] == "project@example.test"
+    assert identity["GIT_COMMITTER_NAME"] == "Example Owner"
+    injected = tmp_path / "included"
+    injected.write_text("[user]\nemail = hidden@example.test\n")
+    subprocess.run(
+        ["/usr/bin/git", "-C", str(repo), "config", "include.path", str(injected)], check=True
+    )
+    assert launcher.git_identity(home, repo)["GIT_AUTHOR_EMAIL"] == "project@example.test"
+
+
+def test_scratch_mapping_is_safe_and_uses_real_host_directories(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    state = home / "state"
+    home.mkdir()
+    plan = {
+        "env": {"HOME": str(state)},
+        "scratch_links": [
+            {"path": "Desktop", "target": str(home / "Desktop")},
+            {"path": "Downloads", "target": str(home / "Downloads")},
+        ],
+    }
+    launcher.initialize_home(plan, home)
+    assert (state / "Desktop").readlink() == home / "Desktop"
+    assert (state / "Downloads").readlink() == home / "Downloads"
+    (state / "Desktop").unlink()
+    (state / "Desktop").symlink_to(tmp_path / "elsewhere")
+    with pytest.raises(ValueError, match="scratch link"):
+        launcher.initialize_home(plan, home)
+
+
+@pytest.mark.parametrize("location", ["checkout", "Desktop", "Downloads", "code/public"])
+def test_launch_rejects_writable_supervisor_installations(tmp_path, location):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    repo = home / "checkout"
+    (repo / ".git").mkdir(parents=True)
+    harness_manifest(home, "shell")
+    (home / ".config/workbench/private-paths").write_text("")
+    node = home / location / "node-install/bin/node"
+    config = {"node": str(node), "agents": {}}
+    with pytest.raises(ValueError, match="supervisor installation"):
+        launcher.build_plan(repo, home, config, "shell", "hosted", [])
+
+
+def test_project_sandbox_denials_validate_and_never_admit_allow_lists(tmp_path):
+    launcher = load_launcher()
+    root, home = tmp_path / "repo", tmp_path / "home"
+    config = root / ".claude/settings.json"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        json.dumps(
+            {
+                "sandbox": {
+                    "filesystem": {
+                        "denyRead": ["./private/**", "~/Documents/hidden", "/tmp/hidden"],
+                        "denyWrite": ["./release"],
+                        "allowRead": ["/"],
+                        "allowWrite": ["/"],
+                    }
+                }
+            }
+        )
+    )
+    read, write = launcher.project_denials(root, home)
+    assert read == [str(root / "private/**"), str(home / "Documents/hidden"), "/tmp/hidden"]
+    assert write == [str(root / "release")]
+    for malformed in (
+        [],
+        {"sandbox": []},
+        {"sandbox": {"filesystem": []}},
+        {"sandbox": {"filesystem": {"denyRead": "~/secret"}}},
+        {"sandbox": {"filesystem": {"denyRead": [""]}}},
+    ):
+        config.write_text(json.dumps(malformed))
+        with pytest.raises(ValueError, match="project policy"):
+            launcher.project_denials(root, home)
+
+
+def test_project_policy_does_not_follow_planted_links(tmp_path):
+    launcher = load_launcher()
+    root = tmp_path / "repo"
+    (root / ".claude").mkdir(parents=True)
+    (root / ".claude/settings.json").symlink_to(tmp_path / "private-file")
+    with pytest.raises(ValueError, match="project policy"):
+        launcher.project_denials(root, tmp_path)
+
+
+def test_codex_login_sync_uses_the_newest_host_refresh(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    source = home / ".codex/auth.json"
+    destination = home / ".local/share/workbench/model-auth/codex/auth.json"
+    source.parent.mkdir(parents=True)
+    destination.parent.mkdir(parents=True)
+    source.write_text(json.dumps({"last_refresh": "2026-10-05T00:10:32Z", "token": "current"}))
+    destination.write_text(json.dumps({"last_refresh": "2026-09-14T23:59:54Z", "token": "expired"}))
+    source.chmod(0o600)
+    destination.chmod(0o600)
+
+    assert launcher.sync_codex_auth(home, destination) is True
+    assert json.loads(destination.read_text()) == json.loads(source.read_text())
+    assert destination.stat().st_mode & 0o077 == 0
+
+    source.write_text(json.dumps({"last_refresh": "2026-09-01T00:00:00Z", "token": "stale"}))
+    assert launcher.sync_codex_auth(home, destination) is False
+    assert json.loads(destination.read_text())["token"] == "current"
 
 
 def test_admission_requires_a_real_repository_and_rejects_home(tmp_path):
@@ -70,6 +192,11 @@ def test_hardening_preserves_arguments_and_denies_host_process_inspection():
         launcher.harden("echo unexpected-runtime-output")
     with pytest.raises(ValueError):
         launcher.harden(shlex.join(original).replace("deny default", "allow default"))
+    browser = launcher.harden(shlex.join(original), browser_port=49152)[4]
+    assert '(remote ip "localhost:49152")' in browser
+    assert "MachPortRendezvousServer" not in browser
+    with pytest.raises(ValueError, match="port"):
+        launcher.harden(shlex.join(original), browser_port=-1)
 
 
 def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path, monkeypatch):
@@ -80,6 +207,7 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     node = tmp_path / "tools/node"
     config = {
         "node": str(node),
+        "browser": str(tmp_path / "browser/chrome-headless-shell"),
         "agents": {
             "codex": {
                 "command": [str(tmp_path / "tools/codex")],
@@ -96,11 +224,23 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     private = home / ".config/workbench/private-paths"
     private.parent.mkdir(parents=True, exist_ok=True)
     private.write_text("# synthetic policy\n~/code/*/private-data/**\n")
-    plan = launcher.build_plan(repo, home, config, "codex", "hosted", ["--version"])
+    plan = launcher.build_plan(
+        repo, home, config, "codex", "hosted", ["--version"], browser_port=49152
+    )
     assert plan["env"]["HOME"] != str(home)
+    sockets = str(Path(plan["env"]["TMPDIR"]) / "browser")
+    assert plan["env"]["PI_AGENT_BROWSER_SOCKET_DIR"] == sockets
+    assert plan["env"]["AGENT_BROWSER_SOCKET_DIR"] == sockets
+    assert plan["policy"]["network"]["allowUnixSockets"] == [sockets]
     assert "AWS_SECRET_ACCESS_KEY" not in plan["env"]
     assert "NODE_OPTIONS" not in plan["env"]
     assert "HTTPS_PROXY" not in plan["env"]
+    # rustls cannot discover public roots through the intentionally denied Keychain.
+    assert plan["env"]["SSL_CERT_FILE"] == "/etc/ssl/cert.pem"
+    assert plan["env"]["AGENT_BROWSER_EXECUTABLE_PATH"] == config["browser"]
+    assert "--single-process" in plan["env"]["AGENT_BROWSER_ARGS"]
+    assert "--remote-debugging-port=49152" in plan["env"]["AGENT_BROWSER_ARGS"]
+    assert plan["browser_port"] == 49152
     assert str(repo) in plan["policy"]["filesystem"]["allowRead"]
     assert str(home) not in plan["policy"]["filesystem"]["allowRead"]
     for relative in (
@@ -118,8 +258,16 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     assert str(home / ".bun/bin") not in plan["env"]["PATH"].split(":")
     assert str(home / ".bun/bin") not in plan["policy"]["filesystem"]["allowRead"]
     assert plan["policy"]["filesystem"]["denyRead"][0] == "/"
+    assert plan["policy"]["network"]["allowLocalBinding"] is False
     assert str(home / "code/*/private-data/**") in plan["policy"]["filesystem"]["denyWrite"]
-    assert plan["command"][0] == config["agents"]["codex"]["command"][0]
+    assert plan["command"][:5] == [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-I",
+        "-S",
+        str(SCRIPT),
+        "--browser-session",
+    ]
+    assert plan["command"][5] == config["agents"]["codex"]["command"][0]
     assert "--version" in plan["command"]
     assert plan["command"][-1] == "--version"
     other = home / "code/other"
@@ -131,19 +279,23 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     with pytest.raises(ValueError, match="terminal"):
         launcher.build_plan(repo, home, config, "codex", "hosted", ["app-server"])
 
-    unrestricted = launcher.build_plan(
-        repo, home, config, "codex", "hosted", [], authority="unrestricted"
-    )
-    assert unrestricted["policy"]["filesystem"]["allowRead"] == ["/"]
-    assert unrestricted["policy"]["filesystem"]["allowWrite"] == ["/"]
-    invariant = str(home / "never-agent-readable/**")
-    assert invariant in unrestricted["policy"]["filesystem"]["denyRead"]
-    assert invariant in unrestricted["policy"]["filesystem"]["denyWrite"]
-    assert unrestricted["env"]["WORKBENCH_AGENT_AUTHORITY"] == "unrestricted"
-    assert unrestricted["policy"]["network"]["deniedResolvedAddresses"] == []
-    assert "mail.google.com" in unrestricted["policy"]["network"]["deniedDomains"]
-    assert "drive.google.com" in unrestricted["policy"]["network"]["deniedDomains"]
-    assert "*.googleapis.com" in unrestricted["policy"]["network"]["deniedDomains"]
+    for retired in ("restricted", "daily", "unrestricted"):
+        with pytest.raises(ValueError, match="authority"):
+            launcher.build_plan(repo, home, config, "codex", "hosted", [], authority=retired)
+
+    fs = plan["policy"]["filesystem"]
+    for relative in ("code/public", "Desktop", "Downloads"):
+        assert str(home / relative) in fs["allowRead"]
+        assert str(home / relative) in fs["allowWrite"]
+    assert str(home / "code") not in fs["allowRead"]
+    assert str(home) not in fs["allowWrite"]
+    assert str(home / "never-agent-readable/**") in fs["denyRead"]
+    assert str(home / "code/*/private-data/**") in fs["denyRead"]
+    assert str(home / ".local/share/workbench/shell") in fs["denyWrite"]
+    assert "/Library/Application Support/ClaudeCode" in fs["allowRead"]
+    assert "/usr/local/bin" in fs["allowRead"]
+    assert "/usr/local/bin" in plan["env"]["PATH"].split(":")
+    assert 'default_permissions="cloud > managed"' in plan["command"]
 
 
 @pytest.mark.parametrize("vendor", ["codex", "pi", "claude"])
@@ -161,6 +313,9 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
         "agents": {vendor: {"command": ["/usr/bin/agent"], "read": []}},
     }
     plan = launcher.build_plan(repo, home, config, vendor, "hosted", [])
+    assert bool(plan["resume_hint"]) == (vendor == "claude")
+    if vendor == "claude":
+        assert "cc --resume" in plan["resume_hint"]
     store = home / ".local/share/workbench/model-auth" / vendor
     filename = ".credentials.json" if vendor == "claude" else "auth.json"
     assert str(store / filename) in plan["policy"]["filesystem"]["allowRead"]
@@ -189,7 +344,7 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
         assert str(store) not in plan["policy"]["filesystem"]["allowWrite"]
         for flag in ("--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes"):
             assert flag not in plan["command"]
-        assert plan["env"]["WORKBENCH_PI_MODE"] == "hosted-restricted"
+        assert plan["env"]["WORKBENCH_PI_MODE"] == "hosted-managed"
     else:
         assert plan["env"]["CLAUDE_SECURESTORAGE_CONFIG_DIR"] == str(store)
 
@@ -222,7 +377,7 @@ def test_home_initialization_refuses_agent_planted_parent_symlinks(tmp_path):
         ("claude", ".claude/settings.json"),
     ],
 )
-def test_restricted_home_loads_shared_harness_without_host_state(tmp_path, vendor, config_name):
+def test_managed_home_loads_shared_harness_without_host_state(tmp_path, vendor, config_name):
     launcher = load_launcher()
     home = tmp_path / "home"
     repo = home / "code/project"

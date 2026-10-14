@@ -63,14 +63,67 @@ def test_work_profile_sync_is_fail_closed_and_drift_clean(tmp_path, monkeypatch)
     assert drift.drift(tmp_path, ("claude", "pi"), verify_plugins=False, profile="work") == 0
 
 
-def test_work_profile_rejects_codex_target():
+@pytest.mark.parametrize("command", ["sync", "drift"])
+@pytest.mark.parametrize(
+    ("environment", "arguments", "expected"),
+    [
+        (None, [], "personal"),
+        ("work", [], "work"),
+        ("personal", [], "personal"),
+        ("work", ["--profile", "personal"], "personal"),
+        ("personal", ["--profile", "work"], "work"),
+    ],
+)
+def test_cli_profile_defaults_and_explicit_override(
+    tmp_path, monkeypatch, command, environment, arguments, expected
+):
+    monkeypatch.setenv("WORKBENCH_HOME", str(tmp_path))
+    monkeypatch.delenv("DOTFILES_PROFILE", raising=False)
+    if environment is not None:
+        monkeypatch.setenv("DOTFILES_PROFILE", environment)
+    profiles = []
+
+    def deploy(home, **kwargs):
+        profiles.append(kwargs["profile"])
+
+    def inspect(home, vendors, **kwargs):
+        profiles.append(kwargs["profile"])
+        return 0
+
+    monkeypatch.setattr(cli, "sync_pi", deploy)
+    monkeypatch.setattr(cli.drift_module, "drift", inspect)
+    assert cli.main([command, "pi", *arguments]) == 0
+    assert profiles == [expected]
+
+
+@pytest.mark.parametrize("command", ["sync", "drift"])
+def test_invalid_environment_profile_fails_before_access(tmp_path, monkeypatch, command):
+    monkeypatch.setenv("WORKBENCH_HOME", str(tmp_path / "unused"))
+    monkeypatch.setenv("DOTFILES_PROFILE", "typo")
+    assert cli.main([command, "pi"]) == 2
+    assert not (tmp_path / "unused").exists()
+
+
+def test_work_profile_rejects_codex_target(monkeypatch):
     assert cli.main(["sync", "codex", "--profile", "work"]) == 2
     assert cli.main(["drift", "codex", "--profile", "work"]) == 2
+    monkeypatch.setenv("DOTFILES_PROFILE", "work")
+    assert cli.main(["sync", "codex"]) == 2
+    assert cli.main(["drift", "codex"]) == 2
 
 
 def test_drift_failure_reaches_process_exit_status(tmp_path):
     result = subprocess.run(
-        [sys.executable, "-m", "workbench.cli", "drift", "codex", "--no-plugins"],
+        [
+            sys.executable,
+            "-m",
+            "workbench.cli",
+            "drift",
+            "codex",
+            "--no-plugins",
+            "--profile",
+            "personal",
+        ],
         env={**os.environ, "WORKBENCH_HOME": str(tmp_path)},
         capture_output=True,
         text=True,

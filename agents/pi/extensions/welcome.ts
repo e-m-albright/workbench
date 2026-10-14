@@ -26,7 +26,9 @@ function mixColor(position: number): readonly [number, number, number] {
 }
 
 export function welcomeLabel(version: string): string {
-	return `Pi ${version} · Workbench managed`;
+	const managed =
+		process.env.WORKBENCH_AGENT_AUTHORITY === "managed" || process.env.WORKBENCH_PI_MODE === "hosted-managed";
+	return `Pi ${version} · Workbench configuration · ${managed ? "managed" : "native"}`;
 }
 
 function gradient(line: string): string {

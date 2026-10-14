@@ -4,18 +4,26 @@ The exhaustive map of what `workbench sync` deploys and `workbench drift`
 verifies, per harness. The README keeps only the summary; this document is the
 reference.
 
-The default `personal` profile is the complete configuration described by the
-table. The fail-closed `work` profile targets only Claude Code and Pi. It deploys
+The `personal` profile is the complete configuration described by the
+table. Sync and drift default to `DOTFILES_PROFILE` when set, otherwise `personal`;
+an explicit `--profile` overrides that default. The fail-closed `work` profile targets only Claude Code and Pi. It deploys
 shared rules, tracked skills, hooks, and permission guards, but omits Codex,
 Claude plugins and Desktop configuration, MCP servers, externally downloaded
 skills, local-model routing, and browser and personal connector extensions. It
 still deploys the shared launchers and native Claude/Pi harnesses. Run both sync and drift with the same
 `--profile` value.
 
-Restricted terminal sessions use the same instructions, skills, extensions, and presentation through
+Managed terminal sessions use the same instructions, skills, extensions, and presentation through
 a derived configuration that excludes host history and connector credentials.
 Their isolated state and access boundary are described below and in the
 [boundary reference](security/isolation.md).
+
+Codex sync preserves an explicit approval reviewer. When its effective approval
+policy is `on-request` and no reviewer is selected, it defaults to native automatic
+review (`approvals_reviewer = "auto_review"`). This changes who reviews exceptions,
+not filesystem or network access. Noninteractive and granular policies remain
+unchanged. Existing desktop chats may need **Approve for me** selected in their
+permissions control. See [OpenAI's automatic-review documentation](https://learn.chatgpt.com/docs/sandboxing/auto-review).
 
 | Surface | Pi | Claude Code / Desktop | Codex |
 | --- | --- | --- | --- |
@@ -41,28 +49,39 @@ profiles and Codex app-server helper; Lima is not an active implementation.
 
 The standalone launch interface is
 `/bin/zsh -f ~/.local/share/workbench/shell/agent-sandbox.zsh VENDOR LOCATION AUTHORITY [native args]`:
-`VENDOR` is `pi`, `claude`, or `codex`; `LOCATION` is `hosted` or `local`
-(local is Pi-only and unrestricted); `AUTHORITY` is `restricted` or
-`unrestricted`. Those internal names render as `cloud > repo`, `cloud > host`,
-or `local > host`. Every alias enters the installed native boundary; host mode
-broadens filesystem and network grants without overriding invariant exclusions.
-The [launch matrix](agents/pi/README.md#launch-modes-and-permission-guardrails)
-owns aliases and access semantics. Editor and Paseo host tool callbacks are not
+`VENDOR` is `pi`, `claude`, or `codex`; the only supported pair is `LOCATION=hosted`
+and `AUTHORITY=managed`. The shortcuts `p`, `cc`, and `co` use this pair and show
+`cloud > managed`. They admit the selected ordinary Git checkout,
+`~/code/public`, `~/Desktop`, and `~/Downloads`, with all private exclusions.
+The isolated HOME maps the scratch directory names to their host destinations.
+The full commands `pi`, `claude`, and `codex` retain native behavior, shared
+settings, skills, and soft guards without adding an outer sandbox. Native local
+Pi uses `pi --route private --provider omlx`; it has no Workbench outer boundary.
+The [launch design catalogue](agents/launch-design.md) owns the comparison.
+Retired `--restricted`, `--daily`, and `--unrestricted` flags fail with migration
+guidance; sourcing the launcher removes obsolete aliases such as `cou`, `ccu`,
+`pih`, `pihr`, `pihu`, and `pil`. Editor and Paseo host tool callbacks are not
 contained by this terminal boundary. Running processes retain their existing
-boundary.
+boundary, including native binaries they launch as children.
 
 Per-repository state lives under `~/.local/share/workbench/agent-state/`.
 Sync derives shared harness preferences and approved code paths under
 `~/.local/share/workbench/native/harness/`; launches refresh those preferences
-into isolated state and admit the code assets read-only. This projection is
+into isolated state and admit the code assets read-only. These installed code
+trees are trusted assets, not recursively sanitized collections; keep private
+data outside them. This projection is
 generated from the normal installed harness, not maintained as another profile.
 Optional `workbench native prepare --authorize` enrollment copies only selected
 provider login material into `~/.local/share/workbench/model-auth/`; it preserves
-existing usable credentials. These deliberately agent-readable credentials keep
+existing managed logins without claiming they authenticate. Use
+`workbench native authorize VENDOR --replace` after signing in natively to back
+up and replace one vendor's login. `workbench native status [VENDOR]` reports
+preparation, projection, state paths, and login metadata without token or history
+reads. These deliberately agent-readable credentials keep
 their provider account scopes and are not inference-only grants. Machine-local
-`~/.config/workbench/private-paths` exclusions remain enforced in restricted
-sessions. `~/.config/workbench/hard-deny-paths` applies to every managed
-launcher authority. Its defaults deny every case variant of a directory named
+`~/.config/workbench/private-paths` exclusions remain enforced in managed
+sessions. `~/.config/workbench/hard-deny-paths` also applies to every managed
+launch. Its defaults deny every case variant of a directory named
 `confidential`, all local Google Drive trees, email stores, browser profiles,
 and Google connector credentials. The selected checkout is otherwise the
 repository owner's approved decision boundary;
@@ -102,12 +121,34 @@ transcripts do not wait for the next sync.
 
 The Claude launchers select native permission modes while sharing the normal
 harness preferences. `cc` keeps native auto permission handling
-inside the restricted boundary; `ccr` selects native plan mode for review.
-`cca` requests a worktree workflow, but entering an existing linked worktree is
-unsupported by the native launcher. Native auto
+inside the managed boundary; `ccr` selects native plan mode for review.
+`cca --feedback 'review text'` addresses supplied feedback in the current
+checkout; it does not retrieve authenticated reviews, comment, commit, or push.
+`ccc` and managed `--chrome` are retired with guidance to launch `claude --chrome`
+explicitly from the host. Entering an existing linked worktree is unsupported
+by the managed launcher. Native auto
 handling is an automatic approval classifier, not a prompt before every action.
 The retired `--dev`, `--scout`, and `--yolo` permission-profile flags are rejected;
 old machine-local profile files are not loaded by these launchers.
+
+Managed projection preserves Claude's auto-compaction preferences. Managed
+Claude also reads organizational settings under
+`/Library/Application Support/ClaudeCode` without write access. The launcher
+copies repository-local `user.name` and `user.email` into its clean environment,
+with global defaults when absent. It does not import local includes, hooks,
+credential helpers, or arbitrary host Git configuration. Project Claude sandbox
+`denyRead` and `denyWrite` lists are snapshotted at startup and applied to every
+managed vendor; allow lists are ignored. Invalid or symlinked policy fails
+closed. Mandatory denials are emitted after all grants. See the
+[boundary reference](security/isolation.md) for overlap and file-alias limits.
+
+Managed Codex refresh retains only selected-checkout folder trust and unchanged
+projected hook decisions. Unsupported trust syntax prompts again; arbitrary
+agent-written settings never survive the refresh. Managed Pi preserves valid
+worker timeout settings and rejects explicit private/local startup intent.
+Native and managed histories remain separate; a moved checkout has a new state
+identity. Use an explicit continuation in a fresh host-native session for
+unsupported workflows rather than importing private transcripts automatically.
 
 Codex sync seeds ordinary workspace-write and on-request defaults and repairs a
 broad ordinary sandbox setting. It preserves stricter read-only settings,

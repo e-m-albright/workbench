@@ -1,11 +1,19 @@
-import { describe, expect, vi, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, vi, test } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 
-vi.doMock("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent" }));
+const parseArgs = vi.fn(() => ({}));
+vi.doMock("@earendil-works/pi-coding-agent", () => ({ getAgentDir: () => "/tmp/pi-agent", parseArgs }));
 const { default: inferenceRouter } = await import("../agents/pi/extensions/inference-router");
 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+beforeEach(() => {
+	parseArgs.mockReturnValue({});
+	vi.stubEnv("WORKBENCH_PI_MODE", undefined);
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", undefined);
+});
+afterEach(() => vi.unstubAllEnvs());
 
 const theme = { fg: (_color: string, text: string) => text };
 
@@ -53,7 +61,7 @@ describe("Pi model routing", () => {
 
 	test("leaves authority rendering to the common footer", async () => {
 		const previous = process.env.WORKBENCH_PI_MODE;
-		process.env.WORKBENCH_PI_MODE = "hosted-unrestricted";
+		process.env.WORKBENCH_PI_MODE = "hosted-managed";
 		try {
 			const handlers = new Map<string, (...args: any[]) => any>();
 			const statuses: string[] = [];
@@ -122,9 +130,9 @@ describe("Pi model routing", () => {
 	});
 });
 
-test("pins local-restricted against route flags and rejects later cloud model selection", async () => {
+test("keeps native private routing sticky and rejects later cloud model selection", async () => {
 	const previous = process.env.WORKBENCH_PI_MODE;
-	process.env.WORKBENCH_PI_MODE = "local-restricted";
+	delete process.env.WORKBENCH_PI_MODE;
 	try {
 		const handlers = new Map<string, (...args: any[]) => any>();
 		const commands = new Map<string, any>();
@@ -139,7 +147,7 @@ test("pins local-restricted against route flags and rejects later cloud model se
 			registerFlag() {},
 			registerCommand: (name: string, command: any) => commands.set(name, command),
 			on: (name: string, handler: any) => handlers.set(name, handler),
-			getFlag: () => "frontier",
+			getFlag: () => "private",
 			setModel: async (model: any) => {
 				selected.push(model.provider);
 				ctx.model = model;
@@ -195,11 +203,12 @@ test("preserves a compatible explicit startup model for hosted and local profile
 	const previous = process.env.WORKBENCH_PI_MODE;
 	try {
 		for (const [mode, provider, id] of [
-			["hosted-restricted", "openai-codex", "gpt-5.6-terra"],
-			["hosted-unrestricted", "anthropic", "chosen-cloud-model"],
-			["local-restricted", "omlx", "chosen-local-model"],
+			["hosted-managed", "openai-codex", "gpt-5.6-terra"],
+			[undefined, "anthropic", "chosen-cloud-model"],
+			[undefined, "omlx", "chosen-local-model"],
 		]) {
-			process.env.WORKBENCH_PI_MODE = mode;
+			if (mode) process.env.WORKBENCH_PI_MODE = mode;
+			else delete process.env.WORKBENCH_PI_MODE;
 			const handlers = new Map<string, any>();
 			const selected: unknown[] = [];
 			const ctx = {
@@ -212,7 +221,7 @@ test("preserves a compatible explicit startup model for hosted and local profile
 				registerFlag() {},
 				registerCommand() {},
 				on: (event: string, handler: any) => handlers.set(event, handler),
-				getFlag: () => "frontier",
+				getFlag: () => undefined,
 				setModel: async (model: unknown) => {
 					selected.push(model);
 					return true;
@@ -228,4 +237,96 @@ test("preserves a compatible explicit startup model for hosted and local profile
 		if (previous === undefined) delete process.env.WORKBENCH_PI_MODE;
 		else process.env.WORKBENCH_PI_MODE = previous;
 	}
+});
+
+test.each([
+	["private", {}, "openai-codex"],
+	[undefined, { provider: "omlx" }, "omlx"],
+	[undefined, { model: "chosen-local-model" }, "omlx"],
+	[undefined, { model: "omlx/chosen-local-model" }, "openai-codex"],
+])(
+	"managed startup rejects explicit local intent without selecting or submitting to cloud (%s %j)",
+	async (flag, args, provider) => {
+		vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
+		parseArgs.mockReturnValue(args);
+		const handlers = new Map<string, any>();
+		const commands = new Map<string, any>();
+		const notify = vi.fn();
+		const setModel = vi.fn(async () => true);
+		const ctx = {
+			cwd: "/tmp/example",
+			model: { provider },
+			modelRegistry: { find: (provider: string) => ({ provider, id: "model" }) },
+			ui: { notify, setEditorText() {} },
+		} as any;
+		inferenceRouter({
+			registerFlag() {},
+			registerCommand: (name: string, command: any) => commands.set(name, command),
+			on: (name: string, handler: any) => handlers.set(name, handler),
+			getFlag: () => flag,
+			setModel,
+		} as any);
+		await handlers.get("session_start")({}, ctx);
+		await commands.get("route").handler("frontier", ctx);
+		await handlers.get("model_select")({}, ctx);
+		for (const source of ["user", "extension"]) {
+			expect(await handlers.get("input")({ source, text: "synthetic private input" }, ctx)).toEqual({
+				action: "handled",
+			});
+		}
+		expect(setModel).not.toHaveBeenCalled();
+		expect(notify).toHaveBeenCalledWith(expect.stringContaining("pi --route private"), "error");
+	},
+);
+
+test("managed startup can replace incidental restored local state when no local intent was explicit", async () => {
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
+	const handlers = new Map<string, any>();
+	const ctx = {
+		cwd: "/tmp/example",
+		model: { provider: "omlx" },
+		modelRegistry: { find: (provider: string) => ({ provider, id: "model" }) },
+		ui: { notify() {}, setEditorText() {} },
+	} as any;
+	inferenceRouter({
+		registerFlag() {},
+		registerCommand() {},
+		on: (name: string, handler: any) => handlers.set(name, handler),
+		getFlag: () => undefined,
+		setModel: async (model: any) => {
+			ctx.model = model;
+			return true;
+		},
+	} as any);
+	await handlers.get("session_start")({}, ctx);
+	expect(ctx.model.provider).toBe("openai-codex");
+	expect(await handlers.get("input")({ source: "user", text: "synthetic" }, ctx)).toEqual({
+		action: "continue",
+	});
+});
+
+test("native local model selection makes subsequent cloud selection restore private routing", async () => {
+	const handlers = new Map<string, any>();
+	const ctx = {
+		cwd: "/tmp/example",
+		model: { provider: "openai-codex" },
+		modelRegistry: { find: (provider: string) => ({ provider, id: "model" }) },
+		ui: { notify() {}, setEditorText() {} },
+	} as any;
+	inferenceRouter({
+		registerFlag() {},
+		registerCommand() {},
+		on: (name: string, handler: any) => handlers.set(name, handler),
+		getFlag: () => undefined,
+		setModel: async (model: any) => {
+			ctx.model = model;
+			return true;
+		},
+	} as any);
+	await handlers.get("session_start")({}, ctx);
+	ctx.model = { provider: "omlx" };
+	await handlers.get("model_select")({}, ctx);
+	ctx.model = { provider: "openai-codex" };
+	await handlers.get("model_select")({}, ctx);
+	expect(ctx.model.provider).toBe("omlx");
 });

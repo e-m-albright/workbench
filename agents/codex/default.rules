@@ -6,8 +6,9 @@
 # Format: prefix_rule(pattern=[argv...], decision="allow")
 # Matches a command iff the patterns prefix the argv exactly.
 #
-# Codex's workspace sandbox is the hard boundary. These rules only remove
-# approval friction for narrowly scoped, routine commands inside it.
+# These rules authorize matching commands OUTSIDE Codex's sandbox. They do not
+# preserve its filesystem boundary. Prefer admitting routine work inside the
+# permissions profile; an independent outer sandbox still applies if present.
 
 # --- Package managers ---
 prefix_rule(pattern=["uv", "run"], decision="allow")

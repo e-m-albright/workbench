@@ -8,8 +8,8 @@
  * verifying useful changes before cleanup.
  */
 
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, lstatSync, realpathSync } from "node:fs";
+import { dirname, join, sep } from "node:path";
 import type { ExecResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 import { loadSettings } from "./lib/settings";
@@ -87,6 +87,34 @@ function publicState(state: WorkerState | undefined): Record<string, unknown> {
 		finishedAt: state.finishedAt,
 		exitCode: state.result?.code,
 	};
+}
+
+function managedPlacementError(root: string): string | undefined {
+	if (
+		process.env.WORKBENCH_AGENT_AUTHORITY !== "managed" &&
+		process.env.WORKBENCH_PI_MODE !== "hosted-managed"
+	)
+		return;
+	const guidance =
+		"Start native pi from your host terminal for this checkout, or use a checkout under public code, Desktop, or Downloads.";
+	try {
+		if (!lstatSync(join(root, ".git")).isDirectory())
+			return `Managed workers require an ordinary checkout with a .git directory. ${guidance}`;
+		const home = process.env.WORKBENCH_HOST_HOME;
+		const parent = dirname(realpathSync(root));
+		const allowed =
+			home &&
+			["code/public", "Desktop", "Downloads"].some((path) => {
+				const candidate = join(home, path);
+				if (!existsSync(candidate)) return false;
+				const shared = realpathSync(candidate);
+				return parent === shared || parent.startsWith(shared + sep);
+			});
+		if (!allowed) return `Worker sibling placement is outside managed write roots. ${guidance}`;
+	} catch {
+		return `Could not verify managed worker placement in an ordinary checkout. ${guidance}`;
+	}
+	// This preflight improves diagnostics; the inherited OS sandbox enforces actual writes.
 }
 
 export default function workerExtension(pi: ExtensionAPI) {
@@ -175,15 +203,6 @@ export default function workerExtension(pi: ExtensionAPI) {
 	}
 
 	async function delegate(task: string, ctx: ExtensionContext): Promise<WorkerResponse> {
-		if (
-			process.env.WORKBENCH_AGENT_AUTHORITY === "restricted" ||
-			process.env.WORKBENCH_PI_MODE === "hosted-restricted"
-		) {
-			return {
-				text: "Worker delegation is unavailable in a restricted session: its sibling worktree is outside the admitted checkout. Continue in this checkout or use a separate explicitly unrestricted session.",
-				isError: true,
-			};
-		}
 		// Validate settings before Git creates the branch or worktree.
 		const timeout = timeoutMs(ctx);
 		const boundedTask = task.trim();
@@ -196,6 +215,8 @@ export default function workerExtension(pi: ExtensionAPI) {
 		}
 		const root = await repoRoot(ctx);
 		if (!root) return { text: "worker needs a git repository.", isError: true };
+		const placementError = managedPlacementError(root);
+		if (placementError) return { text: placementError, isError: true };
 		const parentStatus = await pi.exec("git", ["status", "--porcelain"], {
 			cwd: root,
 			timeout: 10_000,

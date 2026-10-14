@@ -114,6 +114,9 @@ def test_preferences_are_shared_without_credentials_or_conversation_state(tmp_pa
             "model": "chosen-claude",
             "outputStyle": "Concise",
             "effortLevel": "high",
+            "autoCompactEnabled": False,
+            "autoCompactWindow": 400000,
+            "precomputeCompactionEnabled": False,
             "env": {"TOKEN": "private-secret"},
             "apiKeyHelper": "cat private-secret",
             "permissions": {"additionalDirectories": ["/private-records"]},
@@ -142,6 +145,9 @@ def test_preferences_are_shared_without_credentials_or_conversation_state(tmp_pa
     assert claude["model"] == "chosen-claude"
     assert claude["outputStyle"] == "Concise"
     assert claude["effortLevel"] == "high"
+    assert claude["autoCompactEnabled"] is False
+    assert claude["autoCompactWindow"] == 400000
+    assert claude["precomputeCompactionEnabled"] is False
     codex = tomllib.loads(output(home, "codex", ".codex/config.toml"))
     assert codex["model"] == "chosen-codex"
     assert codex["model_reasoning_effort"] == "high"
@@ -370,3 +376,37 @@ def test_statusline_and_features_remain_shared_and_hook_trust_is_relocated(tmp_p
     trust = config["hooks"]["state"]
     key = "__WORKBENCH_AGENT_HOME__/.codex/hooks.json:pre_tool_use:0:0"
     assert trust == {key: {"trusted_hash": "a" * 64, "enabled": True}}
+
+
+@pytest.mark.parametrize(
+    "timeout, expected", [(90000, {"timeoutMs": 90000}), (True, None), (-1, None), ("90000", None)]
+)
+def test_pi_worker_projects_only_valid_timeout_preference(tmp_path, timeout, expected):
+    home = tmp_path / "home"
+    write_json(
+        home,
+        ".pi/agent/settings.json",
+        {"worker": {"timeoutMs": timeout, "command": "private-secret"}},
+    )
+    install_harness(home)
+    settings = json.loads(output(home, "pi", ".pi/agent/settings.json"))
+    assert settings.get("worker") == expected
+
+
+def test_enabled_plugin_tree_is_admitted_not_secret_sanitized(tmp_path):
+    home = tmp_path / "home"
+    plugin = home / ".codex/plugins/cache/example/demo/1.0"
+    write_json(home, str(plugin.relative_to(home) / ".codex-plugin/plugin.json"), {"name": "demo"})
+    write_json(
+        home,
+        str(plugin.relative_to(home) / "fixtures/credentials.json"),
+        {"token": "synthetic-plugin-data"},
+    )
+    config = home / ".codex/config.toml"
+    config.write_text('[plugins."demo@example"]\nenabled = true\n')
+    install_harness(home)
+    manifest = json.loads(
+        (home / ".local/share/workbench/native/harness/manifest.json").read_text()
+    )
+    assert str(plugin) in manifest["codex"]["read"]
+    assert "synthetic-plugin-data" not in json.dumps(manifest)

@@ -13,8 +13,8 @@ test("consult uses configured provider, model, and timeout without a settings ma
 		JSON.stringify({ consult: { provider: "codex", timeoutMs: 1234 } }),
 	);
 	vi.stubEnv("PI_CODING_AGENT_DIR", root);
-	vi.stubEnv("WORKBENCH_PI_MODE", "hosted-unrestricted");
-	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "unrestricted");
+	vi.stubEnv("WORKBENCH_PI_MODE", undefined);
+	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", undefined);
 	try {
 		let command: any;
 		const exec = vi.fn(async () => ({ code: 0, stdout: "ok" }));
@@ -37,8 +37,8 @@ test("consult uses configured provider, model, and timeout without a settings ma
 	}
 });
 
-test("restricted consult explains the missing cross-vendor grant without running a subprocess", async () => {
-	vi.stubEnv("WORKBENCH_PI_MODE", "hosted-restricted");
+test("managed consult explains the missing cross-vendor grant without running a subprocess", async () => {
+	vi.stubEnv("WORKBENCH_PI_MODE", "hosted-managed");
 	try {
 		let command: any;
 		const exec = vi.fn(async () => ({ code: 0, stdout: "ok" }));
@@ -46,7 +46,7 @@ test("restricted consult explains the missing cross-vendor grant without running
 		consult({ registerCommand: (_name: string, value: any) => (command = value), exec } as any);
 		await command.handler("review", { cwd: "/tmp/example", ui: { notify } });
 		expect(exec).not.toHaveBeenCalled();
-		expect(notify).toHaveBeenCalledWith(expect.stringContaining("restricted"), "error");
+		expect(notify).toHaveBeenCalledWith(expect.stringContaining("native pi"), "error");
 	} finally {
 		vi.unstubAllEnvs();
 	}
@@ -54,7 +54,7 @@ test("restricted consult explains the missing cross-vendor grant without running
 
 test("local sessions cannot send a consult to cloud CLIs", async () => {
 	const old = process.env.WORKBENCH_PI_MODE;
-	process.env.WORKBENCH_PI_MODE = "local-unrestricted";
+	delete process.env.WORKBENCH_PI_MODE;
 	try {
 		let command: any;
 		const calls: unknown[] = [];

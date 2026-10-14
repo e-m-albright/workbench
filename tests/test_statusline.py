@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("authority", ["restricted", "unrestricted"])
+@pytest.mark.parametrize("authority", ["managed", "native"])
 def test_claude_footer_shows_authority_and_remaining_quota(tmp_path, authority):
     script = Path(__file__).resolve().parents[1] / "agents/claude/statusline.sh"
     payload = {
@@ -33,7 +33,7 @@ def test_claude_footer_shows_authority_and_remaining_quota(tmp_path, authority):
     )
     lines = result.stdout.splitlines()
     assert len(lines) == 2
-    expected = "repo" if authority == "restricted" else "host"
+    expected = authority
     assert f"cloud > {expected}" in lines[0]
     assert "ctx 10%" in lines[1]
     assert "5h 80% left" in lines[1]

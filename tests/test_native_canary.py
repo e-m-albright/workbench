@@ -8,6 +8,7 @@ import pty
 import re
 import select
 import shlex
+import shutil
 import signal
 import socket
 import subprocess
@@ -79,6 +80,10 @@ export default function(pi) {
 }
 """)
     install_harness(home)
+    # Exercise the checkout being reviewed, not a stale prepared launcher.
+    shell = Path(__file__).resolve().parents[1] / "agents/shared/shell"
+    for name in ("native-sandbox.py", "native-sandbox.mjs"):
+        shutil.copyfile(shell / name, home / ".local/share/workbench/shell" / name)
 
 
 def launch(repo, vendor, *args, stdin=None):
@@ -105,6 +110,16 @@ def test_real_files_network_and_children(tmp_path, monkeypatch):
     (repo / ".env").write_text("synthetic-only")
     (repo / "nested").mkdir()
     (repo / "nested/.env.production").write_text("nested-synthetic")
+    for name in (".env.local", ".ENV.production", ".env.example.local"):
+        (repo / name).write_text("synthetic-only")
+    for name in (".env.example", ".env.sample", ".ENV.TEMPLATE"):
+        (repo / name).write_text("TEMPLATE=1")
+    (repo / "nested/.env.example").mkdir()
+    (repo / "nested/.env.example/.env.local").write_text("nested-synthetic")
+    for name in ("nested/.env.local/.env.example", "nested/.env/.env.template"):
+        path = repo / name
+        path.parent.mkdir(parents=True)
+        path.write_text("nested-synthetic")
     private = tmp_path / "private"
     private.write_text("outside-canary")
     (repo / "escape").symlink_to(private)
@@ -139,13 +154,23 @@ echo edited > edited
 /usr/bin/python3 -I -S -c 'print("PYTHON-PASS")'
 /usr/bin/git status --short >/dev/null
 git status --short >/dev/null
-./probe "$PPID"
+./probe "$WORKBENCH_SUPERVISOR_PID"
 denied /bin/cat {shlex.quote(str(private))}
 denied /bin/cat escape
+denied /usr/bin/env -i /bin/bash -c "cat escape"
 denied /bin/cat .env
 denied /bin/bash -c 'echo overwritten > .env'
 denied /bin/bash -c 'echo appended >> .env'
 denied /bin/cat nested/.env.production
+denied /bin/cat .env.local
+denied /bin/cat .ENV.production
+denied /bin/cat .env.example.local
+denied /bin/cat nested/.env.example/.env.local
+denied /bin/cat nested/.env.local/.env.example
+denied /bin/cat nested/.env/.env.template
+for template in .env.example .env.sample .ENV.TEMPLATE; do
+  test "$(/bin/cat "$template")" = TEMPLATE=1
+done
 denied /bin/bash -c 'echo bad > nested/.env.production'
 denied /bin/bash -c 'echo bad > nested/.env.future'
 denied /bin/bash -c {shlex.quote("echo bad > " + shlex.quote(str(private)))}
@@ -156,7 +181,7 @@ denied /usr/bin/curl --unix-socket {shlex.quote(sockpath.name)} --noproxy '*' --
 echo CANARY-PASS
 """
         try:
-            result = launch(repo, "shell", "-c", script)
+            result = launch(repo, "shell", "managed", "-c", script)
             unix.settimeout(0.05)
             with pytest.raises(socket.timeout):
                 unix.accept()
@@ -172,6 +197,134 @@ echo CANARY-PASS
     assert not (repo / "nested/.env.future").exists()
     assert (repo / "edited").read_text() == "edited\n"
     assert not hits
+
+
+def test_managed_scratch_and_development_access_keep_denials(tmp_path):
+    assert PILOT
+    home = Path(PILOT)
+    (tmp_path / ".git").mkdir()
+    public = home / "code/public" / tmp_path.parent.name
+    public.mkdir(parents=True, exist_ok=True)
+    (public / "source").write_text("synthetic-source")
+    (public / "confidential").mkdir(exist_ok=True)
+    (public / "confidential/sentinel").write_text("synthetic-private")
+    private = home / "code/private/unselected/sentinel"
+    private.parent.mkdir(parents=True, exist_ok=True)
+    private.write_text("synthetic-private")
+    (public / "escape").symlink_to(private)
+    scratch_checks = []
+    for name in ("Desktop", "Downloads"):
+        directory = home / name
+        directory.mkdir(exist_ok=True)
+        (directory / "transition.txt").write_text("scratch-input")
+        (directory / ".env").write_text("synthetic-secret")
+        (directory / "confidential").mkdir(exist_ok=True)
+        (directory / "confidential/private").write_text("synthetic-secret")
+        scratch_checks += [
+            f'test "$(cat "$HOME/{name}/transition.txt")" = scratch-input',
+            f'echo mapped-output > "$HOME/{name}/mapped.txt"',
+            f'test "$(cat {shlex.quote(str(directory / "transition.txt"))})" = scratch-input',
+            f"echo scratch-output > {shlex.quote(str(directory / 'transition.txt'))}",
+            f"denied cat {shlex.quote(str(directory / '.env'))}",
+            f"denied cat {shlex.quote(str(directory / 'confidential/private'))}",
+        ]
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude/settings.json").write_text(
+        json.dumps(
+            {
+                "sandbox": {
+                    "filesystem": {
+                        "denyRead": ["./project-private"],
+                        "denyWrite": ["./project-readonly"],
+                    }
+                }
+            }
+        )
+    )
+    (tmp_path / "project-private").write_text("synthetic-project-private")
+    (tmp_path / "project-readonly").write_text("original")
+    control = home / ".local/share/workbench/shell/native-sandbox.py"
+    before = control.read_bytes()
+    script = f"""
+set -eu
+denied() {{ if "$@" >/dev/null 2>&1; then exit 21; fi; }}
+test "$(cat {shlex.quote(str(public / "source"))})" = synthetic-source
+echo edited > {shlex.quote(str(public / "edited"))}
+denied cat {shlex.quote(str(private))}
+denied cat {shlex.quote(str(public / "escape"))}
+denied cat {shlex.quote(str(public / "confidential/sentinel"))}
+denied /bin/bash -c {shlex.quote("echo bad >> " + shlex.quote(str(control)))}
+{chr(10).join(scratch_checks)}
+denied cat project-private
+denied /bin/bash -c 'echo bad > project-readonly'
+echo MANAGED-PASS
+"""
+    result = launch(tmp_path, "shell", "managed", "-c", script)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "MANAGED-PASS" in result.stdout
+    assert control.read_bytes() == before
+    assert (home / "Desktop/mapped.txt").read_text() == "mapped-output\n"
+    assert (home / "Downloads/mapped.txt").read_text() == "mapped-output\n"
+
+
+@pytest.mark.parametrize("shape", ["equal", "ancestor", "glob"])
+def test_owner_denials_win_over_explicit_read_grants(tmp_path, shape):
+    assert PILOT
+    home = Path(PILOT)
+    repo = tmp_path / "denied-parent/project"
+    (repo / ".git").mkdir(parents=True)
+    sentinel = repo / "sentinel"
+    sentinel.write_text("synthetic-only")
+    exclusion = {
+        "equal": str(repo),
+        "ancestor": str(repo.parent),
+        "glob": str(tmp_path / "denied-*/**"),
+    }[shape]
+    policy = home / ".config/workbench/private-paths"
+    before = policy.read_text()
+    policy.write_text(before + "\n" + exclusion + "\n")
+    try:
+        result = launch(
+            repo, "shell", "-c", "if /bin/cat sentinel; then exit 91; fi; echo DENIED-PASS"
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "DENIED-PASS" in result.stdout
+        assert "synthetic-only" not in result.stdout
+    finally:
+        policy.write_text(before)
+
+
+def test_private_aliases_and_ancestor_moves(tmp_path):
+    assert PILOT
+    home = Path(PILOT)
+    (tmp_path / ".git").mkdir()
+    source = tmp_path / "vault/secrets"
+    source.parent.mkdir()
+    source.write_text("synthetic-alias")
+    os.link(source, tmp_path / "released-alias")
+    policy = home / ".config/workbench/private-paths"
+    before = policy.read_text()
+    policy.write_text(before + "\n" + str(source) + "\n")
+    try:
+        result = launch(
+            tmp_path,
+            "shell",
+            "-c",
+            """
+set -eu
+denied() { if "$@" >/dev/null 2>&1; then exit 91; fi; }
+denied cat vault/secrets
+denied mv vault renamed
+denied ln vault/secrets new-alias
+if cat released-alias; then echo PREEXISTING-ALIAS-READABLE; else echo PREEXISTING-ALIAS-DENIED; fi
+""",
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        # Path exclusion cannot retract a pre-existing released hardlink/copy.
+        assert "PREEXISTING-ALIAS-READABLE" in result.stdout
+        assert "PREEXISTING-ALIAS-DENIED" not in result.stdout
+    finally:
+        policy.write_text(before)
 
 
 @pytest.mark.parametrize("vendor", ["codex", "claude", "pi"])
@@ -346,9 +499,9 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
                 all(
                     marker in plain
                     for marker in (
-                        "cloud > repo",
+                        "cloud > managed",
                         "ctx ",
-                        "Workbench managed",
+                        "Workbench configuration",
                         "BOUNDARY-CANARY-PASS",
                         "openai/gpt-4.1",
                     )
@@ -358,9 +511,9 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
                 break
         text = output.decode(errors="replace")
         assert "EPERM" not in text, text
-        assert "cloud > repo" in plain, text
+        assert "cloud > managed" in plain, text
         assert "ctx " in plain, text
-        assert "Workbench managed" in plain, text
+        assert "Workbench configuration" in plain, text
         assert "BOUNDARY-CANARY-PASS" in plain, text
         assert "openai/gpt-4.1" in plain, text
         assert "PI · NATIVE RESTRICTED" not in text

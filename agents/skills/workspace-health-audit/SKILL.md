@@ -61,14 +61,16 @@ Categorize every non-permanent branch:
 
 Automated workflows often push branches without opening PRs. Common prefixes: `worktree-*` (agent worktree leftovers), `auto-ratchet/*`, `audit/*` (delete once actioned); `dependabot/*` / `renovate/*` (leave for the bot).
 
-**Bulk-delete pattern** — only branches that are fully merged AND have no open PR. A pushed-for-backup branch with unmerged commits must never be auto-deleted, even if its name matches a cleanup prefix:
+**Cleanup candidates** — only branches that are fully merged AND have no open PR. A pushed-for-backup branch with unmerged commits must never be auto-deleted, even if its name matches a cleanup prefix. Refresh remote refs before building the list; this produces candidates for review, not authorization to delete:
 
 ```bash
+git fetch origin
 pr_heads=$(mktemp)
-gh pr list --state open --json headRefName --jq '.[].headRefName' > "$pr_heads"
+delete_list=$(mktemp)
+gh api --paginate 'repos/{owner}/{repo}/pulls?state=open&per_page=100' --jq '.[].head.ref' > "$pr_heads"
 git branch -r --merged origin/main | grep -E 'origin/(worktree-|auto-ratchet/|audit/)' \
-  | sed 's|^ *origin/||' | grep -vFf "$pr_heads" \
-  | xargs -n1 -I{} git push origin --delete {}
+  | sed 's|^ *origin/||' | grep -vxFf "$pr_heads" > "$delete_list"
+cat "$delete_list"
 ```
 
 Branches the prefix matched but `--merged` excluded are unmerged: list them (`git branch -r --no-merged origin/main`) and review by hand — `git cherry main <branch>` distinguishes genuinely-unique commits from rebased duplicates.
@@ -124,3 +126,12 @@ Read [audit-checklists.md](references/audit-checklists.md) for: duplicate defini
 - This skill is **read-mostly**. Only take destructive actions (dropping stashes, removing worktrees, deleting branches) when the user explicitly authorizes cleanup, not just audit.
 - When in doubt about whether work is superseded, flag for review rather than deleting.
 - The duplicate-definition check ([audit-checklists.md](references/audit-checklists.md) §5) is the highest-value section — parallel agents creating conflicting types is the most dangerous failure mode because it compiles fine but produces runtime bugs.
+
+## Executing an Authorized Cleanup
+
+- **Confirm the approved targets.** An audit or candidate list does not authorize deletion. Use the user's explicit cleanup authorization and keep every deletion within its stated scope.
+- **Re-inventory immediately before acting.** Rerun `git worktree list`, `git branch`, and `git stash list`; check each affected worktree's status. If another session moved or changed work, trace its commits and leave active work alone.
+- **Verify the live remote tip.** Fetch the target branch and integration branch, verify the exact candidate commit is merged, and recheck open PRs. Immediately before deleting, compare the live ref from `git ls-remote` with that reviewed commit. If it changed, reassess it. Where repository policy permits, use an explicit expected-SHA lease on the approved deletion so a concurrent update rejects it; otherwise leave remote deletion to the owner if the race cannot be controlled.
+- **Respect repository hooks.** Use the repository's normal branch-deletion workflow. A failing pre-push hook is a failure to diagnose, not permission to bypass it through `--no-verify` or GitHub's DELETE API. Use an API deletion only when repository policy permits that route and the user has authorized the specific deletion.
+- **Hand off blocked destructive operations.** If a guard still blocks an approved force deletion, give the owner the exact command and explain what it removes. Do not retry through another tool to evade the guard.
+- **Report incomplete cleanup accurately.** A branch deletion can leave harmless branch configuration entries when `.git/config` is unwritable. Verify that the branch ref is gone and identify any leftover configuration separately.

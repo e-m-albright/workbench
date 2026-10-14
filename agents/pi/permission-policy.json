@@ -1,5 +1,5 @@
 {
-  "$comment": "Best-effort tool friction backed by launcher-level macOS Seatbelt profiles. Restricted models may use the selected repository as its approved decision boundary, while raw sources, connectors, credentials, ingress writes, and control-plane writes remain bounded.",
+  "$comment": "Best-effort tool guardrails shared by native pi and Workbench-managed p. Only managed sessions add an outer OS boundary. Private sources, protected credentials, and blocked connectors remain guarded in both; installed control writes are guarded in managed sessions.",
   "defaultAction": "allow",
   "blockedTools": [
     "gmail_search_threads",
@@ -58,7 +58,7 @@
       "name": "nested agent invocation",
       "$comment": "A model may not spawn another cloud or local agent to bypass the active provider or authority boundary.",
       "patterns": [
-        "(?:^|[;&|()])\\s*(?:(?:env|command|exec)\\s+)*(?:[^\\s;&|()]+/)?(?:pi|pih|pihr|pihu|pil|pilr|pilu|pihc|piho|pilo|pif|piv|pia|pisu|cc|ccu|co|cou|claude|codex)(?:\\s|$)",
+        "(?:^|[;&|()])\\s*(?:(?:env|command|exec)\\s+)*(?:[^\\s;&|()]+/)?(?:p|pi|pih|pihr|pihu|pil|pilr|pilu|pihc|piho|pilo|pif|piv|pia|pisu|cc|ccu|co|cou|claude|codex)(?:\\s|$)",
         "scheduled-agent\\.py\\s+run\\b"
       ]
     },
@@ -147,6 +147,7 @@
     "~/.ssh/**",
     "~/.gnupg/**",
     "~/.aws/**",
+    "~/.pi/agent/auth.json",
     "~/.config/gh/hosts.yml",
     "~/.config/dotfiles/**",
     "~/.local/share/workbench/connectors/**",
@@ -182,8 +183,6 @@
     "~/Library/CloudStorage/**",
     "~/Library/Application Support/**",
     "~/Documents/**",
-    "~/Desktop/**",
-    "~/Downloads/**",
     "~/Pictures/**",
     "~/code/private/*/vault/work/.data/comm/meeting/recordings/**",
     "~/code/private/*/.ai/state/**",
@@ -196,8 +195,6 @@
     "~/Library/CloudStorage/**",
     "~/Library/Application Support/**",
     "~/Documents/**",
-    "~/Desktop/**",
-    "~/Downloads/**",
     "~/Pictures/**",
     "~/code/private/*/vault/work/.data/comm/meeting/recordings/**",
     "~/code/private/*/.ai/state/**",

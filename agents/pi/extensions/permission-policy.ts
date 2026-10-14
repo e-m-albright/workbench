@@ -70,10 +70,10 @@ const FALLBACK_POLICY: LoadedPermissionPolicy = {
 	privateBrowserDomains: [],
 	mcpAllowedTools: [],
 	protectedReadPaths: SECRET_PATHS,
-	protectedWritePaths: [...SECRET_PATHS, "~/.pi/agent/**", ".git/**", "node_modules/**"],
+	protectedWritePaths: [...SECRET_PATHS, ".git/**", "node_modules/**"],
 	privateReadPaths: [],
 	privateWritePaths: [],
-	controlWritePaths: [],
+	controlWritePaths: ["~/.pi/agent/**"],
 	hardDenyPaths: [],
 };
 
@@ -391,10 +391,8 @@ export function policyBlockReason(
 	provider?: string,
 	mode = process.env.WORKBENCH_PI_MODE,
 ): string | undefined {
-	const privateProvider =
-		mode === "local-unrestricted" && provider === "omlx" && policy.privateProviders.includes(provider);
-	const dataAuthorized = privateProvider || mode === "hosted-unrestricted";
-	const control = mode?.endsWith("-unrestricted") ?? false;
+	const managed = mode === "hosted-managed" || process.env.WORKBENCH_AGENT_AUTHORITY === "managed";
+	const privateProvider = !managed && provider === "omlx" && policy.privateProviders.includes(provider);
 	if (policy.blockedTools.includes(toolName)) {
 		return `Tool blocked by policy: ${toolName}`;
 	}
@@ -429,7 +427,10 @@ export function policyBlockReason(
 		: writeTools.has(toolName)
 			? policy.protectedWritePaths
 			: [];
-	const controlPaths = writeTools.has(toolName) && !control ? policy.controlWritePaths : [];
+	const controlPaths =
+		writeTools.has(toolName) && managed
+			? policy.controlWritePaths.filter((path) => !path.startsWith("~/code/public/"))
+			: [];
 	const privatePaths = readTools.has(toolName)
 		? policy.privateReadPaths
 		: writeTools.has(toolName)
@@ -441,12 +442,12 @@ export function policyBlockReason(
 		const matched = pathMatchesPolicy(cwd, candidate, protectedPaths);
 		if (matched) return `Protected path blocked by policy: ${matched}`;
 		const controlled = pathMatchesPolicy(cwd, candidate, controlPaths);
-		if (controlled) return `hosted-unrestricted authority required to write control path: ${controlled}`;
+		if (controlled) return `Use native pi to write control path: ${controlled}`;
 		const privateMatched = pathMatchesPolicy(cwd, candidate, privatePaths);
 		if (privateMatched && toolName === "agent_browser") {
 			return `Private path browser upload blocked by policy: ${privateMatched}`;
 		}
-		if (privateMatched && !dataAuthorized) {
+		if (privateMatched && !privateProvider) {
 			return `Private path requires a private local provider: ${privateMatched}`;
 		}
 	}
@@ -471,7 +472,7 @@ export function policyBlockReason(
 	const protectedPath = protectedPathMention(cwd, command, policy.protectedReadPaths);
 	if (protectedPath) return `Command mentions protected path: ${protectedPath}`;
 	const privatePath = protectedPathMention(cwd, command, policy.privateReadPaths);
-	if (privatePath && !dataAuthorized) {
+	if (privatePath && !privateProvider) {
 		return `Command mentions private path requiring a private local provider: ${privatePath}`;
 	}
 	const denied = commandDenyReason(command, policy.denyCommands, privateProvider);

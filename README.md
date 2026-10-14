@@ -131,7 +131,7 @@ just check
 ```
 
 Requirements are deliberately small: [uv](https://docs.astral.sh/uv/) (which
-provisions Python 3.13+ and the Typer/Rich CLI environment on first run), Bash,
+provisions the Python 3.13 development line pinned in `.python-version` and the Typer/Rich CLI environment on first run), Bash,
 [Node 24 LTS](https://nodejs.org/) and [pnpm](https://pnpm.io/) for the locked Pi
 extension test and development tools, and the installed Pi/Claude/Codex
 CLIs. [Pandoc](https://pandoc.org/) is required only to render and verify the
@@ -185,7 +185,9 @@ and Pi harness projections while omitting Codex, Claude plugins and Desktop
 configuration, MCP servers, externally downloaded skills, local-model routing,
 and browser and personal connector extensions.
 
-`just deploy` chains the default personal sync and drift so a deploy is verified in one command.
+Sync and drift use `DOTFILES_PROFILE` when set, otherwise `personal`; an explicit
+`--profile` overrides that default. `just deploy` chains sync and drift so a deploy
+is verified in one command.
 
 ### Validate repository sources
 
@@ -213,15 +215,17 @@ Run `workbench`, `wb`, or either launcher's `--help` flag for the complete tree:
 ```text
 workbench
 ├── sync [claude|codex|pi|all] deploy canonical configuration
-│   ├── --profile              personal (default) or work
+│   ├── --profile              personal or work; defaults to DOTFILES_PROFILE
 │   ├── --no-skills            skip shared-skill installation
 │   ├── --no-plugins           skip declared-plugin installation
 │   └── --rules-only           deploy only global instruction files
 ├── drift [claude|codex|pi|all] report managed drift and external additions
-│   └── --profile              personal (default) or work
+│   └── --profile              personal or work; defaults to DOTFILES_PROFILE
 ├── lint                       validate canonical repository sources
 └── native
-    ├── prepare [--authorize]  install the restricted runtime and optional model logins
+    ├── prepare [--authorize]  install the managed runtime and optional model logins
+    ├── authorize <vendor>     enroll one login; --replace backs up and replaces it
+    ├── status [vendor]        inspect paths and login metadata without token reads
     └── run <vendor> -- ...    launch codex, claude, pi, or a diagnostic shell
 ```
 
@@ -293,9 +297,21 @@ with no code enforcement.
 Workbench is public. It must never contain credentials, personal records,
 conversations, generated memory, or private operational state.
 
-The default terminal commands run the entire agent process and its children
-inside Workbench's native macOS boundary. The UI names the modes `cloud > repo`,
-`cloud > host`, and `local > host`; every mode retains invariant exclusions.
+The shortcuts `co`, `cc`, and `p` run the entire agent process and its children
+inside Workbench's native macOS boundary. They show `cloud > managed` and admit
+the selected ordinary Git checkout, `~/code/public`, `~/Desktop`, and
+`~/Downloads`, while retaining private-file exclusions. Full commands `codex`,
+`claude`, and `pi` keep their native behavior and shared configuration without
+adding this outer boundary. A native binary started inside a managed session
+still inherits that session's restrictions. The old authority flags and
+alternate host/repository aliases are retired. The isolated HOME maps Desktop
+and Downloads to the host directories. Explicit private/local intent is rejected
+in managed Pi; start native Pi from the host for local inference.
+The [launch design catalogue](docs/agents/launch-design.md) compares these routes
+and records the incorporated fixes and remaining limits. The
+[six-model review disposition](docs/decisions/managed-launch-review.md) separates
+corrected defects from accepted risks, including provider-token exposure,
+pre-existing admitted hardlinks, host callbacks, and later execution of edits.
 The [isolation contract](docs/security/isolation.md)
 owns filesystem and network permissions, credential exceptions, uncovered host
 interfaces, and accepted risks. Permission rules and PreToolUse hooks add

@@ -149,16 +149,16 @@ export default function (pi: ExtensionAPI) {
 		description: "Read-only second opinion: /consult [--claude|--codex|--fable|--model <id>] <question>",
 		handler: async (args, ctx) => {
 			if (
-				process.env.WORKBENCH_AGENT_AUTHORITY === "restricted" ||
-				process.env.WORKBENCH_PI_MODE === "hosted-restricted"
+				process.env.WORKBENCH_AGENT_AUTHORITY === "managed" ||
+				process.env.WORKBENCH_PI_MODE === "hosted-managed"
 			) {
 				ctx.ui.notify(
-					"Consult is unavailable in a restricted session: only Pi's login is admitted. Use a separate explicitly unrestricted hosted session for cross-vendor review.",
+					"Consult is unavailable in a managed session: cross-vendor credentials are not admitted. Start native pi in a separate session and run /consult with context you intend to share.",
 					"error",
 				);
 				return;
 			}
-			if (process.env.WORKBENCH_PI_MODE?.startsWith("local-") || ctx.model?.provider === "omlx") {
+			if (ctx.model?.provider === "omlx") {
 				ctx.ui.notify(
 					"Cloud consult is unavailable in a local session. Start a separate hosted session with explicitly released context.",
 					"error",

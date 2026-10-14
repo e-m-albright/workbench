@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import tomllib
 from pathlib import Path
@@ -49,6 +50,9 @@ CLAUDE_KEYS = {
     "spinnerTipsEnabled",
     "terminalProgressBarEnabled",
     "alwaysThinkingEnabled",
+    "autoCompactEnabled",
+    "autoCompactWindow",
+    "precomputeCompactionEnabled",
 }
 CODEX_KEYS = {
     "model",
@@ -127,6 +131,8 @@ class Projection:
     def grant(self, source):
         # Never turn an installed asset symlink into a grant on an unrelated tree.
         _check_source(source, self.home)
+        # Installed code trees are trusted assets, not sanitized file collections.
+        # Keep credentials outside them; the outer mandatory denials still apply.
         value = str(source.resolve(strict=True))
         if value not in self.manifest["read"]:
             self.manifest["read"].append(value)
@@ -141,7 +147,12 @@ class Projection:
         source = self.root / self.vendor / relative
         _check_source(source, self.home)
         if toml:
-            write_text(source, "".join(f"{k} = {_toml_value(v)}\n" for k, v in value.items()))
+            hooks = value.get("hooks", {}).get("state", {})
+            content = "".join(f"{k} = {_toml_value(v)}\n" for k, v in value.items() if k != "hooks")
+            for key, state in hooks.items():
+                content += f"\n[hooks.state.{_toml_value(key)}]\n"
+                content += "".join(f"{k} = {_toml_value(v)}\n" for k, v in state.items())
+            write_text(source, content)
         else:
             write_json(source, value)
         self.manifest["files"].append({"path": relative, "source": str(source)})
@@ -260,6 +271,15 @@ def _pi(p):
     settings = _select(config, PI_KEYS)
     if isinstance(config.get("safeGit"), dict):
         settings["safeGit"] = _select(config["safeGit"], {"promptLevel", "enabledByDefault"})
+    worker = config.get("worker", {})
+    timeout = worker.get("timeoutMs") if isinstance(worker, dict) else None
+    if (
+        isinstance(timeout, (int, float))
+        and not isinstance(timeout, bool)
+        and math.isfinite(timeout)
+        and timeout > 0
+    ):
+        settings["worker"] = {"timeoutMs": timeout}
     packages = [
         item
         for item in config.get("packages", [])

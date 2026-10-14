@@ -173,17 +173,17 @@ pr_text=$(pr_segment "$pr_number" "$pr_state")
 [[ -n "$pr_text" ]] && out="${out} ${pr_text}"
 
 location="${WORKBENCH_AGENT_LOCATION:-hosted}"
-authority="${WORKBENCH_AGENT_AUTHORITY:-unrestricted}"
+authority="${WORKBENCH_AGENT_AUTHORITY:-native}"
 location_label=cloud
 location_color="$HOSTED"
 if [[ "$location" == local ]]; then
     location_label=local
     location_color="$BLUE"
 fi
-authority_label=host
+authority_label=native
 authority_color="$UNRESTRICTED"
-if [[ "$authority" == restricted ]]; then
-    authority_label=repo
+if [[ "$authority" == managed ]]; then
+    authority_label=managed
     authority_color="$BLUE"
 fi
 out="${out}${sep}${location_color}${location_label}${R} > ${authority_color}${authority_label}${R}"
