@@ -197,8 +197,7 @@ export function pathMatchesPolicy(
 ): string | undefined {
 	const normalized = normalizeCandidatePath(cwd, path);
 	const relative = normalize(path.replace(/^\.\//, ""));
-	// Resolve existing parents too: writes can create new files beneath a symlink.
-	const resolvedReal = canonicalFuturePath(normalized);
+	const patterns: { glob: string; regex: RegExp }[] = [];
 
 	for (const glob of protectedPathGlobs) {
 		if (
@@ -208,10 +207,14 @@ export function pathMatchesPolicy(
 			continue;
 		const regex = globToRegExp(glob);
 		if (regex.test(normalized) || regex.test(relative)) return glob;
-		if (resolvedReal && regex.test(resolvedReal)) return glob;
+		patterns.push({ glob, regex });
 	}
 
-	return undefined;
+	// Deny known paths without probing protected storage; resolve aliases only when needed.
+	if (patterns.length === 0) return undefined;
+	// Resolve existing parents too: writes can create new files beneath a symlink.
+	const resolvedReal = canonicalFuturePath(normalized);
+	return patterns.find(({ regex }) => regex.test(resolvedReal))?.glob;
 }
 
 function canonicalFuturePath(path: string): string {

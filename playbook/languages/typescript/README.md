@@ -6,7 +6,7 @@
 
 Selection is *what* to reach for. Idioms below are *how* to use them. Detect the existing stack from project files before applying any of this — never switch package managers, linters, or frameworks in a project that already chose otherwise.
 
-Reviewed 2026-10-12: **Node LTS + pnpm is the maintained default.** Keep framework-owned Vite, Biome, and focused Oxlint promise checks. Vite+ stays on the watchlist; Bun remains an alternative pending application compatibility. Deno is retired from maintained tooling; experimental prototypes are excluded from this migration. The [runtime exploration](runtimes.md) owns the local comparison, alternatives, AI tooling map, and promotion criteria. Svelte/SvelteKit stays the application default; [Solid/SolidStart](frameworks/solid.md) is the first alternative to evaluate.
+Updated 2026-10-14: **Node LTS + pnpm is the maintained default.** Keep framework-owned Vite, Biome, and focused Oxlint promise checks. Bun, Deno, and Vite+ stay on the watchlist; the Bun adoption trial is closed. Deno is retired from maintained tooling; experimental prototypes are excluded from this migration. The [runtime exploration](runtimes.md) owns the local comparison, alternatives, AI tooling map, and promotion criteria. Svelte/SvelteKit stays the application default; [Solid/SolidStart](frameworks/solid.md) is the first alternative to evaluate.
 
 ### Phase 1 — every project
 

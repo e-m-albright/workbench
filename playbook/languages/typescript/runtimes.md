@@ -1,11 +1,12 @@
 # JavaScript runtimes and toolchain consolidation
 
-Reviewed 2026-10-12. The agreed maintained stack is **Node LTS with pnpm**,
+Updated 2026-10-14. The agreed maintained stack is **Node LTS with pnpm**,
 framework-owned Vite, Biome, and focused type-aware Oxlint promise checks.
 Astro remains the content-site framework; Svelte/SvelteKit remains the
-interactive-application framework. **Vite+ is watch-only**. Bun remains an
-alternative pending application compatibility. Deno is retired from maintained
-tooling; older experimental prototypes are excluded. The measurements below
+interactive-application framework. **Bun, Deno, and Vite+ are watch-only**. The
+owner ended the Bun adoption trial and restored Node/pnpm after reviewing
+compatibility and maintenance costs. Deno is retired from maintained tooling;
+older experimental prototypes are excluded. The measurements below
 record the evidence behind the decision, not a claim that every evaluated tool
 was adopted.
 
@@ -110,6 +111,58 @@ Use built-in Bun APIs when they remove meaningful code or dependencies. If
 portability is required, keep those calls in a small service boundary and test
 the alternative execution path. Avoid both a blanket ban and speculative
 abstractions around every API.
+
+## Bun watch criteria
+
+The owner chose to restore Node/pnpm on 2026-10-14. Keep Bun out of maintained
+runtime, package-manager, and type-checking paths. Track capabilities through
+this watchlist rather than keeping an installed second development stack.
+
+[Bun 1.4.3](https://bun.sh/blog/bun-v1.4.3) introduced a semantic TypeScript
+checker based on TypeScript 7.0.2. Workbench's trial checked 18 files successfully;
+it did not establish a speed advantage over Microsoft's matching compiler.
+The checker does not replace
+Astro/Svelte checks, declaration emission, or the editor language server.
+Revisit only after diagnostic parity and repeated workflow savings are measured
+against the same TypeScript version.
+
+Other useful watch targets are parent-process cleanup with `--no-orphans`,
+agent-readable diagnostic/profile output, and browser automation. Evaluate a
+specific capability only when an actual task needs it. Retain Playwright and
+existing tests until a replacement demonstrates the same coverage. Bun's
+experimental module isolation is not a security sandbox; Node permission and
+OS-confinement requirements remain separate gates.
+
+Sources: [checker](https://bun.sh/docs/runtime/check),
+[process cleanup](https://bun.sh/blog/bun-v1.3.14),
+[profiles](https://bun.sh/blog/bun-v1.3.7), and
+[WebView](https://bun.sh/docs/runtime/webview).
+
+Follow [Bun releases](https://bun.com/blog) during dependency reviews. Require a
+representative trial to show which tools, configuration, or recurring work the
+new capabilities remove. Faster isolated commands alone do not justify keeping
+another runtime installed. The Workbench trial verified frozen installation,
+dependency auditing, and Pi 0.86.1 startup and credential-free RPC under Bun;
+interactive sessions, authentication, and the full managed launcher were not
+validated. Compatibility is possible, but these probes did not establish a
+reason to replace Node for Pi.
+
+## Deno watch criteria
+
+Follow [Deno releases](https://github.com/denoland/deno/releases) and maintenance
+announcements during dependency reviews, including any maintained successor.
+Watch integrated checking, linting, formatting, testing, dependency management,
+packaging, and framework support. Reconsider when those capabilities remove
+enough existing tools or recurring work to justify migration, and the project
+has a credible ongoing release and security-response commitment beyond the
+[announced maintenance horizon](#why-denos-outlook-changes-the-choice).
+
+For either ecosystem, compare the same dependency and compiler versions against
+Node/pnpm. Require equivalent framework diagnostics, editor support, component
+and browser tests, CLI behavior, install controls, debugging, and deployment
+behavior for the proposed scope. Keep evaluation disposable until those checks
+pass and the workflow benefit is measured. These watches do not require a
+second installed stack or change the operating-system confinement boundary.
 
 ## Local comparison and next adoption gate
 

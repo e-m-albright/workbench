@@ -12,10 +12,15 @@ This file covers decisions with no Workbench code off-switch and cross-repositor
 | --- | --- | --- |
 | Deno in maintained tooling | Retired following the announced runtime maintenance horizon and Deploy wind-down. The owner authorized removal from maintained applications and host tooling on 2026-10-12; experimental prototypes are excluded. The [runtime exploration](../../playbook/languages/typescript/runtimes.md) owns the evidence and alternatives. | A credible successor establishes continuing releases, security response, and dependency compatibility. |
 
-The earlier blanket Bun exclusion is superseded by the same exploration: Bun
-is eligible for evaluation, but local compatibility findings favor Node as the
-common runtime. Vite+ remains watch-only until it demonstrates configuration
-removal or useful feedback improvements. Bun is not installed by this decision.
+On 2026-10-14, the owner ended the Bun adoption trial and restored Node LTS,
+pnpm, TypeScript, and framework-owned checkers. Bun's integrated checker
+and agent tooling did not justify another maintained runtime and compatibility
+exceptions. Bun remains watch-only; revisit when a concrete recurring workflow
+improves materially without weakening checks or confinement. The
+[runtime guide](../../playbook/languages/typescript/runtimes.md#bun-watch-criteria)
+records the capabilities and adoption criteria. Deno remains retired with its
+own [ecosystem watch](../../playbook/languages/typescript/runtimes.md#deno-watch-criteria). Vite+
+also remains watch-only until it demonstrates useful configuration removal.
 
 ## Retired Pi harness experiments
 

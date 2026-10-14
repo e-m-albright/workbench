@@ -38,8 +38,9 @@ it does not imply a scheduled monitoring service.
 | Performance replacements | Profiling identifies the component a proposed replacement would improve | [Performance tooling](engineering/performance.md) |
 | OpenSpec and spec-kit | The existing planning workflow repeatedly loses requirements or acceptance criteria | [Project documentation](engineering/documentation.md) |
 | Ownership changes across developer vendors | Control, licensing, data handling, or portability changes | [Vendor ownership](engineering/vendor-ownership.md) |
-| Node + Vite+, Bun, Nub | Vite+ must close formatting and configuration gaps; Bun must resolve observed jsdom compatibility. Local build gains alone did not justify migration; Node/pnpm remains the default | [Runtime consolidation](languages/typescript/runtimes.md) |
-| A credible Deno successor | Maintained Deno usage is retired. Revisit only if a successor establishes ongoing releases, security response, and ecosystem compatibility | [Deno disposition](languages/typescript/runtimes.md#why-denos-outlook-changes-the-choice) |
+| Bun ecosystem | A release removes meaningful tools, configuration, or recurring work; require matching-version checker parity and representative compatibility checks before adoption | [Bun watch criteria](languages/typescript/runtimes.md#bun-watch-criteria), [releases](https://bun.com/blog) |
+| Deno ecosystem and maintained successors | Integrated tooling removes meaningful work and a credible ongoing release and security-response commitment resolves the maintenance concern | [Deno watch criteria](languages/typescript/runtimes.md#deno-watch-criteria), [releases](https://github.com/denoland/deno/releases) |
+| Node + Vite+, Nub | Demonstrated configuration or tool removal while retaining framework coverage | [Runtime consolidation](languages/typescript/runtimes.md) |
 | Solid / SolidStart | A complete interactive feature can test authoring clarity and operational fit; first alternative to Svelte/SvelteKit | [Framework comparison](languages/typescript/frameworks/solid.md) |
 
 ## Systems and product
