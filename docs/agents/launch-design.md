@@ -71,9 +71,11 @@ up in a local Git bundle before removing the superseded refs.
 - Existing local fixes retain environment-file protection, disabled broad loopback access, deployment-profile defaults, and current-launcher canary setup.
 
 The change does not import the submissions' AWS credential broker, Docker socket
-access, general repository loopback ports, broad Chromium Mach grants, or
-destructive-command guard rewrite. The cleanup skill retains hook-respecting
-authorization and re-inventory guidance rather than bypassing failed hooks.
+access, general repository loopback ports, or broad Chromium Mach grants. The
+cleanup skill retains hook-respecting authorization and re-inventory guidance
+rather than bypassing failed hooks. The destructive-command guard rewrite was
+initially left out and later adopted by owner decision; see
+[isolation](../security/isolation.md#enforced-permissions).
 
 ## Daily behavior and recovery
 
