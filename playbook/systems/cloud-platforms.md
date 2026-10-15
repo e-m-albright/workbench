@@ -109,6 +109,28 @@ Stripe [agreed to acquire OpenRouter on 2026-08-19](https://stripe.com/newsroom/
 - Harness adapters for established coding agents such as Claude Code, Codex, and Pi.
 - Optional integration with Vercel AI Gateway, observability, templates, Sandbox, and deployment without requiring those services for the core library.
 
+### Beyond the user interface
+
+Rechecked 2026-10-15 against the [introduction](https://ai-sdk.dev/docs/introduction)
+and [Core overview](https://ai-sdk.dev/docs/ai-sdk-core/overview). **AI SDK is
+already the selected TypeScript model interface, not merely a UI watch item.**
+Its Core can run entirely on the server or in a background job without a chat
+screen: generate summaries, classify records, extract schema-validated objects,
+call application-owned tools, or execute a bounded multi-step agent loop through
+a common provider interface. UI hooks are a separate surface; Harnesses adapts
+established coding agents rather than supplying application durability.
+
+For example, an owned workflow can retrieve permitted records, call AI SDK Core
+to produce a structured discrepancy proposal, validate that proposal in ordinary
+code, and store it for review. A Svelte UI is optional. The SDK's output schema
+checks shape, not factual accuracy, source authority, or business correctness.
+Tool calling does not authorize an action. Keep credentials and tools on the
+server, and retain approvals, retries, durable progress, idempotency, and audit
+in the application or its selected workflow engine. Vercel hosting and AI Gateway
+are optional, not prerequisites. Revisit this selection only when a specific
+provider, runtime, or model capability is unsupported or another library proves
+a material advantage on the same task; no new trial was performed here.
+
 ### Competitor map
 
 | Competitor | Overlap | Read |

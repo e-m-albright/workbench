@@ -53,8 +53,9 @@ Vite+ 1.1.0 has now been tested in disposable application copies.
 
 ## Why Deno's outlook changes the choice
 
-The [2026-10-09 announcement](https://deno.com/blog/cloudflare) gives the runtime
-another year of fixes and security updates before the team ends development,
+The [2026-10-09 announcement](https://deno.com/blog/cloudflare), rechecked
+2026-10-14, gives the runtime another year of monthly releases with fixes and
+security updates before the team ends development,
 and Deno Deploy another six months before shutdown. Those imply roughly
 October 2027 and April 2027 respectively, not independently promised exact
 cutoff dates. JSR continues under Cloudflare infrastructure; rusty_v8 also
@@ -349,7 +350,7 @@ decision. None requires making Deno the default application runtime.
 | celld and workerd | Self-hosted Workers/Durable Objects direction. Hosting portability still leaves dependence on that programming model. |
 | Cloudflare Agents SDK | Persistent agent state, connections, scheduling, and recovery on Cloudflare's platform. Evaluate for a product requiring those capabilities. |
 | Supabase Edge Functions | A separately operated Deno-based service. Assess its provider's support commitments separately from Deno Deploy. |
-| Fresh, Jupyter, desktop support, and executable compilation | General application and development capabilities, not independent reasons to select Deno for AI work. |
+| Fresh, Jupyter, desktop support, and executable compilation | General application and development capabilities, not independent reasons to select Deno for AI work. The [desktop comparison](https://docs.deno.com/runtime/desktop/comparison/), reviewed 2026-10-14, describes `deno desktop` from 2.9 with system WebView or bundled CEF; the [interface assessment](../../product/interfaces.md#cross-platform-desktop-applications) owns its limitations and revisit gate. |
 
 Sources: [runtime security](https://docs.deno.com/runtime/fundamentals/security/),
 [Sandbox](https://docs.deno.com/sandbox/), [Claw Patrol](https://deno.com/blog/clawpatrol),

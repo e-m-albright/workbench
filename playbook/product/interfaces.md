@@ -4,6 +4,54 @@ Compare component systems, content tools, and application surfaces. Use [design 
 
 ## Web / Frontend
 
+### Component systems and primitives
+
+Reviewed 2026-10-15 from the official documentation linked below. The existing
+Svelte stack already selects **shadcn-svelte plus Bits UI**; recording alternatives
+does not change that default. Headless primitives supply interaction behavior
+without visual styling. Styled components and larger page blocks sit above them.
+
+| Candidate | Useful role and framework fit | Posture and revisit trigger |
+| --- | --- | --- |
+| [shadcn/ui](https://ui.shadcn.com/docs) and [shadcn-svelte](https://www.shadcn-svelte.com/docs) | Component source copied into the application so its visual layer can be customized. The original is React-oriented; shadcn-svelte is a separate, unofficial community port built with Bits UI and Tailwind CSS. | **KEEP the Svelte selection.** Use the original as a React option and design reference, not a directly interchangeable Svelte package. Review copied-code changes and upstream fixes; source ownership also means maintenance ownership. |
+| [Shadcn Space / shadcnspace](https://shadcnspace.com/) | Larger dashboard, marketing, and application blocks, components, and templates for React/Next.js; supports Base UI and Radix variants, with free and Pro offerings. | **WATCH AS A DESIGN REFERENCE; evaluate for a real React surface.** No native Svelte offering was established by the reviewed page. Verify each asset's license and paid-use terms before copying or adapting it; do not switch frameworks to consume a template. |
+| [Bits UI / Svelte Bits UI](https://www.bits-ui.com/docs/introduction) | One Svelte headless component library, not two products. Supplies composable controls with keyboard behavior, focus management, and accessibility semantics; styles remain application-owned. | **KEEP.** First primitive layer for custom Svelte controls, particularly where the styled shadcn-svelte component needs modification. Verify rendered keyboard and screen-reader behavior rather than treating upstream accessibility claims as a guarantee. |
+| [Melt UI](https://melt-ui.com/docs/introduction) | Lower-level Svelte builders generate attributes, state, and event behavior that can be attached to application-owned markup. The original docs flag breaking changes before 1.0; a separate [Svelte 5/runes version](https://next.melt-ui.com/) is advertised. | **WATCH.** Evaluate only when a specific interaction or markup requirement is awkward with Bits UI. Confirm which package/version the examples target; do not infer a stable migration path from the older documentation or assume current Bits UI depends on Melt internally. |
+| [Radix UI by WorkOS](https://www.radix-ui.com/) | React Primitives provide unstyled interaction behavior; Themes provides styled components. Colors and Icons are separate reusable assets. The [Primitives docs](https://www.radix-ui.com/primitives/docs/overview/introduction) explicitly use React packages. | **WATCH FOR REACT; reference for Svelte interaction design.** Compare with Base UI for a concrete React component requirement. Radix does not require WorkOS authentication, and Bits UI is not an official Radix Svelte package. |
+
+Do not combine several primitive libraries for novelty. Trial one difficult
+control, such as a dialog containing a combobox, against keyboard navigation,
+focus restoration, mobile interaction, server rendering/hydration, and visual
+tokens before adding another dependency. Exact licenses, release histories, and
+security advisories remain adoption-review work; no packages were installed.
+
+### Geographic maps and choropleths
+
+Reviewed 2026-10-15. **[Svelte MapLibre GL](https://svelte-maplibre-gl.mierune.dev/)**
+(`svelte-maplibre-gl`) is a declarative Svelte 5 wrapper around MapLibre GL JS.
+It supplies reactive map, marker, source, layer, and interaction integration;
+the [quickstart](https://svelte-maplibre-gl.mierune.dev/docs/quickstart) documents
+SvelteKit usage and the Vite worker adapter needed for MapLibre GL JS 6.
+Do not conflate it with the distinct `svelte-maplibre` wrapper.
+
+**WATCH; strong owner interest, especially for choropleth maps.** A choropleth
+colors geographic areas by a value such as a rate or density. MapLibre's
+[population-density example](https://maplibre.org/maplibre-gl-js/docs/examples/visualize-population-density/)
+shows polygon sources and data-driven fill expressions. The renderer does not
+supply the boundary dataset, join keys, metric definitions, basemap hosting,
+geocoding, or appropriate statistical interpretation.
+
+Evaluate when a real geographic question needs interactive region shading,
+filters, hover detail, and linked tables. Start with synthetic or public regional
+data, stable geography identifiers, a visible legend, explicit missing-data
+styling, meaningful denominators, and a non-map table alternative. Test large
+polygon performance, browser/WebGL support, keyboard alternatives, SvelteKit
+hydration, and cleanup. Review tile, font, style, and geocoding providers'
+licenses, attribution, costs, and network requests separately from the wrapper.
+For sensitive populations, define minimum aggregation and suppression rules;
+colored regions and client-side data are not inherently anonymous. No local
+map trial, license audit, or performance benchmark has been performed.
+
 ### Design-system and UI verification (reviewed 2026-09-24)
 
 - **[shadcn/lint](https://github.com/shadcn-ui/lint)** — **EVALUATE for a Tailwind v4 project with recurring agent-caused design-system drift; do not add globally.** Version 0.2.0 is an MIT ESLint/Oxlint plugin with six deterministic rules for component restyling, raw colors, arbitrary values, inline styles, unknown classes, and dynamic classes. Its useful distinction is actionable diagnostics built from the project's components, variants, and theme. The [primary documentation](https://github.com/shadcn-ui/lint#readme) now documents React, Vue, and Svelte support, correcting the earlier secondary review: ESLint parses Vue and Svelte markup, while Oxlint sees only their script blocks. Upstream reports more than 150 agent task runs and near-universal correction within one round, but that is a first-party benchmark. Trigger: a Tailwind project has a named token or component-contract violation that Biome and framework checks miss; trial one violating and one valid fixture per enabled rule before adding the plugin. No Biome integration is documented.
@@ -52,7 +100,8 @@ OpenAI's [Sign in with ChatGPT UI/UX guidelines](https://developers.openai.com/s
 
 - **[Tauri](https://v2.tauri.app/start/)** remains the default when a web frontend needs native desktop distribution. It reuses the operating-system webview, has the strongest fit with the existing Svelte and Rust guidance, and already has an owned stack page. Better Stack's [Tauri, Electrobun, and Deno Desktop comparison](https://www.youtube.com/watch?v=ktkDGQyRx3Y) was a useful survey, but did not expose a current desktop-app need or displace Tauri.
 - **[Wails](https://wails.io/docs/introduction/)** is the equivalent Go-shaped choice: system webviews, Go methods exposed to JavaScript, generated TypeScript models, and Svelte templates. Better Stack's [screen-recorder comparison](https://www.youtube.com/watch?v=Q1TL2AKoy00) found it credible but showed the practical ecosystem boundary: native platform APIs may require custom Cgo and Objective-C when the Go package ecosystem has no wrapper. Use Wails when Go is already the application's center of gravity; do not introduce Go merely to avoid Rust in Tauri.
-- **Electrobun** remains watch-only when a desktop product needs it. Deno Desktop is excluded by the maintained-runtime retirement; Tauri remains the default.
+- **Electrobun** remains watch-only when a desktop product needs it.
+- **Deno Desktop (reviewed 2026-10-14)** remains excluded by the [runtime maintenance decision](../languages/typescript/runtimes.md#why-denos-outlook-changes-the-choice); Tauri remains the default. The official [comparison](https://docs.deno.com/runtime/desktop/comparison/) describes `deno desktop` from Deno 2.9, with system WebView or bundled Chromium Embedded Framework (CEF), framework detection, cross-compilation, and binary-diff updates. Its useful proposition is a TypeScript backend without adding Rust, with optional consistent rendering; the size and compatibility comparisons are vendor claims, not local measurements. The same page lists missing Windows auto-update, native secure storage, and desktop runtime permission prompts, plus separate macOS notarization. Do not infer desktop containment from Deno's general permission model or confuse cross-compilation with signed distribution. Revisit only for a concrete desktop application after a credible maintenance commitment beyond the announced runtime horizon; then verify Svelte integration, native dependencies, signed installation and updates on each target OS, rendering, and the frontend-to-backend authority boundary. No desktop build or packaging trial was performed.
 
 ## CMS / Content
 

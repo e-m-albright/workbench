@@ -94,7 +94,7 @@ These products solve different parts of an application-owned integration layer. 
 | [Nango](https://nango.dev/) | Connection lifecycle and authenticated proxy; broader sync, webhook, and tool capabilities depend on offering | **WATCH.** Evaluate when connection maintenance is a demonstrated burden. The [free self-hosting documentation](https://nango.dev/docs/guides/platform/free-self-hosting/configuration) previously described Auth and Proxy; verify current edition and license boundaries rather than assuming every capability is included or all self-hosting requires Enterprise. Self-hosting transfers operations to the adopter. |
 | [Merge](https://www.merge.dev/) | Normalized unified APIs and agent-facing integration products | **WATCH.** Compare against direct APIs when several customers need the same category of SaaS system; test whether its common model preserves the fields and source semantics needed for reconciliation. |
 | [Pipedream](https://pipedream.com/) | Hosted integrations and workflows; Connect for product integrations and Conduit for internal agent access | **WATCH.** Test only when managed connection breadth or enterprise access governance is the bottleneck; distinguish customer-facing embedded authorization from employee access to internal tools. |
-| [Windmill](https://www.windmill.dev/) | Code-first scripts, workflow execution, schedules, and operator interfaces | **REFERENCE.** Evaluate when jobs need an operations surface beyond existing hosting. Compare with the [durable execution guidance](../systems/services.md#durable-execution--workflows); DBOS is an application library, not the same product boundary. One runtime owns each workflow. Verify approval and recovery semantics; this is not a source-permission solution. |
+| [Windmill](https://www.windmill.dev/) | Code-first scripts, workflow execution, schedules, and operator interfaces | **WATCH.** Evaluate when jobs need an operations surface beyond existing hosting. The [2026-10-14 comparison](#internal-software-and-workflow-platforms) covers its overlap with Retool and Quick Flows. DBOS is an application library, not the same product boundary. One runtime owns each workflow. |
 | [Paragon](https://www.useparagon.com/) | Managed connections and [ActionKit](https://docs.useparagon.com/actionkit/overview) operations/triggers, alongside workflow products | **WATCH.** Potentially useful before workflows: supported source calls, connection lifecycle, and diagnostics can replace custom machinery. A Python backend can consume its API while retaining domain logic. Prove exact authentication, custom fields, denied/revoked access, connection binding, custody, pricing, and exit terms. Connector availability does not prove delegated identity or permission-preserving synchronization. |
 | [Dify](https://dify.ai/) | Visual agent and workflow application builder | **REFERENCE.** Useful to compare build-versus-buy for a hosted AI workflow UI; no current need to move canonical data rules into its workflow definitions. |
 | [Composio](https://docs.composio.dev/) | Agent-ready toolkits, per-user managed authentication, triggers, hosted MCP sessions, and execution | **WATCH.** Trial against Arcade on one read and one write with the same test users. Inspect tool schema quality, token custody, permission narrowing, audit, retries, and custom business actions. |
@@ -103,3 +103,70 @@ These products solve different parts of an application-owned integration layer. 
 | [Runlayer](https://www.runlayer.com/) | Cross-client agent catalogue, MCP gateway, identity policy, runtime review, and usage visibility | **WATCH FOR COMPANY-WIDE GOVERNANCE.** Compare when several teams use multiple assistant clients; verify coverage of tool paths and whether hard policy is independent of model review. |
 
 **Closest alternatives to Composio and Arcade:** [Nango](https://nango.dev/) and [Pipedream Connect](https://pipedream.com/connect) cover managed connections; [Klavis](https://www.klavis.ai/) and [Metorial](https://metorial.com/) focus on hosted MCP infrastructure; [Amazon Bedrock AgentCore Gateway and Policy](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy.html) provides an AWS-native gateway with external policy enforcement. These overlap only partially. Shortlist by the missing capability, not catalogue size. The [layer comparison](#what-a-company-can-buy-or-own) separates connection, action, policy, workflow, and business-state ownership.
+
+## Enterprise governance and data-work candidates
+
+Reviewed 2026-10-14 from the official pages linked below. These are **WATCH**
+candidates, not tested deployments. Product descriptions are upstream claims;
+this review does not establish permission preservation, compliance, benchmark
+accuracy, or complete coverage of every client path. [Cerbos and WorkOS](../systems/authorization.md)
+belong to the application authorization and identity layer, not this shortlist.
+
+| Candidate | Current documented position | Why track it; exact evaluation trigger |
+| --- | --- | --- |
+| [Obot](https://obot.ai/) | MCP and model gateways, approved MCP/skill registries, hosted workloads, identity, and correlated audit. [Documentation](https://docs.obot.ai/) identifies version 0.26.0 and describes Sentry device management as beta. | Compare with Runlayer when an organization needs governance across multiple clients, not just configuration sync. Prove denied tool access, gateway bypass resistance, credential separation, and audit coverage on the actual clients. |
+| [Credal](https://credal.ai/) | Curated enterprise context and MCP tools, agent building, registry, evaluations, policy, and cost attribution. Its [documentation](https://docs.credal.ai/) describes source-permission mirroring and cloud or on-prem deployment. | Compare with Obot/Runlayer when domain-specific context curation and evaluations matter alongside governance. Test revoked source access, bounded tool arguments, approval binding, and exportable audit. Shared instructions are not equivalent to deterministic enforcement. |
+| [TextQL](https://textql.com/) | Ana reasons over an enterprise ontology, produces queries and data applications, and supports agents that write back. This is broader than a natural-language SQL frontend. [Deployment docs](https://docs.textql.com/core/admin/deployment-config) describe self-hosted Helm configuration, identity integration, tool availability, and context-review controls. | Evaluate when analysts repeatedly struggle with ambiguous enterprise schemas or metric definitions. Use a fixed set of known-answer questions, conflicting definitions, denied rows, and costly-query limits. Keep source writes disabled in the first trial. |
+| [PromptQL](https://promptql.io/) | The current homepage emphasizes persistent multiplayer bots, shared dashboards/documents/sheets, isolated computers, and API/database tools, rather than only data querying. | Evaluate when a real collaborative workflow needs durable shared context and expert corrections. Compare with an existing employee assistant plus owned tools; test permissions, shared-output leakage, provenance, and corrections that survive subsequent runs. |
+
+Obot's documented quickstart mounts the Docker socket. That gives its control
+service consequential host authority; hosted workload isolation does not make
+the control service unprivileged. Any trial belongs on a disposable evaluation
+host, not a credential-rich workstation. Its open-source positioning and
+edition descriptions do not substitute for reviewing exact component licenses,
+feature limits, and the endpoint agent's privileges.
+
+PromptQL's permission FAQ says each action borrows the requester's access, but
+also explicitly says replies in a shared chat are visible to everyone in that
+chat. Per-request source authorization therefore does not guarantee that every
+reader is authorized to see a shared answer. Test with two users who have
+different source permissions, including cached artifacts and later questions;
+do not use sensitive data merely because source access is delegated. Its page
+also describes beta invites. Confirm availability for the intended deployment.
+
+TextQL's ontology accuracy improvements and Credal's accuracy/context savings
+are vendor measurements without a benchmark reproduced here. Test against the
+same questions, users, source snapshots, and cost budget before ranking them.
+For TextQL self-hosting, the reviewed configuration recommends explicit
+authentication enforcement for locked-down deployments and documents exceptions
+for signed library-file links. Inspect artifact access as well as query access.
+
+## Internal software and workflow platforms
+
+Reviewed 2026-10-14. These products bundle an execution service with a building
+and operations interface. They are not interchangeable with a durable-execution
+library, nor does an attractive workflow editor establish transaction safety.
+
+| Candidate | Documented useful surface | Posture and next action |
+| --- | --- | --- |
+| [Windmill](https://www.windmill.dev/) | Code-first scripts, workflows, approvals, schedules, data pipelines, and internal apps; cloud or self-hosting, CLI/Git collaboration, and React/Svelte app frontends. | **WATCH; first comparison for code-owned internal automation.** Trial when schedules and scripts need shared operations, approvals, and an operator UI. Compare with the existing service plus cron or [DBOS](../systems/services.md#durable-execution--workflows), including worker and edition costs. The vendor's speed claims were not benchmarked. |
+| [Retool](https://docs.retool.com/) | Internal apps, AI-assisted and classic builders, agents, workflows, data sources, permissions, source control, and hosted/self-hosted deployment. The docs list self-hosted stable releases dated 2026-10-08. | **WATCH; interface-led alternative.** Compare with Windmill when building and maintaining operator screens is the repeated burden. Verify edition-specific permissions, source-control support, deployment rights, end-user costs, and portability before adopting. |
+| [Amazon Quick Flows](https://aws.amazon.com/quick/flows/) | Natural-language workflow creation and sharing within Amazon Quick, connected data/actions, browser interactions, and conversational refinement. | **WATCH IF QUICK IS ALREADY RELEVANT.** Evaluate one low-risk employee workflow in an authorized tenant. Confirm region, connectors, user licensing, execution identity, action approval, and recovery instead of treating AWS availability as proof of fit. |
+
+AWS's [administration guide](https://docs.aws.amazon.com/quick/latest/userguide/managing-quick-flows.html)
+describes feature enablement, ownership/sharing controls, and administrative
+approval before sharing flows. Approval to share a workflow is not evidence of
+approval for each consequential action it later performs. Browser interactions
+also require a separate check of identity, allowed destinations, and read-back.
+
+For all three, run one synthetic workflow with a human approval, interruption,
+retry, denied source access, and a write whose result initially times out.
+Inspect whether restart duplicates effects, whether approval binds the exact
+arguments, and whether rollback changes code only or also repairs external
+state. Choose one runtime to own the workflow. Retain business validation,
+idempotency, and unknown-outcome reconciliation in application-owned code.
+Do not add a second scheduler or move canonical records merely to test a UI.
+
+This is an initial official-documentation review. Component licenses, security
+advisories, full release histories, independent benchmarks, and negotiated
+pricing remain adoption-review work; no vendor has passed that gate here.

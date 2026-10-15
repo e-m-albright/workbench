@@ -12,6 +12,10 @@ it does not imply a scheduled monitoring service.
 | Composio, Arcade, Klavis, Metorial | Several assistant clients need the same delegated tool access | [Integrations](agents/integrations.md) |
 | Nango, Paragon, Pipedream Connect, Merge | Connection maintenance or source normalization becomes repeated application work | [Integration candidates](agents/integrations.md#enterprise-integration-and-workflow-candidates-reviewed-2026-10-02) |
 | Workato, Runlayer, AgentCore | An organization needs centralized integration, policy, or hosted execution | [Control-plane layers](agents/integrations.md#what-a-company-can-buy-or-own) |
+| Obot, Credal | Multiple employee clients need governed tools, source-permission enforcement, or curated context with measurable evaluations | [Governance and data candidates](agents/integrations.md#enterprise-governance-and-data-work-candidates) |
+| TextQL, PromptQL | Ambiguous enterprise data or collaborative analysis warrants a fixed-question benchmark; verify shared-output permissions | [Data-work comparison](agents/integrations.md#enterprise-governance-and-data-work-candidates) |
+| Windmill, Retool, Amazon Quick Flows | A real internal workflow needs an operator interface or shared operations beyond the existing service; compare Quick Flows only in a suitable tenant | [Workflow platforms](agents/integrations.md#internal-software-and-workflow-platforms) |
+| Delta | Shared coding review loses decisions, and shipped safeguards or a verified external boundary can constrain execution | [Delta safety and trial criteria](agents/harnesses.md#delta-collaborative-coding-workspace) |
 | Muse, Grok Bot, Dots, Lefos | Credential isolation, memory correction, action recovery, or enterprise controls materially change | [Persistent assistants](agents/assistants.md) |
 | OpenAPPA | A bounded workflow needs policy over actions influenced by untrusted content | [Agent security](agents/security.md) |
 | Claw Patrol and credential gateways | A concrete agent task needs service access without exposing reusable credentials; verify non-bypassable routing and authentication compatibility | [Sandbox and gateway exploration](agents/security.md#hosted-sandboxes-and-credential-gateways) |
@@ -50,11 +54,17 @@ it does not imply a scheduled monitoring service.
 | Render, Railway, Northflank, Hetzner and deployment tools | Workload, residency, operations capacity, or measured hosting cost changes | [Services](systems/services.md) |
 | OpenTofu, Pulumi, Crossplane, Kubernetes | The current deployment model cannot satisfy a named requirement | [Infrastructure as code](systems/infrastructure-as-code.md) |
 | Database and analytical engines | Concurrency, query shape, scale, or recovery requirements exceed the current store | [Data stores](systems/data-stores.md) |
+| DBOS, Temporal, Restate, Prefect | An application needs durable progress, or Python pipelines need shared scheduling and operations; test recovery and external-write idempotency | [Workflow selection](systems/services.md#durable-execution--workflows), [Prefect comparison](systems/services.md#prefect-comparison-reviewed-2026-10-15) |
+| Vercel AI SDK, TanStack AI | A concrete provider/runtime capability gap or measured advantage justifies revisiting the selected TypeScript model library | [AI SDK beyond UI](systems/cloud-platforms.md#beyond-the-user-interface) |
+| Cerbos, WorkOS | Cross-service policy complexity or enterprise identity requirements exceed the existing application controls | [Identity and authorization](systems/authorization.md) |
 | Semgrep, SonarQube and supply-chain tools | A specific security detection or audit gap justifies another gate | [Systems security](systems/security.md) |
 | Embeddings and LangExtract | A retrieval or extraction benchmark demonstrates value over existing parsing and search | [Retrieval](systems/retrieval.md) |
 | Terminal, editor, capture and remote-access candidates | Recurring host friction earns a change in the host repository | [Workstations](systems/workstations.md) |
 | Moda and other visual design tools | A concrete artifact needs a comparative design trial | [Design tools](product/design-tools.md) |
 | Storybook, component systems and content tools | Interface complexity or repeated visual defects justify their maintenance | [Product interfaces](product/interfaces.md) |
+| shadcn/ui, shadcn-svelte, Bits UI, Melt UI | A concrete component or markup requirement exceeds the existing shadcn-svelte/Bits UI selection; verify the target Svelte version | [Component layers](product/interfaces.md#component-systems-and-primitives) |
+| Shadcn Space, Radix UI by WorkOS, Base UI | A real React surface warrants reusable blocks or primitives; keep React examples as references rather than direct Svelte dependencies | [Component comparison](product/interfaces.md#component-systems-and-primitives) |
+| Svelte MapLibre GL | An interactive choropleth or other geographic question warrants a map; validate data joins, aggregation, licensing, and accessible alternatives | [Geographic maps](product/interfaces.md#geographic-maps-and-choropleths) |
 | Gemini avatar | Its product contents become directly reviewable | [Design-tool evidence](product/design-tools.md) |
 
 Supplied video summaries remain attributed in the owning topics. The source

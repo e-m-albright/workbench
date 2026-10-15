@@ -356,3 +356,29 @@ Treat “works while the Mac is locked” as an execution-location claim, not pe
 - **[OpenCode](https://github.com/opencode-ai/opencode)** -- OSS terminal coding agent. Lightweight, BYO API key. Compare against Aider for cost-control / provider-flexibility use cases.
 - **[Aider](https://aider.chat/)** -- Veteran OSS terminal coding agent. User flagged "meh" in 2026-04 notes -- worth confirming whether the gap to Claude Code / Codex has actually closed or remained.
 - **[Codex CLI](https://github.com/openai/codex)** (the actual CLI, distinct from Claude Code / Cursor) -- OpenAI's official terminal coding agent. The cross-model pairing pattern: write with Claude Code, review with Codex (or reverse).
+
+## Delta collaborative coding workspace
+
+Reviewed 2026-10-14. [Delta](https://delta.dev/), from Zed Industries, is a
+collaborative agent workspace that keeps discussion, code changes, and review
+in shared threads. Its [getting-started documentation](https://delta.dev/docs/getting-started)
+describes separate checkouts by default, with optional existing local checkouts.
+Its distinct value is shared reasoning and review, not another model provider.
+
+**WATCH; do not trial on a credential-rich host.** The current
+[agentic safety documentation](https://delta.dev/docs/privacy-and-security/agentic-safety)
+explicitly says Delta is early access, has no agent permission system, does not
+sandbox agents, and does not require trust review before loading repository
+configuration. Agents can make destructive tool calls without asking. Managed
+checkout preparation scripts can run automatically, and applicable `direnv`
+configuration can be allowed without prior trust review. A separate checkout
+is not an operating-system security boundary.
+
+Revisit when a real multi-person coding task loses important decisions between
+chat and review, and shipped permission, sandbox, and repository-trust controls
+or a verified external boundary can constrain it. First test only a disposable
+synthetic repository without secrets. Compare review quality, recovery,
+conversation/code export, and coordination time against the supported harnesses
+plus ordinary pull-request review. Data retention, provider routing, billing,
+licensing, and release maturity remain unverified; this documentation review is
+not approval to install or expand the first-class harness set.

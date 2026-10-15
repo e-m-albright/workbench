@@ -68,7 +68,7 @@ Compare any deployment against those requirements explicitly. Workbench's [imple
 
 ## Hosted sandboxes and credential gateways
 
-Reviewed 2026-10-10. These are candidates for specific gaps, not an active
+Reviewed 2026-10-14. These are candidates for specific gaps, not an active
 deployment. The [TypeScript runtime exploration](../languages/typescript/runtimes.md)
 owns Deno/Bun selection; choosing an execution service does not require choosing
 the same vendor's application runtime.
@@ -115,6 +115,12 @@ Deno's [acquisition announcement](https://deno.com/blog/cloudflare) gives Deploy
 six months, but does not separately specify Sandbox or Claw Patrol's future.
 Sandbox depends on Deploy according to its documentation. Treat that as an
 unresolved dependency risk, not a separately announced Sandbox shutdown date.
+The [Sandbox product page](https://deno.com/deploy/sandbox), rechecked
+2026-10-14, explicitly describes Firecracker microVMs on Deploy, host allowlists,
+and placeholder secrets substituted at the outbound proxy. These are vendor
+claims, not independently verified guarantees; merely leaving this page online
+does not resolve service continuity. Revisit only with an explicit Sandbox
+support or migration commitment and a workflow needing remote isolation.
 
 Claw Patrol routes agent traffic through a gateway that holds real credentials
 and evaluates requests. To make it an enforceable boundary, the execution
@@ -123,6 +129,19 @@ Credential substitution alone does not prevent misuse of permitted operations.
 Use least-privilege service accounts and server-side authorization; SQL parsing
 and model judgment must not be the sole protection against destructive access.
 Do not assume API-key injection supports existing subscription OAuth flows.
+
+The [Claw Patrol announcement](https://deno.com/blog/clawpatrol), rechecked
+2026-10-14, describes WireGuard/Tailscale routing, TLS termination, and HCL
+rules over parsed protocol fields. That makes the gateway, its certificate
+trust, and its administrative credentials part of the trusted boundary.
+The supplied [repository](https://github.com/denoland/clawpatrol) could not be
+read through the available browser policy; current implementation, releases,
+and maintenance status remain unverified. The alpha label above is the
+announcement's, not a fresh repository assessment. Revisit for one controlled
+service only after source and maintainer review, then test alternate-route
+bypasses, malformed protocol requests, approval failure, and audit redaction
+with fake credentials. The Deploy announcement does not settle this separate
+open-source project's future.
 
 ### Smallest useful trial
 

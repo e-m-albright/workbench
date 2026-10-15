@@ -265,23 +265,69 @@ such as feature flags, experiments, or session replay.
 
 ## Durable Execution / Workflows
 
-> **For multi-step workflows that must survive a crash and resume from the last completed step** — strictly stronger than a queue (which only retries the whole job). The 2026 split is *library-on-Postgres* vs *server-you-operate*; for a Postgres-centric solo/small stack the former wins.
+> Use durable execution when a multi-step application process must recover recorded progress after interruption. Use a queue for independently retryable jobs. Pipeline orchestration also supplies scheduling, task execution, and operational visibility; its recovery guarantees depend on the selected engine and configuration, not the word “workflow.”
 
 | Category | Primary Pick | Alternative | Notes |
 |----------|-------------|-------------|-------|
-| **Lightweight (library)** | DBOS | — | Postgres-only, runs *inside* your app process (Python/TS/Go). The "lightweight Temporal" — durability with zero new infra. Best default. |
+| **Lightweight (library)** | DBOS | — | Runs inside the application and can reuse existing Postgres for durable state. First candidate for application-owned workflows; database operations, backups, and recovery remain responsibilities. |
 | **Go background jobs** | River | asynq | Postgres-backed, transactional enqueue. A queue, not full durable execution. |
 | **TS event-driven** | Inngest | Trigger.dev | Inngest: light self-host (single binary). Trigger.dev: more of a platform (registry + object storage). |
-| **Heavy-duty** | Temporal | Restate (watch) | Cross-language, mission-critical scale. Temporal's cluster is a real operations burden; Restate aims for a lighter event-log-based runtime. Reach for either only when correctness at scale demands it. |
+| **Dedicated execution platform** | Temporal | Restate (watch) | Compare for cross-service workflows, supported language needs, or a durable service/object model. Their semantics can matter at modest volume too; include managed-service cost or self-hosted operations. |
+| **Python pipeline orchestration** | Prefect (watch) | — | Scheduled and event-driven data workflows, dynamic tasks, deployment infrastructure, run visibility, and human input. Evaluate when operating pipelines is the bottleneck; verify result persistence, cache keys, and recovery explicitly. |
 | **Platform-native** | Vercel Workflows / Cloudflare Workflows | — | Watch when the application already lives on that platform; compare portability and state export with DBOS, Inngest, and Temporal. |
 
 ### When to Use What
 
-- **DBOS**: Default. A library, not a server — `pip install`/`npm i`, point at existing Postgres, decorate workflow/step functions. Matches the "Postgres as the only dependency" ethos. Free OSS core; only the ops console is paid.
-- **Temporal**: When you genuinely need multi-DC, millions of concurrent workflows, or cross-service orchestration. Self-hosting the cluster is exactly the ops burden most projects should avoid; even Temporal concedes Cloud beats self-host economically below tens of millions of actions/month.
+- **DBOS**: First application-workflow candidate. Annotate workflow and step functions while keeping business logic in the application; reuse existing Postgres where appropriate. Do not treat a library as zero operational work or assume the open-source library includes every managed offering.
+- **Temporal**: Compare when workflow history, signals, recovery, supported languages, and cross-service coordination fit the requirement. High volume is not a prerequisite; justify the dedicated runtime or managed service against the simpler baseline.
 - **Plain Postgres + cron / Arq / River / QStash**: When the real need is "run on a schedule" or "a few retryable jobs." Durable execution only pays off once you have genuinely multi-step workflows with side effects you must not re-run.
 
 [Restate's September 2026 funding announcement](https://restate.dev/blog/announcing-series-a) is market validation for durable execution, not product validation. Its useful claim is architectural: long-running agent work makes waits, retries, callbacks, partial failure, and duplicate side effects ordinary application concerns. Compare Restate when a real workflow needs those guarantees and its low-latency service or virtual-object model fits better than a Postgres library. Keep the business state machine, idempotency semantics, approvals, and unknown-outcome reconciliation in application-owned code. A $20 million Series A and vendor benchmarks do not displace the default progression from queue to DBOS to a heavier runtime.
+
+### Prefect comparison (reviewed 2026-10-15)
+
+[Prefect](https://docs.prefect.io/v3/get-started/index) adds Python flows and tasks,
+scheduling, event-driven automation, deployment/execution infrastructure, run
+monitoring, and pauses for human input. It belongs beside DBOS, Temporal, and
+Restate in selection research, but is especially worth evaluating for ingestion,
+transformation, validation, batch analysis, and backfills. It overlaps Windmill
+on execution operations; Windmill additionally emphasizes internal application
+interfaces. Neither requires moving business rules into a visual editor.
+
+**WATCH; first pipeline-oriented comparison.** Prefer a DBOS canary when the
+problem is one application's crash-resumable business process. Compare Prefect
+when many Python pipelines need shared deployment, schedules, diagnostics, and
+operator recovery. Temporal remains a dedicated workflow-platform comparison;
+Restate is a durable service and object comparison. These are starting points,
+not claims that Prefect cannot run agents or approval-bearing workflows.
+
+The detailed docs qualify the introduction's broad recovery description:
+
+- [Result persistence](https://docs.prefect.io/v3/advanced/results) is off by
+  default unless enabled through configuration. Default local result storage
+  does not survive replacement of an ephemeral worker; use accessible durable
+  storage for results that must be reused across workers or runs.
+- [Caching](https://docs.prefect.io/v3/concepts/caching) needs persisted results
+  and matching keys. The default policy includes inputs, task source, and the
+  flow-run identifier. A fresh run is not automatically equivalent to resuming
+  the same execution.
+- [Retries](https://docs.prefect.io/v3/how-to-guides/workflows/retries) can be
+  scoped to tasks or whole flows. A parent retry reuses a successful child
+  flow's result only when persisted; failed or unpersisted children run anew.
+- [Transactions](https://docs.prefect.io/v3/advanced/transactions) coordinate
+  result records and lifecycle hooks, not an atomic transaction across arbitrary
+  external systems. Cleanup of external effects requires application-written
+  rollback hooks; eager commit alone does not guarantee single execution under
+  concurrency. Preserve source-side idempotency and unknown-outcome read-back.
+
+Trial one synthetic import with expensive intermediate results and one simulated
+external write. Kill and replace its worker, retry it under the same and a new
+run identity, alter an input, and lose the write response after acceptance.
+Inspect exactly what re-executes, which results are retained, and whether effects
+are duplicated. Compare operator diagnosis and recovery with DBOS and the
+existing scheduler. Keep persisted payloads minimal and review access, retention,
+serialization, credentials, and logs. No deployment, fault-injection trial,
+release-history audit, or edition/pricing review was performed here.
 
 ---
 
