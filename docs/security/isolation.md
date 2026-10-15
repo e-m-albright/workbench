@@ -254,6 +254,19 @@ The vendor's nested operating-system sandbox is disabled inside this enforced
 outer policy because macOS does not support nesting those policies. Vendor
 action approvals remain a separate layer and cannot expand the outer boundary.
 
+The destructive guard, `agents/shared/hooks/guard-destructive-shell.sh`, runs
+before every shell command in every hook-capable harness, inside or outside
+the launcher. It is a friction layer, not a security boundary. It parses each
+command with shell quoting respected and applies a rule only when the word is
+the command being run, so text in quotes, grep patterns, and heredocs do not
+trigger it. Recursive deletes are allowed under temporary directories and for
+build output such as `node_modules`, `.venv`, `__pycache__`, and `dist`.
+`git branch -D` is allowed when a tag or remote branch already contains the
+branch's commits. `git push` and `gh` writes that are chained, piped, or
+redirected are blocked, so they run alone and reach the normal approval. Code
+run by an interpreter, such as `python -c`, is not inspected. If the guard
+fails internally, it blocks the command.
+
 ## Accepted risks and limits
 
 Readable repository content can be sent to public destinations. Selecting a
