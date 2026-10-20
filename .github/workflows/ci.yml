@@ -51,13 +51,14 @@ jobs:
         with:
           node-version: 24.20.0
       - name: Install pinned vendor CLIs
-        # Keep optional platform binaries inside each admitted package directory.
-        # Require Claude's native package: npm can silently drop a failed optional download.
+        # Claude uses the host's native layout: a stable launcher linked into a versions directory.
+        # Keep optional platform binaries inside each admitted npm package directory.
         run: |
-          claude_platform="$(node -p 'process.platform + "-" + process.arch')"
-          npm install -g --install-strategy=nested --allow-scripts=@anthropic-ai/claude-code \
-            "@anthropic-ai/claude-code-${claude_platform}@2.1.278" \
-            @anthropic-ai/claude-code@2.1.278 \
+          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.304
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          test -L "$HOME/.local/bin/claude"
+          npm install -g --install-strategy=nested \
             @openai/codex@0.155.1 \
             @earendil-works/pi-coding-agent@0.86.1
           claude --version

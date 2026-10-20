@@ -296,3 +296,89 @@ def test_explicit_reenroll_recovers_corrupt_managed_login_and_backs_it_up(tmp_pa
     backups = list((home / ".local/state/workbench/backups").glob("model-login-*/codex/auth.json"))
     assert backups[0].read_text() == "interrupted previous write"
     assert json.loads(destination.read_text()) == json.loads(source.read_text())
+
+
+def native_claude(home, version="2.1.304", root=None):
+    versions = (root or home / ".local/share") / "claude/versions"
+    versions.mkdir(parents=True, exist_ok=True)
+    (versions / version).write_text("synthetic native binary")
+    (versions / version).chmod(0o755)
+    launcher = home / ".local/bin/claude"
+    launcher.parent.mkdir(parents=True, exist_ok=True)
+    launcher.unlink(missing_ok=True)
+    launcher.symlink_to(versions / version)
+    return launcher, versions
+
+
+def prepare_offline(monkeypatch, tools):
+    monkeypatch.setattr(
+        native.shutil,
+        "which",
+        lambda name: str(tools / name) if (tools / name).exists() else None,
+    )
+    monkeypatch.setattr(native.subprocess, "run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(native, "patch_forge", lambda runtime: None)
+
+
+def test_prepare_prefers_native_claude_and_survives_auto_update(tmp_path, monkeypatch):
+    home = (tmp_path / "home").resolve()
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    for name in ("node", "npm", "claude"):
+        (tools / name).write_text("synthetic npm copy")
+    launcher, versions = native_claude(home)
+    prepare_offline(monkeypatch, tools)
+    native.prepare(home)
+    manifest = json.loads((home / ".local/share/workbench/native/tools.json").read_text())
+    # The stable launcher, not the versioned file or the PATH copy, is recorded.
+    assert manifest["agents"]["claude"] == {"command": [str(launcher)], "read": [str(versions)]}
+    native_claude(home, "2.1.305")
+    (versions / "2.1.304").unlink()
+    assert native.status(home, vendor="claude", cwd=tmp_path)["agents"]["claude"][
+        "executable_ready"
+    ]
+
+
+def test_prepare_uses_path_claude_when_no_native_install(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    tools = tmp_path / "tools"
+    (tools / "lib/claude-code").mkdir(parents=True)
+    (tools / "lib/claude-code/package.json").write_text("{}")
+    (tools / "lib/claude-code/cli.js").write_text("synthetic npm copy")
+    for name in ("node", "npm"):
+        (tools / name).write_text("synthetic")
+    (tools / "claude").symlink_to(tools / "lib/claude-code/cli.js")
+    prepare_offline(monkeypatch, tools)
+    native.prepare(home)
+    manifest = json.loads((home / ".local/share/workbench/native/tools.json").read_text())
+    package = (tools / "lib/claude-code").resolve()
+    assert manifest["agents"]["claude"] == {
+        "command": [str(package / "cli.js")],
+        "read": [str(package)],
+    }
+
+
+def test_prepare_refuses_native_claude_versions_in_writable_scratch(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    for name in ("node", "npm"):
+        (tools / name).write_text("synthetic")
+    native_claude(home, root=home / "Downloads")
+    prepare_offline(monkeypatch, tools)
+    with pytest.raises(core.WorkbenchError, match="bootstrap"):
+        native.prepare(home)
+    assert not (home / ".local/share/workbench/native/tools.json").exists()
+
+
+def test_prepare_reports_a_broken_native_claude_launcher(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    for name in ("node", "npm"):
+        (tools / name).write_text("synthetic")
+    _, versions = native_claude(home)
+    (versions / "2.1.304").unlink()
+    prepare_offline(monkeypatch, tools)
+    with pytest.raises(core.WorkbenchError, match="reinstall Claude Code"):
+        native.prepare(home)

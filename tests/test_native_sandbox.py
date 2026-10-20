@@ -482,3 +482,54 @@ def test_harness_initialization_cannot_overwrite_host_files(tmp_path, attack):
         launcher.initialize_home(plan, home)
         assert target.read_text() == "safe"
     assert victim.read_text() == "must remain untouched"
+
+
+def test_native_claude_launcher_follows_auto_update_inside_admitted_versions(tmp_path):
+    launcher = load_launcher()
+    home = (tmp_path / "home").resolve()
+    repo = home / "code/project"
+    (repo / ".git").mkdir(parents=True)
+    harness_manifest(home, "claude")
+    (home / ".config/workbench/private-paths").write_text("")
+    versions = home / ".local/share/claude/versions"
+    versions.mkdir(parents=True)
+    stable = home / ".local/bin/claude"
+    stable.parent.mkdir(parents=True)
+    config = {
+        "node": "/usr/bin/node",
+        "agents": {"claude": {"command": [str(stable)], "read": [str(versions)]}},
+    }
+    for version in ("2.1.304", "2.1.305"):
+        (versions / version).write_text("synthetic native binary")
+        stable.unlink(missing_ok=True)
+        stable.symlink_to(versions / version)
+        plan = launcher.build_plan(repo, home, config, "claude", "hosted", [])
+        assert plan["command"][0] == str(versions / version)
+    fs = plan["policy"]["filesystem"]
+    assert str(versions) in fs["allowRead"]
+    assert not any(str(versions).startswith(path) for path in fs["allowWrite"])
+    assert plan["env"]["DISABLE_AUTOUPDATER"] == "1"
+
+    outside = home / "elsewhere/claude"
+    outside.parent.mkdir()
+    outside.write_text("synthetic")
+    stable.unlink()
+    stable.symlink_to(outside)
+    with pytest.raises(ValueError, match="outside its admitted installation"):
+        launcher.build_plan(repo, home, config, "claude", "hosted", [])
+
+
+def test_launch_rejects_agent_installation_inside_a_write_grant(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    repo = home / "code/project"
+    (repo / ".git").mkdir(parents=True)
+    harness_manifest(home, "claude")
+    (home / ".config/workbench/private-paths").write_text("")
+    versions = home / "Downloads/claude/versions"
+    config = {
+        "node": "/usr/bin/node",
+        "agents": {"claude": {"command": [str(versions / "1")], "read": [str(versions)]}},
+    }
+    with pytest.raises(ValueError, match="agent installation"):
+        launcher.build_plan(repo, home, config, "claude", "hosted", [])

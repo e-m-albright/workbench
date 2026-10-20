@@ -61,8 +61,15 @@ the checkout. It also records an already installed Playwright Chromium Headless
 Shell. Host package installation remains the host repository's responsibility;
 the launcher does not download a browser or fall back to personal Chrome.
 Preparation and launch reject bootstrap executables beneath managed write
-grants, including overlapping checkout or scratch roots. A missing vendor does
-not block the other vendors. Provider
+grants, including overlapping checkout or scratch roots. The same check covers
+agent installations, both where a launcher link sits and where it points, so no
+session can alter the agent binary that later sessions run. Claude's native
+installer links a stable `~/.local/bin/claude` to a replaceable file under
+`~/.local/share/claude/versions/`. Preparation records the link and admits the
+versions directory read-only; each launch resolves the link and refuses a target
+outside that directory. The pinned runtime canonicalizes read grants, so the
+launch hands Seatbelt the resolved file rather than the link. A missing vendor
+does not block the other vendors. Provider
 authentication and subscriptions remain separate prerequisites for model use.
 
 The clean environment sets `SSL_CERT_FILE=/etc/ssl/cert.pem`. Codex needs these

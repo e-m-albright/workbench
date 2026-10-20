@@ -32,8 +32,35 @@ def _binary(name: str) -> Path:
     return Path(found).resolve(strict=True)
 
 
+def _agent(home: Path, vendor: str, node: Path) -> tuple[dict, Path] | None:
+    """Prefer Claude's native install, whose stable launcher survives auto-update."""
+    launcher = home / ".local/bin/claude"
+    if vendor != "claude" or not (launcher.exists() or launcher.is_symlink()):
+        found = shutil.which(vendor)
+        if not found:
+            return None
+        launcher = Path(found)
+    if vendor == "claude" and launcher.is_symlink():
+        try:
+            target = launcher.resolve(strict=True)
+        except OSError as error:
+            raise WorkbenchError("Claude launcher is broken; reinstall Claude Code") from error
+        if target.parent.name == "versions" and target.parent.parent.name == "claude":
+            # Auto-update replaces the version file, so record the link and admit
+            # the versions directory; each launch resolves the current target.
+            stable = launcher.parent.resolve() / launcher.name
+            return {"command": [str(stable)], "read": [str(target.parent)]}, stable
+    binary = _binary(vendor)
+    package = next(
+        (parent for parent in binary.parents if (parent / "package.json").is_file()),
+        binary.parent,
+    )
+    command = [str(node), str(binary)] if vendor == "pi" else [str(binary)]
+    return {"command": command, "read": [str(package)]}, binary
+
+
 def _safe_bootstrap(home: Path, *paths: Path) -> None:
-    """The pre-sandbox executable and loader directory must resist managed writes."""
+    """Executables, their link directories, and loader trees must resist managed writes."""
     writable = [
         home / name
         for name in (
@@ -45,13 +72,14 @@ def _safe_bootstrap(home: Path, *paths: Path) -> None:
         )
     ]
     for path in paths:
-        loader = path.resolve().parent
-        for root in writable:
-            if loader.is_relative_to(root.resolve()):
-                raise WorkbenchError(
-                    "Unsafe bootstrap tool location overlaps managed writable paths; "
-                    "install Node and npm outside public code, scratch, and managed state"
-                )
+        for loader in {path.parent.resolve(), path.resolve().parent}:
+            for root in writable:
+                if loader.is_relative_to(root.resolve()):
+                    raise WorkbenchError(
+                        "Unsafe bootstrap tool location overlaps managed writable paths; "
+                        "install Node, npm, and agent CLIs outside public code, scratch, "
+                        "and managed state"
+                    )
 
 
 def installed_browser(home: Path) -> str | None:
@@ -73,26 +101,21 @@ def prepare(home: Path | None = None) -> None:
     """Install locked upstream dependencies and copies, without provider credentials."""
     home = (home or Path.home()).resolve()
     node, npm = _binary("node"), _binary("npm")
+    agents: dict[str, object] = {}
+    executables = []
+    for vendor in ("codex", "claude", "pi"):
+        found = _agent(home, vendor, node)
+        if found:
+            agents[vendor], executable = found
+            executables.append(executable)
     _safe_bootstrap(
         home,
         node,
         npm,
+        *executables,
         home / DATA_REL / "shell/native-sandbox.mjs",
         home / DATA_REL / "native/node_modules/bootstrap",
     )
-    agents: dict[str, object] = {}
-    for vendor in ("codex", "claude", "pi"):
-        if not shutil.which(vendor):
-            continue
-        binary = _binary(vendor)
-        package = next(
-            (parent for parent in binary.parents if (parent / "package.json").is_file()),
-            binary.parent,
-        )
-        agents[vendor] = {
-            "command": [str(node), str(binary)] if vendor == "pi" else [str(binary)],
-            "read": [str(package)],
-        }
     runtime = home / DATA_REL / "native"
     runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
     for vendor in agents:
