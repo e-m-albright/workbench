@@ -806,14 +806,57 @@ def state_directory(home: Path, directory: Path):
 
 
 def share_claude_sessions(home: Path, source: Path, target: Path) -> None:
-    """Join this native project namespace without parsing or overwriting transcripts."""
+    """Join this native project namespace without parsing transcripts or discarding a copy."""
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    kept = []
 
     def names(descriptor):
         with os.scandir(descriptor) as entries:
             return [entry.name for entry in entries]
 
-    def inspect(src, dst=None):
+    def relation(src, dst, name):
+        """Compare bytes only: equal, one copy extends the other, or they differ."""
+        with contextlib.ExitStack() as stack:
+            left, right = (
+                stack.enter_context(
+                    os.fdopen(os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd), "rb")
+                )
+                for fd in (src, dst)
+            )
+            while True:
+                a, b = left.read(1 << 20), right.read(1 << 20)
+                common = min(len(a), len(b))
+                if a[:common] != b[:common]:
+                    return "differ"
+                if len(a) != len(b):
+                    if a[common:] and not b[common:]:
+                        return "differ" if right.read(1) else "managed-extends"
+                    return "differ" if left.read(1) else "native-extends"
+                if not a:
+                    return "equal"
+
+    def set_aside(src, name, relative):
+        """Keep a conflicting copy outside the shared namespace instead of refusing launch."""
+        with contextlib.ExitStack() as stack:
+            current = os.dup(parent)
+            stack.callback(lambda: os.close(current))
+            for part in (f"{source.name}.conflicts", *relative):
+                with contextlib.suppress(FileExistsError):
+                    os.mkdir(part, mode=0o700, dir_fd=current)
+                child = os.open(part, flags, dir_fd=current)
+                os.close(current)
+                current = child
+            destination = name
+            while True:
+                try:
+                    os.stat(destination, dir_fd=current, follow_symlinks=False)
+                except FileNotFoundError:
+                    break
+                destination = f"{name}.{secrets.token_hex(4)}"
+            os.rename(name, destination, src_dir_fd=src, dst_dir_fd=current)
+        kept.append("/".join((*relative, name)))
+
+    def reconcile(src, dst=None, relative=()):
         for name in names(src):
             info = os.stat(name, dir_fd=src, follow_symlinks=False)
             if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
@@ -822,16 +865,28 @@ def share_claude_sessions(home: Path, source: Path, target: Path) -> None:
             if dst is not None:
                 with contextlib.suppress(FileNotFoundError):
                     existing = os.stat(name, dir_fd=dst, follow_symlinks=False)
-            if existing is not None and not (
-                (stat.S_ISDIR(info.st_mode) and stat.S_ISDIR(existing.st_mode))
-                or (
-                    stat.S_ISREG(info.st_mode)
-                    and stat.S_ISREG(existing.st_mode)
-                    and name == "sessions-index.json"
-                )
+            if (
+                existing is None
                 or (info.st_dev, info.st_ino) == (existing.st_dev, existing.st_ino)
+                or (stat.S_ISDIR(info.st_mode) and stat.S_ISDIR(existing.st_mode))
             ):
-                raise ValueError("Claude transcript collision; both copies preserved for review")
+                pass
+            elif stat.S_ISREG(info.st_mode) and stat.S_ISREG(existing.st_mode):
+                if name == "sessions-index.json":
+                    continue
+                # The same session resumed on both sides usually only appended records.
+                outcome = relation(src, dst, name)
+                if outcome in ("equal", "native-extends"):
+                    os.unlink(name, dir_fd=src)
+                elif outcome == "managed-extends":
+                    # Keep the shorter native inode aside so a live writer cannot lose records.
+                    set_aside(dst, name, ("native", *relative))
+                else:
+                    set_aside(src, name, relative)
+                continue
+            else:
+                set_aside(src, name, relative)
+                continue
             if stat.S_ISDIR(info.st_mode):
                 with contextlib.ExitStack() as stack:
                     child = os.open(name, flags, dir_fd=src)
@@ -840,7 +895,7 @@ def share_claude_sessions(home: Path, source: Path, target: Path) -> None:
                     if existing is not None:
                         other = os.open(name, flags, dir_fd=dst)
                         stack.callback(os.close, other)
-                    inspect(child, other)
+                    reconcile(child, other, (*relative, name))
 
     def move(src, dst):
         for name in names(src):
@@ -906,7 +961,7 @@ def share_claude_sessions(home: Path, source: Path, target: Path) -> None:
                     with contextlib.ExitStack() as stack:
                         src = os.open(source.name, flags, dir_fd=parent)
                         stack.callback(os.close, src)
-                        inspect(src, destination)
+                        reconcile(src, destination)
                         if names(src):
                             # Native Claude rebuilds this cache from the merged JSONL files.
                             with contextlib.suppress(FileNotFoundError):
@@ -927,6 +982,12 @@ def share_claude_sessions(home: Path, source: Path, target: Path) -> None:
                             "both transcript copies are preserved"
                         ) from error
                 os.symlink(str(target), source.name, dir_fd=parent)
+    if kept:
+        print(
+            f"workbench: kept {len(kept)} conflicting Claude history file(s) in "
+            f"{source.parent / (source.name + '.conflicts')}",
+            file=sys.stderr,
+        )
 
 
 def sync_codex_auth(home: Path, destination: Path) -> bool:

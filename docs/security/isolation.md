@@ -192,7 +192,11 @@ The matching namespace is readable and writable inside the managed boundary.
 
 Stop managed Claude sessions before the first migration and avoid concurrent
 writers while it runs. Existing disjoint transcript files merge without parsing
-their contents; conflicting paths preserve both copies and refuse launch.
+their contents. A file present on both sides never blocks launch: identical
+copies merge, and when one transcript only extends the other the longer copy
+stays shared. Any other conflict keeps the native copy shared and moves the
+managed copy to a `.conflicts` directory beside the managed link, so nothing
+is discarded; the launcher names that directory when it uses it.
 Session index caches are backed up for Claude to rebuild. The migration lock
 serializes Workbench launches and does not make arbitrary live writer migration
 safe.
