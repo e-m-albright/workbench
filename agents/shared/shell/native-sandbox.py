@@ -238,9 +238,16 @@ def build_plan(
     if not agent:
         raise ValueError(f"Native tool not prepared: {vendor}")
     command = [*agent["command"]]
+    executable = Path(command[0])
+    if executable.is_symlink():
+        # A stable launcher survives vendor auto-update; run the version it names now.
+        target = executable.resolve(strict=True)
+        if not any(target.is_relative_to(Path(path)) for path in agent["read"]):
+            raise ValueError("Agent launcher points outside its admitted installation")
+        command[0] = str(target)
     auth = runtime / "model-auth" / vendor
     auth_files = []
-    auth_env = {}
+    vendor_env = {}
     auth_link = None
     manifest = runtime / "native/harness/manifest.json"
     if not manifest.is_file():
@@ -262,17 +269,19 @@ def build_plan(
         ]
         auth_files = [str(auth / "auth.json")]
         auth_link = {"path": str(agent_home / ".codex/auth.json"), "target": auth_files[0]}
-        auth_env["CODEX_HOME"] = str(agent_home / ".codex")
+        vendor_env["CODEX_HOME"] = str(agent_home / ".codex")
     elif vendor == "claude":
         command += ["--settings", json.dumps({"sandbox": {"enabled": False}})]
         auth_files = [str(auth / ".credentials.json"), str(auth / ".storage-write.lock")]
-        auth_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
+        vendor_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
+        # The host install owns updates; an isolated home must not grow its own copy.
+        vendor_env["DISABLE_AUTOUPDATER"] = "1"
     elif vendor == "pi":
         command += ["--session-dir", str(agent_home / ".pi/sessions")]
         auth_files = [str(auth / "auth.json"), str(auth / "auth.json.lock")]
         auth_link = {"path": str(agent_home / ".pi/agent/auth.json"), "target": auth_files[0]}
-        auth_env["PI_CODING_AGENT_DIR"] = str(agent_home / ".pi/agent")
-        auth_env["WORKBENCH_PI_MODE"] = f"{location}-{authority}"
+        vendor_env["PI_CODING_AGENT_DIR"] = str(agent_home / ".pi/agent")
+        vendor_env["WORKBENCH_PI_MODE"] = f"{location}-{authority}"
     # Use the canonical target directly: resolving /usr/share/zoneinfo would
     # require traversing /var before the child sandbox policy is installed.
     zoneinfo = Path("/private/var/db/timezone/zoneinfo")
@@ -327,13 +336,20 @@ def build_plan(
     bootstrap = node.resolve().parent
     if bootstrap.name == "bin":
         bootstrap = bootstrap.parent
+    # Agent installations must also stay read-only so no session can alter later ones.
+    installed = [
+        bootstrap,
+        executable.parent.resolve(),
+        *(Path(path).resolve() for path in agent["read"]),
+    ]
     for writable in [root, agent_home, temp, *(Path(path) for path in shared), auth]:
         writable = writable.resolve()
-        if bootstrap == writable or bootstrap in writable.parents or writable in bootstrap.parents:
-            raise ValueError(
-                "Managed write access overlaps the supervisor installation; "
-                "move the tool or checkout"
-            )
+        for tool in installed:
+            if tool == writable or tool in writable.parents or writable in tool.parents:
+                raise ValueError(
+                    "Managed write access overlaps the supervisor installation "
+                    "or an agent installation; move the tool or checkout"
+                )
     read.extend(shared)
     for grant in read:
         path = Path(grant)
@@ -437,7 +453,7 @@ def build_plan(
             "WORKBENCH_AGENT_AUTHORITY": authority,
             "WORKBENCH_AGENT_LOCATION": location,
             "WORKBENCH_HOST_HOME": str(home),
-            **auth_env,
+            **vendor_env,
             **git_identity(home, root),
         }
     )

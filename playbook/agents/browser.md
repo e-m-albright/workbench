@@ -23,9 +23,9 @@ The tools sit at different layers: Playwright is the automation framework for kn
 
 ## Tier 0 — Search and direct reading
 
-For current public information, start with the harness's dedicated web-search tool. In Pi, `agent_browser_web_search` uses the configured Exa provider; it is a separate companion tool and does not launch Chrome. Start with one high-signal query and allow at most one focused follow-up unless exhaustive research was explicitly requested and the first results are insufficient.
+For current public information, start with the harness's dedicated web-search tool. In Pi, `agent_browser_web_search` is an optional companion tool using a machine-local provider configuration; it does not launch Chrome. Workbench does not distribute an Exa connector or search credentials. Start with one high-signal query and allow at most one focused follow-up unless exhaustive research was explicitly requested and the first results are insufficient.
 
-Once a source URL is known, read it directly. In Pi, `agent_browser read <url>` returns readable text without launching Chrome. Shortlist sources before opening them, batch independent extraction where supported, and stop when the available evidence answers the request. Escalate to Tier 2 only for rendered state, JavaScript-only content, authentication, interaction, screenshots, or browser diagnostics.
+Once a source URL is known, read it directly. In Pi, `agent_browser read <url>` returns readable text through the lightest available reader; the installed proxy may still launch a contained browser. Shortlist sources before opening them, batch independent extraction where supported, and stop when the available evidence answers the request. Escalate to Tier 2 only for rendered state, JavaScript-only content, authentication, interaction, screenshots, or browser diagnostics.
 
 ## Tier 1 — Playwright tests in CI
 

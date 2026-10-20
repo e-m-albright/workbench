@@ -9,6 +9,9 @@ it does not imply a scheduled monitoring service.
 
 | Question or candidates | Revisit when | Evidence and comparison |
 | --- | --- | --- |
+| Docker Agent | Repeated agent setup or distribution work merits comparison with an application-owned framework | [Declarative packaging](agents/frameworks.md#declarative-agent-packaging) |
+| Strands Box and Dogwood | A concrete execution path needs non-bypassable operation-level policy; verify preview compatibility and policy completeness | [Semantic policy](agents/security.md#strands-box-containment-with-semantic-policy) |
+| Notion shared context and skill distribution | Multiple assistant hosts need reviewed shared guidance; verify revision delivery, permission behavior, and revocation | [Shared context](agents/memory.md#shared-context-and-portable-skills) |
 | Composio, Arcade, Klavis, Metorial | Several assistant clients need the same delegated tool access | [Integrations](agents/integrations.md) |
 | Nango, Paragon, Pipedream Connect, Merge | Connection maintenance or source normalization becomes repeated application work | [Integration candidates](agents/integrations.md#enterprise-integration-and-workflow-candidates-reviewed-2026-10-02) |
 | Workato, Runlayer, AgentCore | An organization needs centralized integration, policy, or hosted execution | [Control-plane layers](agents/integrations.md#what-a-company-can-buy-or-own) |
@@ -20,7 +23,7 @@ it does not imply a scheduled monitoring service.
 | OpenAPPA | A bounded workflow needs policy over actions influenced by untrusted content | [Agent security](agents/security.md) |
 | Claw Patrol and credential gateways | A concrete agent task needs service access without exposing reusable credentials; verify non-bypassable routing and authentication compatibility | [Sandbox and gateway exploration](agents/security.md#hosted-sandboxes-and-credential-gateways) |
 | Deno Sandbox, E2B, Daytona, Cloudflare Sandbox, Vercel Sandbox | Unattended or untrusted coding work outgrows local isolation; clarify Deno Sandbox's lifecycle before adoption | [Sandbox roles and trial](agents/security.md#hosted-sandboxes-and-credential-gateways) |
-| Jev, GLiClass, documented OpenAI decision APIs | Typed decision volume makes measured latency, calibration, or cost material | [Model efficiency](agents/models/efficiency.md) |
+| Jev, Decider, GLiClass, documented OpenAI decision APIs | Typed decision volume makes measured latency, calibration, or cost material | [Model efficiency](agents/models/efficiency.md) |
 | Pi Durable, Kiro, Mastra Factory | A real workflow needs durable execution or repeatedly stalls on coordination | [Orchestration](agents/orchestration.md), [application frameworks](agents/frameworks.md) |
 | Pydantic AI, Agno, LangGraph, Microsoft Agent Framework, Strands | An application needs agents with specific state, recovery, and operator requirements | [Framework comparison](agents/frameworks.md) |
 | OpenHarness, Open Interpreter, OpenHands, OpenCode | A capability gap appears in the supported coding harnesses | [Harnesses](agents/harnesses.md) |

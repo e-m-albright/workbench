@@ -1,6 +1,10 @@
 # Engineering playbook
 
 Reusable judgment, technology comparisons, and research live with their subject.
+This includes software-engineering and AI discoveries and technical learning.
+Private client applications, relationships, commitments, and personal reference
+lists stay with their private owner. Keep reusable evidence here and link to it
+from private applications rather than maintaining competing technical syntheses.
 Browse the directories or search their filenames; there is no document register.
 
 - [Agents](agents/README.md): models, harnesses, orchestration, tools, integration,

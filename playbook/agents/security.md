@@ -167,3 +167,11 @@ work than the isolation or unattended execution benefit justifies.
 The [experiment record](../../docs/experiments.md) owns activation and removal.
 No infrastructure, credentials, or external execution is authorized merely by
 recording this exploration.
+
+## Strands Box: containment with semantic policy
+
+In [Strands Box: The Big Picture](https://strandsagents.com/blog/strands-box-the-big-picture/), Marc Brooker describes an operating-system sandbox that forces agent interactions through a separate policy layer. Dogwood policies can inspect tool meaning and prior events, rather than only filesystem paths and network destinations. The announced design covers shell, Python, Model Context Protocol tools, files, and network access; it is a developer preview as of October 17, 2026.
+
+The durable distinction is between preventing bypass and deciding whether a particular operation is allowed. Both are needed. Brooker's example permits a Git push after a successful test, but explicitly acknowledges that an intervening branch change can invalidate that example's guarantee. A production control must bind approval and verification to the actual revision and inputs used by the operation.
+
+This is a concrete implementation candidate, not independent security validation or a recommendation to replace an existing runtime. Policy completeness, supported execution paths, and compatibility still need testing.

@@ -77,3 +77,9 @@ and total completed-task cost. Sources: [Pydantic AI](https://pydantic.dev/docs/
 - **[Rig](https://rig.rs/)** (Rust) -- Dominant Rust option, ~7.6k stars; 20+ providers, 10+ vector stores, OTel GenAI conventions, WASM, MCP. Real deployments (Cloudflare, Neon, Nethermind, St. Jude). Benchmarks claim ~5x memory reduction and 25-44% latency wins vs Python equivalents -- re-verify before citing.
 - **[Eino](https://github.com/cloudwego/eino)** (Go) -- ByteDance CloudWeGo's component-based framework, 11k+ stars; LangChain-inspired but Go-idiomatic, built for massive-scale serving.
 - **[Genkit Go](https://genkit.dev/)** (Go) -- Google's production-ready GenAI framework for Go; streaming, evals, tracing built in.
+
+## Declarative agent packaging
+
+[Docker Agent's documentation](https://docker.github.io/docker-agent/) describes agents configured in YAML or HCL, a configuration language, with model selection, tools, delegation, and distribution through Open Container Initiative registries. It exposes command-line, HTTP, Model Context Protocol, and Agent-to-Agent interfaces (verified October 17, 2026). Better Stack's [Docker Agent video](https://www.youtube.com/watch?v=Mph1H5u3yeA) surfaced the tool; its description was readable, but its transcript was unavailable in this review. Capability claims here come from Docker's documentation, which tracks the main branch and may describe unreleased features; check the stable documentation before adoption.
+
+The reusable idea is to version and distribute an agent definition separately from its business tools and evidence. Configuration can remove repeated orchestration code; it does not replace the code implementing domain behavior, access controls, calculations, or evaluations. Registry packaging also does not prove that every tool runs inside an adequate sandbox. Evaluate those boundaries separately. This is an implementation option, not an approved stack change.

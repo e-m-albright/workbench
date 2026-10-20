@@ -6,10 +6,54 @@ import json
 import os
 import subprocess
 import sys
+import tomllib
 
 import pytest
 
 from workbench import cli, core, drift, lint, mcp, sync
+
+
+@pytest.mark.parametrize("target", ["claude", "desktop", "codex"])
+def test_exa_is_retired_without_removing_external_mcp_servers(target):
+    existing = {"exa": {"command": "old-exa"}, "external": {"command": "keep"}}
+    assert "exa" in mcp.retired_mcp_names()
+    assert "exa" not in mcp.active_mcp(target)
+    assert mcp.merge_mcp(existing, target) == {"external": {"command": "keep"}}
+
+
+def test_sync_removes_exa_from_existing_configs_and_drift_flags_reintroduction(tmp_path):
+    external = {"external": {"command": "keep"}}
+    servers = {"exa": {"command": "old-exa"}, **external}
+    claude = tmp_path / ".claude.json"
+    desktop = tmp_path / "Library/Application Support/Claude/claude_desktop_config.json"
+    codex = tmp_path / ".codex/config.toml"
+    desktop.parent.mkdir(parents=True)
+    codex.parent.mkdir(parents=True)
+    for path in (claude, desktop):
+        path.write_text(json.dumps({"mcpServers": servers}))
+    codex.write_text(
+        '[mcp_servers.exa]\ncommand = "old-exa"\n[mcp_servers.external]\ncommand = "keep"\n'
+    )
+
+    sync.sync_claude(tmp_path, deploy_skills=False, deploy_plugins=False)
+    sync.sync_codex(tmp_path, deploy_skills=False, deploy_plugins=False)
+    deployed = {
+        "claude": json.loads(claude.read_text())["mcpServers"],
+        "desktop": json.loads(desktop.read_text())["mcpServers"],
+        "codex": tomllib.loads(codex.read_text())["mcp_servers"],
+    }
+    for target, actual in deployed.items():
+        assert actual == external
+        findings, additions = [], []
+        drift._check_mcp(actual, target, "MCP", findings, additions)
+        assert findings == []
+        drift._check_mcp(servers, target, "MCP", findings, additions)
+        assert any("exa" in finding for finding in findings)
+
+
+@pytest.mark.parametrize("target", ["claude", "desktop", "codex"])
+def test_retired_chrome_devtools_uses_its_real_server_name(target):
+    assert mcp.merge_mcp({"chrome-devtools": {"command": "retired"}}, target) == {}
 
 
 def test_work_profile_sync_is_fail_closed_and_drift_clean(tmp_path, monkeypatch):

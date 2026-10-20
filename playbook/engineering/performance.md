@@ -19,3 +19,11 @@ fnm); candidates below are watch-only. Evaluation bar: API parity %, independent
 (not self-reported) benchmarks, and out-of-beta status.
 
 - **[rustwright](https://github.com/Skyvern-AI/rustwright)** (Skyvern AI, MIT) -- Playwright's API on a native Rust engine speaking CDP directly, eliminating the Node driver subprocess. Claims 2.55x faster / 70% less memory vs playwright-python -- self-reported, "not yet capped-CI evidence" by their own admission. ~96% sync-Python API coverage (515/536 methods); **explicitly early alpha**. Caveats: Chromium-only (Firefox/WebKit error out), Python async wraps the sync engine via threads (≤25 concurrent workflows), cross-origin iframe gaps. Verdict: legit team (Skyvern is the browser-agent company) and honestly-labeled claims, but not production-ready. Import-swap makes trialing cheap -- revisit at beta + independent benchmarks. Would slot under `browser-tooling` if adopted.
+
+## Why a fast query can still finish late
+
+ClickHouse's [32 millisecond latency investigation](https://clickhouse.com/blog/chasing-32ms-tail-latency-clickhouse) separates time to the first result from time to the protocol's end-of-stream marker. In its reproduced customer case, an idle connection's reduced congestion window and many small metadata writes forced an additional network round trip. The congestion window limits unacknowledged data; `TCP_NODELAY` disables the kernel's usual small-write batching, but does not eliminate that limit.
+
+ClickHouse reports that batching the final metadata writes removed the extra delay in its reproduction (reviewed October 17, 2026). The practical diagnostic is to measure first result and full completion separately, reproduce idle periods and network delay, and inspect packet boundaries before assuming query execution is slow.
+
+This is one team's demonstrated failure mechanism, not a universal explanation for latency. Batching must preserve time-sensitive progress messages; each application write does not always become exactly one packet.

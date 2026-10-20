@@ -34,7 +34,7 @@ differ because only `p` adds the Workbench outer boundary; see the launch matrix
 | Google read-only (`google-readonly.ts`) | Disabled extension | Legacy implementation remains source-visible, but Gmail/Calendar tools, credentials, and Google API endpoints are blocked from managed agent modes |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
-| `pi-agent-browser-native` 0.6.15 | Pinned package | Structured Agent Browser wrapper plus Exa-backed public web search |
+| `pi-agent-browser-native` 0.6.15 | Pinned package | Structured Agent Browser wrapper with optional machine-local public search |
 | `just typecheck-pi` | Dev gate | Typechecks extensions against the installed Pi API |
 | pi-guide skill | Skill | Versioned tutorial for native Pi plus this harness |
 
@@ -105,8 +105,9 @@ client handles it).
 Workbench pins `pi-agent-browser-native` 0.6.15 around the existing Agent Browser
 CLI. It adds structured tool results, bounded context spills, secret redaction,
 stale-reference guards, session recovery, artifact metadata, and the
-`agent_browser_web_search` companion backed by a machine-local Exa credential.
-Use search to discover public sources, `agent_browser read <url>` to read a known
+optional `agent_browser_web_search` companion when a search provider is configured
+on the machine. Workbench distributes no search credential or Exa connector.
+Use available native search to discover public sources, `agent_browser read <url>` to read a known
 source with the lightest available reader, and a full browser only for rendered state,
 JavaScript-only content, authentication, interaction, screenshots, or diagnostics.
 Managed sessions use a fresh contained browser; personal profiles are denied.

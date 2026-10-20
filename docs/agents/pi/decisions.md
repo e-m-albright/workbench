@@ -124,7 +124,7 @@ read-only adapter named under Source connectors, not a fork.
 | Google connector | Disabled for general agents: Gmail and Calendar tools are blocked, Google connector credentials are invariant exclusions, and shared Google API/content endpoints are denied. | A future email labeler must be a separate broker with label-only operations; do not re-enable the broad connector in coding agents. |
 | Bounded worktree worker | The `worker` tool lets either route start one isolated implementation task in the background, continue disjoint work, inspect progress, and later adopt or reject the result; `/worker` remains a manual entrypoint. Frontier workers remain subject to the same private-source path and connector guards as their parent. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and may not commit, push, install, or merge. Elapsed status uses no polling or extra model calls. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save wall-clock time or protect context. |
 | Default dev preset | One coding tool profile; launch modes independently select model location and access. | Do not add another preset without a recurring workflow the inference and access choices cannot express. |
-| Native Agent Browser wrapper | `pi-agent-browser-native` 0.6.15 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an Exa-backed companion search tool. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
+| Native Agent Browser wrapper | `pi-agent-browser-native` 0.6.15 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an optional companion search tool configured on the machine. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
 
 ## Explicitly absent
@@ -234,9 +234,11 @@ Working policy:
 
 ### Web access
 
-- **Current path:** The native wrapper's Exa-backed `agent_browser_web_search`
-  discovers public sources, while `agent_browser read <url>` reads a known source
-  without launching Chrome. Full Agent Browser sessions are reserved for rendered
+- **Current path:** Use available native search to discover public sources;
+  the wrapper's optional `agent_browser_web_search` requires machine-local provider
+  configuration, not a distributed Exa connector. `agent_browser read <url>` reads
+  a known source with the lightest available reader. The installed proxy may still
+  launch a contained browser for that read. Full Agent Browser sessions are reserved for rendered
   state, JavaScript-only content, authentication, interaction, screenshots, and
   diagnostics. Dedicated read-only connectors own private source retrieval, and
   `gh` remains the structured GitHub path.

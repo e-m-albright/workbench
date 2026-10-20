@@ -47,6 +47,16 @@ runtime dependencies and resolved tool paths under
 `~/.local/share/workbench/native/`. Sync removes the retired permissive Seatbelt
 profiles and Codex app-server helper; Lima is not an active implementation.
 
+Claude Code comes from the native installer when `~/.local/bin/claude` exists,
+whatever Node version is active; otherwise `prepare` falls back to the `claude`
+on `PATH`. The native launcher is a symlink into
+`~/.local/share/claude/versions/`, and auto-update replaces the version file it
+names. `prepare` therefore records the launcher rather than the version file and
+admits the versions directory read-only. Each `cc` launch runs the version the
+launcher names at that moment, so re-running `prepare` after an update is not
+needed. Managed sessions set `DISABLE_AUTOUPDATER=1`, because the host install
+owns updates and an isolated home should not download its own copy.
+
 The standalone launch interface is
 `/bin/zsh -f ~/.local/share/workbench/shell/agent-sandbox.zsh VENDOR LOCATION AUTHORITY [native args]`:
 `VENDOR` is `pi`, `claude`, or `codex`; the only supported pair is `LOCATION=hosted`
@@ -77,7 +87,16 @@ existing managed logins without claiming they authenticate. Use
 `workbench native authorize VENDOR --replace` after signing in natively to back
 up and replace one vendor's login. `workbench native status [VENDOR]` reports
 preparation, projection, state paths, and login metadata without token or history
-reads. These deliberately agent-readable credentials keep
+reads.
+
+`/login` inside `cc` cannot save a new Claude token. This is by design: the
+managed boundary blocks the Keychain service, and only the exact enrolled
+credential file is writable, so a login there does not persist. When the managed
+Claude token is expired or revoked, run `claude` outside `cc`, use `/login` there,
+and then run `workbench native authorize claude --replace` to back up the old
+managed login and copy the new one from the Keychain.
+
+These deliberately agent-readable credentials keep
 their provider account scopes and are not inference-only grants. Machine-local
 `~/.config/workbench/private-paths` exclusions remain enforced in managed
 sessions. `~/.config/workbench/hard-deny-paths` also applies to every managed
