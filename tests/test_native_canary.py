@@ -538,6 +538,7 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
     try:
         deadline = time.monotonic() + 15
         declined = False
+        header_requested = False
         while time.monotonic() < deadline:
             if select.select([master], [], [], 0.1)[0]:
                 try:
@@ -548,6 +549,18 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
                 os.write(master, b"\x1b")
                 declined = True
             plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output.decode(errors="replace"))
+            # Full-harness notices can scroll the header above the 30-row viewport.
+            # Inspect it with native Page Up after the ready screen is visible.
+            if (
+                not header_requested
+                and "Workbench configuration" not in plain
+                and all(
+                    marker in plain
+                    for marker in ("cloud > managed", "BOUNDARY-CANARY-PASS", "openai/gpt-4.1")
+                )
+            ):
+                os.write(master, b"\x1b[5~")
+                header_requested = True
             # A terminal frame can span reads; wait for the whole asserted footer.
             if (
                 all(

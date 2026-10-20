@@ -24,10 +24,10 @@ Text must be UTF-8 without NUL bytes; other files are binary assets, reported by
 | Group | Files | Lines |
 |---|---:|---:|
 | Code - source | 46 | 9,873 |
-| Code - tests | 38 | 8,203 |
+| Code - tests | 38 | 8,216 |
 | Text | 199 | 20,750 |
 | Generated/vendor | 3 | 2,016 |
-| **Source tree text total** | **286** | **40,842** |
+| **Source tree text total** | **286** | **40,855** |
 
 Binary assets: 2 files, 223,107 bytes. Workbench contains 31 tracked local skills.
 Archify and its external archive download pipeline are retired; reasons and
