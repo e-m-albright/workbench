@@ -8,15 +8,22 @@ The `personal` profile is the complete configuration described by the
 table. Sync and drift default to `DOTFILES_PROFILE` when set, otherwise `personal`;
 an explicit `--profile` overrides that default. The fail-closed `work` profile targets only Claude Code and Pi. It deploys
 shared rules, tracked skills, hooks, and permission guards, but omits Codex,
-Claude plugins and Desktop configuration, MCP servers, externally downloaded
-skills, local-model routing, and browser and personal connector extensions. It
+Claude plugins and Desktop configuration, MCP servers, local-model routing,
+and browser and personal connector extensions. It
 still deploys the shared launchers and native Claude/Pi harnesses. Run both sync and drift with the same
 `--profile` value.
 
 Managed terminal sessions use the same instructions, skills, extensions, and presentation through
-a derived configuration that excludes host history and connector credentials.
+a derived configuration that excludes connector credentials and unrelated host state.
 Their isolated state and access boundary are described below and in the
 [boundary reference](security/isolation.md).
+
+Personal root defaults are `openai-codex/gpt-6.1-sol` with medium thinking for Pi,
+`gpt-6.1-sol` with medium reasoning for Codex, and `opus` with medium effort for
+Claude. Vendor precedence still applies to explicit command-line or project
+overrides. The work profile keeps Claude's defaults and leaves Pi provider and
+model selection to host policy. Known personal Pi settings, providers,
+extensions, and excluded skills cause work-profile drift if reintroduced.
 
 Codex sync preserves an explicit approval reviewer. When its effective approval
 policy is `on-request` and no reviewer is selected, it defaults to native automatic
@@ -124,9 +131,21 @@ additions are likewise external; sync removes only explicitly retired Workbench 
 are deployed as real files rather than repository symlinks so moving a checkout
 cannot silently disable the harness.
 
+All 31 managed skills are tracked local sources. Archify and its archive download
+pipeline are retired; sync removes its deployed trees, and drift flags them in
+both shared and Pi-native skill directories. Retirement reasons live with the
+enforcement in `RETIRED_SKILLS` in `src/workbench/core.py`.
+
 Claude Desktop preference defaults fill missing keys but preserve explicit owner
 choices; drift therefore checks key presence rather than exact preference values.
 MCP entries remain exact managed values.
+The Google connector implementation is retired. Pi's remaining Strava connector
+requires local inference and its own OAuth grant.
+
+Drift checks each exact managed Pi npm pin against the installed package's name
+and version under `~/.pi/agent/npm/node_modules/`. Missing or malformed metadata
+fails drift even when settings match. This verifies installation metadata, not
+package content integrity; configuration sync does not install Pi npm packages.
 
 Plugin IDs are version-controlled and drift-checked. Marketplace installation
 resolves the vendor's current plugin content, so identity is declarative but the
@@ -165,9 +184,19 @@ Managed Codex refresh retains only selected-checkout folder trust and unchanged
 projected hook decisions. Unsupported trust syntax prompts again; arbitrary
 agent-written settings never survive the refresh. Managed Pi preserves valid
 worker timeout settings and rejects explicit private/local startup intent.
-Native and managed histories remain separate; a moved checkout has a new state
-identity. Use an explicit continuation in a fresh host-native session for
-unsupported workflows rather than importing private transcripts automatically.
+Pi workers can run in admitted sibling locations, inherit the parent's model
+selection and boundary, and require explicit adoption/rejection before discarding
+changed output. Unique commits remain preserved and recursive worker entrypoints
+are blocked.
+
+Managed Claude keeps an isolated settings home but links only the matching native
+`~/.claude/projects/<encoded cwd>` transcript namespace. Initial migration requires
+stopped managed sessions; conflicts preserve both copies and refuse launch. Native
+namespace encoding is lossy and can collide. The
+[history contract](security/isolation.md#claude-session-history) owns migration,
+supported path encodings, and the boundary around other host state.
+Pi and Codex histories remain separate from native sessions; a moved checkout has
+a new managed state identity.
 
 Codex sync seeds ordinary workspace-write and on-request defaults and repairs a
 broad ordinary sandbox setting. It preserves stricter read-only settings,
@@ -189,7 +218,8 @@ itself grant an escape from a sandbox. The coupled ordinary
 
 `sync` preserves unmanaged configuration, writes only Workbench-owned values,
 and keeps one `.bak` file before replacing live configuration. It reports each
-file it rewrote and ends with a changed-file count, so an unchanged run reads
+path it changed, including replaced skill trees and removals, and ends with a
+changed-path count, so an unchanged run reads
 "nothing to change".
 
 Known limitation: Codex records hook trust against each hook's hash, so after

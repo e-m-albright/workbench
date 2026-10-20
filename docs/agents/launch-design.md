@@ -60,13 +60,14 @@ deployment and isolated harness projection.
 The relevant submissions are [PR #7](https://github.com/e-m-albright/workbench/pull/7)
 and the [managed resume submission](https://github.com/e-m-albright/workbench/commit/0fb2846).
 Their changes were selected by behavior rather than merging either branch. The
-owner then closed PR #7 unmerged and deleted both remote branches; local archive
-refs preserve their reviewed tips.
+owner then closed PR #7 unmerged and deleted both remote branches. Local archive
+refs initially preserved their reviewed tips; the October 20 cleanup backed them
+up in a local Git bundle before removing the superseded refs.
 
 - Managed Claude can read organizational policy, while `/usr/local/bin` supports installed tools.
 - Repository-local Git identity scalars override global attribution without importing host configuration, local include files, hooks, or credential helpers.
 - Project Claude filesystem deny lists apply to every managed vendor at startup. Allow lists are ignored; malformed and symlinked policy is refused. Mandatory denials are emitted after all read/write grants; machine-local exclusions remain independent.
-- Managed Claude prints a terminal resume hint naming `cc`. Auto-compaction preferences survive configuration projection.
+- Claude auto-compaction preferences survive configuration projection. The submitted `cc` resume hint is retained for unsupported namespace paths; current transcript sharing is described below.
 - Existing local fixes retain environment-file protection, disabled broad loopback access, deployment-profile defaults, and current-launcher canary setup.
 
 The change does not import the submissions' AWS credential broker, Docker socket
@@ -100,9 +101,22 @@ that a provider will accept it.
 Managed entrypoints reject linked worktrees. Pi workers preflight sibling
 placement under public code, Desktop, or Downloads before creating Git state.
 Their direct child Pi inherits the parent boundary; the resulting worktree is
-not a new managed entrypoint. `/consult` requires a separate native Pi session
-because other vendors' credentials are not admitted. Native history is separate;
-carry a minimal continuation explicitly rather than importing transcripts.
+not a new managed entrypoint. The child retains the selected provider, model, and
+thinking level. The parent reviews against the captured starting commit and must
+mark changed output adopted or rejected before discarding it. Unique commits and
+failed Git inspections preserve the worktree; worker entrypoints reject recursive
+delegation. `/consult` requires a separate native Pi session because other vendors'
+credentials are not admitted.
+
+Managed Claude now shares only its matching native project transcript namespace,
+while settings and credential enrollment remain separate. The earlier history
+split was an isolation side effect. Initial migration needs stopped managed
+sessions; conflicts preserve both copies and refuse launch. Native namespace
+encoding can collide, and unsupported path encodings retain isolated
+history with the `cc` hint. This does not share rewind or file history. The
+[history contract](../security/isolation.md#claude-session-history) owns exact
+scope and migration limits. Pi and Codex histories remain separate from native
+sessions.
 
 ## Security corrections and accepted limits
 
@@ -136,13 +150,17 @@ broker grants were added.
 
 ## Verification
 
-Final deployed acceptance reached installed `co`'s ready prompt and verified
-installed Pi browsing, interaction, screenshots, PDF export, text extraction,
+The previously recorded deployed acceptance reached installed `co`'s ready prompt
+and verified installed Pi browsing, interaction, screenshots, PDF export, text extraction,
 rendered inspection, private-file denial, browser closure, and scratch cleanup.
 All six commands passed version startup; managed Desktop and Downloads passed
 read/write checks. The full project gate and all 15 synthetic macOS canaries
 passed. The [review record](../decisions/managed-launch-review.md) records the
 evidence separately from the original source assessments and their scores.
+
+The current [Claude history checks](../security/isolation.md#claude-session-history)
+separately establish native resume-picker discovery and namespace containment.
+They do not establish provider continuation or rewind.
 
 Claude binary startup is verified, but unauthenticated onboarding does not prove
 authenticated model operation. Existing processes retain their launch policy

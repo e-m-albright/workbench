@@ -6,7 +6,7 @@ owns the current operational inventory. [`experiments.md`](../../experiments.md)
 active time-boxed experiments. [`decisions/tombstones.md`](../../decisions/tombstones.md)
 owns rejected approaches that should stay absent.
 
-Last reviewed: 2026-09-11.
+Last reviewed against repository configuration: 2026-10-20.
 
 The [Ronacher interview](https://www.youtube.com/watch?v=SxuQs9GGYbk) is useful prior art for this local engineering loop: work in the real repository with shell, Git, and project tests, while a human inspects the change. Pi's [default tools](https://pi.dev/docs/latest/cli) are `read`, `bash`, `edit`, and `write`; optional [extensions](https://pi.dev/docs/latest/extensions) add capability. Pi was created by Mario Zechner, not Ronacher, and later [joined Earendil](https://earendil.com/posts/announcing-pi-and-lefos/). Shell composition is efficient for trusted local files, but it does not enforce connector permissions or safely hold credentials. The trust model below is the adoption boundary for that workflow.
 
@@ -49,8 +49,8 @@ fix cycles, lower context use, fewer stale edits, and safer failure behavior.
 ## Trust model
 
 Pi packages run arbitrary code with the authority of the process that loads
-them. Workbench's restricted terminal launcher contains that process and its
-children; unrestricted launches retain host authority. Skills can instruct the
+them. Workbench's managed shortcut `p` contains that process and its
+children; native `pi` started from the host adds no Workbench boundary. Skills can instruct the
 model to run arbitrary commands. Extensions can access credentials admitted to
 their process, including provider logins. The [isolation contract](../../security/isolation.md)
 owns the exact boundary and residual exposure. Pi's permission extension adds a
@@ -75,7 +75,7 @@ Consequences:
   without explicit user direction.
 - Prefer temporary browser sessions. Do not attach authenticated profiles unless
   the task requires them and the user understands the exposure.
-- Use a verified restricted launcher for execution against untrusted content.
+- Use a verified managed launcher for execution against untrusted content.
   The Workbench terminal launchers cover Pi, Claude Code, and Codex; direct
   binaries, desktop clients, and host bridges require separate containment.
   Approval classifiers and automatic modes do not supply isolation.
@@ -90,7 +90,7 @@ Named residual risks the guardrails cannot close (reviewed 2026-08-28):
   outright so a failed browser read cannot silently become a shell download, but
   command-text inspection cannot track provenance or contain every network-capable
   runtime. A model can write a script, invoke a package manager, or compose several
-  benign-looking commands. The restricted launcher adds operating-system
+  benign-looking commands. The managed launcher adds operating-system
   containment, but its documented network policy still permits public egress.
   Stronger information-flow control would require destination restrictions and
   brokered credentials as well as the existing sandbox.
@@ -108,8 +108,8 @@ dist-tag repointing and republished tarballs only when installs are
 hash-verified. The npm manifest under `~/.pi/agent/npm` must use exact versions,
 not caret ranges, and upgrades must be deliberate. Vendoring a reviewed copy
 adds maintenance burden without adding trust beyond what the lockfile hash
-already guarantees; the long-term answer for connector trust is the small owned
-read-only adapter named under Source connectors, not a fork.
+already guarantees. Personal source access requires a separate narrow capability;
+the former Google connector is retired rather than maintained as a fork.
 
 ## Adopted
 
@@ -121,8 +121,7 @@ read-only adapter named under Source connectors, not a fork.
 | Activity title and deterministic session name | Terminal tabs now show spinner, repository, concise first-prompt label, and active tool. Resumed unnamed sessions remain findable; explicit names win. | No completion notification. Remove if titles become noisy or inaccurate. |
 | Permission policy and safe Git | Block protected data, nested agents, privilege escalation, destructive Git, and consequential external mutations while leaving routine repository work to the outer sandbox. | These are guidance, not containment. Keep tests aligned with real failure modes. |
 | Consult | Supplies an explicit independent review without a permanent subagent fleet. | User-invoked and bounded; unavailable in local modes because its subprocess uses a hosted provider. |
-| Google connector | Disabled for general agents: Gmail and Calendar tools are blocked, Google connector credentials are invariant exclusions, and shared Google API/content endpoints are denied. | A future email labeler must be a separate broker with label-only operations; do not re-enable the broad connector in coding agents. |
-| Bounded worktree worker | The `worker` tool lets either route start one isolated implementation task in the background, continue disjoint work, inspect progress, and later adopt or reject the result; `/worker` remains a manual entrypoint. Frontier workers remain subject to the same private-source path and connector guards as their parent. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and may not commit, push, install, or merge. Elapsed status uses no polling or extra model calls. The parent reviews and adopts useful changes, verifies them in the main checkout, and cleans up. Remove if repeated use does not save wall-clock time or protect context. |
+| Bounded worktree worker | The `worker` tool starts one isolated implementation task in the background, lets the parent continue disjoint work, and later supports adoption or rejection; `/worker` remains a manual entrypoint. Managed workers require admitted sibling placement and inherit the parent's outer boundary and selected provider, model, and thinking level. A September 4-11 audit found 35 delegations: 28 produced candidate changes, five correctly produced no changes, two timed out, and one was still active. The old synchronous implementation blocked the parent for 6.9 minutes on average, so background return and lightweight progress status were adopted. | No per-use confirmation. One worker at a time; the child starts from committed state and is instructed not to commit, push, install, or merge. The parent reviews against the captured starting commit and verifies adoption. Discarding changed output requires an adopted/rejected disposition; unique commits and failed Git inspections preserve the worktree. Worker entrypoints reject recursive delegation. Remove if repeated use does not save wall-clock time or protect context. |
 | Default dev preset | One coding tool profile; launch modes independently select model location and access. | Do not add another preset without a recurring workflow the inference and access choices cannot express. |
 | Native Agent Browser wrapper | `pi-agent-browser-native` 0.6.15 is a thin Pi tool around the already-adopted Agent Browser CLI. It adds structured results, context spills, redaction, stale-ref checks, session recovery, artifact metadata, and an optional companion search tool configured on the machine. | Pin the version, use temporary sessions by default, keep search credentials machine-local, and remove if native wrapping does not reduce browser failures or context. |
 | Internal multipart reconciliation | Agents track all user requests and close them in the final answer. | Show a visible ledger only when it materially improves coordination. |
@@ -133,6 +132,7 @@ These decisions are intentional. Re-evaluate only when the named condition chang
 
 | Capability | Decision | Why absent | Revisit when |
 |---|---|---|---|
+| Google connector | Retired 2026-10-20 | The broad Gmail/Calendar implementation is removed; connector credentials and shared Google API/content endpoints remain denied to managed coding agents. | A separate narrow broker earns a specific workflow, such as label-only email operations. |
 | Native fullscreen transcript | Adopted | Pi 0.84.3 provides viewport scrolling, search, selection, links, and prompt jumps without owned extension code. | Keep `tuiMode: fullscreen`; accept that final-answer landmarks and compact work summaries are absent unless recurring friction justifies a new upstream-first evaluation. |
 | Fast-mode control or display | Rejected | The Codex subscription route does not expose reliable state; priority service changes usage economics; thinking level is not Fast mode. Silent custom inference would be misleading. | Pi exposes authoritative provider-route state and the owner wants the cost tradeoff. |
 | General completion notifications | Rejected | They interrupt flow and duplicate visible terminal state. The background worker is the narrow exception because its tool call has already returned; it emits one completion notification so finished work is not stranded. | Long unattended runs outside the worker become common and missed completions are observed. |
@@ -161,12 +161,13 @@ the Codex subscription, OpenRouter, Google, Anthropic, or a local model).
 Working policy:
 
 - The [launch matrix](README.md#launch-modes-and-permission-guardrails)
-  presents `cloud > repo`, `cloud > host`, and `local > host`. Internal
-  hosted/local and restricted/unrestricted values remain implementation details.
-- Pi, Claude Code, and Codex use one shared outer wrapper in every mode. Repo is
-  the default. Host permits broad maintenance access but cannot override the
-  invariant exclusions. Vendor integrations invoke the shared policy rather
-  than copy it into competing configurations.
+  presents managed shortcuts and native vendor commands. `p`, `cc`, and `co`
+  share the `cloud > managed` boundary. Native commands started from the host
+  add no Workbench boundary; a child started inside containment inherits it.
+- Managed sessions admit the selected ordinary checkout, public code, Desktop,
+  and Downloads with invariant exclusions. Native `pi --route private --provider omlx`
+  selects local inference without adding operating-system isolation. Provider
+  routing and filesystem authority remain separate choices.
 - Connector grants and data release remain separate from filesystem access.
   General agents have no Google connector access; a future email labeler must
   use a separate narrow broker. Privileged Strava reads keep their OAuth secrets
@@ -265,7 +266,7 @@ Working policy:
 
 ### Source connectors
 
-- **Resolved 2026-07-22:** the Workbench-owned read-only connector (`google-readonly.ts`) replaced the generic adapter route for Gmail and Calendar. Direct REST reaches only `googleapis.com`, with loopback OAuth, read-only scopes, and no third-party code in the token path. Gmail and Calendar follow the connector policy and access boundary in the mode matrix.
+- **Resolved 2026-07-22; retired 2026-10-20:** the Workbench-owned read-only connector (`google-readonly.ts`) replaced the generic adapter route for Gmail and Calendar. It used direct REST to `googleapis.com`, loopback OAuth, read-only scopes, and no third-party code in the token path. The implementation is now removed; general coding agents have no Google connector.
 - **Credential layout (revised 2026-09-20):** Workbench-owned connector
   credentials live under `~/.local/share/workbench/connectors/`. The root is
   read- and write-protected by the permission policy, and each connector holds
@@ -274,7 +275,7 @@ Working policy:
 - **Strava resolved 2026-07-22:** `strava-readonly.ts` uses the free personal
   API with a user-registered app (callback domain `localhost`) instead of the
   MCP route, whose discovery metadata is incompatible with local proxies.
-- **Revocation:** delete the token file under the credential root and revoke the
+- **Revocation of existing grants:** delete the token file under the credential root and revoke the
   grant at https://myaccount.google.com/permissions (Google) or
   https://www.strava.com/settings/apps (Strava).
 - **Granola retired 2026-09-05:** its project-scoped `mcp-remote` route, shared

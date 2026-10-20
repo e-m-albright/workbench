@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, type ExtensionContext, parseArgs } from "@earendil-works/pi-coding-agent";
 import { resolveAgentDir } from "./lib/agent-dir";
 import { loadSettings } from "./lib/settings";
+import type { PermissionPolicy } from "./permission-policy";
 
 type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
@@ -38,7 +39,26 @@ function presetSummary(name: string, preset: Preset): string {
 	return parts.join(" | ");
 }
 
-async function applyPreset(name: string, preset: Preset, pi: ExtensionAPI, ctx: ExtensionContext) {
+function blockedPresetTools(ctx: ExtensionContext): Set<string> {
+	const path = join(resolveAgentDir(), "permission-policy.json");
+	const policy: PermissionPolicy = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {};
+	const managed =
+		process.env.WORKBENCH_PI_MODE === "hosted-managed" || process.env.WORKBENCH_AGENT_AUTHORITY === "managed";
+	const privateProvider =
+		!managed && ctx.model?.provider === "omlx" && (policy.privateProviders ?? ["omlx"]).includes("omlx");
+	return new Set([
+		...(policy.blockedTools ?? []),
+		...(privateProvider ? [] : (policy.privateOnlyTools ?? [])),
+	]);
+}
+
+async function applyPreset(
+	name: string,
+	preset: Preset,
+	pi: ExtensionAPI,
+	ctx: ExtensionContext,
+	thinkingDefault = true,
+) {
 	if (preset.provider && preset.model) {
 		const model = ctx.modelRegistry.find(preset.provider, preset.model);
 		if (!model) {
@@ -50,7 +70,7 @@ async function applyPreset(name: string, preset: Preset, pi: ExtensionAPI, ctx: 
 		}
 	}
 
-	if (preset.thinkingLevel) pi.setThinkingLevel(preset.thinkingLevel);
+	if (preset.thinkingLevel && thinkingDefault) pi.setThinkingLevel(preset.thinkingLevel);
 
 	if (preset.tools && preset.tools.length > 0) {
 		const knownTools = new Set(pi.getAllTools().map((tool) => tool.name));
@@ -60,7 +80,7 @@ async function applyPreset(name: string, preset: Preset, pi: ExtensionAPI, ctx: 
 		if (invalidTools.length > 0) {
 			ctx.ui.notify(`Preset ${name}: unknown tools: ${invalidTools.join(", ")}`, "warning");
 		}
-		if (validTools.length > 0) pi.setActiveTools(validTools);
+		if (validTools.length > 0) return validTools;
 	}
 }
 
@@ -82,6 +102,22 @@ export default function presetsExtension(pi: ExtensionAPI) {
 	let activePresetName: string | undefined;
 	let activePreset: Preset | undefined;
 	let sessionReadUntrustedContent = false;
+	let hiddenTools: string[] = [];
+	let filteredTools: string[] | undefined;
+
+	function selectEligibleTools(requested: string[], ctx: ExtensionContext): void {
+		const blocked = blockedPresetTools(ctx);
+		hiddenTools = requested.filter((tool) => blocked.has(tool));
+		filteredTools = requested.filter((tool) => !blocked.has(tool));
+		pi.setActiveTools(filteredTools);
+	}
+
+	async function activatePreset(name: string, preset: Preset, ctx: ExtensionContext, thinkingDefault = true) {
+		hiddenTools = [];
+		filteredTools = undefined;
+		const tools = await applyPreset(name, preset, pi, ctx, thinkingDefault);
+		if (tools) selectEligibleTools(tools, ctx);
+	}
 
 	// The containment boundary is the session, not the preset: switching a
 	// tainted session to an acting preset would let injected content drive
@@ -114,8 +150,11 @@ export default function presetsExtension(pi: ExtensionAPI) {
 				if (!(await confirmTaintedSwitch(requested, preset, ctx))) return;
 				activePresetName = requested;
 				activePreset = preset;
-				await applyPreset(requested, preset, pi, ctx);
-				ctx.ui.notify(`Preset active: ${presetSummary(requested, preset)}`, "info");
+				await activatePreset(requested, preset, ctx);
+				ctx.ui.notify(
+					`Preset active: ${presetSummary(requested, { ...preset, tools: filteredTools })}`,
+					"info",
+				);
 				return;
 			}
 
@@ -142,8 +181,8 @@ export default function presetsExtension(pi: ExtensionAPI) {
 			if (!(await confirmTaintedSwitch(name, preset, ctx))) return;
 			activePresetName = name;
 			activePreset = preset;
-			await applyPreset(name, preset, pi, ctx);
-			ctx.ui.notify(`Preset active: ${presetSummary(name, preset)}`, "info");
+			await activatePreset(name, preset, ctx);
+			ctx.ui.notify(`Preset active: ${presetSummary(name, { ...preset, tools: filteredTools })}`, "info");
 		},
 	});
 
@@ -152,6 +191,8 @@ export default function presetsExtension(pi: ExtensionAPI) {
 		// The containment boundary is the session: taint from a previous session
 		// in this long-lived process must not follow into a fresh one.
 		sessionReadUntrustedContent = false;
+		hiddenTools = [];
+		filteredTools = undefined;
 		const settings = loadSettings(ctx);
 		const requested =
 			(pi.getFlag("preset") as string | undefined) ??
@@ -166,8 +207,17 @@ export default function presetsExtension(pi: ExtensionAPI) {
 
 		activePresetName = requested;
 		activePreset = preset;
-		await applyPreset(requested, preset, pi, ctx);
-		ctx.ui.notify(`Preset active: ${presetSummary(requested, preset)}`, "info");
+		await activatePreset(requested, preset, ctx, parseArgs(process.argv.slice(2)).thinking === undefined);
+		ctx.ui.notify(`Preset active: ${presetSummary(requested, { ...preset, tools: filteredTools })}`, "info");
+	});
+
+	pi.on("model_select", async (_event, ctx) => {
+		if (!filteredTools) return;
+		const current = pi.getActiveTools();
+		// Manual tool choices supersede the preset, including its hidden tools.
+		const unchanged =
+			current.length === filteredTools.length && filteredTools.every((tool) => current.includes(tool));
+		selectEligibleTools(unchanged ? [...current, ...hiddenTools] : current, ctx);
 	});
 
 	pi.on("tool_execution_end", async (event) => {

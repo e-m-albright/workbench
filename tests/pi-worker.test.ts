@@ -1,4 +1,13 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -37,7 +46,16 @@ function deferred<T>() {
 
 function createHarness(
 	run: Promise<ExecResult>,
-	options: { branchDeleteFails?: boolean; parentStatus?: string; provider?: string; root?: string } = {},
+	options: {
+		branchDeleteFails?: boolean;
+		parentStatus?: string;
+		provider?: string;
+		model?: string;
+		thinking?: string;
+		workerChild?: boolean;
+		root?: string;
+		git?: (args: string[], cwd: string) => ExecResult;
+	} = {},
 ) {
 	let workerTool: WorkerTool | undefined;
 	let shutdown: ((event: unknown, ctx: any) => Promise<void>) | undefined;
@@ -47,16 +65,26 @@ function createHarness(
 	const calls: string[][] = [];
 	const statuses: Array<string | undefined> = [];
 	const notifications: Array<{ text: string; level: string }> = [];
+	const commands = new Map<string, { handler: (args: string, ctx: any) => Promise<void> }>();
 	const root = options.root ?? `/tmp/wb-worker-${Date.now()}-${Math.random()}`;
 	const pi = {
 		registerTool(tool: WorkerTool) {
 			workerTool = tool;
 		},
-		registerCommand() {},
+		registerCommand(name: string, command: { handler: (args: string, ctx: any) => Promise<void> }) {
+			commands.set(name, command);
+		},
+		registerFlag() {},
+		getFlag: () => options.workerChild,
+		getThinkingLevel: () => options.thinking ?? "medium",
 		on(event: string, handler: typeof shutdown) {
 			if (event === "session_shutdown") shutdown = handler;
 		},
-		async exec(command: string, args: string[], execOptions?: { signal?: AbortSignal; timeout?: number }) {
+		async exec(
+			command: string,
+			args: string[],
+			execOptions?: { signal?: AbortSignal; timeout?: number; cwd?: string },
+		) {
 			calls.push([command, ...args]);
 			if (command === "pi") {
 				workerTimeout = execOptions?.timeout;
@@ -64,8 +92,19 @@ function createHarness(
 				workerArgs = args;
 				return run;
 			}
+			if (options.git) return options.git(args, execOptions?.cwd ?? root);
 			if (args.includes("--show-toplevel")) {
 				return { code: 0, stdout: `${root}\n`, stderr: "", killed: false };
+			}
+			if (args[0] === "rev-parse") {
+				return { code: 0, stdout: `${"a".repeat(40)}\n`, stderr: "", killed: false };
+			}
+			if (args[0] === "rev-list") {
+				return { code: 0, stdout: "0\n", stderr: "", killed: false };
+			}
+			if (args[0] === "symbolic-ref") {
+				const branch = calls.find((call) => call[1] === "worktree" && call[2] === "add")?.[4];
+				return { code: 0, stdout: `refs/heads/${branch}\n`, stderr: "", killed: false };
 			}
 			if (args[0] === "status" || args[0] === "diff") {
 				return {
@@ -84,7 +123,7 @@ function createHarness(
 	workerExtension(pi as never);
 	const ctx = {
 		cwd: root,
-		model: { provider: options.provider ?? "openai-codex" },
+		model: { provider: options.provider ?? "openai-codex", id: options.model ?? "selected-model" },
 		hasUI: true,
 		ui: {
 			setStatus(_key: string, value: string | undefined) {
@@ -103,6 +142,7 @@ function createHarness(
 		ctx,
 		statuses,
 		calls,
+		commands,
 		get workerTimeout() {
 			return workerTimeout;
 		},
@@ -127,6 +167,62 @@ async function settleBackground(): Promise<void> {
 }
 
 const managedHomes: string[] = [];
+function gitFixture() {
+	const home = realpathSync(mkdtempSync(join(tmpdir(), "wb-worker-git-")));
+	managedHomes.push(home);
+	const root = join(home, "parent");
+	mkdirSync(root);
+	const env = {
+		...process.env,
+		GIT_CONFIG_GLOBAL: "/dev/null",
+		GIT_CONFIG_NOSYSTEM: "1",
+		GIT_AUTHOR_NAME: "Worker Test",
+		GIT_AUTHOR_EMAIL: "worker@example.invalid",
+		GIT_COMMITTER_NAME: "Worker Test",
+		GIT_COMMITTER_EMAIL: "worker@example.invalid",
+	};
+	const git = (args: string[], cwd = root) =>
+		execFileSync("git", args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+	git(["init", "-q", "-b", "main"]);
+	for (const file of ["committed.txt", "staged.txt", "unstaged.txt"]) {
+		writeFileSync(join(root, file), "initial\n");
+	}
+	git(["add", "."]);
+	git(["commit", "-qm", "initial"]);
+	const runGit = (args: string[], cwd: string): ExecResult => {
+		const result = spawnSync("git", args, { cwd, env, encoding: "utf8" });
+		return {
+			code: result.status ?? 1,
+			stdout: result.stdout ?? "",
+			stderr: result.error?.message ?? result.stderr ?? "",
+			killed: result.signal !== null,
+		};
+	};
+	return { root, git, runGit };
+}
+
+async function startGitWorker(override?: (args: string[], cwd: string) => ExecResult | undefined) {
+	const fixture = gitFixture();
+	const harness = createHarness(Promise.resolve({ code: 0, stdout: "done", stderr: "", killed: false }), {
+		root: fixture.root,
+		git: (args, cwd) => override?.(args, cwd) ?? fixture.runGit(args, cwd),
+	});
+	const started = await harness.tool?.execute(
+		"delegate",
+		{ action: "delegate", task: "produce changes" },
+		undefined,
+		undefined,
+		harness.ctx,
+	);
+	await settleBackground();
+	return {
+		...fixture,
+		harness,
+		dir: String(started?.details?.dir),
+		branch: String(started?.details?.branch),
+	};
+}
+
 function managedRepo(parent: string): string {
 	const home = realpathSync(mkdtempSync(join(tmpdir(), "wb-worker-managed-")));
 	managedHomes.push(home);
@@ -140,6 +236,230 @@ afterEach(() => {
 });
 
 describe("Pi worker delegate", () => {
+	test("manual force cleanup explicitly reports discarded unique commits", async () => {
+		const worker = await startGitWorker();
+		writeFileSync(join(worker.dir, "committed.txt"), "deliberately rejected\n");
+		worker.git(["add", "committed.txt"], worker.dir);
+		worker.git(["commit", "-qm", "rejected commit"], worker.dir);
+		writeFileSync(join(worker.dir, "untracked.txt"), "also rejected\n");
+		await worker.harness.commands.get("worker-done")?.handler("--force", worker.harness.ctx);
+		expect(existsSync(worker.dir)).toBe(false);
+		expect(
+			worker.runGit(["show-ref", "--verify", "--quiet", `refs/heads/${worker.branch}`], worker.root).code,
+		).toBe(1);
+		expect(worker.harness.notifications.at(-1)?.text).toContain(
+			"discarded 1 commit not reachable from the parent",
+		);
+	});
+
+	test.each([
+		["review", "status"],
+		["review", "diff"],
+		["review", "log"],
+		["discard", "status"],
+		["discard", "rev-parse"],
+		["discard", "rev-list"],
+		["discard", "symbolic-ref"],
+	])("%s preserves output when Git %s inspection fails", async (action, command) => {
+		let fail = false;
+		const worker = await startGitWorker((args) =>
+			fail && args[0] === command
+				? { code: 128, stdout: "", stderr: "inspection unavailable", killed: false }
+				: undefined,
+		);
+		fail = true;
+		await expect(
+			worker.harness.tool?.execute(
+				"inspect",
+				{ action, disposition: "rejected" },
+				undefined,
+				undefined,
+				worker.harness.ctx,
+			),
+		).rejects.toThrow("Could not inspect worker");
+		expect(existsSync(worker.dir)).toBe(true);
+		expect(worker.harness.calls.some((call) => call[1] === "worktree" && call[2] === "remove")).toBe(false);
+	});
+
+	test("a child worker cannot recursively delegate or create Git state", async () => {
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "done", stderr: "", killed: false }), {
+			workerChild: true,
+		});
+		await expect(
+			harness.tool?.execute(
+				"delegate",
+				{ action: "delegate", task: "another child" },
+				undefined,
+				undefined,
+				harness.ctx,
+			),
+		).rejects.toThrow("cannot delegate");
+		expect(harness.calls).toEqual([]);
+	});
+
+	test("worker inherits the parent's selected provider, model, and thinking effort", async () => {
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "done", stderr: "", killed: false }), {
+			provider: "anthropic",
+			model: "selected-review-model",
+			thinking: "high",
+		});
+		await harness.tool?.execute(
+			"delegate",
+			{ action: "delegate", task: "one task" },
+			undefined,
+			undefined,
+			harness.ctx,
+		);
+		for (const [flag, value] of [
+			["--provider", "anthropic"],
+			["--model", "selected-review-model"],
+			["--thinking", "high"],
+		]) {
+			const index = harness.workerArgs?.indexOf(flag) ?? -1;
+			expect(index).toBeGreaterThanOrEqual(0);
+			expect(harness.workerArgs?.[index + 1]).toBe(value);
+		}
+		expect(harness.workerArgs).toContain("--worker-child");
+		await settleBackground();
+	});
+
+	test.each(["other branch", "detached HEAD"])("cleanup preserves a worker moved to %s", async (mode) => {
+		const worker = await startGitWorker();
+		worker.git(
+			mode === "other branch" ? ["switch", "-qc", "unexpected"] : ["switch", "-q", "--detach"],
+			worker.dir,
+		);
+		await expect(
+			worker.harness.tool?.execute(
+				"discard",
+				{ action: "discard", disposition: "rejected" },
+				undefined,
+				undefined,
+				worker.harness.ctx,
+			),
+		).rejects.toThrow(/branch changed|Could not inspect worker/);
+		expect(existsSync(worker.dir)).toBe(true);
+		expect(
+			worker.runGit(["show-ref", "--verify", "--quiet", `refs/heads/${worker.branch}`], worker.root).code,
+		).toBe(0);
+	});
+
+	test("even parent-reachable worker commits need a deliberate disposition", async () => {
+		const worker = await startGitWorker();
+		writeFileSync(join(worker.dir, "committed.txt"), "adopted result\n");
+		worker.git(["add", "committed.txt"], worker.dir);
+		worker.git(["commit", "-qm", "adopted result"], worker.dir);
+		worker.git(["merge", "--ff-only", worker.branch]);
+		await expect(
+			worker.harness.tool?.execute(
+				"discard",
+				{ action: "discard" },
+				undefined,
+				undefined,
+				worker.harness.ctx,
+			),
+		).rejects.toThrow("HEAD changed");
+		expect(existsSync(worker.dir)).toBe(true);
+		await worker.harness.tool?.execute(
+			"discard",
+			{ action: "discard", disposition: "adopted" },
+			undefined,
+			undefined,
+			worker.harness.ctx,
+		);
+		expect(existsSync(worker.dir)).toBe(false);
+		expect(worker.git(["log", "-1", "--format=%s"])).toBe("adopted result");
+	});
+
+	test.each(["adopted", "rejected"])(
+		"dirty worker output needs an explicit %s disposition before cleanup",
+		async (disposition) => {
+			const worker = await startGitWorker();
+			writeFileSync(join(worker.dir, "unstaged.txt"), "finished result\n");
+			writeFileSync(join(worker.dir, "untracked.txt"), "new result\n");
+			await expect(
+				worker.harness.tool?.execute(
+					"discard",
+					{ action: "discard" },
+					undefined,
+					undefined,
+					worker.harness.ctx,
+				),
+			).rejects.toThrow("disposition");
+			expect(existsSync(worker.dir)).toBe(true);
+			await worker.harness.tool?.execute(
+				"discard",
+				{ action: "discard", disposition },
+				undefined,
+				undefined,
+				worker.harness.ctx,
+			);
+			expect(existsSync(worker.dir)).toBe(false);
+			expect(
+				worker.runGit(["show-ref", "--verify", "--quiet", `refs/heads/${worker.branch}`], worker.root).code,
+			).toBe(1);
+		},
+	);
+
+	test("discard preserves a clean worktree containing commits absent from the parent", async () => {
+		const worker = await startGitWorker();
+		writeFileSync(join(worker.dir, "committed.txt"), "unique result\n");
+		worker.git(["add", "committed.txt"], worker.dir);
+		worker.git(["commit", "-qm", "unique result"], worker.dir);
+		const commit = worker.git(["rev-parse", "HEAD"], worker.dir);
+		for (const disposition of [undefined, "adopted", "rejected"]) {
+			await expect(
+				worker.harness.tool?.execute(
+					"discard",
+					{ action: "discard", disposition },
+					undefined,
+					undefined,
+					worker.harness.ctx,
+				),
+			).rejects.toThrow("commits not reachable from the parent");
+			expect(existsSync(worker.dir)).toBe(true);
+			expect(worker.git(["rev-parse", worker.branch])).toBe(commit);
+		}
+	});
+
+	test("review includes committed, staged, unstaged, and untracked output from its starting commit", async () => {
+		const fixture = gitFixture();
+		const base = fixture.git(["rev-parse", "HEAD"]);
+		const harness = createHarness(Promise.resolve({ code: 0, stdout: "done", stderr: "", killed: false }), {
+			root: fixture.root,
+			git: fixture.runGit,
+		});
+		const started = await harness.tool?.execute(
+			"delegate",
+			{ action: "delegate", task: "produce changes" },
+			undefined,
+			undefined,
+			harness.ctx,
+		);
+		const dir = String(started?.details?.dir);
+		writeFileSync(join(dir, "committed.txt"), "committed result\n");
+		fixture.git(["add", "committed.txt"], dir);
+		fixture.git(["commit", "-qm", "unexpected worker commit"], dir);
+		writeFileSync(join(dir, "staged.txt"), "staged result\n");
+		fixture.git(["add", "staged.txt"], dir);
+		writeFileSync(join(dir, "unstaged.txt"), "unstaged result\n");
+		writeFileSync(join(dir, "untracked.txt"), "new result\n");
+		await settleBackground();
+
+		const reviewed = await harness.tool?.execute(
+			"review",
+			{ action: "review" },
+			undefined,
+			undefined,
+			harness.ctx,
+		);
+		const text = reviewed?.content[0]?.text;
+		for (const expected of ["committed.txt", "staged.txt", "unstaged.txt", "untracked.txt", base]) {
+			expect(text).toContain(expected);
+		}
+		expect(text).toContain("unexpected worker commit");
+	});
+
 	test("managed delegation permits a sibling worktree under public code", async () => {
 		vi.stubEnv("WORKBENCH_PI_MODE", "hosted-managed");
 		vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
@@ -315,8 +635,9 @@ describe("Pi worker delegate", () => {
 	});
 
 	test("review instructions keep adoption and cleanup with the parent", () => {
-		const text = reviewInstructions("/tmp/x.worktree", "worker/x");
+		const text = reviewInstructions("/tmp/x.worktree", "worker/x", "abc123");
 		expect(text).toContain("git -C /tmp/x.worktree diff");
+		expect(text).toContain("diff abc123 --");
 		expect(text).toContain("Adopt useful changes in the parent checkout");
 		expect(text).toContain("action=discard");
 		expect(text).not.toContain("git push");

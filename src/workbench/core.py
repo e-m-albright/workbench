@@ -88,6 +88,11 @@ RETIRED_SUBAGENTS = {
     "test-writer": "the portable testing skill owns test design and TDD guidance",
 }
 RETIRED_SKILLS = {
+    "archify": (
+        "retired 2026-10-20: diagram generation did not earn its upkeep or use;"
+        " use Mermaid for small diagrams and native HTML/SVG for richer views."
+        " Revisit only when repeated diagram work demonstrates a missing capability"
+    ),
     "dep-audit": (
         "renamed and expanded as dependency-upgrades, which owns both read-only"
         " audits and requested upgrade execution"
@@ -117,6 +122,11 @@ RETIRED_SKILLS = {
     ),
 }
 RETIRED_PI_EXTENSIONS = {
+    "google-readonly.ts": (
+        "retired 2026-10-20: broad Google tools were already blocked by policy;"
+        " remove their registration and authorization surface while preserving denials."
+        " A future integration needs a bounded workflow in its owning layer"
+    ),
     "closeout-governor.ts": (
         "final-answer wording heuristics triggered extra model turns without proving value;"
         " repository verification gates and shared closeout instructions own completion."
@@ -182,6 +192,8 @@ RETIRED_AGENT_SHELL_FILES = ("codex-external-sandbox.py", "native-pi-status.mjs"
 RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
 VENDORS = ("claude", "codex", "pi")
 VENDOR_CHOICES = (*VENDORS, "all")
+CLAUDE_DEFAULTS = {"model": "opus", "effortLevel": "medium"}
+CODEX_DEFAULTS = {"model": "gpt-6.1-sol", "model_reasoning_effort": "medium"}
 
 # Sandbox policy deployed to (and drift-checked against) ~/.claude/settings.json.
 # Single source so `sync` (the writer) and `drift` (the verifier) never diverge.
@@ -245,6 +257,12 @@ def load_json(path: Path, default: Any = None) -> Any:
 # Paths rewritten since the last drain, recorded by write_text so sync can
 # report what it actually changed instead of an unconditional OK line.
 _changed_paths: list[Path] = []
+
+
+def record_changed_path(path: Path) -> None:
+    """Include a replaced tree or removed path in sync's existing change summary."""
+    if path not in _changed_paths:
+        _changed_paths.append(path)
 
 
 def drain_changed_paths() -> list[Path]:

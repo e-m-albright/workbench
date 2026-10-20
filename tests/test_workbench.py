@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import io
 import json
 import os
@@ -11,28 +10,15 @@ import subprocess
 import tempfile
 import tomllib
 import unittest
-import zipfile
-from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 from workbench import codex, core, mcp, render, sync
 from workbench import drift as drift_mod
-from workbench import external_skills as external_skills_mod
 from workbench import lint as lint_mod
 
 
 class WorkbenchTests(unittest.TestCase):
-    def setUp(self) -> None:
-        # Unit tests using temporary homes must not consult the network-backed
-        # production registry unless that behavior is the subject of the test.
-        self._sync_external_patch = patch.object(sync, "external_skills", return_value=[])
-        self._drift_external_patch = patch.object(drift_mod, "external_skills", return_value=[])
-        self._sync_external_patch.start()
-        self._drift_external_patch.start()
-        self.addCleanup(self._sync_external_patch.stop)
-        self.addCleanup(self._drift_external_patch.stop)
-
     def run_cli(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env["NO_COLOR"] = "1"
@@ -63,6 +49,14 @@ class WorkbenchTests(unittest.TestCase):
             for source in core.AGENTS.glob("skills/*"):
                 if source.is_dir() and (source / "SKILL.md").exists():
                     shutil.copytree(source, home / root / source.name)
+
+    def install_pi_package_metadata(self, home: Path) -> None:
+        for source in core._settings(core.AGENTS / "pi/settings.json").get("packages", []):
+            name, version = source.removeprefix("npm:").rsplit("@", 1)
+            core.write_json(
+                home / ".pi/agent/npm/node_modules" / name / "package.json",
+                {"name": name, "version": version},
+            )
 
     def test_merge_mcp_preserves_external_and_removes_tombstones(self) -> None:
         merged = mcp.merge_mcp(
@@ -282,189 +276,6 @@ class WorkbenchTests(unittest.TestCase):
             self.assertFalse((root / canonical_name / "removed-reference.md").exists())
             for name in core.RETIRED_SKILLS:
                 self.assertFalse((root / name).exists())
-
-    def _skill_archive(self, entries: list[tuple[zipfile.ZipInfo | str, bytes]]) -> bytes:
-        buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, "w") as archive:
-            for path, content in entries:
-                archive.writestr(path, content)
-        return buffer.getvalue()
-
-    def _external_skill(
-        self, archive: bytes, *, sha256: str | None = None
-    ) -> external_skills_mod.ExternalSkill:
-        return external_skills_mod.ExternalSkill(
-            name="sample",
-            version="1.2.3",
-            description="Sample external skill.",
-            url="https://example.test/sample.zip",
-            sha256=sha256 or hashlib.sha256(archive).hexdigest(),
-            archive_root="sample",
-            source_repo="https://example.test/sample",
-        )
-
-    def test_external_skill_lint_detects_registry_collisions_and_retired_names(self) -> None:
-        archive = self._skill_archive([("sample/SKILL.md", b"skill")])
-        skill = self._external_skill(archive)
-        duplicate_name = replace(skill, url="https://example.test/other.zip")
-        duplicate_archive = replace(skill, name="other")
-        with patch.object(lint_mod, "RETIRED_SKILLS", {"sample": "reason"}):
-            errors = lint_mod._external_skill_errors([skill, duplicate_name, duplicate_archive])
-        self.assertTrue(any("duplicate external skill name" in error for error in errors))
-        self.assertTrue(any("duplicate external skill archive" in error for error in errors))
-        self.assertTrue(any("retired skill" in error for error in errors))
-
-    def test_external_skill_cache_downloads_once_and_repairs_from_valid_archive(self) -> None:
-        archive = self._skill_archive([("sample/SKILL.md", b"---\nname: sample\n---\n")])
-        skill = self._external_skill(archive)
-        calls = 0
-
-        def download(_url: str, *, timeout: int) -> io.BytesIO:
-            nonlocal calls
-            self.assertEqual(timeout, 30)
-            calls += 1
-            return io.BytesIO(archive)
-
-        with tempfile.TemporaryDirectory() as raw:
-            home = Path(raw)
-            source = external_skills_mod.cached_external_skill(home, skill, opener=download)
-            self.assertEqual((source / "SKILL.md").read_bytes(), b"---\nname: sample\n---\n")
-            (source / "SKILL.md").write_text("tampered")
-
-            repaired = external_skills_mod.cached_external_skill(home, skill, opener=download)
-
-            self.assertEqual(calls, 1)
-            self.assertEqual(
-                repaired.joinpath("SKILL.md").read_bytes(), b"---\nname: sample\n---\n"
-            )
-            self.assertIsNotNone(external_skills_mod.validated_cached_skill(home, skill))
-
-    def test_external_skill_source_applies_and_repairs_reviewed_overlay(self) -> None:
-        archive = self._skill_archive(
-            [("sample/SKILL.md", b"upstream"), ("sample/bin/tool", b"runtime")]
-        )
-        skill = self._external_skill(archive)
-        calls = 0
-
-        def download(_url: str, *, timeout: int) -> io.BytesIO:
-            nonlocal calls
-            calls += 1
-            return io.BytesIO(archive)
-
-        with tempfile.TemporaryDirectory() as raw:
-            home = Path(raw) / "home"
-            overlays = Path(raw) / "overlays"
-            wrapper = overlays / "sample/SKILL.md"
-            wrapper.parent.mkdir(parents=True)
-            wrapper.write_text("reviewed wrapper")
-
-            source = external_skills_mod.external_skill_source(
-                home, skill, opener=download, overlays=overlays
-            )
-            self.assertEqual(source.joinpath("SKILL.md").read_text(), "reviewed wrapper")
-            self.assertEqual(source.joinpath("bin/tool").read_text(), "runtime")
-            self.assertIsNotNone(
-                external_skills_mod.validated_external_skill_source(home, skill, overlays=overlays)
-            )
-
-            source.joinpath("SKILL.md").write_text("tampered")
-            repaired = external_skills_mod.external_skill_source(
-                home, skill, opener=download, overlays=overlays
-            )
-
-            self.assertEqual(calls, 1)
-            self.assertEqual(repaired.joinpath("SKILL.md").read_text(), "reviewed wrapper")
-
-    def test_external_skill_cache_rejects_bad_checksum_without_installing(self) -> None:
-        archive = self._skill_archive([("sample/SKILL.md", b"skill")])
-        skill = self._external_skill(archive, sha256="0" * 64)
-        with tempfile.TemporaryDirectory() as raw:
-            home = Path(raw)
-            with self.assertRaisesRegex(core.WorkbenchError, "checksum mismatch"):
-                external_skills_mod.cached_external_skill(
-                    home, skill, opener=lambda *_args, **_kwargs: io.BytesIO(archive)
-                )
-            self.assertFalse(external_skills_mod.cache_directory(home, skill).exists())
-
-    def test_external_skill_archive_rejects_unsafe_entries_and_expansion(self) -> None:
-        symlink = zipfile.ZipInfo("sample/link")
-        symlink.create_system = 3
-        symlink.external_attr = 0o120777 << 16
-        cases = {
-            "outside sample": [("other/SKILL.md", b"skill")],
-            "unsafe path": [("sample/../escape", b"bad")],
-            "symlink": [("sample/SKILL.md", b"skill"), (symlink, b"target")],
-            "duplicate path": [("sample/SKILL.md", b"one"), ("sample/SKILL.md", b"two")],
-        }
-        for message, entries in cases.items():
-            expected_warning = (
-                self.assertWarnsRegex(UserWarning, "Duplicate name")
-                if message == "duplicate path"
-                else contextlib.nullcontext()
-            )
-            with (
-                self.subTest(message=message),
-                tempfile.TemporaryDirectory() as raw,
-                expected_warning,
-            ):
-                archive = self._skill_archive(entries)
-                skill = self._external_skill(archive)
-                with self.assertRaisesRegex(core.WorkbenchError, message):
-                    external_skills_mod.cached_external_skill(
-                        Path(raw),
-                        skill,
-                        opener=lambda *_args, data=archive, **_kwargs: io.BytesIO(data),
-                    )
-
-        archive = self._skill_archive([("sample/SKILL.md", b"large")])
-        skill = self._external_skill(archive)
-        with (
-            tempfile.TemporaryDirectory() as raw,
-            patch.object(external_skills_mod, "MAX_EXPANDED_BYTES", 4),
-            self.assertRaisesRegex(core.WorkbenchError, "expands beyond"),
-        ):
-            external_skills_mod.cached_external_skill(
-                Path(raw), skill, opener=lambda *_args, **_kwargs: io.BytesIO(archive)
-            )
-
-    def test_external_skill_download_is_capped(self) -> None:
-        payload = b"12345"
-        skill = self._external_skill(payload)
-        with (
-            tempfile.TemporaryDirectory() as raw,
-            patch.object(external_skills_mod, "MAX_ARCHIVE_BYTES", 4),
-            self.assertRaisesRegex(core.WorkbenchError, "archive exceeds"),
-        ):
-            external_skills_mod.cached_external_skill(
-                Path(raw), skill, opener=lambda *_args, **_kwargs: io.BytesIO(payload)
-            )
-
-    def test_drift_verifies_external_skill_cache_and_deployed_tree_offline(self) -> None:
-        archive = self._skill_archive([("sample/SKILL.md", b"skill")])
-        skill = self._external_skill(archive)
-        with tempfile.TemporaryDirectory() as raw:
-            home = Path(raw)
-            source = external_skills_mod.cached_external_skill(
-                home, skill, opener=lambda *_args, **_kwargs: io.BytesIO(archive)
-            )
-            deployed = home / ".agents/skills/sample"
-            shutil.copytree(source, deployed)
-            findings: list[str] = []
-            external: list[str] = []
-            with (
-                patch.object(drift_mod, "external_skills", return_value=[skill]),
-                patch.object(drift_mod, "_canonical_skills", return_value={}),
-            ):
-                drift_mod._check_skills(
-                    home / ".agents/skills", "codex", findings, external, home=home
-                )
-                self.assertEqual(findings, [])
-                deployed.joinpath("SKILL.md").write_text("tampered")
-                drift_mod._check_skills(
-                    home / ".agents/skills", "codex", findings, external, home=home
-                )
-            self.assertTrue(any("differs" in finding for finding in findings))
-            self.assertEqual(external, [])
 
     @patch.object(sync.shutil, "copytree", side_effect=OSError("copy failed"))
     def test_skill_sync_preserves_current_tree_when_staging_fails(self, _copytree) -> None:
@@ -768,6 +579,7 @@ class WorkbenchTests(unittest.TestCase):
             sync.sync_claude(home, deploy_skills=False, deploy_plugins=False)
             sync.sync_codex(home, deploy_skills=False, deploy_plugins=False)
             sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
+            self.install_pi_package_metadata(home)
             self.deploy_skills(home, ".claude/skills")
 
             self.assertEqual(
@@ -827,6 +639,7 @@ class WorkbenchTests(unittest.TestCase):
             sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
 
             settings = json.loads((pi_home / "settings.json").read_text())
+            self.install_pi_package_metadata(home)
             models = json.loads((pi_home / "models.json").read_text())
             presets = json.loads((pi_home / "presets.json").read_text())
             self.assertTrue(settings["externalSetting"])
@@ -940,7 +753,7 @@ other = true
         merged = codex.merge_codex_config(source)
         parsed = tomllib.loads(merged)
 
-        self.assertEqual(parsed["model"], "example")
+        self.assertEqual(parsed["model"], core.CODEX_DEFAULTS["model"])
         self.assertEqual(parsed["sandbox_mode"], "workspace-write")
         self.assertEqual(parsed["approval_policy"], "on-request")
         self.assertIn("external", parsed["mcp_servers"])
@@ -958,7 +771,7 @@ other = true
         parsed = tomllib.loads(codex.merge_codex_config(source))
         self.assertEqual(parsed["sandbox_mode"], "workspace-write")
         self.assertEqual(parsed["approval_policy"], "on-request")
-        self.assertEqual(parsed["model"], "example")
+        self.assertEqual(parsed["model"], core.CODEX_DEFAULTS["model"])
         self.assertEqual(parsed["profiles"]["explicit"]["sandbox_mode"], "danger-full-access")
         with tempfile.TemporaryDirectory() as raw:
             home = Path(raw)
@@ -1143,6 +956,7 @@ js_repl = false
             unrelated.write_text("owner settings\n")
             sync.sync_pi(home, deploy_skills=True, deploy_plugins=False)
             self.assertFalse(old.exists())
+            self.install_pi_package_metadata(home)
             self.assertEqual((data / "pi-frontier.sb.bak").read_text(), "old profile\n")
             self.assertEqual(unrelated.read_text(), "owner settings\n")
             self.assertEqual(

@@ -141,7 +141,10 @@ TypeScript formatting stays with Biome. `just lint-ts` runs the two selected
 Oxlint promise checks; `just check` includes formatting, linting, tests, and
 type checking. Vite+ remains on the [watchlist](playbook/watchlist.md).
 
-Most skills are tracked directly. Reviewed third-party skills may instead be declared in `agents/shared/external-skills.json` with an immutable release URL and SHA-256. Sync downloads a missing or invalid archive into `~/.cache/workbench/external-skills`, verifies and safely extracts it, applies the tracked wrapper under `agents/external-skills/`, and deploys the composed tree atomically. Drift verifies the cache and deployment offline.
+All 31 reusable skills are tracked in this repository. The Archify archive
+download pipeline is retired; sync removes retired skills and drift flags their
+reintroduction. Retirement reasons live with `RETIRED_SKILLS` in
+[`src/workbench/core.py`](src/workbench/core.py).
 
 ## Daily Workflows
 
@@ -166,7 +169,7 @@ workbench sync codex
 workbench drift codex
 ```
 
-Skip the slower external installers when only configuration files need repair:
+Skip skills and plugin installation when only configuration files need repair:
 
 ```bash
 workbench sync all --no-skills --no-plugins
@@ -182,12 +185,18 @@ workbench drift all --profile work
 That profile targets only Claude Code and Pi. It keeps shared rules, tracked
 skills, hooks, permission guards, shared shell launchers, and the native Claude
 and Pi harness projections while omitting Codex, Claude plugins and Desktop
-configuration, MCP servers, externally downloaded skills, local-model routing,
-and browser and personal connector extensions.
+configuration, MCP servers, local-model routing, and browser and personal
+connector extensions. Known personal surfaces are removed by work sync and fail
+work drift if reintroduced; unknown external additions remain preserved.
+
+Personal Pi and Codex sessions default to `gpt-6.1-sol` with medium reasoning;
+Claude defaults to `opus` with medium effort. The work profile keeps the Claude
+defaults but leaves Pi provider and model selection to host policy.
 
 Sync and drift use `DOTFILES_PROFILE` when set, otherwise `personal`; an explicit
 `--profile` overrides that default. `just deploy` chains sync and drift so a deploy
-is verified in one command.
+is verified in one command. It accepts a vendor, `--profile`, and `--no-plugins`;
+use `just sync` for partial deployments with `--no-skills` or `--rules-only`.
 
 ### Validate repository sources
 
@@ -307,6 +316,11 @@ still inherits that session's restrictions. The old authority flags and
 alternate host/repository aliases are retired. The isolated HOME maps Desktop
 and Downloads to the host directories. Explicit private/local intent is rejected
 in managed Pi; start native Pi from the host for local inference.
+Managed Claude shares only its matching native project transcript namespace;
+settings stay isolated and provider login enrollment is unchanged. Initial
+migration requires stopped managed sessions. Pi workers may use admitted sibling
+locations while retaining the parent's boundary. The Google connector is retired;
+Strava remains limited to local inference.
 The [launch design catalogue](docs/agents/launch-design.md) compares these routes
 and records the incorporated fixes and remaining limits. The
 [six-model review disposition](docs/decisions/managed-launch-review.md) separates

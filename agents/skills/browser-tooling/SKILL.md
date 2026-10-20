@@ -20,7 +20,7 @@ AI Agent  →  agent-browser control layer  →  CDP  →  Chrome
 ## Decision tree
 
 **Current public information / discover sources** → **dedicated web search, then direct page reads**
-- In Pi, use `agent_browser_web_search` for discovery and `agent_browser read <url>` for a known source; the latter does not launch Chrome.
+- In Pi, use the optional `agent_browser_web_search` when configured for discovery and `agent_browser read <url>` for a known source. Inherited proxy settings may still start the contained browser for `read`; do not assume it is browserless.
 - Start with one high-signal query and at most one focused follow-up. Shortlist sources before reading them, and stop once the evidence answers the request.
 
 **"Look at this page" / "Did the deploy work?" / smoke check / drive a flow** → **agent-browser CLI** (default)
@@ -30,6 +30,7 @@ AI Agent  →  agent-browser control layer  →  CDP  →  Chrome
 **Known multi-step portal or recurring read workflow** → **Playwright helper**
 - Encode fixed routes, selectors, validation, and stop-before-submit boundaries in code.
 - Keep the browser headed when a user must watch, authenticate, or intervene.
+- In a Workbench-managed session, use its fresh contained browser. Personal authenticated profiles require an explicit native host workflow.
 
 **"Catch this regression forever" / deterministic scrape / production workflow** → **Playwright tests**
 - Free per run. Write tests in the project's E2E test directory (e.g. `web/tests/e2e/`). For WebRTC apps, use Chromium's fake-media flags (see below).

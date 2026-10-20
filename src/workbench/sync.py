@@ -12,6 +12,7 @@ from typing import Any
 from workbench.codex import expected_codex_rules_md, merge_codex_config, merge_codex_rules
 from workbench.core import (
     AGENTS,
+    CLAUDE_DEFAULTS,
     CLAUDE_SANDBOX,
     DATA_REL,
     RETIRED_AGENT_SHELL_FILES,
@@ -31,10 +32,10 @@ from workbench.core import (
     copy_file,
     ensure_hard_deny_policy,
     ensure_private_path_policy,
+    record_changed_path,
     write_json,
     write_text,
 )
-from workbench.external_skills import external_skill_source, external_skills
 from workbench.mcp import merge_mcp
 from workbench.native_config import install_harness
 from workbench.profiles import WORK_PI, WORK_PI_EXTENSIONS, WORK_SKILL_EXCLUDES, Profile
@@ -113,7 +114,7 @@ def _install_runtime_files(home: Path) -> Path:
             if deployed.suffix == ".bak" and deployed.name.removesuffix(".bak") in hooks:
                 continue
             if deployed.is_file() and deployed.name not in hooks:
-                deployed.unlink()
+                _remove_deployed_path(deployed)
     for name, hook in hooks.items():
         copy_file(hook, hook_dir / name, executable=True)
     copy_file(
@@ -137,8 +138,8 @@ def _replace_tree(source: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     staged = destination.with_name(destination.name + ".tmp")
     backup = destination.with_name(destination.name + ".bak")
-    _remove_deployed_path(staged)
-    _remove_deployed_path(backup)
+    _remove_deployed_path(staged, report=False)
+    _remove_deployed_path(backup, report=False)
     shutil.copytree(source, staged)
     if destination.exists() or destination.is_symlink():
         destination.replace(backup)
@@ -148,24 +149,15 @@ def _replace_tree(source: Path, destination: Path) -> None:
         if backup.exists() or backup.is_symlink():
             backup.replace(destination)
         raise
-    _remove_deployed_path(backup)
+    record_changed_path(destination)
+    _remove_deployed_path(backup, report=False)
 
 
-def _managed_skill_sources(home: Path, profile: Profile = "personal") -> dict[str, Path]:
-    """Resolve profile-approved skill trees; external pins are personal-only."""
-    sources = _canonical_skills(profile)
-    if profile == "personal":
-        for skill in external_skills():
-            sources[skill.name] = external_skill_source(home, skill)
-    return sources
-
-
-def _sync_skill_tree(root: Path, home: Path, profile: Profile = "personal") -> None:
-    managed = _managed_skill_sources(home, profile)
+def _sync_skill_tree(root: Path, profile: Profile = "personal") -> None:
+    managed = _canonical_skills(profile)
     removed = set(RETIRED_SKILLS)
     if profile == "work":
         removed |= set(_canonical_skills("personal")) - set(managed)
-        removed |= {skill.name for skill in external_skills()}
     for name in removed:
         _remove_deployed_path(root / name)
     for name, source in managed.items():
@@ -176,7 +168,7 @@ def _sync_skills(vendor: str, home: Path, profile: Profile = "personal") -> None
     if vendor not in {"claude", "codex"}:
         raise WorkbenchError(f"unsupported skill target: {vendor}")
     root = home / (".claude/skills" if vendor == "claude" else ".agents/skills")
-    _sync_skill_tree(root, home, profile)
+    _sync_skill_tree(root, profile)
 
 
 def _remove_retired_subagents(destination: Path) -> None:
@@ -196,6 +188,7 @@ def merge_claude_settings(
     declared_plugins = _string_array(AGENTS / "claude/plugins.json")
     plugins = declared_plugins if profile == "personal" else []
     managed = {
+        **CLAUDE_DEFAULTS,
         "enabledPlugins": dict.fromkeys(plugins, True),
         "permissions": _settings(AGENTS / "claude/permissions.json"),
         "hooks": _settings(AGENTS / "shared/hooks.json").get("hooks", {}),
@@ -394,19 +387,21 @@ def _merge_pi_object(
     write_json(destination, desired)
 
 
-def _remove_deployed_path(path: Path) -> None:
+def _remove_deployed_path(path: Path, *, report: bool = True) -> None:
     if path.is_symlink() or path.is_file():
         path.unlink()
     elif path.exists():
         shutil.rmtree(path)
+    else:
+        return
+    if report:
+        record_changed_path(path)
 
 
 def _sync_pi_skills(home: Path, profile: Profile = "personal") -> None:
     """Deploy shared skills once where Pi and Codex both discover them."""
     managed_names = set(_canonical_skills(profile))
-    if profile == "personal":
-        managed_names |= {skill.name for skill in external_skills()}
-    _sync_skill_tree(home / ".agents/skills", home, profile)
+    _sync_skill_tree(home / ".agents/skills", profile)
     cleanup_names = managed_names | set(RETIRED_SKILLS)
     if profile == "work":
         cleanup_names |= set(_canonical_skills("personal"))

@@ -6,12 +6,14 @@ import json
 import os
 import pty
 import re
+import runpy
 import select
 import shlex
 import shutil
 import signal
 import socket
 import subprocess
+import tempfile
 import termios
 import threading
 import time
@@ -34,14 +36,16 @@ def shared_harness():
     extensions = pi / "extensions"
     extensions.mkdir(parents=True, exist_ok=True)
     source = Path(__file__).resolve().parents[1] / "agents/pi/extensions"
-    for name in ("footer.ts", "welcome.ts"):
-        (extensions / name).write_text((source / name).read_text())
+    shutil.copytree(source, extensions, dirs_exist_ok=True)
+    for name in ("permission-policy.json", "presets.json", "inference-router.json", "models.json"):
+        shutil.copyfile(source.parent / name, pi / name)
     (pi / "AGENTS.md").write_text("Synthetic shared global instructions.\n")
     (pi / "settings.json").write_text(
         json.dumps(
             {
                 "defaultProvider": "openai",
                 "defaultModel": "gpt-4.1",
+                "defaultPreset": "dev",
                 "tuiMode": "fullscreen",
             }
         )
@@ -197,6 +201,52 @@ echo CANARY-PASS
     assert not (repo / "nested/.env.future").exists()
     assert (repo / "edited").read_text() == "edited\n"
     assert not hits
+
+
+@pytest.fixture
+def native_scratch():
+    with tempfile.TemporaryDirectory(prefix="wb-native-", dir="/private/tmp") as scratch:
+        yield Path(scratch)
+
+
+def test_claude_shares_selected_history_but_denies_sibling_history(native_scratch):
+    assert PILOT
+    home = Path(PILOT)
+    repo = home / "checkout-sessions"
+    (repo / ".git").mkdir(parents=True, exist_ok=True)
+    shell = home / ".local/share/workbench/shell/native-sandbox.py"
+    launcher = runpy.run_path(str(shell))
+    tools = json.loads((shell.parent.parent / "native/tools.json").read_text())
+    tools["browser"] = None
+    plan = launcher["build_plan"](repo, home, tools, "claude", "hosted", [], scratch=native_scratch)
+    selected = Path(plan["claude_sessions"]["target"])
+    selected.mkdir(parents=True, exist_ok=True)
+    (selected / "synthetic.jsonl").write_text("synthetic-selected")
+    sibling = home / ".claude/projects/unrelated/synthetic.jsonl"
+    sibling.parent.mkdir(parents=True, exist_ok=True)
+    sibling.write_text("synthetic-private")
+    launcher["initialize_home"](plan, home)
+    script = f"""
+set -eu
+test "$(cat {shlex.quote(str(selected / "synthetic.jsonl"))})" = synthetic-selected
+echo synthetic-append >> {shlex.quote(str(selected / "synthetic.jsonl"))}
+if cat {shlex.quote(str(sibling))} >/dev/null 2>&1; then exit 21; fi
+if echo forbidden >> {shlex.quote(str(sibling))} 2>/dev/null; then exit 22; fi
+echo CLAUDE-HISTORY-CANARY-PASS
+"""
+    plan["command"] = ["/bin/bash", "-c", script]
+    result = subprocess.run(
+        [plan["node"], str(shell.with_suffix(".mjs")), json.dumps(plan)],
+        env=plan["env"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "CLAUDE-HISTORY-CANARY-PASS" in result.stdout
+    assert sibling.read_text() == "synthetic-private"
 
 
 def test_managed_scratch_and_development_access_keep_denials(tmp_path):
@@ -436,11 +486,15 @@ def test_real_pi_rpc_starts_with_shared_auth_and_no_model_request(tmp_path, synt
         "gpt-4.1",
         "--mode",
         "rpc",
-        stdin='{"type":"get_state"}\n',
+        stdin='{"type":"get_state"}\n{"type":"get_commands"}\n',
     )
     assert result.returncode == 0, result.stderr
     rows = [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")]
     assert any(row.get("command") == "get_state" and row.get("success") for row in rows)
+    commands = next(row for row in rows if row.get("command") == "get_commands")
+    assert commands["success"]
+    names = {command["name"] for command in commands["data"]["commands"]}
+    assert {"route", "preset", "worker", "worker-done"} <= names
     assert not (synthetic_auth_store / "pi/settings.json").exists()
 
 

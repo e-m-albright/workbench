@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { type ExtensionAPI, type ExtensionContext, parseArgs } from "@earendil-works/pi-coding-agent";
 import { resolveAgentDir } from "./lib/agent-dir";
+import { loadSettings } from "./lib/settings";
 
 export type Route = "frontier" | "private";
 
@@ -18,7 +19,7 @@ export interface RouterConfig {
 
 const DEFAULT_CONFIG: RouterConfig = {
 	defaultMode: "frontier",
-	frontier: { provider: "openai-codex", model: "gpt-5.6-sol" },
+	frontier: { provider: "openai-codex", model: "gpt-6.1-sol" },
 	private: { provider: "omlx", model: "Qwen3.6-35B-A3B-oQ4e-mtp" },
 };
 
@@ -36,11 +37,27 @@ function mergeConfig(base: RouterConfig, override: Partial<RouterConfig>): Route
 	};
 }
 
-function loadConfig(cwd: string): RouterConfig {
-	const global = mergeConfig(DEFAULT_CONFIG, readConfig(join(resolveAgentDir(), "inference-router.json")));
-	const merged = mergeConfig(global, readConfig(join(cwd, ".pi", "inference-router.json")));
+function loadConfig(ctx: ExtensionContext): RouterConfig {
+	const settings = loadSettings(ctx);
+	const hostedDefault = typeof settings.defaultProvider === "string" && settings.defaultProvider !== "omlx";
+	const defaults = {
+		...DEFAULT_CONFIG,
+		frontier: hostedDefault
+			? {
+					provider: settings.defaultProvider as string,
+					model:
+						typeof settings.defaultModel === "string" ? settings.defaultModel : DEFAULT_CONFIG.frontier.model,
+				}
+			: DEFAULT_CONFIG.frontier,
+	};
+	const global = mergeConfig(defaults, readConfig(join(resolveAgentDir(), "inference-router.json")));
+	const merged = mergeConfig(
+		global,
+		ctx.isProjectTrusted?.() === true ? readConfig(join(ctx.cwd, ".pi", "inference-router.json")) : {},
+	);
 	if (merged.private.provider !== "omlx")
 		throw new Error("Private inference requires the local oMLX provider");
+	if (merged.frontier.provider === "omlx") throw new Error("Frontier inference requires a hosted provider");
 	return merged;
 }
 
@@ -132,7 +149,7 @@ export default function inferenceRouterExtension(pi: ExtensionAPI) {
 			return;
 		}
 		try {
-			config = loadConfig(ctx.cwd);
+			config = loadConfig(ctx);
 			configValid = true;
 		} catch (error) {
 			ctx.ui.notify(`Inference routing blocked: ${String(error)}`, "error");

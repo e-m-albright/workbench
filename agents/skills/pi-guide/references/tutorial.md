@@ -1,7 +1,7 @@
 # Pi tutorial
 
-Snapshot: Pi 0.86.1, checked against published package documentation and managed
-configuration on 2026-09-20. Earlier version-specific observations remain dated
+Snapshot: Pi 0.86.1, with Workbench configuration reviewed on 2026-10-20.
+Earlier version-specific observations remain dated
 in the capability reference rather than serving as current guarantees.
 
 Native references live in the installed `@earendil-works/pi-coding-agent` package
@@ -11,8 +11,9 @@ under `README.md` and `docs/`. Workbench decisions live in
 
 ## Daily workflow
 
-1. Start `pi` inside the repository you intend to change. Pi discovers project
-   instructions and asks for trust before loading project-local resources.
+1. Start `p` inside an ordinary repository checkout for the managed boundary, or
+   native `pi` from the host for workflows that need host access. Pi discovers
+   project instructions and asks for trust before loading project-local resources.
 2. State the goal and constraints. For consequential work, agree on scope before
    implementation.
 3. Let Pi use `read`, `bash`, precise `edit`, and `write`. Expand collapsed tool
@@ -110,13 +111,17 @@ agent process's permissions, including any inherited operating-system sandbox. P
 Ctrl+L selects a model; Shift+Tab changes reasoning effort. The active provider
 route controls context size, authentication, cost, and available service tiers.
 The same model name through two providers can have different limits.
+Personal hosted sessions default to `openai-codex/gpt-6.1-sol` with medium thinking;
+the work profile leaves provider and model selection to the host's policy.
 
 ### Project trust
 
 Project-local instructions, extensions, skills, settings, and packages can execute
 or steer work. Trust only repositories whose contents are safe to load. Workbench's
-restricted terminal launch contains Pi and its children within the admitted
-checkout; project trust does not expand those operating-system permissions.
+managed shortcut `p` contains Pi and its children within the admitted checkout,
+public code, Desktop, and Downloads, with private exclusions. Native `pi` adds no
+Workbench outer boundary when started from the host. Project trust does not expand
+an inherited operating-system boundary.
 
 ## Workbench custom setup
 
@@ -128,17 +133,23 @@ checkout; project trust does not expand those operating-system permissions.
 | Permission policy | Blocks protected paths, risky shell effects, and non-allowlisted MCP calls |
 | Safe Git | Adds approval gates around destructive history operations |
 | Presets | One `dev` tool and execution profile; inference and authority belong to the launch mode |
-| Consult | Hosted unrestricted second opinion (`/consult`, `--fable` for adversarial); restricted and local sessions refuse it |
-| Worker | One model-callable, worktree-isolated delegate in unrestricted sessions; parent reviews and verifies adoption. Restricted sessions refuse worker start. `/worker` remains a manual entrypoint. |
-| Google read-only | Owned Gmail/Calendar tools (`/google-auth`, `/google-status`); direct REST, read-only scopes |
+| Consult | Native hosted second opinion (`/consult`, `--fable` for adversarial); managed sessions direct the owner to native Pi, and local sessions refuse cloud consult |
+| Worker | One model-callable, worktree-isolated delegate; managed sessions require admitted sibling placement. The child inherits the parent's model selection and boundary. The parent reviews and verifies adoption. `/worker` remains a manual entrypoint. |
 | Strava read-only | Owned activity tools (`/strava-auth`, `/strava-status`); free personal API |
 | Native Agent Browser | Structured wrapper around the trusted Agent Browser CLI |
 
-Restricted `pi` loads the same managed extensions as unrestricted `pihu` (hosted)
-and `pil` (local). Loading a connector does not grant credentials: personal
-connectors require local unrestricted access. The global handoff queue also sits
-outside the restricted checkout; return continuation text in the conversation and
-save it from an authorized host session.
+Managed `p` and native `pi` share deployed extensions. Native local inference uses
+`pi --route private --provider omlx` from the host. The Google connector is
+retired; Gmail, Calendar, and Drive remain outside the coding-agent boundary.
+Strava tools require the local provider and their own OAuth grant. The global
+handoff queue also sits outside the managed grants; return continuation text in
+the conversation and save it from an authorized native session.
+
+Managed workers require an ordinary parent checkout and sibling placement under
+`~/code/public`, `~/Desktop`, or `~/Downloads`. Review output against the captured
+starting commit, then discard with `disposition=adopted` or `disposition=rejected`.
+Commits not reachable from the parent are preserved unless the owner deliberately
+uses `/worker-done --force`. Worker entrypoints reject recursive delegation.
 
 Terminal titles use the first user prompt unless `/name` supplies an explicit
 name. Worker completion has a notification; there is no separate completion

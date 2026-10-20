@@ -40,6 +40,7 @@ it does not imply a scheduled monitoring service.
 | --- | --- | --- |
 | Agent-run verification and Cursor Rollouts | The same manual correction recurs or a release needs change-specific monitoring | [Verification](engineering/verification.md) |
 | CodeRabbit and other review tools | Human review becomes the bottleneck and a bounded evaluation can measure useful findings | [Code review](engineering/review.md) |
+| Archify and Whiteboard | A substantial architecture or specification change needs AI-led explanation grounded in source; compare understanding, omissions, and upkeep against Git and Mermaid | [Code understanding and visualization](engineering/review.md#change-comprehension-and-visualization) |
 | Depot, Blacksmith, Buildkite and CI alternatives | Runner cost, build latency, or hardware requirements are measured constraints | [Builds](engineering/builds.md) |
 | Git hosting and forge alternatives | Hosting or concurrent agent traffic creates a concrete limit | [Version control](engineering/version-control.md) |
 | Performance replacements | Profiling identifies the component a proposed replacement would improve | [Performance tooling](engineering/performance.md) |

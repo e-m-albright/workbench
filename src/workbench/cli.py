@@ -113,7 +113,7 @@ def sync(
         except ValueError:
             print(f"updated {path}")
     if changed:
-        print(f"OK workbench synchronized; {len(changed)} file(s) updated")
+        print(f"OK workbench synchronized; {len(changed)} path(s) updated")
     else:
         print("OK workbench synchronized; nothing to change")
 

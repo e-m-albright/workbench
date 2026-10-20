@@ -129,9 +129,14 @@ That layered combination is a stronger default than betting on one "best" tool.
 
 A diagram or semantic diff can reduce how much code a person must read, but it changes review navigation rather than establishing correctness.
 
-- [Whiteboard](https://whiteboard.dev.fast/) is an open-source desktop canvas that lets coding agents produce code-linked sequence and entity diagrams, decision traces, and AST-aware semantic diffs. Trial it for a large architecture or specification change where an ordinary patch obscures behavior. Require click-through to source and compare any collapsed or pseudocode summary with the underlying diff before accepting a consequential claim.
-- Archify and Mermaid are better fits for durable repository diagrams generated from or maintained beside canonical architecture. They do not provide Whiteboard's review workspace or semantic-diff interaction.
-- Generated diagrams should identify the base and reviewed revision, distinguish observed code structure from model inference, and remain disposable unless the architecture is stable enough to deserve a maintained source file.
+**Watch: Archify and Whiteboard, reviewed 2026-10-20.** Both are promising for AI-led code understanding: an agent explains architecture, follows a behavior through source, and helps a person inspect consequential changes. Upstream descriptions establish available features; neither tool has demonstrated a comprehension benefit in this workflow.
+
+- [Archify](https://github.com/tt-a1i/archify) documents interactive architecture maps, source evidence pinned to a commit, and comparisons between architecture revisions. Its Workbench integration was retired because use did not justify maintenance, but the tool remains worth watching for explanations grounded in source code. Ordinary diagrams can use Mermaid; adoption needs a recurring understanding task that benefits from Archify's interactions.
+- [Whiteboard](https://github.com/devdotfast/whiteboard) documents a desktop review canvas with diagrams linked to code, decision traces, and semantic diffs based on syntax trees. Its [agent connection](https://dev.fast/docs/) uses MCP. Watch it for understanding an agent's implementation and reviewing architecture or specification changes alongside the source.
+
+Revisit when a substantial change is difficult to understand from the ordinary diff. Compare one fixed revision with the current Git and Mermaid workflow. Check whether the tool helps answer questions about changed contracts, data flow, authority, and failure paths; record missing or incorrect claims, review time, and setup effort. Require direct access to the underlying source and expand folded tests, documentation, and pseudocode before accepting consequential claims. A trial should justify its ongoing maintenance before either tool becomes part of the default setup.
+
+Generated diagrams should identify the base and reviewed revision, distinguish observed code structure from model inference, and remain disposable unless the architecture is stable enough to deserve a maintained source file.
 
 Use visualization to focus scarce human attention on changed contracts, data flow, authority, and failure paths. Keep deterministic gates and runtime evidence underneath it. Do not treat a persuasive diagram, agent trace, or summarized function as proof that omitted code is irrelevant.
 

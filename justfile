@@ -181,11 +181,22 @@ sync *args:
 drift *args:
     ./bin/workbench drift {{args}}
 
-# Sync then immediately verify: closes the deploy loop in one command.
+# Sync then verify. Accepts a vendor, --profile, and --no-plugins; partial sync uses `sync`.
 [group('deployment')]
+[positional-arguments]
 deploy *args:
-    ./bin/workbench sync {{args}}
-    ./bin/workbench drift {{args}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for arg in "$@"; do
+        case "$arg" in
+            --no-skills | --rules-only)
+                printf 'deploy: %s is sync-only; use just sync for a partial deployment\n' "$arg" >&2
+                exit 2
+                ;;
+        esac
+    done
+    ./bin/workbench sync "$@"
+    ./bin/workbench drift "$@"
 
 # ── Help (default) ────────────────────────────────────────────────────────────
 

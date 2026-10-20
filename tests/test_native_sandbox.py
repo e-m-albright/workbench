@@ -313,9 +313,7 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
         "agents": {vendor: {"command": ["/usr/bin/agent"], "read": []}},
     }
     plan = launcher.build_plan(repo, home, config, vendor, "hosted", [])
-    assert bool(plan["resume_hint"]) == (vendor == "claude")
-    if vendor == "claude":
-        assert "cc --resume" in plan["resume_hint"]
+    assert plan["resume_hint"] is None
     store = home / ".local/share/workbench/model-auth" / vendor
     filename = ".credentials.json" if vendor == "claude" else "auth.json"
     assert str(store / filename) in plan["policy"]["filesystem"]["allowRead"]

@@ -178,6 +178,7 @@ test("invalid private routing config blocks every input source", async () => {
 	let sends = 0;
 	const ctx = {
 		cwd,
+		isProjectTrusted: () => true,
 		modelRegistry: { find: () => ({ provider: "openai-codex" }) },
 		ui: { theme, setStatus() {}, notify() {}, setEditorText() {} },
 	} as any;
@@ -197,6 +198,39 @@ test("invalid private routing config blocks every input source", async () => {
 		expect(await handlers.get("input")({ source, text: "private" }, ctx)).toEqual({ action: "handled" });
 	}
 	expect(sends).toBe(0);
+});
+
+test("explicit frontier selection uses the configured hosted default", async () => {
+	const directory = mkdtempSync(join(tmpdir(), "wb-router-default-"));
+	writeFileSync(
+		join(directory, "settings.json"),
+		JSON.stringify({
+			defaultProvider: "openai-codex",
+			defaultModel: "configured-sol",
+		}),
+	);
+	vi.stubEnv("PI_CODING_AGENT_DIR", directory);
+	const handlers = new Map<string, any>();
+	const commands = new Map<string, any>();
+	const find = vi.fn((provider, id) => ({ provider, id }));
+	const setModel = vi.fn(async () => true);
+	const ctx = {
+		cwd: directory,
+		model: { provider: "anthropic", id: "explicit-choice" },
+		modelRegistry: { find },
+		ui: { notify() {}, setEditorText() {} },
+	} as any;
+	inferenceRouter({
+		registerFlag() {},
+		registerCommand: (name: string, value: any) => commands.set(name, value),
+		on: (name: string, value: any) => handlers.set(name, value),
+		getFlag: () => undefined,
+		setModel,
+	} as any);
+	await handlers.get("session_start")({}, ctx);
+	expect(setModel).not.toHaveBeenCalled();
+	await commands.get("route").handler("frontier", ctx);
+	expect(find).toHaveBeenCalledWith("openai-codex", "configured-sol");
 });
 
 test("preserves a compatible explicit startup model for hosted and local profiles", async () => {
@@ -281,6 +315,12 @@ test.each([
 
 test("managed startup can replace incidental restored local state when no local intent was explicit", async () => {
 	vi.stubEnv("WORKBENCH_AGENT_AUTHORITY", "managed");
+	const directory = mkdtempSync(join(tmpdir(), "pi-local-default-"));
+	writeFileSync(
+		join(directory, "settings.json"),
+		JSON.stringify({ defaultProvider: "omlx", defaultModel: "saved-local-model" }),
+	);
+	vi.stubEnv("PI_CODING_AGENT_DIR", directory);
 	const handlers = new Map<string, any>();
 	const ctx = {
 		cwd: "/tmp/example",

@@ -61,6 +61,30 @@ test("safe-git reads configured protection and only trusts approved project over
 	}
 });
 
+test("default protection blocks short force pushes without prompting for ordinary pushes", async () => {
+	const agent = mkdtempSync(resolve(tmpdir(), "pi-force-push-"));
+	vi.stubEnv("PI_CODING_AGENT_DIR", agent);
+	try {
+		const handlers = new Map<string, (...args: any[]) => any>();
+		safeGit({ on: (name: string, fn: any) => handlers.set(name, fn), registerCommand() {} } as any);
+		const ctx = { cwd: agent, hasUI: false, isProjectTrusted: () => false };
+		for (const command of ["git push -f origin main", "git push -vf origin main"]) {
+			expect(await handlers.get("tool_call")?.({ toolName: "bash", input: { command } }, ctx)).toMatchObject({
+				block: true,
+			});
+		}
+		expect(
+			await handlers.get("tool_call")?.(
+				{ toolName: "bash", input: { command: "git push origin main" } },
+				ctx,
+			),
+		).toBeUndefined();
+	} finally {
+		vi.unstubAllEnvs();
+		rmSync(agent, { recursive: true, force: true });
+	}
+});
+
 interface Vector {
 	command: string;
 	hook: "block" | "allow";
@@ -88,6 +112,10 @@ describe("safe-git command classification", () => {
 		expect(classifyCommand("git push --force origin main")?.action).toBe("force push");
 		expect(classifyCommand("git push origin +main")?.action).toBe("force push");
 		expect(classifyCommand("git push origin main")?.action).toBe("push");
+	});
+
+	test("retains destructive commands embedded in Git option values", () => {
+		expect(classifyCommand("git -c 'alias.wipe=!git reset --hard' wipe")?.severity).toBe("high");
 	});
 
 	test("gh reads pass silently so session approvals never cover unseen mutations", () => {

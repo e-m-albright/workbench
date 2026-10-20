@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import shutil
 import tomllib
 from collections.abc import Iterable
@@ -21,11 +22,11 @@ from workbench.core import (
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
     ROOT,
+    WorkbenchError,
     _list_plugins,
     _settings,
     _string_array,
 )
-from workbench.external_skills import external_skills, validated_external_skill_source
 from workbench.mcp import active_mcp, merge_mcp, retired_mcp_names
 from workbench.profiles import WORK_PI, WORK_PI_EXTENSIONS, Profile
 from workbench.sync import (
@@ -77,23 +78,11 @@ def _check_skills(
     findings: list[str],
     external: list[str],
     *,
-    home: Path | None = None,
     profile: Profile = "personal",
 ) -> None:
     canonical = _canonical_skills(profile)
     managed_names = set(canonical)
-    if home is not None and profile == "personal":
-        for skill in external_skills():
-            managed_names.add(skill.name)
-            source = validated_external_skill_source(home, skill)
-            if source is None:
-                canonical.pop(skill.name, None)
-                findings.append(
-                    f"DRIFT {vendor} external skill cache invalid or missing: "
-                    f"{skill.name}@{skill.version}"
-                )
-            else:
-                canonical[skill.name] = source
+    personal_names = set(_canonical_skills("personal")) if profile == "work" else set()
     deployed = {path.parent.name: path.parent for path in skill_root.glob("*/SKILL.md")}
     for name, source_root in canonical.items():
         if name not in deployed:
@@ -117,6 +106,8 @@ def _check_skills(
     for name in deployed.keys() - managed_names:
         if name in RETIRED_SKILLS:
             findings.append(f"DRIFT retired {vendor} skill still present: {name}")
+        elif name in personal_names:
+            findings.append(f"DRIFT personal {vendor} skill present in work profile: {name}")
         else:
             external.append(f"EXTERNAL {vendor} skill: {name}")
 
@@ -126,12 +117,15 @@ def _check_pi_native_skills(
 ) -> None:
     """Pi-native skills may be external, but shared copies are duplicate drift."""
     canonical = _canonical_skills(profile)
+    personal_names = set(_canonical_skills("personal")) if profile == "work" else set()
     deployed = {path.parent.name for path in skill_root.glob("*/SKILL.md")}
     for name in sorted(deployed):
         if name in canonical:
             findings.append(f"DRIFT duplicate Pi skill shadows shared skill: {name}")
         elif name in RETIRED_SKILLS:
             findings.append(f"DRIFT retired pi skill still present: {name}")
+        elif name in personal_names:
+            findings.append(f"DRIFT personal pi skill present in work profile: {name}")
         else:
             external.append(f"EXTERNAL pi skill: {name}")
 
@@ -170,6 +164,39 @@ def _check_plugins(vendor: str, home: Path, findings: list[str], external: list[
             findings.append(f"DRIFT {vendor} plugin disabled: {plugin}")
     for plugin in sorted(set(inventory) - set(declared)):
         external.append(f"EXTERNAL {vendor} plugin: {plugin}")
+
+
+def _check_pi_packages(
+    pi_home: Path, declared: list[str], findings: list[str], external: list[str]
+) -> None:
+    # Only canonical exact npm pins are checked; this verifies metadata, not package integrity.
+    for source in declared:
+        pin = re.fullmatch(
+            r"npm:((?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*)"
+            r"@(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)",
+            source,
+        )
+        if pin is None:
+            external.append(
+                f"NOTE Pi package version unverified (requires an exact npm pin): {source}"
+            )
+            continue
+        name, expected_version = pin.groups()
+        manifest = pi_home / "npm/node_modules" / name / "package.json"
+        label = f"DRIFT Pi package {name}"
+        if not manifest.exists():
+            findings.append(f"{label}: missing installed metadata {manifest}")
+            continue
+        try:
+            installed = _settings(manifest)
+        except (WorkbenchError, UnicodeError):
+            findings.append(f"{label}: malformed installed metadata {manifest}")
+            continue
+        version = installed.get("version")
+        if installed.get("name") != name or not isinstance(version, str) or not version:
+            findings.append(f"{label}: malformed installed name/version metadata {manifest}")
+        elif version != expected_version:
+            findings.append(f"{label}: installed version {version}; expected {expected_version}")
 
 
 def _check_claude(
@@ -262,14 +289,21 @@ def _check_pi(
         )
     elif (pi_home / "inference-router.json").exists():
         findings.append("DRIFT personal Pi inference router present in work profile")
+    managed_settings = _settings(source / "settings.json")
     findings.extend(
         _managed_value_errors(
             _settings(pi_home / "settings.json"),
-            _settings(source / "settings.json"),
+            managed_settings,
             "Pi settings",
         )
     )
+    _check_pi_packages(pi_home, managed_settings.get("packages", []), findings, external)
     live_settings = _settings(pi_home / "settings.json")
+    if profile == "work":
+        personal_settings = _settings(AGENTS / "pi/settings.json")
+        for name in sorted(personal_settings.keys() - _settings(source / "settings.json").keys()):
+            if name in live_settings:
+                findings.append(f"DRIFT personal Pi setting present in work profile: {name}")
     for name in sorted(RETIRED_PI_SETTINGS):
         if name in live_settings:
             findings.append(f"DRIFT retired Pi setting still present: {name}")
@@ -284,11 +318,18 @@ def _check_pi(
             expected = expected.get(nested_key, {})
         findings.extend(_managed_value_errors(actual, expected, f"Pi {filename}"))
         if isinstance(actual, dict) and isinstance(expected, dict):
+            personal_providers = (
+                _settings(AGENTS / "pi/models.json").get("providers", {})
+                if profile == "work" and filename == "models.json"
+                else {}
+            )
             for name in sorted(actual.keys() - expected.keys()):
                 if filename == "models.json" and name in RETIRED_PI_PROVIDERS:
                     findings.append(f"DRIFT retired Pi provider still present: {name}")
                 elif filename == "presets.json" and name in RETIRED_PI_PRESETS:
                     findings.append(f"DRIFT retired Pi preset still present: {name}")
+                elif name in personal_providers:
+                    findings.append(f"DRIFT personal Pi provider present in work profile: {name}")
                 else:
                     external.append(f"EXTERNAL Pi {filename} entry: {name}")
 
@@ -304,6 +345,8 @@ def _check_pi(
     for name in sorted(deployed_extensions.keys() - expected_extensions.keys()):
         if name in RETIRED_PI_EXTENSIONS:
             findings.append(f"DRIFT retired pi extension still present: {name}")
+        elif profile == "work" and name in all_extensions:
+            findings.append(f"DRIFT personal Pi extension present in work profile: {name}")
         else:
             external.append(f"EXTERNAL Pi extension: {name}")
 
@@ -435,7 +478,6 @@ def drift(
                 vendor,
                 findings,
                 external,
-                home=home,
                 profile=profile,
             )
             _check_pi_native_skills(home / ".pi/agent/skills", findings, external, profile)
@@ -456,7 +498,7 @@ def drift(
             include_active=profile == "personal",
         )
 
-        _check_skills(skill_root, vendor, findings, external, home=home, profile=profile)
+        _check_skills(skill_root, vendor, findings, external, profile=profile)
         if verify_plugins and profile == "personal":
             _check_plugins(vendor, home, findings, external)
 

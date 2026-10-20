@@ -112,8 +112,9 @@ Selected ideas from [PR #7](https://github.com/e-m-albright/workbench/pull/7), i
 were implemented selectively: Claude policy access, tool paths, Git attribution,
 project denial projection, resume guidance, and compaction preferences. PR #7
 was closed unmerged and both remote branches were deleted at the owner's
-request; local archive refs preserve the reviewed tips. Neither branch was
-merged wholesale.
+request; local archive refs initially preserved the reviewed tips. The October 20
+cleanup backed them up in a local Git bundle before removing the superseded refs.
+Neither branch was merged wholesale.
 
 Provider login readability, public disclosure of admitted content, live source
 later executed by the owner, shared-kernel exposure, and pre-existing admitted

@@ -51,6 +51,11 @@ const DEFAULT_CONFIG: Required<SafeGitConfig> = {
 export const gitPatterns: { pattern: RegExp; action: string; severity: Severity }[] = [
 	// High risk - destructive operations
 	{ pattern: /\bgit\s+push\s+.*--force(-with-lease)?\b/i, action: "force push", severity: "high" },
+	{
+		pattern: /\bgit\s+push\s+(?:[^|;&]*\s)?["']?-[a-z]*f[a-z]*["']?(?=\s|$)/i,
+		action: "force push",
+		severity: "high",
+	},
 	// A leading + on a refspec forces the push regardless of flags.
 	{ pattern: /\bgit\s+push\s+[^|;&]*\s\+\S/i, action: "force push", severity: "high" },
 	{ pattern: /\bgit\s+reset\s+--hard\b/i, action: "hard reset", severity: "high" },
@@ -81,8 +86,13 @@ export const gitPatterns: { pattern: RegExp; action: string; severity: Severity 
 
 // Pure classifier: the approval decision minus the UI, for table tests.
 export function classifyCommand(command: string): { action: string; severity: Severity } | null {
+	// Recognize common literal Git options; this remains a heuristic, not a shell parser.
+	const normalized = command.replace(
+		/\bgit\s+(?:(?:-[Cc]\s*|--(?:git-dir|work-tree)(?:=|\s+))(?:"[^"]*"|'[^']*'|[^\s;&|()]+)\s+)+/g,
+		"git ",
+	);
 	for (const { pattern, action, severity } of gitPatterns) {
-		if (pattern.test(command)) {
+		if (pattern.test(command) || pattern.test(normalized)) {
 			return { action, severity };
 		}
 	}

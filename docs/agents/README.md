@@ -9,8 +9,10 @@ configuration guidance.
 
 Pi, Claude Code, and Codex are the first-class coding-agent targets. Pi is the
 primary interactive harness; Codex and Claude Code provide additional vendor
-capabilities such as cloud execution and hosted review. All three terminal
-launchers use the [Workbench isolation boundary](../security/isolation.md).
+capabilities such as cloud execution and hosted review. The terminal shortcuts
+`p`, `cc`, and `co` add the [Workbench isolation boundary](../security/isolation.md).
+Full `pi`, `claude`, and `codex` commands retain native behavior when started from
+the host; children of a managed session inherit its boundary.
 The [Pi inventory](pi/README.md) owns its current extensions and controls;
 [Pi decisions](pi/decisions.md) owns their rationale.
 
@@ -35,8 +37,8 @@ session tokens, and OAuth grants never belong in dotfiles or Workbench.
 The expected connector split is:
 
 - ChatGPT/Codex: no Gmail or Google Calendar plugins are declared.
-- Pi: the owned read-only Google and Strava connectors are available only to the machine-local provider. Private vault and document access follows the same provider gate. Apple Notes is unavailable to coding agents.
-- Claude Code/Desktop: managed Model Context Protocol declarations where no equivalent approved integration exists. No Gmail connector is declared, and personal document roots remain sandbox-denied.
+- Pi: the Google connector is retired. The owned read-only Strava connector requires the machine-local provider and its own OAuth grant. Private source access follows the provider policy and filesystem boundary. Apple Notes is unavailable to coding agents.
+- Claude Code/Desktop: no Model Context Protocol servers are currently declared. No Gmail connector is declared, and personal document roots remain sandbox-denied in managed sessions.
 - External local Model Context Protocol servers remain explicit and are reported by `workbench drift` rather than silently deleted.
 
 ## Editor and terminal
@@ -44,7 +46,7 @@ The expected connector split is:
 Editors and terminals are user-interface choices owned by dotfiles. They do not
 become first-class agent configuration targets merely because they can host an
 agent extension. Project instructions remain portable through `AGENTS.md` and
-the two managed vendor entry points.
+the three supported coding agents.
 
 ## Bounded parallelism
 

@@ -74,10 +74,11 @@
     {
       "name": "destructive or history-changing git",
       "patterns": [
-        "\\bgit\\s+branch\\s+-D\\b",
-        "\\bgit\\s+clean\\s+[^;&|]*-[^;&|]*f",
-        "\\bgit\\s+push\\s+.*--force(?:-with-lease)?\\b",
-        "\\bgit\\s+reset\\s+--hard\\b",
+        "\\bgit\\s+(?:(?:-[Cc]\\s*|--(?:git-dir|work-tree)(?:=|\\s+))(?:\"[^\"]*\"|'[^']*'|[^\\s;&|()]+)\\s+)*branch\\s+-D\\b",
+        "\\bgit\\s+(?:(?:-[Cc]\\s*|--(?:git-dir|work-tree)(?:=|\\s+))(?:\"[^\"]*\"|'[^']*'|[^\\s;&|()]+)\\s+)*clean\\s+[^;&|]*-[^;&|]*f",
+        "\\bgit\\s+(?:(?:-[Cc]\\s*|--(?:git-dir|work-tree)(?:=|\\s+))(?:\"[^\"]*\"|'[^']*'|[^\\s;&|()]+)\\s+)*push\\s+.*--force(?:-with-lease)?\\b",
+        "\\bgit\\s+(?:(?:-[Cc]\\s*|--(?:git-dir|work-tree)(?:=|\\s+))(?:\"[^\"]*\"|'[^']*'|[^\\s;&|()]+)\\s+)*push\\s+(?:[^;&|]*\\s)?[\"']?-[a-z]*f[a-z]*[\"']?(?=\\s|$)",
+        "\\bgit\\s+(?:(?:-[Cc]\\s*|--(?:git-dir|work-tree)(?:=|\\s+))(?:\"[^\"]*\"|'[^']*'|[^\\s;&|()]+)\\s+)*reset\\s+--hard\\b",
         "\\bgit\\b.*--no-verify\\b"
       ]
     },

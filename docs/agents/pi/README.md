@@ -1,13 +1,13 @@
 # Pi agent - capability overview and build candidates
 
-Snapshot of the managed Pi 0.86.1 harness, checked against published package documentation and repository configuration on 2026-09-20. [Pi design decisions](decisions.md) owns adoption and rejection rationale; this page owns current operational state.
+Snapshot of the managed Pi 0.86.1 harness, reviewed against repository configuration on 2026-10-20. [Pi design decisions](decisions.md) owns adoption and rejection rationale; this page owns current operational state.
 
 ## What pi exposes (official, today)
 
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, verified local clipboard copy, structured workspace file operations, confirmed ingress discard, branded welcome, custom footer, consult, permission policy, the `dev` preset, explicit local/frontier routing, one worktree-isolated worker, confirmed GitHub workflow dispatch, and read-only Google and Strava connectors. The pinned package wraps the existing Agent Browser CLI. Apple Notes is intentionally outside the coding-agent boundary.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, verified local clipboard copy, structured workspace file operations, confirmed ingress discard, branded welcome, custom footer, consult, permission policy, the `dev` preset, explicit local/frontier routing, one worktree-isolated worker, confirmed GitHub workflow dispatch, and the read-only Strava connector. The pinned package wraps the existing Agent Browser CLI. The Google connector is retired; Apple Notes is intentionally outside the coding-agent boundary.
 
 ## Delta over vanilla Pi
 
@@ -22,7 +22,7 @@ differ because only `p` adds the Workbench outer boundary; see the launch matrix
 | Custom footer (`footer.ts`) | Extension | Git state refreshed every 15 seconds and after tools or user shell commands; model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
 | Activity title (`activity-title.ts`) | Extension | Local working row with elapsed time, terminal-tab spinner, repository, deterministic first-prompt session name, active tool, and immediate `/rename` during active work |
 | Welcome mark (`welcome.ts`) | Extension | Branded confirmation that shared configuration loaded, including the authoritative installed Pi version; authority is shown separately |
-| Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, machine-local private paths, remote-MCP default-deny, unrestricted harness edits, and actionable safe alternatives on rejection |
+| Permission policy (`permission-policy.ts` + JSON) | Guardrail | Deny rules for risky shell effects, machine-local private paths, remote-MCP default-deny, managed harness edits, and actionable safe alternatives on rejection |
 | Workspace files (`workspace-files.ts`) | Tool | Workspace-bounded rename, copy, and directory creation without shell mutation; no deletion or overwrite |
 | Ingress discard (`ingress.ts`) | Tool | Confirmed move of one consumed `~/code/ingress` file to Trash; agent handoffs remain lifecycle-managed |
 | Clipboard (`clipboard.ts`) | Tool | Copies approved plain text through the terminal's one-way OSC 52 channel without reading the clipboard or creating temporary files |
@@ -31,7 +31,6 @@ differ because only `p` adds the Workbench outer boundary; see the launch matrix
 | Pi shortcut + native sandbox | Host guardrail | `p` shows `cloud > managed`; full `pi` retains native behavior |
 | Consult (`consult.ts`) | Extension | Native hosted `/consult` provides a second opinion via Claude, Codex, or Fable; managed sessions direct the owner to native Pi, and local sessions refuse cloud consult |
 | Worker (`worker.ts`) | Extension | Starts one child Pi in a sibling Git worktree, reports progress, and supports review and discard; managed children inherit the parent boundary and require an admitted sibling path |
-| Google read-only (`google-readonly.ts`) | Disabled extension | Legacy implementation remains source-visible, but Gmail/Calendar tools, credentials, and Google API endpoints are blocked from managed agent modes |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
 | `pi-agent-browser-native` 0.6.15 | Pinned package | Structured Agent Browser wrapper with optional machine-local public search |
@@ -52,6 +51,11 @@ this prevents duplicate-skill startup warnings. Drift checks the Pi CLI, every
 managed file, and reports unknown skills/extensions/providers/presets as external
 without deleting them. Authentication, trust decisions, sessions, and model cache remain private live state.
 
+Personal hosted sessions default to `openai-codex/gpt-6.1-sol` with medium thinking.
+The work profile leaves provider and model selection to the host's policy and
+rejects known personal settings, providers, extensions, and excluded skills.
+Shared skill deployment uses tracked sources; the Archify archive download path is retired.
+
 ## Prompt navigation
 
 Managed settings use Pi 0.86.1's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
@@ -71,7 +75,12 @@ availability is not a claim that every Git operation succeeds under the boundary
 `/consult` directs managed sessions to native Pi because another vendor's login
 is not admitted. Native hosted Pi can consult; local sessions refuse cloud consult.
 
-The model-callable `worker` tool is the Pi harness's answer to one independent parallel implementation thread. It creates a separate Git worktree, starts one child Pi in the background, and returns control to the parent after setup. A lightweight footer status reports elapsed time without polling or extra model calls; completion produces one notification. `worker review` or `/worker-status` reads the live diff or finished report on demand. The child cannot commit, push, install dependencies, or merge, and adoption remains with the parent. In the `dev` preset the model may delegate without user approval, continue disjoint parent work, review and adopt useful changes, verify them in the parent checkout, and discard the worktree. `/worker <task>`, `/worker-status`, and `/worker-done` remain manual controls.
+The model-callable `worker` tool is the Pi harness's answer to one independent parallel implementation thread. It creates a separate Git worktree, starts one child Pi in the background with the parent's selected provider, model, and thinking level, and returns control to the parent after setup. A lightweight footer status reports elapsed time without polling or extra model calls; completion produces one notification. `worker review` or `/worker-status` reads the live diff or finished report against the captured starting commit, including staged and untracked output. The child is instructed not to commit, push, install dependencies, or merge, and adoption remains with the parent. In the `dev` preset the model may delegate without user approval, continue disjoint parent work, review and adopt useful changes, verify them in the parent checkout, and discard the worktree. `/worker <task>`, `/worker-status`, and `/worker-done` remain manual controls.
+
+Discarding changed output requires an explicit `adopted` or `rejected` disposition.
+Commits not reachable from the parent remain preserved; deliberate rejection of
+those commits requires the manual `/worker-done --force` command. Failed Git
+inspection preserves the worktree. Worker entrypoints reject recursive delegation.
 
 This does not provide workflow fleets, background schedules, or autonomous merging. A worker must start from committed state and must not receive a task that depends on uncommitted parent files. In native hosted sessions, `/consult` covers read-only independent judgment.
 
@@ -83,7 +92,7 @@ identity. Do not import private transcripts into hosted inference automatically.
 
 ## Connector access
 
-General agents have no Gmail, Google Calendar, or Google Drive capability. Their tools are absent from the active preset or blocked by policy; Google connector credentials, local Drive trees, browser destinations, and shared Google API/content endpoints are enforced exclusions in managed sessions. Native Pi retains soft connector guards,
+General agents have no Gmail, Google Calendar, or Google Drive capability. The Google connector implementation is retired; Google connector credentials, local Drive trees, browser destinations, and shared Google API/content endpoints remain enforced exclusions in managed sessions. Native Pi retains soft connector guards,
 which do not contain arbitrary code running with host authority. A future email labeler must be a separate brokered capability rather than an exception inside the coding harness. Apple Notes remains unavailable.
 
 Pi has no MCP client installed. `pi-mcp-adapter` was removed once active source

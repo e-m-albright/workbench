@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -107,6 +108,258 @@ def test_work_profile_sync_is_fail_closed_and_drift_clean(tmp_path, monkeypatch)
     assert drift.drift(tmp_path, ("claude", "pi"), verify_plugins=False, profile="work") == 0
 
 
+def test_pi_drift_requires_installed_metadata_even_when_the_package_declaration_matches(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(drift.shutil, "which", lambda name: f"/usr/local/bin/{name}")
+    sync.sync_pi(tmp_path, deploy_skills=False, deploy_plugins=False)
+    pi_home = tmp_path / ".pi/agent"
+    assert json.loads((pi_home / "settings.json").read_text())["packages"] == [
+        "npm:pi-agent-browser-native@0.6.15"
+    ]
+
+    findings = []
+    drift._check_pi(tmp_path, findings, [])
+
+    manifest = pi_home / "npm/node_modules/pi-agent-browser-native/package.json"
+    assert findings == [
+        f"DRIFT Pi package pi-agent-browser-native: missing installed metadata {manifest}"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        (
+            b'{"name":"pi-agent-browser-native","version":"0.6.14"}',
+            "installed version 0.6.14; expected 0.6.15",
+        ),
+        (b"{invalid", "malformed installed metadata"),
+        (b"[]", "malformed installed metadata"),
+        (b"\xff", "malformed installed metadata"),
+        (b'{"name":"another-package","version":"0.6.15"}', "malformed installed name/version"),
+        (b'{"name":"pi-agent-browser-native","version":15}', "malformed installed name/version"),
+        (b'{"name":"pi-agent-browser-native"}', "malformed installed name/version"),
+    ],
+)
+def test_pi_drift_checks_realized_package_metadata(tmp_path, monkeypatch, metadata, expected):
+    monkeypatch.setattr(drift.shutil, "which", lambda name: f"/usr/local/bin/{name}")
+    sync.sync_pi(tmp_path, deploy_skills=False, deploy_plugins=False)
+    pi_home = tmp_path / ".pi/agent"
+    manifest = pi_home / "npm/node_modules/pi-agent-browser-native/package.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_bytes(metadata)
+    core.write_json(
+        pi_home / "npm/package.json", {"dependencies": {"pi-agent-browser-native": "0.6.15"}}
+    )
+
+    findings = []
+    drift._check_pi(tmp_path, findings, [])
+
+    assert len(findings) == 1
+    assert findings[0].startswith(f"DRIFT Pi package pi-agent-browser-native: {expected}")
+
+
+def test_pi_drift_accepts_matching_installed_version_and_ignores_unmanaged_packages(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(drift.shutil, "which", lambda name: f"/usr/local/bin/{name}")
+    sync.sync_pi(tmp_path, deploy_skills=False, deploy_plugins=False)
+    npm_root = tmp_path / ".pi/agent/npm"
+    core.write_json(
+        npm_root / "node_modules/pi-agent-browser-native/package.json",
+        {"name": "pi-agent-browser-native", "version": "0.6.15"},
+    )
+    external = npm_root / "node_modules/owner-package/package.json"
+    external.parent.mkdir()
+    external.write_text("owner-managed metadata need not be inspected\n")
+
+    findings = []
+    drift._check_pi(tmp_path, findings, [])
+
+    assert findings == []
+    assert external.read_text() == "owner-managed metadata need not be inspected\n"
+
+
+def test_work_profile_does_not_require_or_inspect_personal_pi_package_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(drift.shutil, "which", lambda name: f"/usr/local/bin/{name}")
+    sync.sync_pi(tmp_path, deploy_skills=False, deploy_plugins=False, profile="work")
+    manifest = tmp_path / ".pi/agent/npm/node_modules/pi-agent-browser-native/package.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("dormant personal cache\n")
+
+    findings = []
+    drift._check_pi(tmp_path, findings, [], profile="work")
+
+    assert findings == []
+    assert manifest.read_text() == "dormant personal cache\n"
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "defaultProvider",
+        "defaultModel",
+        "shellCommandPrefix",
+        "packages",
+        "provider",
+        "extension",
+        "shared-skill",
+        "native-skill",
+    ],
+)
+def test_work_drift_rejects_reintroduced_personal_surfaces(tmp_path, monkeypatch, surface, capsys):
+    monkeypatch.setattr(drift.shutil, "which", lambda name: f"/usr/local/bin/{name}")
+    sync.sync_pi(tmp_path, deploy_skills=True, deploy_plugins=False, profile="work")
+    pi_home = tmp_path / ".pi/agent"
+    if surface in {"defaultProvider", "defaultModel", "shellCommandPrefix", "packages"}:
+        path = pi_home / "settings.json"
+        settings = json.loads(path.read_text())
+        settings[surface] = core._settings(core.AGENTS / "pi/settings.json")[surface]
+        path.write_text(json.dumps(settings))
+    elif surface == "provider":
+        shutil.copyfile(core.AGENTS / "pi/models.json", pi_home / "models.json")
+    elif surface == "extension":
+        shutil.copyfile(
+            core.AGENTS / "pi/extensions/inference-router.ts",
+            pi_home / "extensions/inference-router.ts",
+        )
+    else:
+        root = tmp_path / (".agents/skills" if surface == "shared-skill" else ".pi/agent/skills")
+        shutil.copytree(core.AGENTS / "skills/paseo-management", root / "paseo-management")
+
+    assert drift.drift(tmp_path, ("pi",), verify_plugins=False, profile="work") == 1
+    assert "personal" in capsys.readouterr().out
+
+
+def test_personal_to_work_migration_preserves_unknown_additions(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(drift.shutil, "which", lambda name: f"/usr/local/bin/{name}")
+    pi_home = tmp_path / ".pi/agent"
+    pi_home.mkdir(parents=True)
+    for name in ("settings.json", "models.json", "presets.json", "inference-router.json"):
+        shutil.copyfile(core.AGENTS / "pi" / name, pi_home / name)
+    shutil.copytree(core.AGENTS / "pi/extensions", pi_home / "extensions")
+    (pi_home / "extensions/external.ts").write_text("// Owner-managed extension.\n")
+    models_path = pi_home / "models.json"
+    models = json.loads(models_path.read_text())
+    models["providers"]["external"] = {"baseUrl": "https://example.test/v1"}
+    models_path.write_text(json.dumps(models))
+    for root in (".agents/skills", ".pi/agent/skills"):
+        shutil.copytree(
+            core.AGENTS / "skills/paseo-management", tmp_path / root / "paseo-management"
+        )
+    external_skill = pi_home / "skills/external/SKILL.md"
+    external_skill.parent.mkdir(parents=True)
+    external_skill.write_text("---\nname: external\ndescription: Owner-managed skill.\n---\n")
+
+    sync.sync_pi(tmp_path, deploy_skills=True, deploy_plugins=False, profile="work")
+
+    assert drift.drift(tmp_path, ("pi",), verify_plugins=False, profile="work") == 0
+    output = capsys.readouterr().out
+    assert "EXTERNAL Pi extension: external.ts" in output
+    assert "EXTERNAL Pi models.json entry: external" in output
+    assert "EXTERNAL pi skill: external" in output
+    assert not (tmp_path / ".agents/skills/paseo-management").exists()
+    assert not (pi_home / "skills/paseo-management").exists()
+    assert not (pi_home / "extensions/inference-router.ts").exists()
+    assert "defaultProvider" not in json.loads((pi_home / "settings.json").read_text())
+
+
+@pytest.mark.parametrize("profile", ["personal", "work"])
+def test_sync_retires_archify_from_every_skill_root(tmp_path, profile):
+    assert "archify" in core.RETIRED_SKILLS
+    for root in (".claude/skills", ".agents/skills", ".pi/agent/skills"):
+        skill = tmp_path / root / "archify/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: archify\ndescription: Retired installation.\n---\n")
+    findings, external = [], []
+    drift._check_skills(tmp_path / ".agents/skills", "pi", findings, external, profile=profile)
+    drift._check_pi_native_skills(tmp_path / ".pi/agent/skills", findings, external, profile)
+    assert any("retired pi skill still present: archify" in finding for finding in findings)
+    assert not any("archify" in item for item in external)
+
+    sync.sync_claude(tmp_path, deploy_skills=True, deploy_plugins=False, profile=profile)
+    sync.sync_pi(tmp_path, deploy_skills=True, deploy_plugins=False, profile=profile)
+
+    for root in (".claude/skills", ".agents/skills", ".pi/agent/skills"):
+        assert not (tmp_path / root / "archify").exists()
+
+
+def test_sync_reports_skill_repair_and_retirement_then_becomes_unchanged(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setenv("WORKBENCH_HOME", str(tmp_path))
+    assert cli.main(["sync", "pi", "--profile", "work"]) == 0
+    capsys.readouterr()
+    skill = tmp_path / ".agents/skills/testing/SKILL.md"
+    original = skill.read_text()
+    skill.write_text("stale skill")
+    retired = tmp_path / ".pi/agent/skills/archify/SKILL.md"
+    retired.parent.mkdir(parents=True)
+    retired.write_text("retired skill")
+
+    assert cli.main(["sync", "pi", "--profile", "work"]) == 0
+
+    output = capsys.readouterr().out
+    assert "updated ~/.agents/skills/testing" in output
+    assert "updated ~/.pi/agent/skills/archify" in output
+    assert "nothing to change" not in output
+    assert ".tmp" not in output
+    assert ".bak" not in output
+    assert skill.read_text() == original
+    assert not retired.parent.exists()
+    assert cli.main(["sync", "pi", "--profile", "work"]) == 0
+    assert "nothing to change" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("flag", ["--no-skills", "--rules-only"])
+def test_deploy_rejects_sync_only_flags_before_running_commands(tmp_path, flag):
+    result, commands = _run_deploy_recipe(tmp_path, ["pi", flag])
+    assert result.returncode != 0
+    assert flag in result.stderr
+    assert "sync" in result.stderr
+    assert commands == []
+
+
+def test_deploy_forwards_common_arguments_to_both_commands(tmp_path):
+    result, commands = _run_deploy_recipe(tmp_path, ["pi", "--profile", "work", "--no-plugins"])
+    assert result.returncode == 0, result.stderr
+    assert commands == [
+        "sync pi --profile work --no-plugins",
+        "drift pi --profile work --no-plugins",
+    ]
+
+
+def _run_deploy_recipe(tmp_path, arguments):
+    shutil.copyfile(core.ROOT / "justfile", tmp_path / "justfile")
+    launcher = tmp_path / "bin/workbench"
+    launcher.parent.mkdir()
+    launcher.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$DEPLOY_LOG"\n')
+    launcher.chmod(0o755)
+    log = tmp_path / "commands"
+    result = subprocess.run(
+        ["just", "--justfile", str(tmp_path / "justfile"), "deploy", *arguments],
+        env={**os.environ, "DEPLOY_LOG": str(log)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result, log.read_text().splitlines() if log.exists() else []
+
+
+def test_claude_sync_applies_requested_model_and_effort_defaults(tmp_path):
+    path = tmp_path / ".claude/settings.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps({"model": "sonnet", "effortLevel": "high", "custom": True}))
+
+    sync.sync_claude(tmp_path, deploy_skills=False, deploy_plugins=False, profile="work")
+
+    settings = json.loads(path.read_text())
+    assert settings["model"] == "opus"
+    assert settings["effortLevel"] == "medium"
+    assert settings["custom"] is True
+
+
 @pytest.mark.parametrize("command", ["sync", "drift"])
 @pytest.mark.parametrize(
     ("environment", "arguments", "expected"),
@@ -183,7 +436,6 @@ def test_lint_failure_and_success_reach_cli_status(tmp_path, monkeypatch):
     (agents / "codex").mkdir()
     (agents / "codex/default.rules").write_text("")
     (agents / "shared").mkdir()
-    (agents / "shared/external-skills.json").write_text('{"$comment":"test", "skills":[]}')
     index = tmp_path / "playbook/README.md"
     index.parent.mkdir(parents=True)
     index.write_text("# Playbook\n")
@@ -191,7 +443,6 @@ def test_lint_failure_and_success_reach_cli_status(tmp_path, monkeypatch):
     bad_link.write_text("[missing](missing.md)\n")
     monkeypatch.setattr(lint, "ROOT", tmp_path)
     monkeypatch.setattr(lint, "AGENTS", agents)
-    monkeypatch.setattr(lint, "OVERLAYS", agents / "external-skills")
     with contextlib.redirect_stdout(io.StringIO()) as output:
         status = cli.main(["lint"])
     assert "broken local link" in output.getvalue()

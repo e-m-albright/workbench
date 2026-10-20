@@ -7,7 +7,7 @@ import re
 import tomllib
 from collections.abc import Mapping
 
-from workbench.core import AGENTS, CODEX_APPENDIX, WorkbenchError
+from workbench.core import AGENTS, CODEX_APPENDIX, CODEX_DEFAULTS, WorkbenchError
 from workbench.mcp import merge_mcp
 
 
@@ -85,7 +85,7 @@ def merge_codex_config(text: str) -> str:
     if "project_doc_fallback_filenames" not in parsed:
         cleaned = f"{fallback}\n\n{cleaned}" if cleaned else fallback
     # Ordinary launches have managed defaults; explicit named/CLI choices remain separate.
-    replacements = {}
+    replacements = {key: value for key, value in CODEX_DEFAULTS.items() if parsed.get(key) != value}
     if "sandbox_mode" not in parsed or parsed["sandbox_mode"] == "danger-full-access":
         replacements["sandbox_mode"] = "workspace-write"
     if "approval_policy" not in parsed or (
@@ -119,7 +119,7 @@ def merge_codex_config(text: str) -> str:
         reparsed = tomllib.loads(merged)
     except tomllib.TOMLDecodeError as exc:
         raise WorkbenchError(f"generated invalid Codex TOML: {exc}") from exc
-    managed = {"mcp_servers", "tui", "sandbox_mode", "approval_policy"}
+    managed = {"mcp_servers", "tui", "sandbox_mode", "approval_policy", *CODEX_DEFAULTS}
     if any(reparsed.get(key) != value for key, value in parsed.items() if key not in managed):
         raise WorkbenchError(
             "Codex merge would change unrelated configuration; manual review required"
@@ -137,9 +137,26 @@ def merge_codex_rules(canonical: str, live: str) -> str:
     """
     canonical_lines = set(canonical.splitlines())
     marker = "# --- Locally approved additions ---"
-    # Deno was retired from maintained tooling on 2026-10-12. Do not preserve
-    # its former managed approval as though it were a new local exception.
-    retired_rules = {'prefix_rule(pattern=["deno", "add"], decision="allow")'}
+    # Retire former universal approvals: project tasks stay sandboxed, and
+    # outward mutations use the configured reviewer. Do not resurrect these
+    # old managed entries as owner-added exceptions during the next sync.
+    retired_prefixes = {
+        ("deno", "add"),
+        ("uv", "run"),
+        ("just", "check"),
+        ("just", "ci"),
+        ("just", "security"),
+        ("just", "test"),
+        ("just", "test", "verify"),
+        ("just", "--working-directory"),
+        ("just", "--justfile"),
+        ("cargo", "update", "-p"),
+        ("git", "push", "origin"),
+        ("gh", "issue", "comment"),
+        ("gh", "pr", "create"),
+        ("gh", "pr", "edit"),
+        ("gh", "pr", "close"),
+    }
     unsafe_fragments = (
         '"--no-verify"',
         '["git", "reset", "--hard"]',
@@ -150,11 +167,20 @@ def merge_codex_rules(canonical: str, live: str) -> str:
     )
     additions: list[str] = []
     for line in live.splitlines():
+        rule = re.fullmatch(
+            r'prefix_rule\(\s*pattern\s*=\s*(\[[^\]]*\])\s*,\s*decision\s*=\s*"allow"\s*\)',
+            line,
+        )
+        if rule:
+            try:
+                if tuple(json.loads(rule[1])) in retired_prefixes:
+                    continue
+            except (TypeError, ValueError):
+                pass
         if (
             line.startswith("prefix_rule(")
             and line not in canonical_lines
             and line not in additions
-            and line not in retired_rules
             and not any(fragment in line for fragment in unsafe_fragments)
         ):
             additions.append(line)

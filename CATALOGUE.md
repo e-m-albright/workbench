@@ -2,13 +2,11 @@
 
 Timestamped map of maintained agent-intelligence capabilities in this repository.
 
-**Snapshot:** 2026-09-20. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
+**Snapshot:** 2026-10-20. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
 
 The [terminal launch design catalogue](docs/agents/launch-design.md) records the
-October 13, 2026 launcher design and the owner-approved
+managed/native launch split and the owner-approved
 [six-model review corrections](docs/decisions/managed-launch-review.md).
-The historical capability snapshot and counts
-below have not been refreshed as part of that change.
 
 ## Scale snapshot
 
@@ -25,13 +23,16 @@ Text must be UTF-8 without NUL bytes; other files are binary assets, reported by
 
 | Group | Files | Lines |
 |---|---:|---:|
-| Code - source | 44 | 8,826 |
-| Code - tests | 29 | 5,205 |
-| Text | 169 | 18,459 |
-| Generated/vendor | 3 | 1,734 |
-| **Source tree text total** | **245** | **34,224** |
+| Code - source | 46 | 9,873 |
+| Code - tests | 38 | 8,203 |
+| Text | 199 | 20,750 |
+| Generated/vendor | 3 | 2,016 |
+| **Source tree text total** | **286** | **40,842** |
 
-Binary assets: 2 files, 223,107 bytes. Workbench contains 31 local skills and one externally managed skill. Archify's reviewed wrapper and release pin are tracked here; its checksum-verified upstream runtime lives only in the machine-local cache and deployed agent directories.
+Binary assets: 2 files, 223,107 bytes. Workbench contains 31 tracked local skills.
+Archify and its external archive download pipeline are retired; reasons and
+cleanup enforcement live in `RETIRED_SKILLS` in `src/workbench/core.py`.
+Archify and Whiteboard remain [watch candidates for AI-led code understanding](playbook/engineering/review.md#change-comprehension-and-visualization).
 
 ## Registry
 
@@ -41,7 +42,6 @@ Binary assets: 2 files, 223,107 bytes. Workbench contains 31 local skills and on
 | Pi extensions and direct connector adapters | Shared harness; operations depend on inference and launch authority |
 | Shared rules, safety hooks, permission policy, and launchers | Core trust boundary |
 | Reusable skills and their references | Core portable workflow library; 31 local skills after repeated consolidation passes |
-| Archify diagram generation | Active external skill; reviewed wrapper plus checksum-pinned upstream release |
 | Temporary handoff workflow | Active; explicit private state |
 | Reusable prompts | Small supporting surface |
 | Owner document templates | Small supporting surface; Pandoc-backed render contract |
@@ -56,6 +56,8 @@ Binary assets: 2 files, 223,107 bytes. Workbench contains 31 local skills and on
 - Canonical shared rules, skills, prompts, hooks, status lines, permission policy, MCP declarations, plugins, profiles, presets, and Pi extensions.
 - Native deployment into Pi, Claude Code, and Codex.
 - Staged tree replacement, bounded merges that preserve unmanaged state, one-file backups, retired-surface cleanup, and live drift reporting.
+- Personal Pi and Codex defaults use `gpt-6.1-sol` with medium reasoning; Claude uses `opus` with medium effort. Work Pi leaves provider and model selection to host policy.
+- Managed Claude links only its matching native project transcript namespace; settings and provider login handling remain separate.
 - CLI rendering, contextual help, linting, managed-surface validation, and privacy checks.
 
 **Assessment:** Keep. This is Workbench's core reason to exist. Continue using vendor-native configuration and bounded merge logic. Reject additional abstraction when a direct file deployment is sufficient.
@@ -63,7 +65,7 @@ Binary assets: 2 files, 223,107 bytes. Workbench contains 31 local skills and on
 ### Safety and permission boundary
 
 - Shared destructive-shell and sensitive-file guards.
-- Native restricted terminal boundary around Pi, Claude Code, Codex, and their children; explicit unrestricted launch modes remain separate authority choices.
+- A native macOS boundary around `p`, `cc`, `co`, and their children; full vendor commands started from the host retain native authority.
 - Pi command classification, protected-path handling, connector trust rules, and remote MCP denial.
 - Claude permissions and Codex safety-rule merging.
 - Public/private boundary: public rules may point to optional machine-local private context, but never publish its contents.
@@ -73,9 +75,10 @@ Binary assets: 2 files, 223,107 bytes. Workbench contains 31 local skills and on
 ### Pi runtime extensions
 
 - Activity naming, welcome, footer and quota display, one development preset, explicit local/frontier inference routing, and Git safety in the shared harness.
-- Worker delegation in unrestricted sessions and consult in hosted unrestricted sessions; restricted sessions load the extensions but refuse these operations.
+- One worktree worker in native sessions or admitted sibling locations in managed sessions, retaining the parent's model selection and boundary. Review precedes explicit adoption/rejection; unique commits remain preserved and recursive worker entrypoints are blocked.
+- Consult in native hosted sessions; managed sessions direct the owner to native Pi and local inference refuses cloud consult.
 - Confirmed GitHub workflow dispatch and confirmed ingress discard.
-- Read-only Google, Calendar, and Strava integration surfaces. Apple Notes is blocked.
+- Read-only Strava tools for local inference. The Google connector is retired; Google data and Apple Notes remain outside the coding-agent boundary.
 - Agent Browser integration through the pinned native package rather than a competing browser layer.
 
 **Assessment:** Keep selectively. Each extension must provide a capability Pi does not natively supply or enforce a local trust boundary. Review extensions when upstream Pi gains equivalent behavior; remove the local implementation rather than maintaining two paths.
@@ -87,11 +90,9 @@ Binary assets: 2 files, 223,107 bytes. Workbench contains 31 local skills and on
 - Testing and test-suite health, systematic debugging, code review, security review, and dependency audits.
 - Frontend design, prototyping, project files, repository ontology, release, GitHub workflow, workspace recovery, and document and presentation design.
 - Agent instruction, skill authoring, and public-tool discovery through `tool-radar`.
-- Adversarial assessment, Paseo operations, Pi guidance, handoffs, reflection, and validated system-diagram generation through the externally managed `archify` skill.
+- Adversarial assessment, Paseo operations, Pi guidance, handoffs, and reflection.
 
 **Assessment:** Keep, with aggressive deduplication. Skills should remain triggers and workflows that point to canonical doctrine. The health family separates portfolio value, repository operations, and implementation quality; `project-health-review` composes them without duplicating their rubrics. Prior consolidation removed duplicate skills and expired aliases. Merge overlapping skills when they prescribe the same sequence or output contract; do not duplicate project-specific workflow instances here.
-
-Archify is intentionally external. `agents/shared/external-skills.json` pins its official release archive and SHA-256; `agents/external-skills/archify/SKILL.md` is the small reviewed wrapper that shortens trigger metadata and disables upstream self-update behavior. `workbench sync` downloads only a missing or invalid archive, rejects unsafe ZIP contents, caches and composes the verified runtime atomically, and deploys it with ordinary skills. `workbench drift` verifies the cache, wrapper, and deployed tree without network access.
 
 ### Owner document templates
 
@@ -122,7 +123,6 @@ application or maintain duplicate Markdown and HTML prose.
 
 - Remove a local Pi extension when upstream behavior becomes equivalent.
 - Merge skills when their trigger, workflow, and output contract substantially overlap.
-- Review Archify upgrades explicitly by changing its version, release URL, checksum, and wrapper provenance together.
 - Run capability health when the catalogue drifts, upstream behavior may replace a local capability, or the skill portfolio develops overlapping contracts.
 - Run repository health when documentation, automation, dependencies, test feedback, or recurring chores accumulate maintenance drag.
 - Reserve `project-health-review` for an explicit comprehensive pass; use the narrower health skill for ordinary grooming.

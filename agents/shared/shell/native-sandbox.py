@@ -1,6 +1,8 @@
 """Standalone native boundary: no imports or executable discovery from a checkout."""
 
 import contextlib
+import errno
+import fcntl
 import hashlib
 import json
 import os
@@ -199,6 +201,15 @@ def project_denials(root: Path, home: Path) -> tuple[list[str], list[str]]:
     return found["denyRead"], found["denyWrite"]
 
 
+def claude_project_key(cwd: Path):
+    """Use Claude's documented working-directory namespace, without guessing hashes."""
+    value = str(cwd)
+    key = re.sub(r"[^a-zA-Z0-9]", "-", value)
+    # Claude hashes long paths; non-BMP characters also depend on JS code units.
+    # Keep those sessions isolated until an authoritative vendor key is available.
+    return key if len(key) <= 200 and all(ord(char) <= 0xFFFF for char in value) else None
+
+
 def build_plan(
     cwd: Path,
     home: Path,
@@ -249,6 +260,7 @@ def build_plan(
     auth_files = []
     vendor_env = {}
     auth_link = None
+    claude_sessions = None
     manifest = runtime / "native/harness/manifest.json"
     if not manifest.is_file():
         raise ValueError("Missing shared harness; run workbench sync")
@@ -276,6 +288,12 @@ def build_plan(
         vendor_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
         # The host install owns updates; an isolated home must not grow its own copy.
         vendor_env["DISABLE_AUTOUPDATER"] = "1"
+        key = claude_project_key(cwd.resolve())
+        if key:
+            claude_sessions = {
+                "path": str(agent_home / ".claude/projects" / key),
+                "target": str(home / ".claude/projects" / key),
+            }
     elif vendor == "pi":
         command += ["--session-dir", str(agent_home / ".pi/sessions")]
         auth_files = [str(auth / "auth.json"), str(auth / "auth.json.lock")]
@@ -326,6 +344,7 @@ def build_plan(
         str(agent_home),
         str(temp),
         *auth_files,
+        *([claude_sessions["target"]] if claude_sessions else []),
     ]
     browser = tools.get("browser")
     if browser:
@@ -391,7 +410,14 @@ def build_plan(
     filesystem = {
         "denyRead": ["/", *excludes, *project_read],
         "allowRead": read,
-        "allowWrite": [str(root), str(agent_home), str(temp), *shared, *auth_files],
+        "allowWrite": [
+            str(root),
+            str(agent_home),
+            str(temp),
+            *shared,
+            *auth_files,
+            *([claude_sessions["target"]] if claude_sessions else []),
+        ],
         "denyWrite": [
             "/tmp/claude",
             "/private/tmp/claude",
@@ -479,7 +505,7 @@ def build_plan(
         "resume_hint": (
             "workbench: sessions live in this checkout's managed agent home; "
             "run `cc --resume <id>` from this checkout"
-            if vendor == "claude"
+            if vendor == "claude" and claude_sessions is None
             else None
         ),
         "cwd": str(cwd.resolve()),
@@ -499,6 +525,7 @@ def build_plan(
         + [*command, *args],
         "node": str(node),
         "auth_link": auth_link,
+        "claude_sessions": claude_sessions,
         "harness": harness,
         "mandatory_read": [*excludes, *project_read],
         "mandatory_write": [*excludes, *project_write],
@@ -532,6 +559,130 @@ def state_directory(home: Path, directory: Path):
         yield descriptor
     finally:
         os.close(descriptor)
+
+
+def share_claude_sessions(home: Path, source: Path, target: Path) -> None:
+    """Join this native project namespace without parsing or overwriting transcripts."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+
+    def names(descriptor):
+        with os.scandir(descriptor) as entries:
+            return [entry.name for entry in entries]
+
+    def inspect(src, dst=None):
+        for name in names(src):
+            info = os.stat(name, dir_fd=src, follow_symlinks=False)
+            if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
+                raise ValueError("Claude session storage contains a link or special file")
+            existing = None
+            if dst is not None:
+                with contextlib.suppress(FileNotFoundError):
+                    existing = os.stat(name, dir_fd=dst, follow_symlinks=False)
+            if existing is not None and not (
+                (stat.S_ISDIR(info.st_mode) and stat.S_ISDIR(existing.st_mode))
+                or (
+                    stat.S_ISREG(info.st_mode)
+                    and stat.S_ISREG(existing.st_mode)
+                    and name == "sessions-index.json"
+                )
+                or (info.st_dev, info.st_ino) == (existing.st_dev, existing.st_ino)
+            ):
+                raise ValueError("Claude transcript collision; both copies preserved for review")
+            if stat.S_ISDIR(info.st_mode):
+                with contextlib.ExitStack() as stack:
+                    child = os.open(name, flags, dir_fd=src)
+                    stack.callback(os.close, child)
+                    other = None
+                    if existing is not None:
+                        other = os.open(name, flags, dir_fd=dst)
+                        stack.callback(os.close, other)
+                    inspect(child, other)
+
+    def move(src, dst):
+        for name in names(src):
+            info = os.stat(name, dir_fd=src, follow_symlinks=False)
+            if stat.S_ISDIR(info.st_mode):
+                with contextlib.suppress(FileExistsError):
+                    os.mkdir(name, mode=0o700, dir_fd=dst)
+                with contextlib.ExitStack() as stack:
+                    child = os.open(name, flags, dir_fd=src)
+                    stack.callback(os.close, child)
+                    other = os.open(name, flags, dir_fd=dst)
+                    stack.callback(os.close, other)
+                    move(child, other)
+                os.rmdir(name, dir_fd=src)
+            elif stat.S_ISREG(info.st_mode):
+                destination = (
+                    f".workbench-index-{secrets.token_hex(12)}.bak"
+                    if name == "sessions-index.json"
+                    else name
+                )
+                # Preserve open descriptors; first migration still needs stopped sessions.
+                with contextlib.suppress(FileExistsError):
+                    os.link(
+                        name, destination, src_dir_fd=src, dst_dir_fd=dst, follow_symlinks=False
+                    )
+                linked = os.stat(destination, dir_fd=dst, follow_symlinks=False)
+                current = os.stat(name, dir_fd=src, follow_symlinks=False)
+                if (
+                    not stat.S_ISREG(linked.st_mode)
+                    or (linked.st_dev, linked.st_ino) != (info.st_dev, info.st_ino)
+                    or (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino)
+                ):
+                    raise ValueError("Claude session changed during migration; copies preserved")
+                os.unlink(name, dir_fd=src)
+            else:
+                raise ValueError("Claude session storage contains a link or special file")
+
+    with state_directory(home, source.parent) as parent:
+        try:
+            lock_fd = os.open(
+                ".workbench-sessions.lock",
+                os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=parent,
+            )
+        except FileExistsError:
+            lock_fd = os.open(".workbench-sessions.lock", os.O_RDWR | os.O_NOFOLLOW, dir_fd=parent)
+        with os.fdopen(lock_fd, "r+") as lock:
+            metadata = os.fstat(lock.fileno())
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                raise ValueError("Unsafe Claude session migration lock")
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            with state_directory(home, target) as destination:
+                try:
+                    original = os.stat(source.name, dir_fd=parent, follow_symlinks=False)
+                except FileNotFoundError:
+                    original = None
+                if original and stat.S_ISLNK(original.st_mode):
+                    if os.readlink(source.name, dir_fd=parent) != str(target):
+                        raise ValueError("Unexpected Claude session link")
+                    return
+                if original:
+                    with contextlib.ExitStack() as stack:
+                        src = os.open(source.name, flags, dir_fd=parent)
+                        stack.callback(os.close, src)
+                        inspect(src, destination)
+                        if names(src):
+                            # Native Claude rebuilds this cache from the merged JSONL files.
+                            with contextlib.suppress(FileNotFoundError):
+                                os.rename(
+                                    "sessions-index.json",
+                                    f".workbench-index-{secrets.token_hex(12)}.bak",
+                                    src_dir_fd=destination,
+                                    dst_dir_fd=destination,
+                                )
+                        move(src, destination)
+                    try:
+                        os.rmdir(source.name, dir_fd=parent)
+                    except OSError as error:
+                        if error.errno not in (errno.ENOTEMPTY, errno.EEXIST):
+                            raise
+                        raise ValueError(
+                            "Stop managed Claude sessions before first migration; "
+                            "both transcript copies are preserved"
+                        ) from error
+                os.symlink(str(target), source.name, dir_fd=parent)
 
 
 def sync_codex_auth(home: Path, destination: Path) -> bool:
@@ -699,6 +850,9 @@ def initialize_home(plan: dict, home: Path) -> None:
     agent_home = Path(plan["env"]["HOME"])
     with state_directory(home, agent_home):
         pass
+    if plan.get("claude_sessions"):
+        entry = plan["claude_sessions"]
+        share_claude_sessions(home, Path(entry["path"]), Path(entry["target"]))
     harness = plan.get("harness", {"links": [], "files": []})
     # Snapshot before any projected file changes; manifest order is not significant.
     codex_files = {item["path"]: item["source"] for item in harness["files"]}

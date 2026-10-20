@@ -100,7 +100,7 @@ These are provider account credentials, not newly issued inference-only tokens.
 Their existing account scopes may grant more than model inference. The selected
 managed agent can deliberately read, change, or steal its admitted login
 file; this exposure is an accepted tradeoff. No browser credentials, general
-Keychain access, connector grants, host sessions, or credential-bearing MCP
+Keychain access, connector grants, unrelated host session namespaces, or credential-bearing MCP
 configuration are imported. Codex's account-backed apps feature is disabled,
 but that setting does not reduce a stolen token's provider-side scopes.
 
@@ -117,7 +117,7 @@ multiple provider logins from its authentication store.
 | Machine-local private paths | Denied for reads and writes, including named paths inside the selected checkout. Raw meeting recordings, transcripts, and sidecars remain excluded; choosing a repository does not authorize those sources. |
 | Environment files | Real `.env` and `.env.*` paths are denied at every depth, including files created after launch. Documentation templates ending in `.example`, `.sample`, or `.template` remain usable. |
 | Other repositories and personal files | `~/code/public`, `~/Desktop`, and `~/Downloads` are also admitted. Unselected private repositories, ingress, personal files, credentials, and host startup files remain outside the grants. |
-| Agent state | One persistent home per repository plus a private temporary directory for the session. |
+| Agent state | One persistent home per repository plus private session scratch. Claude shares only the matching native project transcript namespace as described [below](#claude-session-history). |
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
 | Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. One ephemeral browser control port is admitted; unrelated localhost services remain blocked. |
 | Public network | Public TCP destinations on ports 80 and 443 are permitted through the runtime proxy. This is a port policy, not application-protocol verification. Private resolved destinations and configured email, Google Drive, and shared Google API/content endpoints are denied. |
@@ -166,8 +166,9 @@ derives a credential-free configuration projection from the installed settings
 under `native/harness/`; there is no separately maintained managed theme,
 model default, or skill catalogue. Each launch refreshes those preferences into
 its isolated home and links the shared code assets read-only. Private connector
-grants, environment secrets, host conversation history, and unrelated project
-state are excluded. Tools remain subject to the outer sandbox even when their
+grants, environment secrets, unrelated host conversation namespaces, and unrelated
+project state are excluded. Claude's transcript exception is described below.
+Tools remain subject to the outer sandbox even when their
 extensions load normally. A shared tool that requires protected host access
 cannot acquire that access by being enabled in the harness. Read-only installed
 plugin and extension trees are trusted code assets, not recursively sanitized
@@ -178,9 +179,44 @@ Managed Claude reads organizational policy under
 is admitted for installed tools. Repository-local `user.name` and `user.email`
 override global identity defaults in the clean environment. Only these scalar
 values are imported; local includes, host Git configuration, hooks, and credential
-helpers are not imported. Claude compaction
-preferences survive projection. On terminal exit, managed Claude names
-`cc --resume <id>` because native Claude uses a different session home.
+helpers are not imported. Claude compaction preferences survive projection.
+
+### Claude session history
+
+Managed Claude retains an isolated settings home while its matching
+`.claude/projects/<encoded cwd>` directory links to the same namespace under
+native `~/.claude/projects/`. The earlier transcript split was a side effect of
+isolated storage. Sharing this directory changes history storage; it does not
+share settings, credentials, all host transcripts, rewind state, or file history.
+The matching namespace is readable and writable inside the managed boundary.
+
+Stop managed Claude sessions before the first migration and avoid concurrent
+writers while it runs. Existing disjoint transcript files merge without parsing
+their contents; conflicting paths preserve both copies and refuse launch.
+Session index caches are backed up for Claude to rebuild. The migration lock
+serializes Workbench launches and does not make arbitrary live writer migration
+safe.
+
+Native namespace encoding replaces characters outside ASCII letters and digits
+with hyphens, so different working directories can collide. This is a shared native namespace,
+not a guarantee of history belonging to exactly one checkout. Workbench supports
+ordinary encoded paths of at most 200 characters whose original code points lie
+within the Basic Multilingual Plane. Longer paths and characters outside that
+range retain isolated transcripts and a `cc --resume <id>` hint; the launcher does
+not guess the vendor's hashing scheme. The current working directory determines
+the namespace, while the ordinary Git checkout determines the managed state home.
+
+Pi and Codex transcripts continue to use isolated managed storage. Resuming any
+confidential local conversation with a hosted model still requires its owner's
+release.
+
+October 20, 2026 acceptance verified synthetic selected-namespace reads and
+appends inside the real macOS boundary while sibling namespace reads and writes
+were denied. Native Claude 2.1.304's `--bare --resume` picker discovered a migrated
+synthetic transcript after index-cache removal. No prompt or model request was
+submitted; this establishes picker discovery, not provider continuation or rewind.
+
+### Project policy and vendor state
 
 Project `.claude/settings.json` and `.claude/settings.local.json` filesystem
 `denyRead` and `denyWrite` lists are snapshotted at startup and applied to every
@@ -197,6 +233,16 @@ malformed or unsupported syntax causes a fresh prompt. It never imports arbitrar
 agent-written permissions, preferences, other roots, or linked state files.
 Changed hook projection invalidates retained hook decisions. Managed Pi preserves
 a valid worker timeout while explicit private/local startup intent fails closed.
+Pi workers may create sibling worktrees under public code, Desktop, or Downloads;
+their direct child processes inherit the parent's selected provider, model,
+thinking level, and outer boundary. Changed output requires an explicit
+adopted/rejected disposition before cleanup. Unique commits and failed Git
+inspections preserve the worktree. Worker entrypoints reject recursive delegation;
+this is a workflow guard rather than an additional operating-system boundary.
+
+The Google connector implementation is retired; its credential and endpoint
+denials remain. Strava's remaining read-only tools require local inference and
+their own OAuth grant, which is unavailable to managed hosted sessions.
 
 For contained Codex sessions, the native permissions item labels the outer
 boundary. Its named inner full-access profile does not replace that boundary.

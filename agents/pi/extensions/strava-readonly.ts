@@ -1,7 +1,7 @@
 /**
  * strava-readonly — owned read-only Strava tools for Pi
  *
- * Sibling of google-readonly.ts: direct REST against strava.com, loopback OAuth,
+ * Direct REST against strava.com, loopback OAuth,
  * read-only scopes, 0600 token storage, no third-party code in the token path.
  * Exists because Strava's MCP discovery metadata is incompatible with local MCP
  * proxies; the plain personal API is free and stable.

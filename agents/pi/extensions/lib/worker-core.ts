@@ -14,6 +14,7 @@ export function buildWorkerPrompt(task: string, branch: string): string {
 
 Rules:
 - Work only inside this directory.
+- Complete the task directly; do not delegate another worker.
 - Do not run git commit, merge, push, or any other git mutation; leave all changes uncommitted for the parent agent to review.
 - Do not install or remove dependencies, deploy, or touch files outside this worktree.
 - Run the project's relevant tests or checks to verify your changes and include the output summary.
@@ -24,12 +25,15 @@ ${task}
 Finish with a concise report: what changed (file list), how it was verified, and anything left open.`;
 }
 
-export function reviewInstructions(dir: string, branch: string): string {
+export function reviewInstructions(dir: string, branch: string, baseCommit: string): string {
 	return [
 		`Worktree: ${dir}`,
 		`Branch: ${branch}`,
-		`Review:  git -C ${dir} diff`,
+		`Starting commit: ${baseCommit}`,
+		`Review:  git -C ${dir} diff ${baseCommit} --`,
+		"Working tree status includes staged, unstaged, and untracked files; read untracked files separately.",
 		"Adopt useful changes in the parent checkout, then verify them there.",
-		"Cleanup: call the worker tool with action=discard, or use /worker-done --force.",
+		"Cleanup: call the worker tool with action=discard and disposition=adopted or rejected after reviewing output. Clean workers need no disposition.",
+		"Unique commits are preserved; /worker-done --force explicitly rejects them and any uncommitted output.",
 	].join("\n");
 }
