@@ -12,6 +12,7 @@ from typing import Any
 from workbench.codex import expected_codex_rules_md, merge_codex_config, merge_codex_rules
 from workbench.core import (
     AGENTS,
+    CLAUDE_AUTO_MODE,
     CLAUDE_DEFAULTS,
     CLAUDE_SANDBOX,
     DATA_REL,
@@ -205,6 +206,7 @@ def merge_claude_settings(
         # counter the Fable/Opus jargon drift.
         "outputStyle": "Concise",
         "sandbox": CLAUDE_SANDBOX,
+        "autoMode": CLAUDE_AUTO_MODE,
     }
     result = {**existing, **managed}
     retained_plugins = existing.get("enabledPlugins", {})
