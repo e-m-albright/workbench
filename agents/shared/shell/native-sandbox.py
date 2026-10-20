@@ -29,6 +29,12 @@ GUARD = """
 (deny distributed-notification-post)
 (deny sysctl-read (sysctl-name-prefix "kern.proc"))
 (deny process-info*)
+; Certificate evaluation only; Go tools such as gh fail TLS checks without it.
+(allow mach-lookup (global-name "com.apple.trustd.agent"))
+; Chromium, as Playwright runs it, hands ports to its own children through a
+; per-process name; refusing it aborts the browser at startup.
+(allow mach-register mach-lookup
+  (global-name-prefix "org.chromium.Chromium.MachPortRendezvousServer."))
 ; Match future environment files and confidential directories too, not just
 ; paths present at launch. Seatbelt does not support regex lookahead; exclude
 ; templates with native filters instead. Character classes ignore case.
@@ -48,7 +54,25 @@ GUARD = """
 SESSION_SIGNAL_GUARD = "\n(deny signal)\n(allow signal (target same-sandbox))\n"
 
 
-def harden(command: str, browser_port: int = 0, mandatory_rules: str = "") -> list[str]:
+def loopback_rules(ports: list[int]) -> str:
+    """Let a session serve locally and reach only the owner's listed loopback ports.
+
+    Binding and inbound are local operations, so any address is safe there (the
+    runtime explains why IPv4-mapped sockets need "*:*"). Outbound stays limited
+    to the listed ports, never every service on the Mac's loopback.
+    """
+    if not ports:
+        return ""
+    if not all(type(port) is int and 0 < port < 65536 for port in ports):
+        raise ValueError("Loopback ports must be integers from 1 to 65535")
+    rules = ['(allow network-bind (local ip "*:*"))', '(allow network-inbound (local ip "*:*"))']
+    rules += [f'(allow network-outbound (remote ip "localhost:{port}"))' for port in ports]
+    return "\n" + "\n".join(rules) + "\n"
+
+
+def harden(
+    command: str, browser_port: int = 0, mandatory_rules: str = "", ports: list[int] = ()
+) -> list[str]:
     """Adapt the pinned upstream's quoted argv, refusing an unfamiliar output shape."""
     args = shlex.split(command)
     if not args or args[0] != "env":
@@ -62,7 +86,7 @@ def harden(command: str, browser_port: int = 0, mandatory_rules: str = "") -> li
         raise ValueError("Unexpected sandbox runtime environment")
     if not args[sandbox + 2].startswith("(version 1)\n(deny default"):
         raise ValueError("Sandbox runtime no longer denies by default")
-    args[sandbox + 2] += GUARD
+    args[sandbox + 2] += GUARD + loopback_rules(list(ports))
     if browser_port:
         if not 1024 <= browser_port <= 65535:
             raise ValueError("Invalid browser control port")
@@ -154,6 +178,209 @@ def git_identity(home: Path, cwd: Path) -> dict:
     return identity
 
 
+GRANTS = ".config/workbench/repository-grants.json"
+REPOSITORY_GRANTS = {"github", "aws", "ports", "docker", "paths"}
+# Git asks this helper for GitHub credentials; it answers from the launch token
+# so neither a host credential helper nor the protected .git/config is needed.
+GITHUB_HELPER = (
+    '!f() { test "$1" = get && '
+    "printf 'username=x-access-token\\npassword=%s\\n' \"$GH_TOKEN\"; }; f"
+)
+DOCKER_SOCKETS = (
+    "/var/run/docker.sock",
+    "~/.orbstack/run/docker.sock",
+    "~/.docker/run/docker.sock",
+    "~/.colima/default/docker.sock",
+)
+DOCKER_CLIENTS = ("/usr/local/bin/docker", "/opt/homebrew/bin/docker")
+
+
+def host_output(home: Path, command: list[str], failure: str, run=subprocess.run) -> str:
+    """Run a host credential tool with the owner's home, returning its trimmed output."""
+    env = {"HOME": str(home), "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"}
+    try:
+        result = run(command, env=env, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        raise ValueError(failure) from None
+    if result.returncode != 0 or not result.stdout.strip():
+        raise ValueError(failure)
+    return result.stdout.strip()
+
+
+def aws_command() -> str:
+    candidates = ("/opt/homebrew/bin/aws", "/usr/local/bin/aws")
+    return next((path for path in candidates if Path(path).exists()), "aws")
+
+
+def repository_grants(home: Path, root: Path) -> dict:
+    """Read what the owner assigned to this checkout, failing on any typo.
+
+    `~/.config/workbench/repository-grants.json` maps a checkout path to a
+    Keychain service holding a GitHub token scoped to that repository, an AWS
+    profile whose role should reach only a sandbox account, the loopback ports
+    its own services use, Docker access, and extra read-write directories.
+    Sessions cannot edit this file. Provider-side scope is the real credential
+    limit; the session can use or leak what it receives.
+    """
+    path = home / GRANTS
+    if not path.is_file():
+        if (home / ".config/workbench/repo-credentials.json").is_file():
+            raise ValueError(f"Rename ~/.config/workbench/repo-credentials.json to ~/{GRANTS}")
+        return {}
+    try:
+        config = json.loads(path.read_text())
+    except ValueError as error:
+        raise ValueError(f"Unreadable {path}: {error}") from None
+    if not isinstance(config, dict):
+        raise ValueError(f"{path} must map checkout paths to grants")
+    entry = None
+    for key, value in config.items():
+        checkout = Path(str(home) + key[1:] if key.startswith("~/") else key)
+        if checkout.resolve() == root:
+            entry = value
+    if entry is None:
+        return {}
+    if (
+        not isinstance(entry, dict)
+        or not set(entry) <= REPOSITORY_GRANTS
+        or not all(
+            isinstance(entry[key], str) and entry[key] for key in {"github", "aws"} & set(entry)
+        )
+        or not isinstance(entry.get("ports", []), list)
+        or not isinstance(entry.get("docker", False), bool)
+        or not isinstance(entry.get("paths", []), list)
+        or not all(isinstance(item, str) and item for item in entry.get("paths", []))
+    ):
+        raise ValueError(
+            f"{path}: each checkout maps 'github' and 'aws' to names, 'ports' and 'paths' "
+            "to lists, and 'docker' to true or false"
+        )
+    loopback_rules(entry.get("ports", []))
+    paths = []
+    for item in entry.get("paths", []):
+        directory = Path(str(home) + item[1:] if item.startswith("~/") else item)
+        if not directory.is_absolute() or not directory.is_dir():
+            raise ValueError(f"{path}: extra path {item!r} must be an existing absolute directory")
+        directory = directory.resolve()
+        if directory == home or directory in home.parents:
+            raise ValueError(f"{path}: extra path {item!r} cannot be the home or an ancestor")
+        paths.append(str(directory))
+    return {**entry, "paths": paths}
+
+
+def repository_credentials(home: Path, grants: dict, run=subprocess.run) -> dict:
+    """Issue the GitHub token and AWS profile settings assigned to this checkout.
+
+    AWS keys are written by `refresh_aws`, not passed here.
+    """
+    issued = {}
+    if "github" in grants:
+        service = grants["github"]
+        token = host_output(
+            home,
+            ["/usr/bin/security", "find-generic-password", "-s", service, "-w"],
+            f"No GitHub token in Keychain service {service!r}; add it with "
+            f"`security add-generic-password -s {service} -a github -w`",
+            run,
+        )
+        issued.update(
+            {
+                "GH_TOKEN": token,
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "credential.https://github.com.helper",
+                "GIT_CONFIG_VALUE_0": GITHUB_HELPER,
+            }
+        )
+    if "aws" in grants:
+        profile = grants["aws"]
+        # The session's profile shares the host profile's name, so a project
+        # setting such as AWS_PROFILE resolves the same way inside and outside.
+        issued["AWS_PROFILE"] = profile
+        with contextlib.suppress(ValueError):
+            command = [aws_command(), "configure", "get", "region", "--profile", profile]
+            region = host_output(home, command, "", run)
+            issued.update({"AWS_REGION": region, "AWS_DEFAULT_REGION": region})
+    return issued
+
+
+def refresh_aws(home: Path, agent_home: Path, profile: str, run=subprocess.run) -> None:
+    """Write one profile's short-lived keys into the session's own credentials file.
+
+    A role assumed from an SSO session lasts at most an hour, so the supervisor
+    calls this again during the session; the host CLI reuses its cached keys
+    until they near expiry. The SSO cache itself never enters the session.
+    """
+    # A role profile signs in through its source profile, so name that one.
+    try:
+        source = host_output(
+            home,
+            [aws_command(), "configure", "get", "source_profile", "--profile", profile],
+            "",
+            run,
+        )
+    except ValueError:
+        source = profile
+    failure = f"AWS profile {profile!r} has no session; run `aws sso login --profile {source}`"
+    command = [aws_command(), "configure", "export-credentials", "--profile", profile]
+    exported = host_output(home, [*command, "--format", "process"], failure, run)
+    try:
+        keys = json.loads(exported)
+        lines = [
+            f"[{profile}]",
+            f"aws_access_key_id = {keys['AccessKeyId']}",
+            f"aws_secret_access_key = {keys['SecretAccessKey']}",
+        ]
+    except (ValueError, KeyError, TypeError):
+        raise ValueError(failure) from None
+    if keys.get("SessionToken"):
+        lines.append(f"aws_session_token = {keys['SessionToken']}")
+    write_state_file(home, agent_home / ".aws/credentials", "\n".join(lines).encode() + b"\n")
+
+
+def docker_access(home: Path) -> dict:
+    """Find the running engine's socket and the client installation it needs.
+
+    The Docker socket is a full escape from this boundary: a container can mount
+    any host path the engine shares. Only checkouts the owner lists receive it.
+    """
+    socket_path = next(
+        (
+            path.resolve()
+            for name in DOCKER_SOCKETS
+            if (path := Path(name.replace("~/", f"{home}/", 1))).exists()
+        ),
+        None,
+    )
+    if socket_path is None:
+        raise ValueError(
+            "Docker is granted to this checkout, but no engine socket exists; start it"
+        )
+    read = [str(socket_path)]
+    plugins = []
+    client = next((Path(name) for name in DOCKER_CLIENTS if Path(name).exists()), None)
+    if client:
+        binary = client.resolve()
+        bundle = next((parent for parent in binary.parents if parent.suffix == ".app"), None)
+        read.append(str(bundle / "Contents" if bundle else binary.parent))
+        for directory in (
+            binary.parent,
+            *([bundle / "Contents/Resources/cli-plugins"] if bundle else []),
+        ):
+            if (directory / "docker-compose").exists():
+                plugins.append(str(directory))
+    return {"socket": str(socket_path), "read": read, "plugins": plugins}
+
+
+def screenshot_directory() -> list[str]:
+    """macOS hands dragged screenshots to the terminal from the user's temporary items."""
+    try:
+        temporary = os.confstr("CS_DARWIN_USER_TEMP_DIR")
+    except (ValueError, OSError):
+        return []
+    directory = Path(temporary or "/nonexistent") / "TemporaryItems"
+    return [str(directory.resolve())] if directory.is_dir() else []
+
+
 def project_denials(root: Path, home: Path) -> tuple[list[str], list[str]]:
     """Snapshot project Claude sandbox denials; agent-editable allow lists never widen access."""
     found = {"denyRead": [], "denyWrite": []}
@@ -236,6 +463,8 @@ def build_plan(
             "start the full vendor command from the host for integrations"
         )
     root = workspace_root(cwd, home)
+    grants = repository_grants(home, root)
+    docker = docker_access(home) if grants.get("docker") else None
     runtime = home / ".local/share/workbench"
     if root == runtime or root in runtime.parents or runtime in root.parents:
         raise ValueError("The installed boundary cannot be a writable workspace")
@@ -333,6 +562,11 @@ def build_plan(
         str(node.parent.parent / "lib/node_modules/npm"),
         # Managed tool installations only, not host settings or package caches.
         str(home / ".local/share/uv/python"),
+        # Browsers the host installed; Playwright's download host redirects to
+        # Google storage, which the invariant domain list denies.
+        str(home / "Library/Caches/ms-playwright"),
+        *screenshot_directory(),
+        *(docker["read"] if docker else []),
         str(home / ".npm-global/bin"),
         str(home / ".npm-global/global"),
         str(home / ".npm-global/lib/node_modules/agent-browser"),
@@ -349,7 +583,10 @@ def build_plan(
     browser = tools.get("browser")
     if browser:
         read.append(str(Path(browser).parent))
-    shared = [str(home / name) for name in ("code/public", "Desktop", "Downloads")]
+    shared = [
+        *(str(home / name) for name in ("code/public", "Desktop", "Downloads")),
+        *grants.get("paths", []),
+    ]
     # Node runs the supervisor before containment. Protect its executable and
     # loader tree from every launch-specific write grant, including symlink targets.
     bootstrap = node.resolve().parent
@@ -452,7 +689,7 @@ def build_plan(
             # Upstream also grants all outbound localhost ports with this option.
             "allowLocalBinding": False,
             # The browser daemon needs local IPC; host service sockets stay denied.
-            "allowUnixSockets": [str(temp / "browser")],
+            "allowUnixSockets": [str(temp / "browser"), *([docker["socket"]] if docker else [])],
         },
     }
     env = {key: os.environ[key] for key in ("TERM", "COLORTERM", "LANG") if key in os.environ}
@@ -479,8 +716,11 @@ def build_plan(
             "WORKBENCH_AGENT_AUTHORITY": authority,
             "WORKBENCH_AGENT_LOCATION": location,
             "WORKBENCH_HOST_HOME": str(home),
+            "PLAYWRIGHT_BROWSERS_PATH": str(home / "Library/Caches/ms-playwright"),
+            **({"DOCKER_HOST": f"unix://{docker['socket']}"} if docker else {}),
             **vendor_env,
             **git_identity(home, root),
+            **repository_credentials(home, grants),
         }
     )
     if browser and browser_port:
@@ -534,6 +774,10 @@ def build_plan(
         ],
         "authority": authority,
         "browser_port": browser_port if browser else 0,
+        "ports": grants.get("ports", []),
+        "aws_profile": grants.get("aws"),
+        # Compose and other CLI plugins live in the client installation, not the isolated home.
+        "docker_config": {"cliPluginsExtraDirs": docker["plugins"]} if docker else None,
     }
 
 
@@ -904,17 +1148,25 @@ def initialize_home(plan: dict, home: Path) -> None:
             content = retain_codex_trust(
                 content, previous_config, previous_hooks, new_hooks, agent_home, plan["root"]
             )
-        with state_directory(home, path.parent) as descriptor:
-            # Atomic replacement also breaks hostile hardlinks; never truncate a state file.
-            temporary = f".workbench-{secrets.token_hex(12)}"
-            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=descriptor)
-            try:
-                with os.fdopen(fd, "wb") as stream:
-                    stream.write(content)
-                os.replace(temporary, path.name, src_dir_fd=descriptor, dst_dir_fd=descriptor)
-            finally:
-                with contextlib.suppress(FileNotFoundError):
-                    os.unlink(temporary, dir_fd=descriptor)
+        write_state_file(home, path, content)
+    if plan.get("docker_config"):
+        content = json.dumps(plan["docker_config"]).encode()
+        write_state_file(home, agent_home / ".docker/config.json", content)
+
+
+def write_state_file(home: Path, path: Path, content: bytes) -> None:
+    """Replace a file in agent-writable state without following planted links."""
+    with state_directory(home, path.parent) as descriptor:
+        # Atomic replacement also breaks hostile hardlinks; never truncate a state file.
+        temporary = f".workbench-{secrets.token_hex(12)}"
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=descriptor)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(content)
+            os.replace(temporary, path.name, src_dir_fd=descriptor, dst_dir_fd=descriptor)
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(temporary, dir_fd=descriptor)
 
 
 def browser_session(command: list[str]) -> None:
@@ -1067,8 +1319,13 @@ def main() -> None:
                 sys.argv[2],
                 int(sys.argv[3]) if len(sys.argv) > 3 else 0,
                 sys.argv[4] if len(sys.argv) > 4 else "",
+                json.loads(sys.argv[5]) if len(sys.argv) > 5 else [],
             )
         )
+    if sys.argv[1:2] == ["--refresh-aws"]:
+        request = json.loads(sys.argv[2])
+        refresh_aws(Path(request["home"]), Path(request["agent_home"]), request["profile"])
+        return
     if sys.platform != "darwin":
         raise ValueError("The native boundary requires macOS")
     if len(sys.argv) < 3:
@@ -1106,6 +1363,13 @@ def main() -> None:
         if sys.argv[1] == "codex":
             sync_codex_auth(home, Path(plan["auth_link"]["target"]))
         initialize_home(plan, home)
+        if plan["aws_profile"]:
+            refresh_aws(home, Path(plan["env"]["HOME"]), plan["aws_profile"])
+            plan["aws_refresh"] = {
+                "home": str(home),
+                "agent_home": plan["env"]["HOME"],
+                "profile": plan["aws_profile"],
+            }
     except Exception:
         scratch.rmdir()
         raise
