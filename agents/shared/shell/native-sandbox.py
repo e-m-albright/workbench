@@ -487,6 +487,7 @@ def build_plan(
         command[0] = str(target)
     auth = runtime / "model-auth" / vendor
     auth_files = []
+    auth_staging = []
     vendor_env = {}
     auth_link = None
     claude_sessions = None
@@ -514,6 +515,8 @@ def build_plan(
     elif vendor == "claude":
         command += ["--settings", json.dumps({"sandbox": {"enabled": False}})]
         auth_files = [str(auth / ".credentials.json"), str(auth / ".storage-write.lock")]
+        # Claude saves logins and refreshed tokens by renaming a sibling temp file over the file.
+        auth_staging = [str(auth / ".credentials.json.tmp.*")]
         vendor_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
         # The host install owns updates; an isolated home must not grow its own copy.
         vendor_env["DISABLE_AUTOUPDATER"] = "1"
@@ -653,6 +656,7 @@ def build_plan(
             str(temp),
             *shared,
             *auth_files,
+            *auth_staging,
             *([claude_sessions["target"]] if claude_sessions else []),
         ],
         "denyWrite": [

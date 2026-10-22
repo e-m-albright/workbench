@@ -96,12 +96,14 @@ up and replace one vendor's login. `workbench native status [VENDOR]` reports
 preparation, projection, state paths, and login metadata without token or history
 reads.
 
-`/login` inside `cc` cannot save a new Claude token. This is by design: the
-managed boundary blocks the Keychain service, and only the exact enrolled
-credential file is writable, so a login there does not persist. When the managed
-Claude token is expired or revoked, run `claude` outside `cc`, use `/login` there,
-and then run `workbench native authorize claude --replace` to back up the old
-managed login and copy the new one from the Keychain.
+The managed boundary blocks the Keychain service, so `cc` stores Claude's login
+only in the enrolled credential file. Claude saves that file by renaming a
+sibling `.credentials.json.tmp.*` file over it, so the boundary admits writes to
+exactly that file and those staging names. `/login` and token refreshes inside
+`cc` therefore persist to the managed login. To replace the managed login with
+the host's instead, sign in with `claude` outside `cc` and run
+`workbench native authorize claude --replace`, which backs up the old managed
+login and copies the new one from the Keychain.
 
 These deliberately agent-readable credentials keep
 their provider account scopes and are not inference-only grants. Machine-local

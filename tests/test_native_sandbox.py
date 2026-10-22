@@ -347,6 +347,10 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
         assert plan["env"]["WORKBENCH_PI_MODE"] == "hosted-managed"
     else:
         assert plan["env"]["CLAUDE_SECURESTORAGE_CONFIG_DIR"] == str(store)
+        writable = plan["policy"]["filesystem"]["allowWrite"]
+        assert str(store / ".credentials.json.tmp.*") in writable
+        assert str(store) not in writable
+        assert not any("*" in path for path in plan["policy"]["filesystem"]["allowRead"])
 
 
 def test_home_initialization_refuses_agent_planted_parent_symlinks(tmp_path):
