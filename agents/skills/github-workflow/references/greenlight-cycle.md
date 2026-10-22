@@ -42,7 +42,7 @@ If the change spans multiple stacks, run all the gates the diff touches, or call
 - **PR body churn.** Every edit to the PR body retriggers PR-text workflows. Refresh the body once, at the end, after the diff stabilizes. Sibling-agent pushes are not a reason to re-edit, only to re-read.
 - **Long polling for CI status.** Setting a 5-10 minute wakeup to "check CI" is a smell. Use `gh pr checks <num> --watch` (foreground) or `run_in_background: true` (background) so you get notified the instant a check flips.
 - **Trusting only the pre-commit hook.** Pre-commit hooks are fast smoke checks, not the full gate. Pre-push is closer to parity, but still subsets some checks for speed.
-- **Pushing the fix before reading the failure.** Always pull `gh run view --log-failed --job=<id>` for the exact line first. Otherwise you'll fix the wrong thing.
+- **Pushing the fix before reading the failure.** Always pull `gh run view --log-failed --job=<id>` for the exact line first. Otherwise you'll fix the wrong thing. Fetch it yourself as soon as the failed job finishes; do not wait for the whole run or ask the owner to fetch it. Run-level `gh run view <run> --log-failed` refuses while other jobs are still running, so list failed job IDs with `gh run view <run> --json jobs --jq '.jobs[] | select(.conclusion=="failure") | .databaseId'` and read each with `gh run view --job <id> --log-failed`.
 - **Re-running CI to "see if it works now" without changing anything.** If you pushed nothing new, the result will be identical. Read the log instead.
 
 ## Sibling-agent races
