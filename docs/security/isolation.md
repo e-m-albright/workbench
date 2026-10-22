@@ -234,7 +234,9 @@ Changes require a new launch.
 
 `~/.config/workbench/repository-grants.json` lists what one checkout receives
 beyond the default boundary. Sessions cannot read or edit it. Each key is a
-checkout path, and each value may contain:
+checkout path, or `*` for every checkout. A checkout's own entry overrides
+`*` key by key, so `*` can hold one broad GitHub token while specific checkouts
+add AWS, Docker, or a narrower token. Each value may contain:
 
 - `github`: a Keychain service holding a GitHub token scoped to that
   repository. The launch exports it as `GH_TOKEN` with a Git credential helper,
@@ -257,6 +259,7 @@ checkout path, and each value may contain:
 
 ```json
 {
+  "*": { "github": "workbench-github-all" },
   "~/code/example/app": {
     "github": "workbench-github-app",
     "ports": [5432],

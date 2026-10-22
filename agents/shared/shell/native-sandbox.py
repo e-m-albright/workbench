@@ -240,7 +240,8 @@ def repository_grants(home: Path, root: Path) -> dict:
     Keychain service holding a GitHub token scoped to that repository, an AWS
     profile whose role should reach only a sandbox account, the loopback ports
     its own services use, Docker access, its own environment files, and extra
-    read-write directories.
+    read-write directories. A `*` entry applies to every checkout; a checkout's
+    own entry overrides it key by key.
     Sessions cannot edit this file. Provider-side scope is the real credential
     limit; the session can use or leak what it receives.
     """
@@ -258,13 +259,27 @@ def repository_grants(home: Path, root: Path) -> dict:
         raise ValueError(f"Unreadable {path}: {error}") from None
     if not isinstance(config, dict):
         raise ValueError(f"{path} must map checkout paths to grants")
-    entry = None
+    entries = [config["*"]] if "*" in config else []
     for key, value in config.items():
         checkout = Path(str(home) + key[1:] if key.startswith("~/") else key)
-        if checkout.resolve() == root:
-            entry = value
-    if entry is None:
-        return {}
+        if key != "*" and checkout.resolve() == root:
+            entries.append(value)
+    for entry in entries:
+        validate_grant(path, entry)
+    entry = {key: value for entry in entries for key, value in entry.items()}
+    paths = []
+    for item in entry.get("paths", []):
+        directory = Path(str(home) + item[1:] if item.startswith("~/") else item)
+        if not directory.is_absolute() or not directory.is_dir():
+            raise ValueError(f"{path}: extra path {item!r} must be an existing absolute directory")
+        directory = directory.resolve()
+        if directory == home or directory in home.parents:
+            raise ValueError(f"{path}: extra path {item!r} cannot be the home or an ancestor")
+        paths.append(str(directory))
+    return {**entry, "paths": paths} if entries else {}
+
+
+def validate_grant(path: Path, entry) -> None:
     if (
         not isinstance(entry, dict)
         or not set(entry) <= REPOSITORY_GRANTS
@@ -282,16 +297,6 @@ def repository_grants(home: Path, root: Path) -> dict:
             "to lists, and 'docker' and 'env' to true or false"
         )
     loopback_rules(entry.get("ports", []))
-    paths = []
-    for item in entry.get("paths", []):
-        directory = Path(str(home) + item[1:] if item.startswith("~/") else item)
-        if not directory.is_absolute() or not directory.is_dir():
-            raise ValueError(f"{path}: extra path {item!r} must be an existing absolute directory")
-        directory = directory.resolve()
-        if directory == home or directory in home.parents:
-            raise ValueError(f"{path}: extra path {item!r} cannot be the home or an ancestor")
-        paths.append(str(directory))
-    return {**entry, "paths": paths}
 
 
 def repository_credentials(home: Path, grants: dict, run=subprocess.run) -> dict:

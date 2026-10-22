@@ -659,6 +659,26 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
         config.write_text(json.dumps({str(repo): {"paths": [path]}}))
         with pytest.raises(ValueError, match="extra path"):
             launcher.repository_grants(home, repo)
+    config.write_text(
+        json.dumps(
+            {
+                "*": {"github": "everywhere", "env": True},
+                "~/code/example": {"github": "example-token", "aws": "sandbox"},
+            }
+        )
+    )
+    # The checkout's own entry wins key by key; the default fills the rest.
+    assert launcher.repository_grants(home, repo) == {
+        "github": "example-token",
+        "env": True,
+        "aws": "sandbox",
+        "paths": [],
+    }
+    config.write_text(json.dumps({"*": {"github": "everywhere"}}))
+    assert launcher.repository_grants(home, repo) == {"github": "everywhere", "paths": []}
+    config.write_text(json.dumps({"*": {"docker": "yes"}, str(repo): {"docker": True}}))
+    with pytest.raises(ValueError, match="each checkout maps"):
+        launcher.repository_grants(home, repo)
     (config.parent / "repo-credentials.json").write_text("{}")
     with pytest.raises(ValueError, match="Merge"):
         launcher.repository_grants(home, repo)
