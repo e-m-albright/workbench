@@ -223,9 +223,12 @@ def repository_grants(home: Path, root: Path) -> dict:
     limit; the session can use or leak what it receives.
     """
     path = home / GRANTS
+    # A leftover legacy file would otherwise silently withhold the grants it holds.
+    if (home / ".config/workbench/repo-credentials.json").is_file():
+        raise ValueError(
+            f"Merge ~/.config/workbench/repo-credentials.json into ~/{GRANTS}, then delete it"
+        )
     if not path.is_file():
-        if (home / ".config/workbench/repo-credentials.json").is_file():
-            raise ValueError(f"Rename ~/.config/workbench/repo-credentials.json to ~/{GRANTS}")
         return {}
     try:
         config = json.loads(path.read_text())
@@ -303,12 +306,15 @@ def repository_credentials(home: Path, grants: dict, run=subprocess.run) -> dict
     return issued
 
 
-def refresh_aws(home: Path, agent_home: Path, profile: str, run=subprocess.run) -> None:
+def refresh_aws(
+    home: Path, agent_home: Path, profile: str, run=subprocess.run, *, launching=True
+) -> None:
     """Write one profile's short-lived keys into the session's own credentials file.
 
     A role assumed from an SSO session lasts at most an hour, so the supervisor
     calls this again during the session; the host CLI reuses its cached keys
-    until they near expiry. The SSO cache itself never enters the session.
+    until they near expiry and re-assumes the role once SSO is valid again.
+    The SSO cache itself never enters the session.
     """
     # A role profile signs in through its source profile, so name that one.
     try:
@@ -322,18 +328,21 @@ def refresh_aws(home: Path, agent_home: Path, profile: str, run=subprocess.run) 
         source = profile
     failure = f"AWS profile {profile!r} has no session; run `aws sso login --profile {source}`"
     command = [aws_command(), "configure", "export-credentials", "--profile", profile]
-    exported = host_output(home, [*command, "--format", "process"], failure, run)
     try:
-        keys = json.loads(exported)
+        keys = json.loads(host_output(home, [*command, "--format", "process"], failure, run))
         lines = [
             f"[{profile}]",
             f"aws_access_key_id = {keys['AccessKeyId']}",
             f"aws_secret_access_key = {keys['SecretAccessKey']}",
         ]
+        if keys.get("SessionToken"):
+            lines.append(f"aws_session_token = {keys['SessionToken']}")
     except (ValueError, KeyError, TypeError):
-        raise ValueError(failure) from None
-    if keys.get("SessionToken"):
-        lines.append(f"aws_session_token = {keys['SessionToken']}")
+        if launching:
+            raise ValueError(failure) from None
+        # Stale keys read as a bare ExpiredToken; this makes every AWS call name the sign-in.
+        report = f"echo {shlex.quote(failure)} >&2; exit 1"
+        lines = [f"[{profile}]", f"credential_process = {shlex.join(['/bin/sh', '-c', report])}"]
     write_state_file(home, agent_home / ".aws/credentials", "\n".join(lines).encode() + b"\n")
 
 
@@ -1389,7 +1398,8 @@ def main() -> None:
         )
     if sys.argv[1:2] == ["--refresh-aws"]:
         request = json.loads(sys.argv[2])
-        refresh_aws(Path(request["home"]), Path(request["agent_home"]), request["profile"])
+        home, agent_home = Path(request["home"]), Path(request["agent_home"])
+        refresh_aws(home, agent_home, request["profile"], launching=False)
         return
     if sys.platform != "darwin":
         raise ValueError("The native boundary requires macOS")

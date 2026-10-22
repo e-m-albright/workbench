@@ -81,7 +81,7 @@ try {
   child = await launch(plan.command, "inherit");
   process.on("SIGTERM", () => child.kill("SIGTERM"));
   // Roles assumed from SSO last an hour; keep the session's keys current from the host.
-  // A failed refresh is silent here, and the session's AWS calls report the expiry.
+  // A failed refresh swaps the keys for an error naming the sign-in; the next success restores them.
   if (plan.aws_refresh) {
     const refresh = JSON.stringify(plan.aws_refresh);
     const timer = setInterval(() => {

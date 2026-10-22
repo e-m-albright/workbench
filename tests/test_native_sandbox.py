@@ -630,6 +630,16 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
 
     with pytest.raises(ValueError, match="aws sso login --profile sandbox"):
         launcher.refresh_aws(home, agent_home, "sandbox", expired)
+    launcher.refresh_aws(home, agent_home, "sandbox", expired, launching=False)
+    stale = written.read_text()
+    assert "AKIASYNTHETIC" not in stale
+    process = stale.split("credential_process = ", 1)[1].strip()
+    # The AWS CLI and SDKs split credential_process with shell rules and report its stderr.
+    reported = subprocess.run(shlex.split(process), capture_output=True, text=True, check=False)
+    assert reported.returncode == 1
+    assert "run `aws sso login --profile sandbox`" in reported.stderr
+    launcher.refresh_aws(home, agent_home, "sandbox", run, launching=False)
+    assert "aws_access_key_id = AKIASYNTHETIC" in written.read_text()
     for invalid in (
         {"docker": "yes"},
         {"ports": "5432"},
@@ -646,9 +656,11 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
         config.write_text(json.dumps({str(repo): {"paths": [path]}}))
         with pytest.raises(ValueError, match="extra path"):
             launcher.repository_grants(home, repo)
-    config.unlink()
     (config.parent / "repo-credentials.json").write_text("{}")
-    with pytest.raises(ValueError, match="Rename"):
+    with pytest.raises(ValueError, match="Merge"):
+        launcher.repository_grants(home, repo)
+    config.unlink()
+    with pytest.raises(ValueError, match="Merge"):
         launcher.repository_grants(home, repo)
 
 
