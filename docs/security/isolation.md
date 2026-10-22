@@ -115,7 +115,7 @@ multiple provider logins from its authentication store.
 | --- | --- |
 | Selected checkout | Read and write, including curated vault prose, structured world-model state, reviewed meeting notes, Git history, ignored files, and untracked files unless explicitly excluded. |
 | Machine-local private paths | Denied for reads and writes, including named paths inside the selected checkout. Raw meeting recordings, transcripts, and sidecars remain excluded; choosing a repository does not authorize those sources. |
-| Environment files | Real `.env` and `.env.*` paths are denied at every depth, including files created after launch. Documentation templates ending in `.example`, `.sample`, or `.template` remain usable. |
+| Environment files | Real `.env` and `.env.*` paths are denied at every depth, including files created after launch, unless the owner grants a checkout its own environment files. Documentation templates ending in `.example`, `.sample`, or `.template` remain usable. |
 | Other repositories and personal files | `~/code/public`, `~/Desktop`, and `~/Downloads` are also admitted, plus any directories the owner grants the checkout. The user's macOS temporary items directory is readable so dragged screenshots open. Unselected private repositories, ingress, personal files, credentials, and host startup files remain outside the grants. |
 | Agent state | One persistent home per repository plus private session scratch. Claude shares only the matching native project transcript namespace as described [below](#claude-session-history). |
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
@@ -248,6 +248,10 @@ checkout path, and each value may contain:
 - `docker`: `true` admits the running engine's socket (Docker Desktop,
   OrbStack, or Colima), sets `DOCKER_HOST`, and reads the client installation
   so `docker compose` works.
+- `env`: `true` admits the checkout's own `.env` and `.env.*` files for reading
+  and writing, so hooks and test runners that load them work. Environment files
+  elsewhere, including ones the checkout links to, stay denied. Keep real
+  secrets in a credential store rather than in a granted checkout's files.
 - `paths`: extra existing directories, such as a sibling checkout, admitted
   read-write. Machine-local exclusions still apply inside them.
 
@@ -257,6 +261,7 @@ checkout path, and each value may contain:
     "github": "workbench-github-app",
     "ports": [5432],
     "docker": true,
+    "env": true,
     "paths": ["~/code/example/app-ci"]
   }
 }

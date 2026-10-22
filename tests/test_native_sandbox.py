@@ -191,6 +191,8 @@ def test_hardening_preserves_arguments_and_denies_host_process_inspection():
     # Playwright's multiprocess Chromium hands ports to its children by this name.
     assert '(global-name-prefix "org.chromium.Chromium.MachPortRendezvousServer.")' in hardened[4]
     assert "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]" in hardened[4]
+    assert '(regex "/[.][Ee][Nn][Vv]($|/|[.])")' in hardened[4]
+    assert "subpath" not in hardened[4]
     with pytest.raises(ValueError):
         launcher.harden("echo unexpected-runtime-output")
     with pytest.raises(ValueError):
@@ -642,6 +644,7 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
     assert "aws_access_key_id = AKIASYNTHETIC" in written.read_text()
     for invalid in (
         {"docker": "yes"},
+        {"env": "yes"},
         {"ports": "5432"},
         {"paths": "~/code/sibling"},
         {"unknown": True},
@@ -681,6 +684,24 @@ def test_loopback_ports_admit_serving_but_only_listed_destinations():
         launcher.harden(command, ports=[True])
 
 
+def test_environment_file_grant_opens_only_the_granted_checkout():
+    launcher = load_launcher()
+    profile = "(version 1)\n(deny default)\n(allow process-exec)"
+    command = shlex.join(
+        ["env", "A=1", "/usr/bin/sandbox-exec", "-p", profile, "/bin/bash", "-c", "true"]
+    )
+    opened = launcher.harden(command, env_root="/Users/example/code/app")[4]
+    rule = opened.split('(require-not (subpath "/Users/example/code/app"))', 1)
+    assert len(rule) == 2 and rule[0].rstrip().endswith("(require-all")
+    assert '(regex "/[.][Ee][Nn][Vv]($|/|[.])")' in rule[1]
+    # The confidential-directory invariant has no exemption.
+    assert '(regex "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]($|/)"))' in opened
+    assert opened.count("(") == opened.count(")")
+    for invalid in ("relative/app", '/code/a"pp', "/code/a\\pp", "/code/a\npp"):
+        with pytest.raises(ValueError, match="literal absolute"):
+            launcher.harden(command, env_root=invalid)
+
+
 def test_owner_grants_extend_one_checkout_with_docker_ports_and_paths(tmp_path, monkeypatch):
     launcher = load_launcher()
     home = tmp_path / "home"
@@ -710,6 +731,7 @@ def test_owner_grants_extend_one_checkout_with_docker_ports_and_paths(tmp_path, 
     }
     plan = launcher.build_plan(repo, home, tools, "claude", "hosted", [])
     assert plan["ports"] == [] and plan["docker_config"] is None
+    assert plan["env_root"] == ""
     assert "DOCKER_HOST" not in plan["env"]
     assert str(sibling) not in plan["policy"]["filesystem"]["allowWrite"]
 
@@ -719,6 +741,7 @@ def test_owner_grants_extend_one_checkout_with_docker_ports_and_paths(tmp_path, 
             {
                 "~/code/work/example": {
                     "docker": True,
+                    "env": True,
                     "ports": [5432],
                     "paths": ["~/code/work/sibling"],
                 }
@@ -728,6 +751,7 @@ def test_owner_grants_extend_one_checkout_with_docker_ports_and_paths(tmp_path, 
     plan = launcher.build_plan(repo, home, tools, "claude", "hosted", [])
     filesystem = plan["policy"]["filesystem"]
     assert plan["ports"] == [5432]
+    assert plan["env_root"] == str(repo.resolve())
     assert plan["env"]["DOCKER_HOST"] == f"unix://{engine.resolve()}"
     assert str(engine.resolve()) in plan["policy"]["network"]["allowUnixSockets"]
     assert str(bundle.resolve()) in filesystem["allowRead"]
