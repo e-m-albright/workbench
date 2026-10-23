@@ -2,6 +2,30 @@
 
 Public research on editors, terminals, capture tools, and remote access. The host repository owns installation and configuration; private workflows stay with their owner.
 
+## Declarative host and development environments
+
+**Nix ecosystem: WATCH (reviewed 2026-10-22).** Keep macOS and the current
+Dotfiles host configuration. The package manifest, idempotent installer, and
+live drift checks already express desired state, but Homebrew packages and
+runtime selections can resolve differently on a later install. Nix is a
+candidate when stronger dependency reproducibility earns another toolchain.
+
+[Nix](https://nixos.org/) is a package manager available on macOS and Linux;
+NixOS is a Linux distribution, so adopting it as the main workstation OS would
+be a platform migration. [nix-darwin](https://github.com/nix-darwin/nix-darwin)
+provides declarative macOS system configuration, while
+[Home Manager](https://github.com/nix-community/home-manager) manages user
+packages and dotfiles. These overlap parts of Dotfiles; they do not replace
+Workbench's ownership of portable agent configuration or reproduce all mutable
+macOS application state.
+
+Revisit Nix when dependency mismatches recur or exact-version recovery becomes
+necessary. Start with one project's development environment and demonstrate
+repeatable tool versions and dependency resolution before expanding. Revisit
+nix-darwin and Home Manager when reproducing several Macs becomes a concrete
+requirement; define one owner for each package and configuration surface before
+migration. Evaluate NixOS separately for a real Linux server or VM need.
+
 ## Personal capture and notes
 
 - **[Memos](https://usememos.com/)** ([GitHub](https://github.com/usememos/memos)) -- **WATCH FOR PRODUCT DISCIPLINE (reviewed 2026-09-14).** An MIT-licensed, self-hosted chronological Markdown feed for untitled notes, links, snippets, tasks, and attachments, with search, tags, pins, selective publishing, a web clipper, and REST/gRPC interfaces. Its strongest idea is deliberately narrower than a personal operating system: capture without choosing a title, folder, template, or workspace, then retrieve from one quiet timeline. Do not adopt it as a second canonical store or rebuild the existing capture path around it; Apple Notes already owns quick capture, while the private operating application owns structured actions, relationships, reference, and projections. Study its default-open composer, feed-shaped recency, and plain positioning when capture or resurfacing feels too formal. Trial only if Apple Notes capture repeatedly fails because captured items do not remain visible, and require an explicit ingestion-and-deletion path before any trial. As of review, the project reports version 0.30.0, 63k GitHub stars, 417 contributors, SQLite/MySQL/PostgreSQL support, and zero telemetry by default; popularity supports maturity, not fit.

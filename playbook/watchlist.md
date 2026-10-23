@@ -63,6 +63,7 @@ it does not imply a scheduled monitoring service.
 | Cerbos, WorkOS | Cross-service policy complexity or enterprise identity requirements exceed the existing application controls | [Identity and authorization](systems/authorization.md) |
 | Semgrep, SonarQube and supply-chain tools | A specific security detection or audit gap justifies another gate | [Systems security](systems/security.md) |
 | Embeddings and LangExtract | A retrieval or extraction benchmark demonstrates value over existing parsing and search | [Retrieval](systems/retrieval.md) |
+| Nix, nix-darwin, Home Manager; NixOS for Linux | Recurring dependency mismatches, exact-version recovery, or several Macs justify stronger reproducibility; a concrete Linux host need justifies NixOS | [Declarative host and development environments](systems/workstations.md#declarative-host-and-development-environments) |
 | Terminal, editor, capture and remote-access candidates | Recurring host friction earns a change in the host repository | [Workstations](systems/workstations.md) |
 | Moda and other visual design tools | A concrete artifact needs a comparative design trial | [Design tools](product/design-tools.md) |
 | Storybook, component systems and content tools | Interface complexity or repeated visual defects justify their maintenance | [Product interfaces](product/interfaces.md) |
