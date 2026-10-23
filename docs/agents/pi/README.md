@@ -148,6 +148,14 @@ permission guards. They do not disable their vendor's own approval or sandbox
 features. Native binaries launched by a managed parent inherit its outer policy;
 a command name or environment change cannot escape it.
 
+Private-path tool denials concern direct access to the named files. They do not
+imply that an authorized workflow through an existing application's documented
+command requires local inference merely because the application keeps journals
+or profiles there. Use the application's interface without exposing those files;
+the command remains subject to its own tool checks and operating-system boundary.
+Report the actual command failure before asking the owner to change launch mode
+or provider. Creating a wrapper to evade a denial remains prohibited.
+
 The shortcut authority is always `managed`. The old `--restricted`, `--daily`,
 and `--unrestricted` flags fail with guidance to choose the shortcut or native
 command. Reloading the launcher removes old functions including `pih`, `pihr`,

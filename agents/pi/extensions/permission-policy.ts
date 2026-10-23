@@ -374,6 +374,10 @@ function block(reason: string) {
 	return { block: true, reason };
 }
 
+function privatePathDenial(reason: string): string {
+	return `${reason}. This denies direct path access. Do not infer that every application using this path requires local inference. For an authorized workflow, use its existing documented application command without exposing the protected files; its tool policy and OS permissions still apply. Never create a wrapper to evade a denial.`;
+}
+
 function hardenSessionFile(sessionFile: string | undefined): void {
 	if (!sessionFile) return;
 	try {
@@ -451,7 +455,7 @@ export function policyBlockReason(
 			return `Private path browser upload blocked by policy: ${privateMatched}`;
 		}
 		if (privateMatched && !privateProvider) {
-			return `Private path requires a private local provider: ${privateMatched}`;
+			return privatePathDenial(`Private path requires a private local provider: ${privateMatched}`);
 		}
 	}
 
@@ -476,7 +480,9 @@ export function policyBlockReason(
 	if (protectedPath) return `Command mentions protected path: ${protectedPath}`;
 	const privatePath = protectedPathMention(cwd, command, policy.privateReadPaths);
 	if (privatePath && !privateProvider) {
-		return `Command mentions private path requiring a private local provider: ${privatePath}`;
+		return privatePathDenial(
+			`Command mentions private path requiring a private local provider: ${privatePath}`,
+		);
 	}
 	const denied = commandDenyReason(command, policy.denyCommands, privateProvider);
 	if (denied) return formatCommandDenial(denied);

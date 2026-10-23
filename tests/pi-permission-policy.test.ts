@@ -40,6 +40,31 @@ function reason(
 }
 
 describe("Pi permission policy", () => {
+	test.each(["read", "write", "bash"])(
+		"distinguishes direct private-path %s access from authorized application commands",
+		(tool) => {
+			const path = "~/Library/Application Support/example/state.json";
+			const input = tool === "bash" ? { command: `head '${path}'` } : { path };
+			const denial = reason(tool, input);
+			expect(denial).toContain("documented application command");
+			expect(denial).toContain("Do not infer");
+			expect(denial).toContain("Never create a wrapper");
+		},
+	);
+
+	test.each([undefined, "hosted-managed"])(
+		"allows the documented application interface without inspecting its internal state (%s)",
+		(mode) => {
+			for (const command of [
+				"bin/example status --json",
+				"bin/example times 2026-10-29 --json",
+				"bin/example book 2026-10-29 15:00 --confirm",
+			]) {
+				expect(reason("bash", { command }, "openai-codex", mode)).toBeUndefined();
+			}
+		},
+	);
+
 	test("keeps a newly created session private without preventing owner reads", async () => {
 		const base = mkdtempSync(join(tmpdir(), "wb-session-mode-"));
 		const session = join(base, "session.jsonl");
