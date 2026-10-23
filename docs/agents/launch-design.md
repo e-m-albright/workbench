@@ -70,10 +70,14 @@ up in a local Git bundle before removing the superseded refs.
 - Claude auto-compaction preferences survive configuration projection. The submitted `cc` resume hint is retained for unsupported namespace paths; current transcript sharing is described below.
 - Existing local fixes retain environment-file protection, disabled broad loopback access, deployment-profile defaults, and current-launcher canary setup.
 
-The change does not import the submissions' AWS credential broker, Docker socket
-access, general repository loopback ports, broad Chromium Mach grants, or
-destructive-command guard rewrite. The cleanup skill retains hook-respecting
-authorization and re-inventory guidance rather than bypassing failed hooks.
+The change initially left out the submissions' AWS credential broker, Docker
+socket access, repository loopback ports, and Chromium rendezvous grants. They
+were later adopted by owner decision as opt-in per-checkout grants; see
+[isolation](../security/isolation.md#per-checkout-grants). The
+cleanup skill retains hook-respecting authorization and re-inventory guidance
+rather than bypassing failed hooks. The destructive-command guard rewrite was
+initially left out and later adopted by owner decision; see
+[isolation](../security/isolation.md#enforced-permissions).
 
 ## Daily behavior and recovery
 

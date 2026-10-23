@@ -74,17 +74,57 @@ def test_existing_managed_and_native_conversations_merge_without_reading_content
     assert len(list(target.glob("*.jsonl"))) == 2
 
 
-def test_conflicting_transcripts_are_preserved(plan):
+def test_conflicting_history_is_reconciled_without_refusing_launch(plan, capsys):
+    home, _, value = plan
+    source = Path(value["claude_sessions"]["path"])
+    target = Path(value["claude_sessions"]["target"])
+    (source / "memory").mkdir(parents=True)
+    (target / "memory").mkdir(parents=True)
+    # Same bytes: one copy remains.
+    (source / "equal.jsonl").write_text("record-1\n")
+    (target / "equal.jsonl").write_text("record-1\n")
+    # A session resumed natively after its managed run: the native copy extends it.
+    (source / "resumed-native.jsonl").write_text("record-1\n")
+    (target / "resumed-native.jsonl").write_text("record-1\nrecord-2\n")
+    # Resumed in the managed home instead: the longer managed copy wins.
+    (source / "resumed-managed.jsonl").write_text("record-1\nrecord-2\n")
+    (target / "resumed-managed.jsonl").write_text("record-1\n")
+    # Divergent edits, such as auto memory written on both sides.
+    (source / "memory/MEMORY.md").write_text("managed notes")
+    (target / "memory/MEMORY.md").write_text("native notes")
+    # A file where the other side has a directory.
+    (source / "shape").write_text("managed file")
+    (target / "shape").mkdir()
+    launcher().initialize_home(value, home)
+
+    assert source.is_symlink() and source.readlink() == target
+    assert (target / "equal.jsonl").read_text() == "record-1\n"
+    assert (target / "resumed-native.jsonl").read_text() == "record-1\nrecord-2\n"
+    assert (target / "resumed-managed.jsonl").read_text() == "record-1\nrecord-2\n"
+    assert (target / "memory/MEMORY.md").read_text() == "native notes"
+    assert (target / "shape").is_dir()
+    kept = source.parent / f"{source.name}.conflicts"
+    assert (kept / "memory/MEMORY.md").read_text() == "managed notes"
+    assert (kept / "shape").read_text() == "managed file"
+    assert (kept / "native/resumed-managed.jsonl").read_text() == "record-1\n"
+    assert not (kept / "equal.jsonl").exists()
+    assert "kept 3 conflicting Claude history file(s)" in capsys.readouterr().err
+
+
+def test_conflict_set_aside_never_overwrites_an_earlier_copy(plan):
     home, _, value = plan
     source = Path(value["claude_sessions"]["path"])
     target = Path(value["claude_sessions"]["target"])
     source.mkdir(parents=True)
     target.mkdir(parents=True)
+    kept = source.parent / f"{source.name}.conflicts"
+    kept.mkdir()
+    (kept / "same.jsonl").write_text("earlier")
     (source / "same.jsonl").write_text("managed")
     (target / "same.jsonl").write_text("native")
-    with pytest.raises(ValueError, match="collision"):
-        launcher().initialize_home(value, home)
-    assert (source / "same.jsonl").read_text() == "managed"
+    launcher().initialize_home(value, home)
+    assert (kept / "same.jsonl").read_text() == "earlier"
+    assert [path.read_text() for path in kept.glob("same.jsonl.*")] == ["managed"]
     assert (target / "same.jsonl").read_text() == "native"
 
 

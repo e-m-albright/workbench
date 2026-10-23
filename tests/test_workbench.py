@@ -1043,9 +1043,9 @@ js_repl = false
 
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_destructive_guard_blocks_any_recursive_force_delete(self) -> None:
+    def test_destructive_guard_blocks_recursive_force_delete_of_source(self) -> None:
         result = self.run_hook(
-            "guard-destructive-shell.sh", {"tool_input": {"command": "rm -rf build"}}
+            "guard-destructive-shell.sh", {"tool_input": {"command": "rm -rf src"}}
         )
 
         self.assertEqual(result.returncode, 2)
@@ -1070,7 +1070,7 @@ js_repl = false
         self.assertIn("--no-verify", result.stderr)
 
     def test_destructive_guard_blocks_alias_escape_and_eval(self) -> None:
-        for command in (r"\rm -rf build", 'x="rm -rf build"; eval $x'):
+        for command in (r"\rm -rf src", 'x="rm -rf build"; eval $x'):
             with self.subTest(command=command):
                 result = self.run_hook(
                     "guard-destructive-shell.sh",

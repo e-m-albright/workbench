@@ -1,11 +1,8 @@
 {
   "allow": [],
   "deny": [
-    "Bash(rm -rf:*)",
-    "Bash(rm -fr:*)",
     "Bash(git reset --hard:*)",
     "Bash(git clean -f:*)",
-    "Bash(git branch -D:*)",
     "Bash(git push --force:*)",
     "Bash(git push -f:*)",
     "Bash(git * --no-verify)",

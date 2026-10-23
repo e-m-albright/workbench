@@ -187,6 +187,9 @@ def test_hardening_preserves_arguments_and_denies_host_process_inspection():
     assert "(deny process-info*)" in hardened[4]
     assert "kern.proc" in hardened[4]
     assert "com.apple.securityd.xpc" in hardened[4]
+    assert '(allow mach-lookup (global-name "com.apple.trustd.agent"))' in hardened[4]
+    # Playwright's multiprocess Chromium hands ports to its children by this name.
+    assert '(global-name-prefix "org.chromium.Chromium.MachPortRendezvousServer.")' in hardened[4]
     assert "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]" in hardened[4]
     with pytest.raises(ValueError):
         launcher.harden("echo unexpected-runtime-output")
@@ -194,7 +197,6 @@ def test_hardening_preserves_arguments_and_denies_host_process_inspection():
         launcher.harden(shlex.join(original).replace("deny default", "allow default"))
     browser = launcher.harden(shlex.join(original), browser_port=49152)[4]
     assert '(remote ip "localhost:49152")' in browser
-    assert "MachPortRendezvousServer" not in browser
     with pytest.raises(ValueError, match="port"):
         launcher.harden(shlex.join(original), browser_port=-1)
 
@@ -345,6 +347,10 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
         assert plan["env"]["WORKBENCH_PI_MODE"] == "hosted-managed"
     else:
         assert plan["env"]["CLAUDE_SECURESTORAGE_CONFIG_DIR"] == str(store)
+        writable = plan["policy"]["filesystem"]["allowWrite"]
+        assert str(store / ".credentials.json.tmp.*") in writable
+        assert str(store) not in writable
+        assert not any("*" in path for path in plan["policy"]["filesystem"]["allowRead"])
 
 
 def test_home_initialization_refuses_agent_planted_parent_symlinks(tmp_path):
@@ -551,3 +557,190 @@ def test_launch_rejects_agent_installation_inside_a_write_grant(tmp_path):
     }
     with pytest.raises(ValueError, match="agent installation"):
         launcher.build_plan(repo, home, config, "claude", "hosted", [])
+
+
+def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    repo = home / "code/example"
+    repo.mkdir(parents=True)
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        assert kwargs["env"]["HOME"] == str(home)
+        if command[0] == "/usr/bin/security":
+            stdout = "synthetic-github-token\n"
+        elif "export-credentials" in command:
+            stdout = json.dumps(
+                {
+                    "Version": 1,
+                    "AccessKeyId": "AKIASYNTHETIC",
+                    "SecretAccessKey": "synthetic-secret",
+                    "SessionToken": "synthetic-session",
+                }
+            )
+        else:
+            stdout = "us-west-2\n"
+        return subprocess.CompletedProcess(command, 0, stdout, "")
+
+    assert launcher.repository_grants(home, repo) == {}
+    config = home / ".config/workbench/repository-grants.json"
+    config.parent.mkdir(parents=True)
+    config.write_text(json.dumps({"~/code/other": {"github": "elsewhere"}}))
+    assert launcher.repository_grants(home, repo) == {}
+
+    config.write_text(json.dumps({"~/code/example": {"github": "example-token", "aws": "sandbox"}}))
+    issued = launcher.repository_credentials(home, launcher.repository_grants(home, repo), run)
+    assert issued["GH_TOKEN"] == "synthetic-github-token"
+    assert issued["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"
+    assert issued["AWS_PROFILE"] == "sandbox"
+    assert issued["AWS_REGION"] == "us-west-2"
+    assert not any(key.startswith("AWS_") and "KEY" in key for key in issued)
+    helper = issued["GIT_CONFIG_VALUE_0"].removeprefix("!")
+    answer = subprocess.run(
+        # Git appends the action to a shell helper's command string.
+        ["/bin/sh", "-c", f"{helper} get"],
+        env={"GH_TOKEN": "synthetic-github-token", "PATH": "/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert answer.stdout == "username=x-access-token\npassword=synthetic-github-token\n"
+
+    agent_home = home / ".local/share/workbench/agent-state/example/home"
+    launcher.refresh_aws(home, agent_home, "sandbox", run)
+    assert calls[-1][1:5] == ["configure", "export-credentials", "--profile", "sandbox"]
+    written = agent_home / ".aws/credentials"
+    assert written.read_text() == (
+        "[sandbox]\naws_access_key_id = AKIASYNTHETIC\n"
+        "aws_secret_access_key = synthetic-secret\naws_session_token = synthetic-session\n"
+    )
+    assert written.stat().st_mode & 0o777 == 0o600
+    victim = home / "victim"
+    victim.write_text("must remain untouched")
+    written.unlink()
+    written.symlink_to(victim)
+    launcher.refresh_aws(home, agent_home, "sandbox", run)
+    assert victim.read_text() == "must remain untouched"
+    assert not written.is_symlink()
+
+    def expired(command, **kwargs):
+        return subprocess.CompletedProcess(command, 255, "", "token expired")
+
+    with pytest.raises(ValueError, match="aws sso login --profile sandbox"):
+        launcher.refresh_aws(home, agent_home, "sandbox", expired)
+    launcher.refresh_aws(home, agent_home, "sandbox", expired, launching=False)
+    stale = written.read_text()
+    assert "AKIASYNTHETIC" not in stale
+    process = stale.split("credential_process = ", 1)[1].strip()
+    # The AWS CLI and SDKs split credential_process with shell rules and report its stderr.
+    reported = subprocess.run(shlex.split(process), capture_output=True, text=True, check=False)
+    assert reported.returncode == 1
+    assert "run `aws sso login --profile sandbox`" in reported.stderr
+    launcher.refresh_aws(home, agent_home, "sandbox", run, launching=False)
+    assert "aws_access_key_id = AKIASYNTHETIC" in written.read_text()
+    for invalid in (
+        {"docker": "yes"},
+        {"ports": "5432"},
+        {"paths": "~/code/sibling"},
+        {"unknown": True},
+    ):
+        config.write_text(json.dumps({str(repo): invalid}))
+        with pytest.raises(ValueError, match="each checkout maps"):
+            launcher.repository_grants(home, repo)
+    config.write_text(json.dumps({str(repo): {"ports": [5432, "8000"]}}))
+    with pytest.raises(ValueError, match="1 to 65535"):
+        launcher.repository_grants(home, repo)
+    for path in ("~", "~/code/missing", "relative"):
+        config.write_text(json.dumps({str(repo): {"paths": [path]}}))
+        with pytest.raises(ValueError, match="extra path"):
+            launcher.repository_grants(home, repo)
+    (config.parent / "repo-credentials.json").write_text("{}")
+    with pytest.raises(ValueError, match="Merge"):
+        launcher.repository_grants(home, repo)
+    config.unlink()
+    with pytest.raises(ValueError, match="Merge"):
+        launcher.repository_grants(home, repo)
+
+
+def test_loopback_ports_admit_serving_but_only_listed_destinations():
+    launcher = load_launcher()
+    profile = "(version 1)\n(deny default)\n(allow process-exec)"
+    command = shlex.join(
+        ["env", "A=1", "/usr/bin/sandbox-exec", "-p", profile, "/bin/bash", "-c", "true"]
+    )
+    closed = launcher.harden(command)[4]
+    assert "network-bind" not in closed and "network-outbound" not in closed
+    opened = launcher.harden(command, ports=[5432, 15173])[4]
+    assert '(allow network-bind (local ip "*:*"))' in opened
+    assert '(allow network-outbound (remote ip "localhost:5432"))' in opened
+    assert '(allow network-outbound (remote ip "localhost:15173"))' in opened
+    assert '"localhost:*"' not in opened
+    with pytest.raises(ValueError):
+        launcher.harden(command, ports=[True])
+
+
+def test_owner_grants_extend_one_checkout_with_docker_ports_and_paths(tmp_path, monkeypatch):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    repo = home / "code/work/example"
+    sibling = home / "code/work/sibling"
+    (repo / ".git").mkdir(parents=True)
+    sibling.mkdir()
+    engine = home / ".orbstack/run/docker.sock"
+    engine.parent.mkdir(parents=True)
+    engine.touch()
+    bundle = tmp_path / "Applications/Engine.app/Contents"
+    (bundle / "MacOS/xbin").mkdir(parents=True)
+    (bundle / "MacOS/xbin/docker").touch()
+    (bundle / "MacOS/xbin/docker-compose").touch()
+    client = tmp_path / "bin/docker"
+    client.parent.mkdir()
+    client.symlink_to(bundle / "MacOS/xbin/docker")
+    monkeypatch.setattr(
+        launcher, "DOCKER_SOCKETS", ("/nonexistent/docker.sock", "~/.orbstack/run/docker.sock")
+    )
+    monkeypatch.setattr(launcher, "DOCKER_CLIENTS", (str(client),))
+    harness_manifest(home, "claude")
+    (home / ".config/workbench/private-paths").write_text("")
+    tools = {
+        "node": str(tmp_path / "tools/node"),
+        "agents": {"claude": {"command": ["claude"], "read": []}},
+    }
+    plan = launcher.build_plan(repo, home, tools, "claude", "hosted", [])
+    assert plan["ports"] == [] and plan["docker_config"] is None
+    assert "DOCKER_HOST" not in plan["env"]
+    assert str(sibling) not in plan["policy"]["filesystem"]["allowWrite"]
+
+    grants = home / ".config/workbench/repository-grants.json"
+    grants.write_text(
+        json.dumps(
+            {
+                "~/code/work/example": {
+                    "docker": True,
+                    "ports": [5432],
+                    "paths": ["~/code/work/sibling"],
+                }
+            }
+        )
+    )
+    plan = launcher.build_plan(repo, home, tools, "claude", "hosted", [])
+    filesystem = plan["policy"]["filesystem"]
+    assert plan["ports"] == [5432]
+    assert plan["env"]["DOCKER_HOST"] == f"unix://{engine.resolve()}"
+    assert str(engine.resolve()) in plan["policy"]["network"]["allowUnixSockets"]
+    assert str(bundle.resolve()) in filesystem["allowRead"]
+    assert str(bundle.resolve()) not in filesystem["allowWrite"]
+    assert plan["docker_config"] == {
+        "cliPluginsExtraDirs": [str((bundle / "MacOS/xbin").resolve())]
+    }
+    assert str(sibling.resolve()) in filesystem["allowWrite"]
+
+    launcher.initialize_home(plan, home)
+    written = Path(plan["env"]["HOME"]) / ".docker/config.json"
+    assert json.loads(written.read_text()) == plan["docker_config"]
+
+    engine.unlink()
+    with pytest.raises(ValueError, match="no engine socket"):
+        launcher.build_plan(repo, home, tools, "claude", "hosted", [])
