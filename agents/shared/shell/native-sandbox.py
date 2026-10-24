@@ -35,20 +35,37 @@ GUARD = """
 ; per-process name; refusing it aborts the browser at startup.
 (allow mach-register mach-lookup
   (global-name-prefix "org.chromium.Chromium.MachPortRendezvousServer."))
-; Match future environment files and confidential directories too, not just
-; paths present at launch. Seatbelt does not support regex lookahead; exclude
-; templates with native filters instead. Character classes ignore case.
+; Match future confidential directories too, not just paths present at launch.
 (deny file-read* file-write* file-write-create file-write-unlink
-  ; A template basename cannot exempt a file inside an environment directory.
-  (regex "/[.][Ee][Nn][Vv]([.][^/]*)?/")
-  (require-all
-    (regex "/[.][Ee][Nn][Vv]($|/|[.])")
-    (require-not (require-any
-      (regex "/[.][Ee][Nn][Vv][.][Ee][Xx][Aa][Mm][Pp][Ll][Ee]$")
-      (regex "/[.][Ee][Nn][Vv][.][Ss][Aa][Mm][Pp][Ll][Ee]$")
-      (regex "/[.][Ee][Nn][Vv][.][Tt][Ee][Mm][Pp][Ll][Aa][Tt][Ee]$"))))
   (regex "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]($|/)"))
 """
+
+# Match future environment files too. Seatbelt does not support regex lookahead;
+# exclude templates with native filters instead. Character classes ignore case.
+ENVIRONMENT_FILES = """
+  (require-any
+    ; A template basename cannot exempt a file inside an environment directory.
+    (regex "/[.][Ee][Nn][Vv]([.][^/]*)?/")
+    (require-all
+      (regex "/[.][Ee][Nn][Vv]($|/|[.])")
+      (require-not (require-any
+        (regex "/[.][Ee][Nn][Vv][.][Ee][Xx][Aa][Mm][Pp][Ll][Ee]$")
+        (regex "/[.][Ee][Nn][Vv][.][Ss][Aa][Mm][Pp][Ll][Ee]$")
+        (regex "/[.][Ee][Nn][Vv][.][Tt][Ee][Mm][Pp][Ll][Aa][Tt][Ee]$")))))"""
+
+
+def environment_rules(granted_root: str = "") -> str:
+    """Deny environment files everywhere, except inside a checkout the owner granted them.
+
+    Resolved paths are matched, so a granted checkout's link to an outside file stays denied.
+    """
+    files = ENVIRONMENT_FILES
+    if granted_root:
+        if not granted_root.startswith("/") or any(char in granted_root for char in '\0\n"\\'):
+            raise ValueError("Environment file grant must be a literal absolute checkout path")
+        files = f'\n  (require-all (require-not (subpath "{granted_root}")){files})'
+    return f"\n(deny file-read* file-write* file-write-create file-write-unlink{files})\n"
+
 
 # The guardian verifies this suffix before it applies the profile or broadcasts.
 SESSION_SIGNAL_GUARD = "\n(deny signal)\n(allow signal (target same-sandbox))\n"
@@ -71,7 +88,11 @@ def loopback_rules(ports: list[int]) -> str:
 
 
 def harden(
-    command: str, browser_port: int = 0, mandatory_rules: str = "", ports: list[int] = ()
+    command: str,
+    browser_port: int = 0,
+    mandatory_rules: str = "",
+    ports: list[int] = (),
+    env_root: str = "",
 ) -> list[str]:
     """Adapt the pinned upstream's quoted argv, refusing an unfamiliar output shape."""
     args = shlex.split(command)
@@ -86,7 +107,7 @@ def harden(
         raise ValueError("Unexpected sandbox runtime environment")
     if not args[sandbox + 2].startswith("(version 1)\n(deny default"):
         raise ValueError("Sandbox runtime no longer denies by default")
-    args[sandbox + 2] += GUARD + loopback_rules(list(ports))
+    args[sandbox + 2] += GUARD + environment_rules(env_root) + loopback_rules(list(ports))
     if browser_port:
         if not 1024 <= browser_port <= 65535:
             raise ValueError("Invalid browser control port")
@@ -179,7 +200,7 @@ def git_identity(home: Path, cwd: Path) -> dict:
 
 
 GRANTS = ".config/workbench/repository-grants.json"
-REPOSITORY_GRANTS = {"github", "aws", "ports", "docker", "paths"}
+REPOSITORY_GRANTS = {"github", "aws", "ports", "docker", "env", "paths"}
 # Git asks this helper for GitHub credentials; it answers from the launch token
 # so neither a host credential helper nor the protected .git/config is needed.
 GITHUB_HELPER = (
@@ -218,7 +239,9 @@ def repository_grants(home: Path, root: Path) -> dict:
     `~/.config/workbench/repository-grants.json` maps a checkout path to a
     Keychain service holding a GitHub token scoped to that repository, an AWS
     profile whose role should reach only a sandbox account, the loopback ports
-    its own services use, Docker access, and extra read-write directories.
+    its own services use, Docker access, its own environment files, and extra
+    read-write directories. A `*` entry applies to every checkout; a checkout's
+    own entry overrides it key by key.
     Sessions cannot edit this file. Provider-side scope is the real credential
     limit; the session can use or leak what it receives.
     """
@@ -236,29 +259,14 @@ def repository_grants(home: Path, root: Path) -> dict:
         raise ValueError(f"Unreadable {path}: {error}") from None
     if not isinstance(config, dict):
         raise ValueError(f"{path} must map checkout paths to grants")
-    entry = None
+    entries = [config["*"]] if "*" in config else []
     for key, value in config.items():
         checkout = Path(str(home) + key[1:] if key.startswith("~/") else key)
-        if checkout.resolve() == root:
-            entry = value
-    if entry is None:
-        return {}
-    if (
-        not isinstance(entry, dict)
-        or not set(entry) <= REPOSITORY_GRANTS
-        or not all(
-            isinstance(entry[key], str) and entry[key] for key in {"github", "aws"} & set(entry)
-        )
-        or not isinstance(entry.get("ports", []), list)
-        or not isinstance(entry.get("docker", False), bool)
-        or not isinstance(entry.get("paths", []), list)
-        or not all(isinstance(item, str) and item for item in entry.get("paths", []))
-    ):
-        raise ValueError(
-            f"{path}: each checkout maps 'github' and 'aws' to names, 'ports' and 'paths' "
-            "to lists, and 'docker' to true or false"
-        )
-    loopback_rules(entry.get("ports", []))
+        if key != "*" and checkout.resolve() == root:
+            entries.append(value)
+    for entry in entries:
+        validate_grant(path, entry)
+    entry = {key: value for entry in entries for key, value in entry.items()}
     paths = []
     for item in entry.get("paths", []):
         directory = Path(str(home) + item[1:] if item.startswith("~/") else item)
@@ -268,7 +276,27 @@ def repository_grants(home: Path, root: Path) -> dict:
         if directory == home or directory in home.parents:
             raise ValueError(f"{path}: extra path {item!r} cannot be the home or an ancestor")
         paths.append(str(directory))
-    return {**entry, "paths": paths}
+    return {**entry, "paths": paths} if entries else {}
+
+
+def validate_grant(path: Path, entry) -> None:
+    if (
+        not isinstance(entry, dict)
+        or not set(entry) <= REPOSITORY_GRANTS
+        or not all(
+            isinstance(entry[key], str) and entry[key] for key in {"github", "aws"} & set(entry)
+        )
+        or not isinstance(entry.get("ports", []), list)
+        or not isinstance(entry.get("docker", False), bool)
+        or not isinstance(entry.get("env", False), bool)
+        or not isinstance(entry.get("paths", []), list)
+        or not all(isinstance(item, str) and item for item in entry.get("paths", []))
+    ):
+        raise ValueError(
+            f"{path}: each checkout maps 'github' and 'aws' to names, 'ports' and 'paths' "
+            "to lists, and 'docker' and 'env' to true or false"
+        )
+    loopback_rules(entry.get("ports", []))
 
 
 def repository_credentials(home: Path, grants: dict, run=subprocess.run) -> dict:
@@ -788,6 +816,7 @@ def build_plan(
         "authority": authority,
         "browser_port": browser_port if browser else 0,
         "ports": grants.get("ports", []),
+        "env_root": str(root) if grants.get("env") else "",
         "aws_profile": grants.get("aws"),
         # Compose and other CLI plugins live in the client installation, not the isolated home.
         "docker_config": {"cliPluginsExtraDirs": docker["plugins"]} if docker else None,
@@ -1394,6 +1423,7 @@ def main() -> None:
                 int(sys.argv[3]) if len(sys.argv) > 3 else 0,
                 sys.argv[4] if len(sys.argv) > 4 else "",
                 json.loads(sys.argv[5]) if len(sys.argv) > 5 else [],
+                sys.argv[6] if len(sys.argv) > 6 else "",
             )
         )
     if sys.argv[1:2] == ["--refresh-aws"]:

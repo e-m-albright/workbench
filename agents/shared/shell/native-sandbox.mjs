@@ -62,7 +62,7 @@ async function launch(command, stdio) {
   if (wrapped.argv.length !== 3 || wrapped.argv[0] !== "/bin/bash" || wrapped.argv[1] !== "-c") {
     throw new Error("Unexpected sandbox runtime launch shape");
   }
-  return spawn("/usr/bin/python3", ["-I", "-S", adapter, "--apply", wrapped.argv[2], String(plan.browser_port || 0), mandatory, JSON.stringify(plan.ports ?? [])], {
+  return spawn("/usr/bin/python3", ["-I", "-S", adapter, "--apply", wrapped.argv[2], String(plan.browser_port || 0), mandatory, JSON.stringify(plan.ports ?? []), plan.env_root || ""], {
     cwd: plan.cwd, env: wrapped.env, stdio: [stdio, stdio, stdio, "pipe"],
   });
 }
