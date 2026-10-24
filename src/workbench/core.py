@@ -9,6 +9,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from workbench import preview
+
 ROOT = Path(__file__).resolve().parents[2]
 AGENTS = ROOT / "agents"
 DATA_REL = Path(".local/share/workbench")
@@ -315,10 +317,10 @@ class WorkbenchError(RuntimeError):
 
 
 def load_json(path: Path, default: Any = None) -> Any:
-    if not path.exists():
+    if not preview.exists(path):
         return default
     try:
-        return json.loads(path.read_text())
+        return json.loads(preview.read_text(path))
     except (OSError, json.JSONDecodeError) as exc:
         raise WorkbenchError(f"invalid JSON: {path}: {exc}") from exc
 
@@ -352,6 +354,13 @@ def write_text(
     executable: bool = False,
     mode: int | None = None,
 ) -> bool:
+    plan = preview.current()
+    if plan is not None:
+        before = len(plan.operations)
+        plan.write(
+            path, content, mode=mode if mode is not None else (0o755 if executable else None)
+        )
+        return len(plan.operations) != before
     current = path.read_text() if path.exists() else None
     if current == content:
         desired_mode = mode
@@ -380,10 +389,10 @@ def write_text(
 
 def ensure_private_path_policy(path: Path) -> bool:
     """Install the default denylist and narrow the retired whole-vault exclusion."""
-    if not path.exists():
+    if not preview.exists(path):
         return write_text(path, PRIVATE_PATHS_DEFAULT, mode=0o600)
 
-    lines = path.read_text().splitlines()
+    lines = preview.read_text(path).splitlines()
     migrated = [
         MEETING_RECORDINGS_PRIVATE_PATH if line == LEGACY_VAULT_PRIVATE_PATH else line
         for line in lines
@@ -400,9 +409,9 @@ def ensure_hard_deny_policy(path: Path) -> bool:
     required = [
         line for line in HARD_DENY_PATHS_DEFAULT.splitlines() if line and not line.startswith("#")
     ]
-    if not path.exists():
+    if not preview.exists(path):
         return write_text(path, HARD_DENY_PATHS_DEFAULT, mode=0o600)
-    lines = path.read_text().splitlines()
+    lines = preview.read_text(path).splitlines()
     for item in required:
         if item not in lines:
             lines.append(item)

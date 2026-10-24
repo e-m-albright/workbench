@@ -310,6 +310,10 @@ redirected are blocked, so they run alone and reach the normal approval. Code
 run by an interpreter, such as `python -c`, is not inspected. If the guard
 fails internally, it blocks the command.
 
+For command failures, use the [development-access assessment](development-access.md)
+to distinguish a guard denial, missing checkout grant, application failure, and
+operating-system restriction before changing policy.
+
 ## Accepted risks and limits
 
 Readable repository content can be sent to public destinations. Selecting a
@@ -414,11 +418,20 @@ prepared home, synthetic files and host services, and a public HTTPS positive
 control. The same tests remain opt-in for local runs:
 
 ```sh
-WORKBENCH_NATIVE_CANARY_HOME=/private/tmp/example-pilot \
-  uv run pytest tests/test_native_canary.py
+just native-canary
+just native-canary -k owner_denials
 ```
 
-Prepare the disposable home first with `workbench.native.prepare(home)`.
+The runner requires macOS, Node/npm, Clang, and all three installed agent CLIs.
+It creates a fresh owner-only home under `/private/tmp`, prepares the locked
+runtime without enrolling credentials, runs the existing tests, and removes the
+synthetic state on exit. It never accepts an existing home or arbitrary pytest
+scratch paths. These command-line probes disable optional browser startup;
+browser behavior has separate coverage in `tests/test_native_browser.py` and
+`tests/fixtures/native-browser-probe.mjs`. The HTTPS positive control requires
+public network access; a proxy or upstream failure fails the run rather than
+being counted as verified containment. No paid model requests are made.
+
 Canaries exercise workspace edits and child inheritance, outside reads/writes,
 symlink escapes, future nested environment files, Python and Git, host TCP/Unix
 sockets, process arguments, and macOS service handles. Terminal startup and shell

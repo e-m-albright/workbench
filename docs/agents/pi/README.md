@@ -154,6 +154,21 @@ the command remains subject to its own tool checks and operating-system boundary
 Report the actual command failure before asking the owner to change launch mode
 or provider. Creating a wrapper to evade a denial remains prohibited.
 
+Normal `gh pr` commands are not blanket-denied by Pi's permission policy.
+They follow the shared authorization rules. Repositories that opt into
+direct-to-main shipping use it for routine work; PRs remain available for explicit
+requests, major departures, and branch protection. Normal push-triggered
+automation is authorized there; separate production operations and destructive
+actions still require confirmation. Safe Git's default `high` prompt level does not interrupt
+ordinary PR commands; an explicitly stricter session or project setting can.
+Generic `gh api` writes and unrelated GitHub mutations remain separately guarded.
+Repository-scoped GitHub credentials and the operating-system boundary are unchanged.
+Authorized development containers and database migrations are not blanket-denied;
+managed sessions need owner-issued Docker and database-port grants. Destructive
+volume removal, broad container cleanup, and production deployments remain guarded.
+Ordinary `git branch -d` cleanup uses Git's merged-branch check and does not trigger
+high-risk approval; force deletion and stash dropping retain their protections.
+
 The shortcut authority is always `managed`. The old `--restricted`, `--daily`,
 and `--unrestricted` flags fail with guidance to choose the shortcut or native
 command. Reloading the launcher removes old functions including `pih`, `pihr`,

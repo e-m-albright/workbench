@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+from contextlib import nullcontext
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -19,6 +20,7 @@ from workbench import drift as drift_module
 from workbench import lint as lint_module
 from workbench import native as native_module
 from workbench.core import VENDOR_CHOICES, WorkbenchError, _vendors, drain_changed_paths
+from workbench.preview import preview_sync
 from workbench.profiles import vendors as profile_vendors
 from workbench.render import ALIAS_NOTE, DESCRIPTION, gradient_banner, print_error
 from workbench.sync import sync_claude, sync_codex, sync_pi, sync_rules
@@ -77,6 +79,9 @@ def sync(
     rules_only: Annotated[
         bool, typer.Option("--rules-only", help="deploy only global instruction files")
     ] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="preview paths and plugin operations without changes")
+    ] = False,
     profile: Annotated[
         DeploymentProfile,
         typer.Option(
@@ -93,19 +98,32 @@ def sync(
     deployers = {"claude": sync_claude, "codex": sync_codex, "pi": sync_pi}
     drain_changed_paths()
     selected = profile_vendors(profile.value, _vendors(vendor.value))
-    for name in selected:
-        if rules_only:
-            sync_rules(home, name)
-            continue
-        if name == "codex":
-            sync_codex(home, deploy_skills=not no_skills, deploy_plugins=not no_plugins)
-        else:
-            deployers[name](
-                home,
-                deploy_skills=not no_skills,
-                deploy_plugins=not no_plugins,
-                profile=profile.value,
-            )
+    with preview_sync() if dry_run else nullcontext() as plan:
+        for name in selected:
+            if rules_only:
+                sync_rules(home, name)
+                continue
+            if name == "codex":
+                sync_codex(home, deploy_skills=not no_skills, deploy_plugins=not no_plugins)
+            else:
+                deployers[name](
+                    home,
+                    deploy_skills=not no_skills,
+                    deploy_plugins=not no_plugins,
+                    profile=profile.value,
+                )
+    if plan is not None:
+        for path, action in plan.operations.items():
+            label = f"~/{path.relative_to(home)}" if path.is_relative_to(home) else str(path)
+            print(f"{action} {label}")
+        for operation in plan.plugins:
+            print(operation)
+        count = len(plan.operations) + len(plan.plugins)
+        summary = f"{count} planned operation(s)" if count else "nothing to change"
+        print(f"OK preview: {summary}; no changes made")
+        if plan.plugins:
+            print("NOTE plugin assets and dependent projections are verified after installation")
+        return
     changed = drain_changed_paths()
     for path in changed:
         try:

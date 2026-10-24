@@ -8,6 +8,7 @@ import tomllib
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from workbench import preview
 from workbench.codex import _toml_value
 from workbench.core import write_json, write_text
 
@@ -88,13 +89,14 @@ def _check_source(path, home):
     for part in (path, *path.parents):
         if part == home:
             break
-        if part.is_symlink():
+        plan = preview.current()
+        if part.is_symlink() and (plan is None or part not in plan.files):
             raise ValueError(f"Harness asset must not traverse a symlink: {path}")
 
 
 def _json(path, home):
     _check_source(path, home)
-    value = json.loads(path.read_text()) if path.is_file() else {}
+    value = json.loads(preview.read_text(path)) if preview.exists(path) else {}
     if not isinstance(value, dict):
         raise ValueError(f"Expected a configuration object: {path}")
     return value
@@ -102,7 +104,7 @@ def _json(path, home):
 
 def _toml(path, home):
     _check_source(path, home)
-    return tomllib.loads(path.read_text()) if path.is_file() else {}
+    return tomllib.loads(preview.read_text(path)) if preview.exists(path) else {}
 
 
 def _select(value, keys):
@@ -128,21 +130,28 @@ class Projection:
         self.home, self.vendor = home, vendor
         self.root = home / DATA / "native/harness"
         self.manifest = {"links": [], "files": [], "read": []}
+        self.contents: dict[Path, str] = {}
 
     def grant(self, source):
         # Never turn an installed asset symlink into a grant on an unrelated tree.
         _check_source(source, self.home)
         # Installed code trees are trusted assets, not sanitized file collections.
         # Keep credentials outside them; the outer mandatory denials still apply.
-        value = str(source.resolve(strict=True))
+        value = str(
+            preview.resolve(
+                source, strict=source not in self.contents and preview.current() is None
+            )
+        )
         if value not in self.manifest["read"]:
             self.manifest["read"].append(value)
 
     def link(self, relative):
         source = self.home / relative
-        if source.exists() or source.is_symlink():
+        if preview.exists(source) or source.is_symlink():
             self.grant(source)
-            self.manifest["links"].append({"path": relative, "target": str(source.resolve())})
+            self.manifest["links"].append(
+                {"path": relative, "target": str(preview.resolve(source))}
+            )
 
     def file(self, relative, value, *, toml=False):
         source = self.root / self.vendor / relative
@@ -153,9 +162,9 @@ class Projection:
             for key, state in hooks.items():
                 content += f"\n[hooks.state.{_toml_value(key)}]\n"
                 content += "".join(f"{k} = {_toml_value(v)}\n" for k, v in state.items())
-            write_text(source, content)
         else:
-            write_json(source, value)
+            content = json.dumps(value, indent=2) + "\n"
+        self.contents[source] = content
         self.manifest["files"].append({"path": relative, "source": str(source)})
         self.grant(source)
 
@@ -316,7 +325,7 @@ def _claude(p):
             settings[key] = _select(config[key], keys)
     settings.update(_hooks(config))
     statusline = p.home / DATA / "claude/statusline.sh"
-    if statusline.is_file():
+    if preview.exists(statusline):
         p.grant(statusline)
         settings["statusLine"] = {"type": "command", "command": str(statusline)}
     installed = _json(p.home / ".claude/plugins/installed_plugins.json", p.home)
@@ -464,12 +473,22 @@ def _codex(p):
     for skill in (p.home / ".codex/skills").glob("*"):
         if not skill.name.startswith("."):
             p.link(str(skill.relative_to(p.home)))
-    for path in (p.home / ".codex").glob("*.config.toml"):
+    for path in preview.glob(p.home / ".codex", "*.config.toml"):
         p.file(
             f".codex/{path.name}",
             _select(_toml(path, p.home), CODEX_KEYS),
             toml=True,
         )
+
+
+def render_harness(home: Path, vendor: str) -> Projection:
+    """Calculate one projection without writing files or inspecting credentials."""
+    project = {"pi": _pi, "claude": _claude, "codex": _codex}[vendor]
+    p = Projection(home.resolve(), vendor)
+    project(p)
+    for hook in HOOK_NAMES:
+        p.link(f"{DATA}/hooks/{hook}")
+    return p
 
 
 def install_harness(home: Path, vendor: str | None = None) -> None:
@@ -480,13 +499,10 @@ def install_harness(home: Path, vendor: str | None = None) -> None:
         name: {"links": [], "files": [], "read": []} for name in ("pi", "claude", "codex", "shell")
     }
     manifest.update(_json(path, home))
-    for name, project in (("pi", _pi), ("claude", _claude), ("codex", _codex)):
-        if vendor is not None and vendor != name:
-            continue
-        p = Projection(home, name)
-        project(p)
-        for hook in HOOK_NAMES:
-            p.link(f"{DATA}/hooks/{hook}")
+    for name in ("pi", "claude", "codex") if vendor is None else (vendor,):
+        p = render_harness(home, name)
+        for source, content in p.contents.items():
+            write_text(source, content)
         manifest[name] = p.manifest
     manifest["shell"] = {"links": [], "files": [], "read": []}
     write_json(path, manifest)

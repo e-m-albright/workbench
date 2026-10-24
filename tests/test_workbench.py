@@ -16,6 +16,7 @@ from unittest.mock import patch
 from workbench import codex, core, mcp, render, sync
 from workbench import drift as drift_mod
 from workbench import lint as lint_mod
+from workbench.native_config import install_harness
 
 
 class WorkbenchTests(unittest.TestCase):
@@ -49,6 +50,10 @@ class WorkbenchTests(unittest.TestCase):
             for source in core.AGENTS.glob("skills/*"):
                 if source.is_dir() and (source / "SKILL.md").exists():
                     shutil.copytree(source, home / root / source.name)
+        # Skills added after sync change its derived code grants too.
+        for vendor in ("claude", "codex", "pi"):
+            if (home / f".{vendor}").exists():
+                install_harness(home, vendor)
 
     def install_pi_package_metadata(self, home: Path) -> None:
         for source in core._settings(core.AGENTS / "pi/settings.json").get("packages", []):
@@ -57,6 +62,7 @@ class WorkbenchTests(unittest.TestCase):
                 home / ".pi/agent/npm/node_modules" / name / "package.json",
                 {"name": name, "version": version},
             )
+        install_harness(home, "pi")
 
     def test_merge_mcp_preserves_external_and_removes_tombstones(self) -> None:
         merged = mcp.merge_mcp(

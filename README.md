@@ -135,7 +135,7 @@ provisions the Python 3.13 development line pinned in `.python-version` and the 
 [Node 26.12.1 or newer within Node 26](https://nodejs.org/) and [pnpm](https://pnpm.io/) for the locked Pi
 extension test and development tools, and the installed Pi/Claude/Codex
 CLIs. [Pandoc](https://pandoc.org/) is required only to render and verify the
-maintained call-script document template. Workbench stages and atomically replaces managed skills; Pi and Codex discover one shared real-file deployment under `~/.agents/skills`, avoiding duplicate Pi skill warnings.
+maintained reading and call-script document templates. Workbench stages and atomically replaces managed skills; Pi and Codex discover one shared real-file deployment under `~/.agents/skills`, avoiding duplicate Pi skill warnings.
 
 TypeScript formatting stays with Biome. `just lint-ts` runs the two selected
 Oxlint promise checks; `just check` includes formatting, linting, tests, and
@@ -151,9 +151,13 @@ reintroduction. Retirement reasons live with `RETIRED_SKILLS` in
 ### Reconcile everything
 
 ```bash
+workbench sync all --dry-run
 workbench sync all
 workbench drift all
 ```
+
+Preview reports paths, permission repairs, removals, and plugin operations without
+writing configuration or installing plugins. It never prints configuration values.
 
 `sync` preserves unmanaged vendor settings, writes only Workbench-owned values,
 and keeps one `.bak` file before replacing live configuration. By default it
@@ -182,16 +186,9 @@ workbench sync all --profile work
 workbench drift all --profile work
 ```
 
-That profile targets only Claude Code and Pi. It keeps shared rules, tracked
-skills, hooks, permission guards, shared shell launchers, and the native Claude
-and Pi harness projections while omitting Codex, Claude plugins and Desktop
-configuration, MCP servers, local-model routing, and browser and personal
-connector extensions. Known personal surfaces are removed by work sync and fail
-work drift if reintroduced; unknown external additions remain preserved.
-
-Personal Pi and Codex sessions default to `gpt-6.1-sol` with medium reasoning;
-Claude defaults to `opus` with medium effort. The work profile keeps the Claude
-defaults but leaves Pi provider and model selection to host policy.
+The work profile targets only Claude Code and Pi and excludes personal
+integrations. The exact exclusions, model defaults, and preservation rules live
+in the [configuration reference](docs/configuration.md).
 
 Sync and drift use `DOTFILES_PROFILE` when set, otherwise `personal`; an explicit
 `--profile` overrides that default. `just deploy` chains sync and drift so a deploy
@@ -204,7 +201,8 @@ use `just sync` for partial deployments with `--no-skills` or `--rules-only`.
 just check       # format, lint, types, tests, and source validation
 just test        # deterministic unit tests only
 just lint        # skills, links, JSON, TOML, and shell syntax
-just check-documents  # render-smoke the maintained call-script template
+just check-documents  # render-smoke the maintained document templates
+just native-canary    # real macOS boundary probes; synthetic state, no model requests
 ```
 
 ### Understand an unexpected live item
@@ -227,6 +225,7 @@ workbench
 │   ├── --profile              personal or work; defaults to DOTFILES_PROFILE
 │   ├── --no-skills            skip shared-skill installation
 │   ├── --no-plugins           skip declared-plugin installation
+│   ├── --dry-run              preview changes without applying them
 │   └── --rules-only           deploy only global instruction files
 ├── drift [claude|codex|pi|all] report managed drift and external additions
 │   └── --profile              personal or work; defaults to DOTFILES_PROFILE
@@ -306,31 +305,18 @@ with no code enforcement.
 Workbench is public. It must never contain credentials, personal records,
 conversations, generated memory, or private operational state.
 
-The shortcuts `co`, `cc`, and `p` run the entire agent process and its children
-inside Workbench's native macOS boundary. They show `cloud > managed` and admit
-the selected ordinary Git checkout, `~/code/public`, `~/Desktop`, and
-`~/Downloads`, while retaining private-file exclusions. Full commands `codex`,
-`claude`, and `pi` keep their native behavior and shared configuration without
-adding this outer boundary. A native binary started inside a managed session
-still inherits that session's restrictions. The old authority flags and
-alternate host/repository aliases are retired. The isolated HOME maps Desktop
-and Downloads to the host directories. Explicit private/local intent is rejected
-in managed Pi; start native Pi from the host for local inference.
-Managed Claude shares only its matching native project transcript namespace;
-settings stay isolated and provider login enrollment is unchanged. Initial
-migration requires stopped managed sessions. Pi workers may use admitted sibling
-locations while retaining the parent's boundary. The Google connector is retired;
-Strava remains limited to local inference.
-The [launch design catalogue](docs/agents/launch-design.md) compares these routes
-and records the incorporated fixes and remaining limits. The
-[six-model review disposition](docs/decisions/managed-launch-review.md) separates
-corrected defects from accepted risks, including provider-token exposure,
-pre-existing admitted hardlinks, host callbacks, and later execution of edits.
-The [isolation contract](docs/security/isolation.md)
-owns filesystem and network permissions, credential exceptions, uncovered host
-interfaces, and accepted risks. Permission rules and PreToolUse hooks add
-defense in depth against destructive commands. Database and infrastructure
-policy remains the responsibility of the project that owns those resources.
+The shortcuts `co`, `cc`, and `p` contain the entire agent process and its
+children in Workbench's native macOS boundary. Full commands `codex`, `claude`,
+and `pi` launched from the host retain native behavior without that outer
+boundary. Starting a native binary inside an already managed session does not
+remove its inherited restrictions.
+
+The [isolation contract](docs/security/isolation.md) owns setup, permissions,
+project grants, session history, and accepted risks. The
+[launch design catalogue](docs/agents/launch-design.md) compares launch routes;
+the [independent review disposition](docs/decisions/managed-launch-review.md)
+records the reviewed corrections and remaining limits. Database and
+infrastructure policy belongs to the project that owns those resources.
 
 For an independent read-only fact-check, use the
 [`adversarial audit prompt`](agents/prompts/workbench-audit.md).

@@ -208,6 +208,22 @@ explicit named profiles. `never` disables approval prompts; it does not by
 itself grant an escape from a sandbox. The coupled ordinary
 `danger-full-access`/`never` posture is repaired to workspace-write/on-request.
 
+## Sync preview
+
+`workbench sync [vendor] --dry-run` runs the same merge and rendering functions
+as sync, holding planned managed text and skill-tree replacements in memory.
+It prints `CREATE`, `UPDATE`, `REMOVE`, and `MODE` paths plus `PLUGIN` actions.
+It does not write files, change modes, harden transcripts, delete retired
+surfaces, or run plugin installation/enabling commands. Unknown settings survive
+the same bounded merges; configuration values and credentials are never printed.
+The normal profile, skill, plugin, and rules-only options apply.
+
+Plugin inventory is read through the vendor CLI. A planned installation cannot
+predict the marketplace's resulting code assets, so dependent projections must
+be verified after real installation. Preview is not a lock: concurrent changes
+or vendor updates can change the subsequent sync. `just deploy` rejects preview
+and partial-sync flags because its contract is an applied, verified deployment.
+
 ## Drift semantics
 
 `workbench drift` distinguishes two states:
@@ -218,6 +234,13 @@ itself grant an escape from a sandbox. The coupled ordinary
   is reported for visibility but does not fail the command.
 - `NOTE` - verification was skipped (for example, a vendor CLI is absent); the
   item is neither drift nor external and is counted separately.
+
+Drift also checks required entries in both machine-local denylists, obsolete Pi
+state paths, and each selected vendor's derived harness manifest and rendered
+configuration. Projection verification uses the same read-only renderer as sync;
+it does not repair state or read provider login files. A changed installed
+preference or code-asset inventory may require another sync even when canonical
+source files have not changed.
 
 `sync` preserves unmanaged configuration, writes only Workbench-owned values,
 and keeps one `.bak` file before replacing live configuration. It reports each

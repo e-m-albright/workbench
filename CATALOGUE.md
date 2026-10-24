@@ -2,7 +2,7 @@
 
 Timestamped map of maintained agent-intelligence capabilities in this repository.
 
-**Snapshot:** 2026-10-20. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
+**Snapshot:** 2026-10-23. Refresh the map and counts on demand during an explicit capability-health review, not during routine implementation.
 
 The [terminal launch design catalogue](docs/agents/launch-design.md) records the
 managed/native launch split and the owner-approved
@@ -23,11 +23,11 @@ Text must be UTF-8 without NUL bytes; other files are binary assets, reported by
 
 | Group | Files | Lines |
 |---|---:|---:|
-| Code - source | 46 | 9,873 |
-| Code - tests | 38 | 8,216 |
-| Text | 199 | 20,750 |
-| Generated/vendor | 3 | 2,016 |
-| **Source tree text total** | **286** | **40,855** |
+| Code - source | 47 | 10,747 |
+| Code - tests | 40 | 8,844 |
+| Text | 201 | 20,998 |
+| Generated/vendor | 3 | 2,190 |
+| **Tracked text total** | **291** | **42,779** |
 
 Binary assets: 2 files, 223,107 bytes. Workbench contains 31 tracked local skills.
 Archify and its external archive download pipeline are retired; reasons and
@@ -38,7 +38,8 @@ Archify and Whiteboard remain [watch candidates for AI-led code understanding](p
 
 | Capability | Posture |
 |---|---|
-| Workbench CLI, sync, drift, lint, rendering, MCP, and Codex merge | Core deployment engine |
+| Workbench CLI, sync preview, deployment, drift, lint, rendering, MCP, and Codex merge | Core deployment engine |
+| Managed runtime preparation, login enrollment, status, and harness projection | Core runtime contract; no credential contents in status |
 | Pi extensions and direct connector adapters | Shared harness; operations depend on inference and launch authority |
 | Shared rules, safety hooks, permission policy, and launchers | Core trust boundary |
 | Reusable skills and their references | Core portable workflow library; 31 local skills after repeated consolidation passes |
@@ -56,8 +57,9 @@ Archify and Whiteboard remain [watch candidates for AI-led code understanding](p
 - Canonical shared rules, skills, prompts, hooks, status lines, permission policy, MCP declarations, plugins, profiles, presets, and Pi extensions.
 - Native deployment into Pi, Claude Code, and Codex.
 - Staged tree replacement, bounded merges that preserve unmanaged state, one-file backups, retired-surface cleanup, and live drift reporting.
-- Personal Pi and Codex defaults use `gpt-6.1-sol` with medium reasoning; Claude uses `opus` with medium effort. Work Pi leaves provider and model selection to host policy.
-- Managed Claude links only its matching native project transcript namespace; settings and provider login handling remain separate.
+- Read-only sync preview uses the real reconciliation functions and lists paths, mode repairs, removals, and plugin actions without exposing configuration values.
+- Drift verifies required denylist entries, retired Pi state, derived harness manifests, and projected configuration as well as canonical deployments.
+- Model defaults and profile exclusions live in the [configuration reference](docs/configuration.md); launch authority and session history live in the [isolation contract](docs/security/isolation.md).
 - CLI rendering, contextual help, linting, managed-surface validation, and privacy checks.
 
 **Assessment:** Keep. This is Workbench's core reason to exist. Continue using vendor-native configuration and bounded merge logic. Reject additional abstraction when a direct file deployment is sufficient.
@@ -66,22 +68,23 @@ Archify and Whiteboard remain [watch candidates for AI-led code understanding](p
 
 - Shared destructive-shell and sensitive-file guards.
 - A native macOS boundary around `p`, `cc`, `co`, and their children; full vendor commands started from the host retain native authority.
+- Managed runtime preparation, explicit provider-login enrollment, metadata-only status, and credential-free harness projections.
 - Pi command classification, protected-path handling, connector trust rules, and remote MCP denial.
+- `just native-canary` prepares disposable synthetic state and runs the real macOS boundary probes without paid model requests.
 - Claude permissions and Codex safety-rule merging.
 - Public/private boundary: public rules may point to optional machine-local private context, but never publish its contents.
 
-**Assessment:** Keep and treat as high consequence. Tests should follow every newly allowed mutation path. Prefer denying an unsupported operation over broad pattern exceptions.
+**Assessment:** Sharpen while preserving critical protections. The [development-access assessment](docs/security/development-access.md) separates command-guard conflicts, missing project grants, and actual containment. Run executable positive and negative controls before changing authority; do not add broad exceptions to silence development failures.
 
 ### Pi runtime extensions
 
 - Activity naming, welcome, footer and quota display, one development preset, explicit local/frontier inference routing, and Git safety in the shared harness.
 - One worktree worker in native sessions or admitted sibling locations in managed sessions, retaining the parent's model selection and boundary. Review precedes explicit adoption/rejection; unique commits remain preserved and recursive worker entrypoints are blocked.
-- Consult in native hosted sessions; managed sessions direct the owner to native Pi and local inference refuses cloud consult.
 - Confirmed GitHub workflow dispatch and confirmed ingress discard.
 - Read-only Strava tools for local inference. The Google connector is retired; Google data and Apple Notes remain outside the coding-agent boundary.
 - Agent Browser integration through the pinned native package rather than a competing browser layer.
 
-**Assessment:** Keep selectively. Each extension must provide a capability Pi does not natively supply or enforce a local trust boundary. Review extensions when upstream Pi gains equivalent behavior; remove the local implementation rather than maintaining two paths.
+**Assessment:** Keep selectively. Each extension must provide a capability Pi does not natively supply or enforce a local trust boundary. Review extensions when upstream Pi gains equivalent behavior; remove the local implementation rather than maintaining two paths. Retain the single global development preset for now: trusted project overrides, provider-aware tool filtering, and connector-switch confirmation are supported and tested contracts. No private-project caller migration was established in this review, so removing those contracts would be premature.
 
 ### Reusable skills
 
@@ -96,10 +99,9 @@ Archify and Whiteboard remain [watch candidates for AI-led code understanding](p
 
 ### Owner document templates
 
-- A Notes-style call-script template renders canonical Markdown into a standalone
-  HTML reading view for live conversations and rehearsal.
-- Pandoc is an explicit optional dependency; `just check-documents` verifies the
-  maintained example and runs in CI.
+- A long-form reading template renders reports, briefs, and research with a responsive table of contents and full-width evidence tables.
+- A Notes-style call-script template supports live conversations and rehearsal.
+- Both render canonical Markdown into standalone HTML. Pandoc is an explicit optional dependency; `just check-documents` verifies both maintained examples in CI.
 
 **Assessment:** Keep small. Add a template only for a recurring document job with
 a distinct retrieval or interaction need; do not grow this into a general document

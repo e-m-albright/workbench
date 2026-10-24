@@ -80,6 +80,7 @@ export default function(pi) {
     try { writeFileSync(`${root}/.pi/agent/extensions/forbidden.ts`, "bad"); }
     catch { denied = true; }
     if (!denied) throw new Error("HOST HARNESS WRITE ALLOWED");
+    writeFileSync(`${ctx.cwd}/.boundary-canary-pass`, "BOUNDARY-CANARY-PASS");
     ctx.ui.notify("BOUNDARY-CANARY-PASS", "info");
   });
 }
@@ -556,10 +557,8 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
             if (
                 not header_requested
                 and "Workbench configuration" not in plain
-                and all(
-                    marker in plain
-                    for marker in ("cloud > managed", "BOUNDARY-CANARY-PASS", "openai/gpt-4.1")
-                )
+                and (tmp_path / ".boundary-canary-pass").is_file()
+                and all(marker in plain for marker in ("cloud > managed", "openai/gpt-4.1"))
             ):
                 os.write(master, b"\x1b[5~")
                 header_requested = True
@@ -571,19 +570,20 @@ def test_real_pi_interactive_startup_has_footer_not_banner(tmp_path, synthetic_a
                         "cloud > managed",
                         "ctx ",
                         "Workbench configuration",
-                        "BOUNDARY-CANARY-PASS",
                         "openai/gpt-4.1",
                     )
                 )
-                or process.poll() is not None
-            ):
+                and (tmp_path / ".boundary-canary-pass").is_file()
+            ) or process.poll() is not None:
                 break
         text = output.decode(errors="replace")
+        # Startup notifications can be coalesced or scrolled out of view. Prove
+        # the boundary assertions executed independently of that transient toast.
+        assert (tmp_path / ".boundary-canary-pass").read_text() == "BOUNDARY-CANARY-PASS"
         assert "EPERM" not in text, text
         assert "cloud > managed" in plain, text
         assert "ctx " in plain, text
         assert "Workbench configuration" in plain, text
-        assert "BOUNDARY-CANARY-PASS" in plain, text
         assert "openai/gpt-4.1" in plain, text
         assert "PI · NATIVE RESTRICTED" not in text
         assert process.poll() is None, text

@@ -89,6 +89,11 @@ test-pi *args='tests/*.test.ts':
     pnpm exec vitest run {{args}}
 
 
+# Run real macOS boundary probes with disposable synthetic state and no model requests.
+[group('testing')]
+native-canary *args:
+    uv run --locked python scripts/native_canary.py {{args}}
+
 # Typecheck Pi extensions against the installed Pi API; skips when Pi is absent.
 [group('testing')]
 typecheck-pi:
@@ -189,7 +194,7 @@ deploy *args:
     set -euo pipefail
     for arg in "$@"; do
         case "$arg" in
-            --no-skills | --rules-only)
+            --no-skills | --rules-only | --dry-run)
                 printf 'deploy: %s is sync-only; use just sync for a partial deployment\n' "$arg" >&2
                 exit 2
                 ;;

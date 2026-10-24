@@ -18,6 +18,7 @@ from workbench.core import (
     RETIRED_PI_PROVIDERS,
     RETIRED_PI_SANDBOX_PROFILES,
     RETIRED_PI_SETTINGS,
+    RETIRED_PI_STATE_PATHS,
     RETIRED_SKILLS,
     RETIRED_SUBAGENTS,
     ROOT,
@@ -25,8 +26,12 @@ from workbench.core import (
     _list_plugins,
     _settings,
     _string_array,
+    ensure_hard_deny_policy,
+    ensure_private_path_policy,
 )
 from workbench.mcp import active_mcp, merge_mcp, retired_mcp_names
+from workbench.native_config import _check_source, render_harness
+from workbench.preview import preview_sync
 from workbench.profiles import WORK_PI, WORK_PI_EXTENSIONS, Profile
 from workbench.sync import (
     _canonical_hooks,
@@ -427,6 +432,31 @@ def _check_mcp(
         external.append(f"EXTERNAL {label}: {name}")
 
 
+def _check_harness(home: Path, vendor: str, findings: list[str]) -> None:
+    """Verify the same derived configuration that sync renders, without repair."""
+    home = home.resolve()
+    path = home / DATA_REL / "native/harness/manifest.json"
+    try:
+        _check_source(path, home)
+        actual = _settings(path)
+        shell_finding = "DRIFT shell projection manifest"
+        if (
+            actual.get("shell") != {"links": [], "files": [], "read": []}
+            and shell_finding not in findings
+        ):
+            findings.append(shell_finding)
+        expected = render_harness(home, vendor)
+        if actual.get(vendor) != expected.manifest:
+            findings.append(f"DRIFT {vendor} projection manifest")
+        for source, content in expected.contents.items():
+            _check_source(source, home)
+            _compare_text(
+                content, source, f"{vendor} projection {source.relative_to(home)}", findings
+            )
+    except (OSError, ValueError, WorkbenchError) as exc:
+        findings.append(f"DRIFT {vendor} projection cannot be verified: {exc}")
+
+
 def drift(
     home: Path,
     vendors: Iterable[str],
@@ -452,10 +482,19 @@ def drift(
         if not hard_deny.is_file():
             findings.append(f"DRIFT invariant agent denylist is missing: {hard_deny}")
         _check_private_mode(hard_deny, "Invariant agent denylist", findings)
-    if "pi" in selected:
-        _check_private_mode(
-            home / ".config/workbench/private-paths", "Pi private path denylist", findings
-        )
+        for filename, ensure in (
+            ("hard-deny-paths", ensure_hard_deny_policy),
+            ("private-paths", ensure_private_path_policy),
+        ):
+            path = home / ".config/workbench" / filename
+            if path.is_symlink():
+                findings.append(f"DRIFT {filename}: policy must not be a symlink")
+                continue
+            with preview_sync() as plan:
+                ensure(path)
+            if path in plan.files:
+                findings.append(f"DRIFT {filename}: missing or obsolete required exclusions")
+            _check_private_mode(path, f"Agent {filename}", findings)
     if {"claude", "codex"} & set(selected):
         hooks = _canonical_hooks()
         for name, hook in hooks.items():
@@ -470,7 +509,12 @@ def drift(
                     findings.append(f"DRIFT retired runtime hook still present: {deployed.name}")
 
     for vendor in selected:
+        _check_harness(home, vendor, findings)
         if vendor == "pi":
+            for relative in RETIRED_PI_STATE_PATHS:
+                path = home / relative
+                if path.exists() or path.is_symlink():
+                    findings.append(f"DRIFT retired Pi state still present: {path}")
             _check_pi(home, findings, external, profile)
             _check_skills(
                 home / ".agents/skills",

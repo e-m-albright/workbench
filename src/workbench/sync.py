@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from workbench import preview
 from workbench.codex import expected_codex_rules_md, merge_codex_config, merge_codex_rules
 from workbench.core import (
     AGENTS,
@@ -47,6 +48,12 @@ def _sync_plugins(vendor: str, home: Path) -> None:
         raise WorkbenchError(f"{vendor} is required to deploy {vendor} plugins")
     installed = _list_plugins(vendor, home)
     for plugin in desired:
+        plan = preview.current()
+        if plan is not None:
+            if plugin not in installed or (not installed[plugin] and vendor == "claude"):
+                action = "install" if plugin not in installed else "enable"
+                plan.plugins.append(f"PLUGIN {vendor} {action} {plugin}")
+            continue
         if plugin in installed:
             # Codex has no enable subcommand; a disabled codex plugin stays a
             # drift finding the owner resolves in the vendor UI.
@@ -133,7 +140,13 @@ def _tree_files(root: Path) -> dict[Path, bytes]:
 
 def _replace_tree(source: Path, destination: Path) -> None:
     """Stage one local tree, then swap it into place without a network gap."""
-    if _tree_files(source) == _tree_files(destination):
+    plan = preview.current()
+    actual = plan.source(destination) if plan else destination
+    if _tree_files(source) == _tree_files(actual):
+        return
+    if plan is not None:
+        plan.operations[destination] = "UPDATE" if plan.exists(destination) else "CREATE"
+        plan.trees[destination] = source
         return
     destination.parent.mkdir(parents=True, exist_ok=True)
     staged = destination.with_name(destination.name + ".tmp")
@@ -317,15 +330,16 @@ def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None
 
     live_rules = codex_home / "rules/default.rules"
     source_rules = AGENTS / "codex/default.rules"
-    existing_rules = live_rules.read_text() if live_rules.exists() else ""
+    existing_rules = preview.read_text(live_rules) if preview.exists(live_rules) else ""
     write_text(live_rules, merge_codex_rules(source_rules.read_text(), existing_rules))
 
     config = codex_home / "config.toml"
-    existing = config.read_text() if config.exists() else ""
+    existing = preview.read_text(config) if preview.exists(config) else ""
     write_text(config, merge_codex_config(existing), mode=0o600)
     for profile in sorted((AGENTS / "codex/profiles").glob("*.toml")):
         copy_file(profile, codex_home / f"{profile.stem}.config.toml")
-    if copy_file(AGENTS / "shared/hooks.json", codex_home / "hooks.json"):
+    hooks_changed = copy_file(AGENTS / "shared/hooks.json", codex_home / "hooks.json")
+    if hooks_changed and preview.current() is None:
         # Codex records trust against each hook's hash, so a changed hooks.json
         # is skipped until re-trusted — drift's byte comparison cannot see that.
         print("NOTE codex hooks changed; run /hooks in Codex to re-trust them")
@@ -340,7 +354,11 @@ def sync_codex(home: Path, *, deploy_skills: bool, deploy_plugins: bool) -> None
 def _replace_pi_file(source: Path, destination: Path) -> None:
     """Deploy a real file so a broken repository symlink cannot disable Pi."""
     if destination.is_symlink():
-        destination.unlink()
+        plan = preview.current()
+        if plan is not None:
+            plan.remove(destination, report=False)
+        else:
+            destination.unlink()
     copy_file(source, destination)
 
 
@@ -383,12 +401,16 @@ def _merge_pi_object(
             key: value for key, value in existing.items() if key not in (retired_keys or set())
         }
         desired = {**retained, **desired}
-    if destination.is_symlink():
+    if destination.is_symlink() and preview.current() is None:
         destination.unlink()
     write_json(destination, desired)
 
 
 def _remove_deployed_path(path: Path, *, report: bool = True) -> None:
+    plan = preview.current()
+    if plan is not None:
+        plan.remove(path, report=report)
+        return
     if path.is_symlink() or path.is_file():
         path.unlink()
     elif path.exists():
@@ -418,19 +440,26 @@ def _harden_pi_session_permissions(destination: Path) -> None:
     if not sessions.exists() and not sessions.is_symlink():
         return
 
-    def harden(descriptor: int) -> None:
+    def harden(descriptor: int, path: Path) -> None:
         metadata = os.fstat(descriptor)
         directory = stat.S_ISDIR(metadata.st_mode)
         if not directory and not stat.S_ISREG(metadata.st_mode):
             raise WorkbenchError("Pi session paths must be regular files or directories")
-        os.fchmod(descriptor, 0o700 if directory else 0o600)
+        desired_mode = 0o700 if directory else 0o600
+        plan = preview.current()
+        if plan is None:
+            os.fchmod(descriptor, desired_mode)
+            if metadata.st_mode & 0o777 != desired_mode:
+                record_changed_path(path)
+        elif metadata.st_mode & 0o777 != desired_mode:
+            plan.operations[path] = "MODE"
         if directory:
             for name in os.listdir(descriptor):
                 child = os.open(
                     name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor
                 )
                 try:
-                    harden(child)
+                    harden(child, path / name)
                 finally:
                     os.close(child)
 
@@ -438,7 +467,7 @@ def _harden_pi_session_permissions(destination: Path) -> None:
     try:
         root = os.open(sessions, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         try:
-            harden(root)
+            harden(root, sessions)
         finally:
             os.close(root)
     except OSError as exc:
