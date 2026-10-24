@@ -1,6 +1,6 @@
 ---
 name: tool-radar
-description: Discover and triage public developer tools without equating popularity with fit. Use for "what tools are trending", GitHub discovery, tooling radar, or updating a tool watchlist.
+description: Discover and triage public developer tools without equating popularity with fit. Use for "what tools are trending", GitHub discovery, an industry pulse, a weekly research spike, or updating a tool watchlist.
 ---
 
 # Tool Radar
@@ -12,6 +12,7 @@ Find promising public developer tools, then separate attention from utility. Thi
 - **Quick scan:** Find up to five noteworthy repositories across the user's active stack. Prefer this for “what is trending?” or a routine check-in.
 - **Focused scan:** Investigate one named topic, language, workflow bottleneck, or comparison question.
 - **Landscape scan:** Map a category only when the user needs a broader decision. Keep the shortlist bounded and name the strongest incumbent.
+- **Weekly deep research or broad catch-up:** Read [the weekly research workflow](references/weekly.md). Map the tracked baseline, research material changes and gaps, and return a local evidence-backed briefing. This mode is broader than the five-repository shortlist; record deferrals rather than claiming every topic received a fresh audit.
 
 Infer scope from the current repository's stack and stated needs. Ask for topics only when no useful scope is available. In Workbench, discover the relevant subject with `rg --files playbook` and read its existing comparison before searching. Use `playbook/watchlist.md` for open questions and revisit triggers.
 
