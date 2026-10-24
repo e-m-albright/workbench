@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
 import re
 import tomllib
 from pathlib import Path
@@ -19,7 +18,7 @@ PI_KEYS = {
     "doubleEscapeAction",
     "treeFilterMode",
     "tuiMode",
-    "defaultPreset",
+    "defaultTools",
     "theme",
     "quietStartup",
     "collapseChangelog",
@@ -273,15 +272,6 @@ def _pi(p):
     settings = _select(config, PI_KEYS)
     if isinstance(config.get("safeGit"), dict):
         settings["safeGit"] = _select(config["safeGit"], {"promptLevel", "enabledByDefault"})
-    worker = config.get("worker", {})
-    timeout = worker.get("timeoutMs") if isinstance(worker, dict) else None
-    if (
-        isinstance(timeout, (int, float))
-        and not isinstance(timeout, bool)
-        and math.isfinite(timeout)
-        and timeout > 0
-    ):
-        settings["worker"] = {"timeoutMs": timeout}
     packages = [
         item
         for item in config.get("packages", [])
@@ -295,6 +285,7 @@ def _pi(p):
     for relative in (
         ".pi/agent/AGENTS.md",
         ".pi/agent/extensions",
+        ".pi/agent/agents",
         ".pi/agent/skills",
         ".pi/agent/prompts",
         ".pi/agent/themes",
@@ -303,15 +294,6 @@ def _pi(p):
         ".pi/agent/permission-policy.json",
     ):
         p.link(relative)
-    presets = _json(p.home / ".pi/agent/presets.json", p.home)
-    p.file(
-        ".pi/agent/presets.json",
-        {
-            name: _select(value, {"thinkingLevel", "tools", "instructions", "model", "provider"})
-            for name, value in presets.items()
-            if isinstance(value, dict)
-        },
-    )
     router = _json(p.home / ".pi/agent/inference-router.json", p.home)
     if router:
         p.file(

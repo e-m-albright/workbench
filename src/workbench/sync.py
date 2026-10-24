@@ -18,7 +18,6 @@ from workbench.core import (
     DATA_REL,
     RETIRED_AGENT_SHELL_FILES,
     RETIRED_PI_EXTENSIONS,
-    RETIRED_PI_PRESETS,
     RETIRED_PI_PROVIDERS,
     RETIRED_PI_SANDBOX_PROFILES,
     RETIRED_PI_SETTINGS,
@@ -483,11 +482,6 @@ def sync_pi(
             else set()
         ),
     )
-    _merge_pi_object(
-        source / "presets.json",
-        destination / "presets.json",
-        retired_keys=set(RETIRED_PI_PRESETS),
-    )
     if profile == "personal":
         _replace_pi_file(source / "inference-router.json", destination / "inference-router.json")
     else:
@@ -508,6 +502,8 @@ def sync_pi(
     # as an extension, and ignores a subdirectory with no index or manifest.
     for helper in sorted((AGENTS / "pi/extensions/lib").glob("*.ts")):
         _replace_pi_file(helper, destination / "extensions/lib" / helper.name)
+    for agent in sorted((AGENTS / "pi/agents").glob("*.md")):
+        _replace_pi_file(agent, destination / "agents" / agent.name)
     if deploy_skills:
         _sync_pi_skills(home, profile)
     install_harness(home, "pi")

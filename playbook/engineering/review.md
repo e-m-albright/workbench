@@ -202,7 +202,7 @@ The useful pattern is not merely "run more agents." It is a staged review:
 3. A verifier reproduces surviving claims against actual code behavior.
 4. The parent ranks confirmed findings and owns the final report.
 
-This is the architecture behind the strongest multi-agent review products and the Hunter/Skeptic/Referee pattern. It improves coverage while controlling false positives. It is appropriate for consequential audits, not routine edits. Workbench already expresses the small version through review skills plus `/consult`; Claude Code remains the fleet option when exhaustive review earns the cost.
+This is the architecture behind the strongest multi-agent review products and the Hunter/Skeptic/Referee pattern. It improves coverage while controlling false positives. It is appropriate for consequential audits, not routine edits. Workbench expresses the small version through review skills and explicit fresh-context delegation; Claude Code remains the fleet option when exhaustive review earns the cost.
 
 ## Code Review
 

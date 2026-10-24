@@ -26,7 +26,7 @@ Local delegation has two distinct forms:
 - **Read-only finders** can safely run in parallel when their scopes are independent.
 - **Mutating workers** require separate worktrees, explicit ownership, and parent review.
 
-Workbench Pi implements the narrow mutating form through the model-callable `worker` tool: one child Pi, one isolated worktree, no commit or push, and parent-owned adoption. The model may delegate, review, and discard without per-use approval. `/worker` remains a manual entrypoint. This is deliberately not a standing agent roster, chain engine, or autonomous merge system. Expand it only when repeated use identifies a specific missing capability such as read-only fan-out or better progress reporting.
+Workbench Pi loads the upstream subagent example shipped with Pi rather than maintaining a custom worker. For parallel editing, the parent prepares a separate worktree and passes its directory as `cwd`; the implementer is instructed not to delegate, commit, or push. The parent reviews, verifies adoption, and owns cleanup. The upstream call waits for completion. Accepting that limit removes a separate background lifecycle; add one back only when measured work demonstrates a need that upstream cannot meet.
 
 Philipp Schmid's four-pattern ladder is a useful complexity test: begin with one inline worker, add bounded fan-out only for independent work, add persistent agent pools only when repeated coordination needs durable identities and shared state, and use direct agent teams only when peer communication is itself necessary. Workbench intentionally stops at the first two levels. More autonomy is not progress if the coordination mechanism costs more than it returns.
 

@@ -3,7 +3,7 @@
   "doubleEscapeAction": "tree",
   "treeFilterMode": "user-only",
   "tuiMode": "fullscreen",
-  "defaultPreset": "dev",
+  "defaultTools": ["+grep", "+find", "+ls"],
   "safeGit": {
     "promptLevel": "high",
     "enabledByDefault": true

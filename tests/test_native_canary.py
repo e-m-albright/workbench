@@ -37,7 +37,8 @@ def shared_harness():
     extensions.mkdir(parents=True, exist_ok=True)
     source = Path(__file__).resolve().parents[1] / "agents/pi/extensions"
     shutil.copytree(source, extensions, dirs_exist_ok=True)
-    for name in ("permission-policy.json", "presets.json", "inference-router.json", "models.json"):
+    shutil.copytree(source.parent / "agents", pi / "agents", dirs_exist_ok=True)
+    for name in ("permission-policy.json", "inference-router.json", "models.json"):
         shutil.copyfile(source.parent / name, pi / name)
     (pi / "AGENTS.md").write_text("Synthetic shared global instructions.\n")
     (pi / "settings.json").write_text(
@@ -45,7 +46,7 @@ def shared_harness():
             {
                 "defaultProvider": "openai",
                 "defaultModel": "gpt-4.1",
-                "defaultPreset": "dev",
+                "defaultTools": ["+grep", "+find", "+ls"],
                 "tuiMode": "fullscreen",
             }
         )
@@ -494,7 +495,8 @@ def test_real_pi_rpc_starts_with_shared_auth_and_no_model_request(tmp_path, synt
     commands = next(row for row in rows if row.get("command") == "get_commands")
     assert commands["success"]
     names = {command["name"] for command in commands["data"]["commands"]}
-    assert {"route", "preset", "worker", "worker-done"} <= names
+    assert "route" in names
+    assert not {"preset", "consult", "worker", "worker-done"} & names
     assert not (synthetic_auth_store / "pi/settings.json").exists()
 
 

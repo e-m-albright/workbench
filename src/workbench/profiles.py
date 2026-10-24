@@ -14,10 +14,9 @@ WORK_PI_EXTENSIONS = {
     "clipboard.ts",
     "footer.ts",
     "permission-policy.ts",
-    "presets.ts",
     "safe-git.ts",
     "welcome.ts",
-    "worker.ts",
+    "subagent.ts",
     "workspace-files.ts",
 }
 WORK_SKILL_EXCLUDES = {"paseo-management"}

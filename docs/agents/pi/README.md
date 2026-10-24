@@ -7,7 +7,7 @@ Snapshot of the managed Pi 1.4.0 harness, reviewed against repository configurat
 - **TUI** (the daily driver): custom footer (`ctx.ui.setFooter`), extension statuses (`setStatus`), widgets above/below the editor, full editor replacement, overlays/dialogs, custom commands, keybindings.
 - **Extension events:** session lifecycle, `turn_start/end`, `agent_start/end/settled`, `tool_execution_end`, `after_provider_response` (headers accessible - our quota parsing uses this), `user_bash`, model/thinking changes.
 - **Non-TUI modes:** `print`, `json`, and **RPC** - a headless pi driven by another process. RPC is the hook any web UI or external dashboard would use.
-- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, verified local clipboard copy, structured workspace file operations, confirmed ingress discard, branded welcome, custom footer, consult, permission policy, the `dev` preset, explicit local/frontier routing, one worktree-isolated worker, confirmed GitHub workflow dispatch, and the read-only Strava connector. The pinned package wraps the existing Agent Browser CLI. The Google connector is retired; Apple Notes is intentionally outside the coding-agent boundary.
+- **Our current extensions** (`agents/pi/extensions/`): activity title and deterministic session naming, verified local clipboard copy, structured workspace file operations, confirmed ingress discard, branded welcome, custom footer, permission policy, explicit local/frontier routing, a loader for Pi's upstream subagent example, confirmed GitHub workflow dispatch, and the read-only Strava connector. The pinned package wraps the existing Agent Browser CLI. The Google connector is retired; Apple Notes is intentionally outside the coding-agent boundary.
 
 ## Delta over vanilla Pi
 
@@ -18,7 +18,7 @@ differ because only `p` adds the Workbench outer boundary; see the launch matrix
 
 | Addition | Kind | What it provides |
 |---|---|---|
-| Workbench deploy + drift | Infrastructure | One public source of truth for settings, providers, presets, policy, extensions, and shared skills; `workbench sync pi` / `workbench drift pi` |
+| Workbench deploy + drift | Infrastructure | One public source of truth for settings, providers, policy, extensions, agent definitions, and shared skills; `workbench sync pi` / `workbench drift pi` |
 | Custom footer (`footer.ts`) | Extension | Git state refreshed every 15 seconds and after tools or user shell commands; model, thinking, context %, tokens, cost, tok/s, compaction count, Codex subscription quota windows |
 | Activity title (`activity-title.ts`) | Extension | Local working row with elapsed time, terminal-tab spinner, repository, deterministic first-prompt session name, active tool, and immediate `/rename` during active work |
 | Welcome mark (`welcome.ts`) | Extension | Branded confirmation that shared configuration loaded, including the authoritative installed Pi version; authority is shown separately |
@@ -27,10 +27,8 @@ differ because only `p` adds the Workbench outer boundary; see the launch matrix
 | Ingress discard (`ingress.ts`) | Tool | Confirmed move of one consumed `~/code/ingress` file to Trash; agent handoffs remain lifecycle-managed |
 | Clipboard (`clipboard.ts`) | Tool | Copies approved plain text through the terminal's one-way OSC 52 channel without reading the clipboard or creating temporary files |
 | Safe git (`safe-git.ts`) | Guardrail | Approval gates on destructive git and mutating `gh` |
-| Presets (`presets.ts` + JSON) | Extension | One default `dev` tool and execution profile; model location and access scope belong to the launch mode rather than a preset |
 | Pi shortcut + native sandbox | Host guardrail | `p` shows `cloud > managed`; full `pi` retains native behavior |
-| Consult (`consult.ts`) | Extension | Native hosted `/consult` provides a second opinion via Claude, Codex, or Fable; managed sessions direct the owner to native Pi, and local sessions refuse cloud consult |
-| Worker (`worker.ts`) | Extension | Starts one child Pi in a sibling Git worktree, reports progress, and supports review and discard; managed children inherit the parent boundary and require an admitted sibling path |
+| Upstream subagent (`subagent.ts`) | Extension loader | Loads the example shipped with the installed Pi version; an implementer definition preserves parent-prepared worktree isolation without maintaining a fork |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
 | `pi-agent-browser-native` 0.9.6 | Pinned package | Structured Agent Browser wrapper with optional machine-local public search |
@@ -44,11 +42,11 @@ The community Pi Web UI comparison that previously lived here concluded
 ## Managed Workbench target
 
 Pi is a first-class `workbench sync pi` / `workbench drift pi` target. Workbench
-deploys its global rules, settings, model providers, presets, permission policy,
-extensions, and shared skills. Shared skills live once under `~/.agents/skills`,
+deploys its global rules, settings, model providers, permission policy,
+extensions, agent definitions, and shared skills. Shared skills live once under `~/.agents/skills`,
 which Pi discovers alongside Pi-only external skills under its native directory;
 this prevents duplicate-skill startup warnings. Drift checks the Pi CLI, every
-managed file, and reports unknown skills/extensions/providers/presets as external
+managed file, and reports unknown skills/extensions/providers as external
 without deleting them. Authentication, trust decisions, sessions, and model cache remain private live state.
 
 Personal hosted sessions default to `openai-codex/gpt-6.1-sol` with medium thinking.
@@ -66,23 +64,25 @@ context; Enter intentionally rewinds and branches.
 
 ## Bounded orchestration
 
-A managed worker preflights an ordinary checkout and sibling placement beneath
-`~/code/public`, `~/Desktop`, or `~/Downloads` before creating Git state. It launches a direct
-child Pi binary, which inherits the parent's outer policy. This does not make
-linked worktrees valid entrypoints for `p`; the managed entrypoint still requires
-an ordinary checkout. Worktrees outside those shared roots fail with native-continuation guidance. Worker workflow
-availability is not a claim that every Git operation succeeds under the boundary.
-`/consult` directs managed sessions to native Pi because another vendor's login
-is not admitted. Native hosted Pi can consult; local sessions refuse cloud consult.
+`subagent.ts` loads Pi's installed `examples/extensions/subagent/index.ts` directly.
+Workbench owns the small loader and `agents/implementer.md`, not a fork of the
+upstream executor, renderers, or concurrency controls. An agent without a model
+override inherits the parent's model and thinking level.
 
-The model-callable `worker` tool is the Pi harness's answer to one independent parallel implementation thread. It creates a separate Git worktree, starts one child Pi in the background with the parent's selected provider, model, and thinking level, and returns control to the parent after setup. A lightweight footer status reports elapsed time without polling or extra model calls; completion produces one notification. `worker review` or `/worker-status` reads the live diff or finished report against the captured starting commit, including staged and untracked output. The child is instructed not to commit, push, install dependencies, or merge, and adoption remains with the parent. In the `dev` preset the model may delegate without user approval, continue disjoint parent work, review and adopt useful changes, verify them in the parent checkout, and discard the worktree. `/worker <task>`, `/worker-status`, and `/worker-done` remain manual controls.
+The upstream tool supports single, parallel, and chained execution. Its tool call
+waits for completion; it does not return an independently running job to the
+parent. It does not create worktrees. For parallel editing, the parent prepares a
+separate worktree and passes its directory as `cwd`; sequential editing may use
+the current checkout when no other writer is active. The implementer definition
+restricts tools and instructs the child not to delegate, commit, push, install, or
+merge. The parent reviews changes, verifies adoption, and owns cleanup.
 
-Discarding changed output requires an explicit `adopted` or `rejected` disposition.
-Commits not reachable from the parent remain preserved; deliberate rejection of
-those commits requires the manual `/worker-done --force` command. Failed Git
-inspection preserves the worktree. Worker entrypoints reject recursive delegation.
-
-This does not provide workflow fleets, background schedules, or autonomous merging. A worker must start from committed state and must not receive a task that depends on uncommitted parent files. In native hosted sessions, `/consult` covers read-only independent judgment.
+Children inherit the parent's operating-system boundary. A supplied `cwd` does
+not grant access to a new directory or make linked worktrees valid entrypoints
+for `p`. Keep worktrees within the launcher's admitted roots and report actual
+permission failures rather than weakening the boundary. Consult and the custom
+preset/background-worker frameworks are retired; their enforcement records live
+in `RETIRED_PI_EXTENSIONS` and `RETIRED_PI_SETTINGS`.
 
 The shared handoff skill uses a private global queue outside the managed grants.
 A managed session cannot save there; return continuation text in the conversation
@@ -95,11 +95,9 @@ identity. Do not import private transcripts into hosted inference automatically.
 General agents have no Gmail, Google Calendar, or Google Drive capability. The Google connector implementation is retired; Google connector credentials, local Drive trees, browser destinations, and shared Google API/content endpoints remain enforced exclusions in managed sessions. Native Pi retains soft connector guards,
 which do not contain arbitrary code running with host authority. A future email labeler must be a separate brokered capability rather than an exception inside the coding harness. Apple Notes remains unavailable.
 
-Pi has no MCP client installed. `pi-mcp-adapter` was removed once active source
-access moved to owned connectors, and Granola's remaining project-scoped MCP
-route was removed when the product was retired. The permission policy's
-remote-MCP default-deny remains as dormant defense should an MCP tool ever
-reappear.
+Pi includes native MCP support, but Workbench does not configure a general remote
+connector here. The old `pi-mcp-adapter` and Granola route are retired. The
+permission policy's remote-MCP default-deny remains in force.
 
 Strava is served by the sibling `strava-readonly.ts` extension: a personal API
 app (free; callback domain `localhost`), then `/strava-auth`. Tools:
@@ -164,15 +162,15 @@ after `--` are forwarded literally. Local inference uses native Pi because the
 managed policy does not admit the host inference service. The internal `frontier`
 and `private` routes select providers; they do not grant operating-system access.
 Managed Pi rejects explicit private/local route requests before model input;
-it never silently converts that request into hosted inference. Pi's `dev` preset
-selects tools, not authority. The isolated HOME maps `~/Desktop` and `~/Downloads`
+it never silently converts that request into hosted inference. Native `defaultTools`
+adds grep, find, and ls without replacing Pi's standard coding tools. The isolated HOME maps `~/Desktop` and `~/Downloads`
 to the real host scratch directories with the same private exclusions.
 
 The managed harness derives instructions, skills, extensions, prompt templates,
-themes, presets, and model preferences from the native configuration. Host code
+themes, agent definitions, and model preferences from the native configuration. Host code
 assets are read-only; conversations and mutable settings use an isolated home
 per repository. The selected provider login is shared across those isolated
-homes. A valid `worker.timeoutMs` preference survives projection. Connector
+homes. Retired preset and background-worker preferences are not projected. Connector
 credentials and host conversations are not imported. Installed plugin and
 extension trees are trusted code assets, not sanitized file collections.
 `workbench native status pi` reports paths and login metadata; after native

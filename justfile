@@ -83,7 +83,7 @@ catalogue *args:
 test *args:
     uv run --locked pytest -v {{args}}
 
-# Run Pi extension behavior tests on Node. Example: `just test-pi tests/pi-presets.test.ts`.
+# Run Pi extension behavior tests on Node. Example: `just test-pi tests/pi-subagent.test.ts`.
 [group('testing')]
 test-pi *args='tests/*.test.ts':
     pnpm exec vitest run {{args}}

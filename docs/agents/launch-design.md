@@ -94,7 +94,8 @@ push. `ccc` and managed `--chrome` return guidance for an explicit host-terminal
 Codex retains only the selected checkout's folder trust and unchanged projected
 hook trust across preference refresh. Unsupported trust syntax is discarded and
 Codex asks again. Other agent-written configuration does not survive projection.
-Managed Pi preserves a valid `worker.timeoutMs` preference.
+Managed Pi projects native tool preferences and the upstream subagent definitions;
+retired preset and background-worker settings are excluded.
 
 `workbench native status` reports runtime, checkout state, projection, and login
 file metadata without reading tokens or sessions. After signing in with the full
@@ -102,15 +103,14 @@ vendor command from the host, use `workbench native authorize VENDOR --replace`
 to back up and replace that vendor's managed login. File presence does not prove
 that a provider will accept it.
 
-Managed entrypoints reject linked worktrees. Pi workers preflight sibling
-placement under public code, Desktop, or Downloads before creating Git state.
-Their direct child Pi inherits the parent boundary; the resulting worktree is
-not a new managed entrypoint. The child retains the selected provider, model, and
-thinking level. The parent reviews against the captured starting commit and must
-mark changed output adopted or rejected before discarding it. Unique commits and
-failed Git inspections preserve the worktree; worker entrypoints reject recursive
-delegation. `/consult` requires a separate native Pi session because other vendors'
-credentials are not admitted.
+Managed entrypoints reject linked worktrees. For parallel editing with Pi's
+upstream subagent tool, the parent prepares a worktree within the admitted roots
+and passes its directory as `cwd`. The child inherits the parent boundary, model,
+and thinking level; a working directory does not grant additional authority or
+make the worktree a new managed entrypoint. The parent reviews and verifies the
+result before cleanup. The implementer definition excludes recursive delegation.
+The upstream call waits for completion; no custom background-worker or consult
+command remains.
 
 Managed Claude now shares only its matching native project transcript namespace,
 while settings and credential enrollment remain separate. The earlier history

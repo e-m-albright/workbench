@@ -85,10 +85,9 @@ def test_work_profile_sync_is_fail_closed_and_drift_clean(tmp_path, monkeypatch)
         "clipboard.ts",
         "footer.ts",
         "permission-policy.ts",
-        "presets.ts",
         "safe-git.ts",
+        "subagent.ts",
         "welcome.ts",
-        "worker.ts",
         "workspace-files.ts",
     }
     assert {path.name for path in (tmp_path / ".local/share/workbench/shell").iterdir()} == {
@@ -236,7 +235,7 @@ def test_personal_to_work_migration_preserves_unknown_additions(tmp_path, monkey
     monkeypatch.setattr(drift.shutil, "which", lambda name: f"/usr/local/bin/{name}")
     pi_home = tmp_path / ".pi/agent"
     pi_home.mkdir(parents=True)
-    for name in ("settings.json", "models.json", "presets.json", "inference-router.json"):
+    for name in ("settings.json", "models.json", "inference-router.json"):
         shutil.copyfile(core.AGENTS / "pi" / name, pi_home / name)
     shutil.copytree(core.AGENTS / "pi/extensions", pi_home / "extensions")
     (pi_home / "extensions/external.ts").write_text("// Owner-managed extension.\n")

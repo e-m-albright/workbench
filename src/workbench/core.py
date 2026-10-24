@@ -122,6 +122,20 @@ RETIRED_SKILLS = {
     ),
 }
 RETIRED_PI_EXTENSIONS = {
+    "presets.ts": (
+        "the sole dev preset duplicated native tool settings and ordinary instructions;"
+        " preserve permission enforcement in the permission policy instead"
+    ),
+    "worker.ts": (
+        "replaced by Pi's installed upstream subagent example; worktree preparation"
+        " and adoption belong to the parent, not a maintained background lifecycle"
+    ),
+    "lib/worker-core.ts": "retired with the custom worker implementation",
+    "consult.ts": (
+        "retired because the second-opinion command did not justify its maintained"
+        " subprocess and authentication surface; use an explicit independent review"
+        " when the decision warrants one"
+    ),
     "google-readonly.ts": (
         "retired 2026-10-20: broad Google tools were already blocked by policy;"
         " remove their registration and authorization surface while preserving denials."
@@ -164,17 +178,10 @@ RETIRED_PI_PROVIDERS = {
         " returned with multi-model routing and prefix-cache requirements"
     ),
 }
-RETIRED_PI_PRESETS = {
-    "plan": "retired 2026-09-14 when dev became the sole explicit operating preset",
-    "read": "retired 2026-09-14 when dev became the sole explicit operating preset",
-    "safe-auto": "retired 2026-09-14 with automatic prompt classification",
-    "sources": "retired 2026-09-14 when dev became the sole explicit operating preset",
-}
 RETIRED_PI_SETTINGS = {
-    "defaultTools": (
-        "retired 2026-09-15 because a stale read-only allowlist silently removed"
-        " bash, edit, and write when preset activation failed"
-    ),
+    "defaultPreset": "native defaultTools replaces the retired preset framework",
+    "worker": "the upstream subagent example has no custom background-worker settings",
+    "consult": "the second-opinion command is retired",
 }
 RETIRED_PI_SANDBOX_PROFILES = (
     "agent-restricted.sb",  # Replaced by the default-deny native runtime.
@@ -189,7 +196,11 @@ RETIRED_PI_SANDBOX_PROFILES = (
     "pi-superuser.sb",
 )
 RETIRED_AGENT_SHELL_FILES = ("codex-external-sandbox.py", "native-pi-status.mjs")
-RETIRED_PI_STATE_PATHS = (".local/state/workbench/pi-discovery",)
+RETIRED_PI_STATE_PATHS = (
+    ".local/state/workbench/pi-discovery",
+    ".pi/agent/presets.json",
+    ".pi/agent/presets.json.bak",
+)
 VENDORS = ("claude", "codex", "pi")
 VENDOR_CHOICES = (*VENDORS, "all")
 CLAUDE_DEFAULTS = {"model": "opus", "effortLevel": "medium"}

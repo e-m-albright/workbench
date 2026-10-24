@@ -254,7 +254,7 @@ agents/
 ├── shared/              cross-vendor rules, hooks, and MCP registry
 ├── claude/              Claude settings fragments and plugin declarations
 ├── codex/               Codex rules, hooks, status line, and plugins
-├── pi/                  Pi settings, models, presets, permission policy, and extensions
+├── pi/                  Pi settings, models, agent definitions, permission policy, and extensions
 ├── skills/              reusable on-demand workflows
 └── prompts/             reusable prompts below the skill threshold
 

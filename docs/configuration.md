@@ -36,7 +36,7 @@ permissions control. See [OpenAI's automatic-review documentation](https://learn
 | --- | --- | --- | --- |
 | CLI presence | `pi` on `PATH` | Checked when managing plugins | Checked when managing plugins |
 | Global instructions | `~/.pi/agent/AGENTS.md` | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
-| Harness configuration | `~/.pi/agent/{settings,models,presets}.json` | `~/.claude/settings.json`, `~/.claude.json` | `~/.codex/config.toml` |
+| Harness configuration | `~/.pi/agent/{settings,models}.json` | `~/.claude/settings.json`, `~/.claude.json` | `~/.codex/config.toml` |
 | Desktop configuration | None | Claude Desktop MCPs and seeded preference defaults | ChatGPT connector plugins through the Codex plugin CLI |
 | Command policy | Host `~/.pi/agent/permission-policy.json` and permission-policy/safe-git extensions; separate native terminal boundary | Host Claude permissions and sandbox settings; separate native terminal boundary | Host `~/.codex/rules/default.rules`; separate native terminal boundary |
 | Extensions / hooks | `~/.pi/agent/extensions/*.ts` | Claude settings plus shared runtime scripts | `~/.codex/hooks.json` plus shared runtime scripts |
@@ -123,12 +123,13 @@ the private layer owns it, while the Workbench CLI neither reads, copies, nor
 checks it for drift. Agents use it only to find the owning repository, then
 follow that repository's `AGENTS.md` and documented interfaces.
 
-Pi settings, models, and presets preserve unknown top-level entries while
+Pi settings and models preserve unknown top-level entries while
 Workbench replaces its managed entries. Pi and Codex share one deployed copy of
 portable skills under `~/.agents/skills`, which both harnesses discover. This
 avoids Pi's duplicate-skill warning; Pi-only external skills remain under
-`~/.pi/agent/skills`. Unknown Pi extensions, skills, model providers, and presets
-are reported as `EXTERNAL`, not deleted. Native Claude and Codex specialist-agent
+`~/.pi/agent/skills`. Unknown Pi extensions, skills, and model providers
+are reported as `EXTERNAL`, not deleted. The retired preset configuration is
+removed. Pi's upstream implementer definition is deployed under `~/.pi/agent/agents`. Native Claude and Codex specialist-agent
 additions are likewise external; sync removes only explicitly retired Workbench agents. Pi extensions
 are deployed as real files rather than repository symlinks so moving a checkout
 cannot silently disable the harness.
