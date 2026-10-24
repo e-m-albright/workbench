@@ -15,7 +15,6 @@ from workbench.core import (
     DATA_REL,
     RETIRED_AGENT_SHELL_FILES,
     RETIRED_PI_EXTENSIONS,
-    RETIRED_PI_PRESETS,
     RETIRED_PI_PROVIDERS,
     RETIRED_PI_SANDBOX_PROFILES,
     RETIRED_PI_SETTINGS,
@@ -307,10 +306,7 @@ def _check_pi(
     for name in sorted(RETIRED_PI_SETTINGS):
         if name in live_settings:
             findings.append(f"DRIFT retired Pi setting still present: {name}")
-    for filename, nested_key in (
-        ("models.json", "providers"),
-        ("presets.json", None),
-    ):
+    for filename, nested_key in (("models.json", "providers"),):
         actual = _settings(pi_home / filename)
         expected = _settings(source / filename)
         if nested_key:
@@ -326,8 +322,6 @@ def _check_pi(
             for name in sorted(actual.keys() - expected.keys()):
                 if filename == "models.json" and name in RETIRED_PI_PROVIDERS:
                     findings.append(f"DRIFT retired Pi provider still present: {name}")
-                elif filename == "presets.json" and name in RETIRED_PI_PRESETS:
-                    findings.append(f"DRIFT retired Pi preset still present: {name}")
                 elif name in personal_providers:
                     findings.append(f"DRIFT personal Pi provider present in work profile: {name}")
                 else:
@@ -355,7 +349,12 @@ def _check_pi(
     for name, source in expected_helpers.items():
         _compare(source, pi_home / "extensions/lib" / name, f"Pi extension helper {name}", findings)
     for name in sorted(deployed_helpers.keys() - expected_helpers.keys()):
-        external.append(f"EXTERNAL Pi extension helper: {name}")
+        if f"lib/{name}" in RETIRED_PI_EXTENSIONS:
+            findings.append(f"DRIFT retired Pi extension helper still present: {name}")
+        else:
+            external.append(f"EXTERNAL Pi extension helper: {name}")
+    for agent in sorted((AGENTS / "pi/agents").glob("*.md")):
+        _compare(agent, pi_home / "agents" / agent.name, f"Pi agent {agent.name}", findings)
 
 
 def _check_codex(home: Path, findings: list[str], external: list[str]) -> object:

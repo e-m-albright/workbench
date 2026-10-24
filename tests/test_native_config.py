@@ -378,19 +378,30 @@ def test_statusline_and_features_remain_shared_and_hook_trust_is_relocated(tmp_p
     assert trust == {key: {"trusted_hash": "a" * 64, "enabled": True}}
 
 
-@pytest.mark.parametrize(
-    "timeout, expected", [(90000, {"timeoutMs": 90000}), (True, None), (-1, None), ("90000", None)]
-)
-def test_pi_worker_projects_only_valid_timeout_preference(tmp_path, timeout, expected):
+def test_pi_projects_native_tools_and_agents_without_retired_frameworks(tmp_path):
     home = tmp_path / "home"
     write_json(
         home,
         ".pi/agent/settings.json",
-        {"worker": {"timeoutMs": timeout, "command": "private-secret"}},
+        {
+            "defaultTools": ["+grep", "+find", "+ls"],
+            "defaultPreset": "dev",
+            "worker": {"timeoutMs": 90000},
+        },
     )
+    agents = home / ".pi/agent/agents"
+    agents.mkdir()
+    (agents / "implementer.md").write_text("Agent instructions")
     install_harness(home)
     settings = json.loads(output(home, "pi", ".pi/agent/settings.json"))
-    assert settings.get("worker") == expected
+    assert settings["defaultTools"] == ["+grep", "+find", "+ls"]
+    assert "defaultPreset" not in settings
+    assert "worker" not in settings
+    manifest = json.loads(
+        (home / ".local/share/workbench/native/harness/manifest.json").read_text()
+    )
+    assert any(link["path"] == ".pi/agent/agents" for link in manifest["pi"]["links"])
+    assert not any(item["path"] == ".pi/agent/presets.json" for item in manifest["pi"]["files"])
 
 
 def test_enabled_plugin_tree_is_admitted_not_secret_sanitized(tmp_path):

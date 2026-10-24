@@ -456,20 +456,16 @@ class WorkbenchTests(unittest.TestCase):
 
         self.assertEqual(plugins, [])
 
-    def test_pi_starts_in_dev_on_the_explicit_frontier_route(self) -> None:
+    def test_pi_uses_native_tools_without_a_preset_framework(self) -> None:
         settings = core.load_json(core.AGENTS / "pi/settings.json")
         router = core.load_json(core.AGENTS / "pi/inference-router.json")
-        presets = core.load_json(core.AGENTS / "pi/presets.json")
 
-        self.assertEqual(settings["defaultPreset"], "dev")
-        self.assertNotIn("defaultTools", settings)
+        self.assertNotIn("defaultPreset", settings)
+        self.assertEqual(settings["defaultTools"], ["+grep", "+find", "+ls"])
         self.assertEqual(router["defaultMode"], "frontier")
         self.assertNotIn("classifier", router)
         self.assertEqual(router["private"]["provider"], "omlx")
-        self.assertEqual(list(presets), ["dev"])
-        self.assertTrue(
-            {"agent_browser", "agent_browser_web_search"}.issubset(presets["dev"]["tools"])
-        )
+        self.assertFalse((core.AGENTS / "pi/presets.json").exists())
 
     def test_sync_removes_retired_workbench_hooks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -608,7 +604,14 @@ class WorkbenchTests(unittest.TestCase):
             duplicate.mkdir(parents=True)
             (duplicate / "SKILL.md").write_text("stale duplicate\n")
             (pi_home / "settings.json").write_text(
-                json.dumps({"externalSetting": True, "defaultTools": ["read"]})
+                json.dumps(
+                    {
+                        "externalSetting": True,
+                        "defaultTools": ["read"],
+                        "defaultPreset": "dev",
+                        "worker": {"timeoutMs": 90000},
+                    }
+                )
             )
             (pi_home / "models.json").write_text(
                 json.dumps(
@@ -641,14 +644,17 @@ class WorkbenchTests(unittest.TestCase):
             settings = json.loads((pi_home / "settings.json").read_text())
             self.install_pi_package_metadata(home)
             models = json.loads((pi_home / "models.json").read_text())
-            presets = json.loads((pi_home / "presets.json").read_text())
             self.assertTrue(settings["externalSetting"])
-            self.assertNotIn("defaultTools", settings)
+            self.assertEqual(settings["defaultTools"], ["+grep", "+find", "+ls"])
+            self.assertNotIn("defaultPreset", settings)
+            self.assertNotIn("worker", settings)
             self.assertIn("external-provider", models["providers"])
             self.assertNotIn("lm-studio", models["providers"])
-            self.assertIn("external-preset", presets)
-            self.assertNotIn("read", presets)
-            self.assertNotIn("safe-auto", presets)
+            self.assertFalse((pi_home / "presets.json").exists())
+            self.assertEqual(
+                (pi_home / "agents/implementer.md").read_text(),
+                (core.AGENTS / "pi/agents/implementer.md").read_text(),
+            )
             self.assertTrue((pi_home / "extensions/external.ts").exists())
             self.assertFalse(retired.exists())
             self.assertFalse(retired_backup.exists())
@@ -671,7 +677,7 @@ class WorkbenchTests(unittest.TestCase):
             self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)
             session.chmod(0o600)
             (pi_home / "extensions/welcome.ts").write_text("drift\n")
-            settings.pop("defaultPreset")
+            settings.pop("defaultTools")
             (pi_home / "settings.json").write_text(json.dumps(settings))
 
             self.assertEqual(drift_mod.drift(home, ("pi",), verify_plugins=False), 1)

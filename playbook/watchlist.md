@@ -27,6 +27,7 @@ it does not imply a scheduled monitoring service.
 | Pi Durable, Kiro, Mastra Factory | A real workflow needs durable execution or repeatedly stalls on coordination | [Orchestration](agents/orchestration.md), [application frameworks](agents/frameworks.md) |
 | Pydantic AI, Agno, LangGraph, Microsoft Agent Framework, Strands | An application needs agents with specific state, recovery, and operator requirements | [Framework comparison](agents/frameworks.md) |
 | OpenHarness, Open Interpreter, OpenHands, OpenCode | A capability gap appears in the supported coding harnesses | [Harnesses](agents/harnesses.md) |
+| Warp Agent CLI and Factories | A concrete coding-harness gap or unattended engineering workflow earns comparison; no factory adoption without measured value | [Warp direction](systems/workstations.md#terminal-stack) |
 | Magpie, pi-auto-router, OpenRouter, LiteLLM | A supported route can improve completed-task cost or latency without losing quality | [Routing evidence](agents/models/efficiency.md) |
 | Hindsight, Recall, OpenWiki, Graphify | Documented continuity or retrieval failures persist | [Memory](agents/memory.md) |
 | Serena, ast-grep, Mindwalk | Symbol navigation or structural edits become a measured bottleneck | [Code intelligence](agents/code-intelligence.md) |
@@ -65,6 +66,7 @@ it does not imply a scheduled monitoring service.
 | Embeddings and LangExtract | A retrieval or extraction benchmark demonstrates value over existing parsing and search | [Retrieval](systems/retrieval.md) |
 | Nix, nix-darwin, Home Manager; NixOS for Linux | Recurring dependency mismatches, exact-version recovery, or several Macs justify stronger reproducibility; a concrete Linux host need justifies NixOS | [Declarative host and development environments](systems/workstations.md#declarative-host-and-development-environments) |
 | Terminal, editor, capture and remote-access candidates | Recurring host friction earns a change in the host repository | [Workstations](systems/workstations.md) |
+| Raycast launcher and AI direction | A specific desktop interaction remains unmet; no additional desktop agent, memory store, or scheduler by default | [Raycast direction](systems/workstations.md#terminal-stack) |
 | Moda and other visual design tools | A concrete artifact needs a comparative design trial | [Design tools](product/design-tools.md) |
 | Storybook, component systems and content tools | Interface complexity or repeated visual defects justify their maintenance | [Product interfaces](product/interfaces.md) |
 | shadcn/ui, shadcn-svelte, Bits UI, Melt UI | A concrete component or markup requirement exceeds the existing shadcn-svelte/Bits UI selection; verify the target Svelte version | [Component layers](product/interfaces.md#component-systems-and-primitives) |

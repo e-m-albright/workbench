@@ -51,7 +51,7 @@ Editor movement follows familiar shell bindings: Ctrl+A/End, Ctrl+E, Ctrl+B,
 Ctrl+F, Ctrl+W, Ctrl+U, Ctrl+K, Ctrl+Y, and Alt+Y. Custom bindings live in
 `~/.pi/agent/keybindings.json`; `/reload` applies changes.
 
-Managed settings use fullscreen mode. Pi owns the viewport, Ctrl+Shift+F searches the transcript, and Ctrl+Shift+Up/Down jump between user-prompt markers. Fullscreen intentionally renders the same transcript, so short sessions look almost identical to regular mode. It does not provide final-answer landmarks or compact work summaries; the former custom reader was retired because those additions did not earn their code surface.
+Managed settings use fullscreen mode. Pi owns the viewport, Ctrl+Shift+F searches the transcript, and Ctrl+Shift+Up/Down jump between user-prompt markers. Fullscreen intentionally renders the same transcript, so short sessions look almost identical to regular mode. On macOS, prefer Ctrl+Shift+Up/Down if a window manager captures Ctrl+Up/Down. Fn+Up/Down only pages, and `/tree` is a branch navigator rather than a full-prompt reader. Fullscreen does not provide final-answer landmarks or compact work summaries; the former custom reader was retired because those additions did not earn their code surface.
 
 ## Session commands
 
@@ -132,9 +132,7 @@ an inherited operating-system boundary.
 | Footer | Git state, model, thinking, context, tokens, cost, speed, compaction, quota |
 | Permission policy | Blocks protected paths, risky shell effects, and non-allowlisted MCP calls |
 | Safe Git | Adds approval gates around destructive history operations |
-| Presets | One `dev` tool and execution profile; inference and authority belong to the launch mode |
-| Consult | Native hosted second opinion (`/consult`, `--fable` for adversarial); managed sessions direct the owner to native Pi, and local sessions refuse cloud consult |
-| Worker | One model-callable, worktree-isolated delegate; managed sessions require admitted sibling placement. The child inherits the parent's model selection and boundary. The parent reviews and verifies adoption. `/worker` remains a manual entrypoint. |
+| Upstream subagent | Loads Pi's installed subagent example. The implementer inherits the parent's model; the parent prepares worktrees for parallel editing and reviews adoption. |
 | Strava read-only | Owned activity tools (`/strava-auth`, `/strava-status`); free personal API |
 | Native Agent Browser | Structured wrapper around the trusted Agent Browser CLI |
 
@@ -145,15 +143,17 @@ Strava tools require the local provider and their own OAuth grant. The global
 handoff queue also sits outside the managed grants; return continuation text in
 the conversation and save it from an authorized native session.
 
-Managed workers require an ordinary parent checkout and sibling placement under
-`~/code/public`, `~/Desktop`, or `~/Downloads`. Review output against the captured
-starting commit, then discard with `disposition=adopted` or `disposition=rejected`.
-Commits not reachable from the parent are preserved unless the owner deliberately
-uses `/worker-done --force`. Worker entrypoints reject recursive delegation.
+Ask for a bounded task to be delegated to `implementer`. For parallel editing,
+prepare a separate worktree within the launcher's admitted roots and pass its path
+as `cwd`. The upstream call waits for completion rather than returning a background
+job. Review the diff, verify adoption, and clean up only after preserving useful
+work. Sequential editing can use the current checkout when no other writer is
+active. The implementer is instructed not to delegate, commit, push, install, or
+merge. Native `defaultTools` adds grep, find, and ls; there is no preset framework
+or consult command.
 
 Terminal titles use the first user prompt unless `/name` supplies an explicit
-name. Worker completion has a notification; there is no separate completion
-notification daemon or Fast-mode label.
+name. There is no separate completion notification daemon or Fast-mode label.
 
 ## Build philosophy
 
