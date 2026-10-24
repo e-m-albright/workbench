@@ -118,6 +118,14 @@ describe("safe-git command classification", () => {
 		expect(classifyCommand("git -c 'alias.wipe=!git reset --hard' wipe")?.severity).toBe("high");
 	});
 
+	test("ordinary merged-branch cleanup is not a high-risk operation", () => {
+		expect(classifyCommand("git branch -d shipped-feature")?.severity).toBe("medium");
+		expect(classifyCommand("git -C checkout branch -d shipped-feature")?.severity).toBe("medium");
+		expect(classifyCommand("git branch -D unmerged-feature")?.severity).toBe("high");
+		expect(classifyCommand("git stash pop stash@{0}")).toBeNull();
+		expect(classifyCommand("git stash drop stash@{0}")?.severity).toBe("high");
+	});
+
 	test("gh reads pass silently so session approvals never cover unseen mutations", () => {
 		expect(classifyCommand("gh pr view 12")).toBeNull();
 		expect(classifyCommand("gh run list")).toBeNull();

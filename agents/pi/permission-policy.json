@@ -84,12 +84,12 @@
     },
     {
       "name": "mutating GitHub CLI command",
+      "$comment": "Pull request commands follow shared authorization and safe-git approval settings, not this blanket denylist. Generic API writes and the unrelated mutations below remain denied.",
       "patterns": [
         "\\bgh\\s+api\\b.*(?:--method\\s+(?:POST|PUT|PATCH|DELETE)\\b|-X\\s*(?:POST|PUT|PATCH|DELETE)\\b|--input\\b|--field\\b|--raw-field\\b|-[fF]\\s*)",
         "\\bgh\\s+auth\\b",
         "\\bgh\\s+gist\\s+(create|edit)\\b",
         "\\bgh\\s+issue\\s+(close|comment|create|edit)\\b",
-        "\\bgh\\s+pr\\s+(close|comment|create|edit|merge|ready|review)\\b",
         "\\bgh\\s+release\\s+create\\b",
         "\\bgh\\s+repo\\s+(clone|fork)\\b",
         "\\bgh\\s+run\\s+rerun\\b",
@@ -97,21 +97,11 @@
       ]
     },
     {
-      "name": "database migration",
+      "name": "destructive container cleanup or deployment",
+      "$comment": "Authorized development containers and database migrations are allowed. Production mutations still require confirmation and managed sessions still need owner-issued Docker/port grants. Retain guards on volume destruction and broad cleanup.",
       "patterns": [
-        "\\balembic\\s+(upgrade|downgrade)\\b",
-        "\\bdrizzle-kit\\s+(push|migrate)\\b",
-        "\\bgoose\\s+(up|down)\\b",
-        "\\batlas\\s+migrate\\b"
-      ]
-    },
-    {
-      "name": "container or deploy mutation",
-      "patterns": [
-        "\\bdocker\\s+compose\\s+(down|up)\\b",
-        "\\bdocker-compose\\s+(down|up)\\b",
-        "\\bdocker\\s+run\\b",
-        "\\bdocker\\s+volume\\b",
+        "\\bdocker(?:\\s+compose|-compose)\\s+[^;&|]*\\bdown\\b[^;&|]*(?:--volumes\\b|\\s-[a-zA-Z]*v[a-zA-Z]*(?=\\s|$))",
+        "\\bdocker\\s+volume\\s+(rm|prune)\\b",
         "\\bdocker\\s+system\\s+prune\\b",
         "\\bdocker\\s+image\\s+prune\\b",
         "\\bwrangler\\s+(deploy|delete)\\b"

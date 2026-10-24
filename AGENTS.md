@@ -48,6 +48,14 @@ names or personal absolute paths and ensure tracked files return nothing.
 - Caveat: prior git *history* may still contain previously-scrubbed content;
   true removal needs a history rewrite (filter-repo/BFG) plus a force push.
 
+## Shipping
+
+This repository opts into the shared direct-to-main shipping policy. Commit and
+push routine verified changes to `main`; use a PR only when requested, required
+by branch protection, or appropriate for a major departure. Normal push-triggered
+automation is authorized. Follow the shared workspace closeout rule to remove
+your own shipped branches and temporary worktrees and leave no temporary stashes.
+
 ## Process
 
 - Plan non-trivial changes before implementation.

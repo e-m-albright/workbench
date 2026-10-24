@@ -13,6 +13,20 @@ description: "Run GitHub workflows with gh: prepare PRs, summarize changes, moni
 
 Load one mode at a time. Ordinary `gh` operations do not need the specialized references.
 
+## Shipping path and closeout
+
+Read the repository's `AGENTS.md` before choosing a branch strategy. An explicit
+direct-to-main opt-in means routine verified work is committed and pushed to
+`main`, not routed through a PR by habit. Use a PR for an explicit request, a
+major departure, or enforced branch protection. Follow the shared shipping rule
+for production authority and normal push-triggered automation.
+
+After the remote commit and CI are verified, follow the shared workspace closeout
+rule. Remove only your own shipped temporary branches and clean worktrees;
+restore your own temporary stashes before the final verification and commit.
+Use `workspace-health-audit` when ownership or preservation is uncertain. Do not
+turn a closeout into bulk deletion of pre-existing workspace state.
+
 ## Pull Requests
 
 - Use `gh pr create` for PRs. Keep titles concise and descriptions audit-friendly (intent, risk, verification).

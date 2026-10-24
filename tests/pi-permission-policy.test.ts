@@ -274,11 +274,81 @@ describe("Pi permission policy", () => {
 		}
 	});
 
+	test.each([undefined, "hosted-managed"])(
+		"allows owner-authorized pull request commands without a blanket denial (%s)",
+		(mode) => {
+			for (const command of [
+				"gh pr create --repo octocat/hello-world --title fix --body tested",
+				"gh pr edit 12 --title corrected",
+				"gh pr comment 12 --body resolved",
+				"gh pr review 12 --approve",
+				"gh pr ready 12",
+				"gh pr close 12",
+				"gh pr reopen 12",
+				"gh pr merge 12 --squash --delete-branch",
+				"gh pr update-branch 12",
+				"gh -R octocat/hello-world pr merge 12 --squash",
+				"git push -u origin feature && gh pr create --fill",
+			]) {
+				expect(reason("bash", { command }, "openai-codex", mode), command).toBeUndefined();
+			}
+		},
+	);
+
+	test("PR authorization does not allow destructive Git or unrelated GitHub mutations", () => {
+		for (const command of [
+			"gh pr create --fill && git push --force origin main",
+			"git reset --hard && gh pr merge 12 --squash",
+		]) {
+			expect(reason("bash", { command }), command).toContain("destructive or history-changing git");
+		}
+		for (const command of ["gh auth login", "gh workflow run deploy", "gh release create v1"]) {
+			expect(reason("bash", { command }), command).toContain("mutating GitHub CLI");
+		}
+	});
+
 	test("allows read-only GitHub API calls and blocks mutations", () => {
 		expect(reason("bash", { command: "gh api repos/example/project/contents" })).toBeUndefined();
 		expect(
 			reason("bash", { command: "gh api repos/example/project/issues --method POST --field title=x" }),
 		).toContain("mutating GitHub CLI");
+	});
+
+	test("allows disposable development databases and Docker workflows", () => {
+		for (const command of [
+			"docker compose up -d db",
+			"docker compose down",
+			"docker-compose up -d",
+			"docker run --name test-db postgres:18",
+			"docker volume create test-db-data",
+			"docker volume ls",
+			"alembic upgrade head",
+			"alembic downgrade base",
+			"drizzle-kit migrate",
+			"goose up",
+			"atlas migrate apply",
+		]) {
+			expect(reason("bash", { command }), command).toBeUndefined();
+		}
+	});
+
+	test("still guards destructive Docker cleanup and deployment commands", () => {
+		for (const command of [
+			"docker compose down --volumes",
+			"docker compose down -v",
+			"docker compose -f compose.yaml down --volumes",
+			"docker-compose down -v",
+			"docker volume rm database",
+			"docker volume prune",
+			"docker system prune -af",
+			"docker image prune -a",
+			"wrangler deploy",
+		]) {
+			const expected = command.startsWith("docker volume rm")
+				? "destructive filesystem command"
+				: "destructive container cleanup or deployment";
+			expect(reason("bash", { command }), command).toContain(expected);
+		}
 	});
 
 	test("allows ordinary shell retrieval without claiming network containment", () => {

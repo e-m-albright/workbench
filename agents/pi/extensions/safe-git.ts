@@ -7,8 +7,8 @@
  * unless explicitly asked" rule at the harness level.
  *
  * Protected operations (first match wins, ordered by severity):
- * - high:   force push, hard reset, clean -f, stash drop/clear, branch -d/-D, reflog expire
- * - medium: push, commit, rebase, merge, tag, cherry-pick, revert, am, all `gh` commands
+ * - high:   force push, hard reset, clean -f, stash drop/clear, branch -D, reflog expire
+ * - medium: push, commit, rebase, merge, tag, cherry-pick, revert, am, branch -d, mutating `gh` commands
  *
  * Interactive: prompt per command, with "approve/block all of this type for the
  * session" options. Non-interactive (headless `pi -p`, RPC, SDK): BLOCKS matched
@@ -61,7 +61,7 @@ export const gitPatterns: { pattern: RegExp; action: string; severity: Severity 
 	{ pattern: /\bgit\s+reset\s+--hard\b/i, action: "hard reset", severity: "high" },
 	{ pattern: /\bgit\s+clean\s+-[a-z]*f/i, action: "clean (remove untracked files)", severity: "high" },
 	{ pattern: /\bgit\s+stash\s+(drop|clear)\b/i, action: "drop/clear stash", severity: "high" },
-	{ pattern: /\bgit\s+branch\s+-[dD]\b/i, action: "delete branch", severity: "high" },
+	{ pattern: /\bgit\s+branch\s+-D\b/, action: "force delete branch", severity: "high" },
 	{ pattern: /\bgit\s+reflog\s+expire\b/i, action: "expire reflog", severity: "high" },
 
 	// Medium risk - state-changing operations
@@ -73,6 +73,7 @@ export const gitPatterns: { pattern: RegExp; action: string; severity: Severity 
 	{ pattern: /\bgit\s+cherry-pick\b/i, action: "cherry-pick", severity: "medium" },
 	{ pattern: /\bgit\s+revert\b/i, action: "revert", severity: "medium" },
 	{ pattern: /\bgit\s+am\b/i, action: "apply patches", severity: "medium" },
+	{ pattern: /\bgit\s+branch\s+(?:-d|--delete)\b/, action: "delete merged branch", severity: "medium" },
 
 	// GitHub CLI - mutating subcommands only; reads (pr view, run list, api GET)
 	// pass silently so a session-wide approval never covers unseen mutations.

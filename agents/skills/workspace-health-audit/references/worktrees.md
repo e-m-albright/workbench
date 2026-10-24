@@ -39,7 +39,7 @@ git worktree list --porcelain | grep '^worktree ' | sed 's/worktree //' | while 
 done
 ```
 
-Prompt before removing. Never force-remove worktrees with uncommitted changes.
+Prompt before removing unless the shared workspace closeout rule already authorizes removal of your own shipped, clean worktree. Never force-remove worktrees with uncommitted changes.
 
 ### Prune dead references
 
@@ -52,5 +52,5 @@ git worktree prune
 1. Ask what the user wants: create, list, or clean
 2. For create: ask for a name, create worktree under the vendor worktree dir (see above)
 3. For list: show all worktrees with status
-4. For clean: identify stale worktrees, confirm before removing
+4. For clean: prove preservation and ownership, then use explicit approval or the shared closeout authorization before removing
 5. After cleanup, prune dead references and delete merged branches

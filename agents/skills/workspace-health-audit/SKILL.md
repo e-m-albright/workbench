@@ -13,7 +13,7 @@ Detect integration failures that arise when multiple agents (or humans) work in 
 - **Create, list, or clean worktrees:** read [worktrees.md](references/worktrees.md).
 - **Recover after a crash or lost terminal:** read [session-recovery.md](references/session-recovery.md).
 
-Never delete a branch, worktree, or stash merely because it looks stale; prove the work is merged or ask.
+Never delete a branch, worktree, or stash merely because it looks stale. The shared workspace closeout authorization covers only the current agent's own shipped artifacts after preservation and ownership checks; a broader audit still requires explicit cleanup approval.
 
 Use after a wave of parallel agent work lands on main, when the user suspects agents stomped each other's changes, as a periodic hygiene check, or to confirm a clean baseline before a new phase of work.
 
@@ -123,13 +123,13 @@ Read [audit-checklists.md](references/audit-checklists.md) for: duplicate defini
 
 ## Important Notes
 
-- This skill is **read-mostly**. Only take destructive actions (dropping stashes, removing worktrees, deleting branches) when the user explicitly authorizes cleanup, not just audit.
+- This skill is **read-mostly**. An audit alone does not authorize deletion. Explicit cleanup approval or the shared rule's narrow standing authorization for your own shipped artifacts is required; never infer permission for unrelated or ambiguous state.
 - When in doubt about whether work is superseded, flag for review rather than deleting.
 - The duplicate-definition check ([audit-checklists.md](references/audit-checklists.md) §5) is the highest-value section — parallel agents creating conflicting types is the most dangerous failure mode because it compiles fine but produces runtime bugs.
 
 ## Executing an Authorized Cleanup
 
-- **Confirm the approved targets.** An audit or candidate list does not authorize deletion. Use the user's explicit cleanup authorization and keep every deletion within its stated scope.
+- **Confirm the approved targets.** An audit or candidate list does not authorize deletion. Use explicit cleanup approval or the shared rule's standing closeout authorization, and keep every deletion within its stated ownership and preservation conditions.
 - **Re-inventory immediately before acting.** Rerun `git worktree list`, `git branch`, and `git stash list`; check each affected worktree's status. If another session moved or changed work, trace its commits and leave active work alone.
 - **Verify the live remote tip.** Fetch the target branch and integration branch, verify the exact candidate commit is merged, and recheck open PRs. Immediately before deleting, compare the live ref from `git ls-remote` with that reviewed commit. If it changed, reassess it. Where repository policy permits, use an explicit expected-SHA lease on the approved deletion so a concurrent update rejects it; otherwise leave remote deletion to the owner if the race cannot be controlled.
 - **Respect repository hooks.** Use the repository's normal branch-deletion workflow. A failing pre-push hook is a failure to diagnose, not permission to bypass it through `--no-verify` or GitHub's DELETE API. Use an API deletion only when repository policy permits that route and the user has authorized the specific deletion.
