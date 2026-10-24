@@ -36,14 +36,21 @@ def test_runner_refuses_missing_tools(monkeypatch):
         module.run([])
 
 
-def test_runner_prepares_fresh_home_and_propagates_test_failure(monkeypatch):
+def test_runner_prepares_fresh_home_and_propagates_test_failure(monkeypatch, tmp_path):
     module = runner()
+    temporary_directory = module.tempfile.TemporaryDirectory
+
+    def scratch(**options):
+        assert options["dir"] == "/private/tmp"
+        return temporary_directory(prefix=options["prefix"], dir=tmp_path)
+
+    monkeypatch.setattr(module.tempfile, "TemporaryDirectory", scratch)
     monkeypatch.setattr(module.platform, "system", lambda: "Darwin")
     monkeypatch.setattr(module.shutil, "which", lambda name: f"/usr/bin/{name}")
     prepared = []
 
     def prepare(home):
-        assert home.is_relative_to("/private/tmp")
+        assert home.is_relative_to(tmp_path)
         assert list(home.iterdir()) == []
         assert home.stat().st_mode & 0o777 == 0o700
         prepared.append(home)
