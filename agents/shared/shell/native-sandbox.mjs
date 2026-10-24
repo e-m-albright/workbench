@@ -10,8 +10,10 @@ const plan = JSON.parse(process.argv[2]);
 process.env.WORKBENCH_SUPERVISOR_PID = String(process.pid);
 const runtime = new URL("../native/node_modules/@anthropic-ai/sandbox-runtime/dist/index.js", import.meta.url);
 const { SandboxManager, SandboxRuntimeConfigSchema } = await import(runtime.href);
-const { containsGlobChars, normalizePathForSandbox, removeTrailingGlobSuffix, denyGlobRegex, globToRegex } =
+const { containsGlobChars, normalizePathForSandbox, removeTrailingGlobSuffix } =
   await import(new URL("./sandbox/sandbox-utils.js", runtime).href);
+const { denyGlobRegex, globToRegex } =
+  await import(new URL("./sandbox/glob-pattern.js", runtime).href);
 const adapter = fileURLToPath(new URL("native-sandbox.py", import.meta.url));
 const quote = (value) => `'${value.replaceAll("'", `'"'"'`)}'`;
 let child;

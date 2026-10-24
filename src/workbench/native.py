@@ -146,9 +146,10 @@ def _install_runtime(
         check=True,
     )
     patch_forge(runtime)
-    subprocess.run(
-        [str(node), str(AGENTS / "shared/sandbox/verify-forge.cjs"), str(runtime)], check=True
-    )
+    for probe in ("verify-forge.cjs", "verify-zod.cjs"):
+        subprocess.run(
+            [str(node), str(AGENTS / "shared/sandbox" / probe), str(runtime)], check=True
+        )
     for name in ("native-sandbox.py", "native-sandbox.mjs"):
         copy_file(AGENTS / "shared/shell" / name, home / DATA_REL / "shell" / name)
     install_harness(home)

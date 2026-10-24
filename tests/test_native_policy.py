@@ -71,9 +71,10 @@ def test_installed_policy_denies_confidential_but_allows_ordinary_lock_unlink():
     assert installed["version"] == pin["dependencies"]["@anthropic-ai/sandbox-runtime"]
     probe = (
         'import path from "node:path";\n'
-        + "import {containsGlobChars, normalizePathForSandbox, removeTrailingGlobSuffix, "
-        + "denyGlobRegex, globToRegex} from "
+        + "import {containsGlobChars, normalizePathForSandbox, removeTrailingGlobSuffix} from "
         + json.dumps(helpers.as_uri())
+        + ";\nimport {denyGlobRegex, globToRegex} from "
+        + json.dumps((helpers.parent / "glob-pattern.js").as_uri())
         + ";\n"
         + f"const plan = {json.dumps(PLAN)};\n"
         + policy_function()

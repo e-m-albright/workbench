@@ -1,6 +1,6 @@
 # Pi agent - capability overview and build candidates
 
-Snapshot of the managed Pi 0.86.1 harness, reviewed against repository configuration on 2026-10-20. [Pi design decisions](decisions.md) owns adoption and rejection rationale; this page owns current operational state.
+Snapshot of the managed Pi 1.4.0 harness, reviewed against repository configuration on 2026-10-24. [Pi design decisions](decisions.md) owns adoption and rejection rationale; this page owns current operational state.
 
 ## What pi exposes (official, today)
 
@@ -33,7 +33,7 @@ differ because only `p` adds the Workbench outer boundary; see the launch matrix
 | Worker (`worker.ts`) | Extension | Starts one child Pi in a sibling Git worktree, reports progress, and supports review and discard; managed children inherit the parent boundary and require an admitted sibling path |
 | Strava read-only (`strava-readonly.ts`) | Extension | Owned activity/stats tools; loopback OAuth, `activity:read_all`, 0600 tokens |
 | Apple Contacts (`apple-contacts` CLI, owned by a machine-local private layer) | Shared CLI | Fixed-field search/read/create/update through macOS Contacts; writes require `--confirm-write`, preserve notes outside a bounded managed block, and never delete; private projection policy stays with its private owner |
-| `pi-agent-browser-native` 0.6.15 | Pinned package | Structured Agent Browser wrapper with optional machine-local public search |
+| `pi-agent-browser-native` 0.9.6 | Pinned package | Structured Agent Browser wrapper with optional machine-local public search |
 | `just typecheck-pi` | Dev gate | Typechecks extensions against the installed Pi API |
 | pi-guide skill | Skill | Versioned tutorial for native Pi plus this harness |
 
@@ -58,7 +58,7 @@ Shared skill deployment uses tracked sources; the Archify archive download path 
 
 ## Prompt navigation
 
-Managed settings use Pi 0.86.1's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
+Managed settings use Pi 1.4.0's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
 
 Workbench also sets `/tree` to its `user-only` filter and keeps double-Escape bound
 to opening it. Up/Down previews prior prompts and Escape returns without changing
@@ -111,7 +111,7 @@ client handles it).
 
 ## Native Agent Browser
 
-Workbench pins `pi-agent-browser-native` 0.6.15 around the existing Agent Browser
+Workbench pins `pi-agent-browser-native` 0.9.6 around the existing Agent Browser
 CLI. It adds structured tool results, bounded context spills, secret redaction,
 stale-reference guards, session recovery, artifact metadata, and the
 optional `agent_browser_web_search` companion when a search provider is configured

@@ -115,7 +115,7 @@ def test_pi_drift_requires_installed_metadata_even_when_the_package_declaration_
     sync.sync_pi(tmp_path, deploy_skills=False, deploy_plugins=False)
     pi_home = tmp_path / ".pi/agent"
     assert json.loads((pi_home / "settings.json").read_text())["packages"] == [
-        "npm:pi-agent-browser-native@0.6.15"
+        "npm:pi-agent-browser-native@0.9.6"
     ]
 
     findings = []
@@ -132,12 +132,12 @@ def test_pi_drift_requires_installed_metadata_even_when_the_package_declaration_
     [
         (
             b'{"name":"pi-agent-browser-native","version":"0.6.14"}',
-            "installed version 0.6.14; expected 0.6.15",
+            "installed version 0.6.14; expected 0.9.6",
         ),
         (b"{invalid", "malformed installed metadata"),
         (b"[]", "malformed installed metadata"),
         (b"\xff", "malformed installed metadata"),
-        (b'{"name":"another-package","version":"0.6.15"}', "malformed installed name/version"),
+        (b'{"name":"another-package","version":"0.9.6"}', "malformed installed name/version"),
         (b'{"name":"pi-agent-browser-native","version":15}', "malformed installed name/version"),
         (b'{"name":"pi-agent-browser-native"}', "malformed installed name/version"),
     ],
@@ -150,7 +150,7 @@ def test_pi_drift_checks_realized_package_metadata(tmp_path, monkeypatch, metada
     manifest.parent.mkdir(parents=True)
     manifest.write_bytes(metadata)
     core.write_json(
-        pi_home / "npm/package.json", {"dependencies": {"pi-agent-browser-native": "0.6.15"}}
+        pi_home / "npm/package.json", {"dependencies": {"pi-agent-browser-native": "0.9.6"}}
     )
 
     findings = []
@@ -168,7 +168,7 @@ def test_pi_drift_accepts_matching_installed_version_and_ignores_unmanaged_packa
     npm_root = tmp_path / ".pi/agent/npm"
     core.write_json(
         npm_root / "node_modules/pi-agent-browser-native/package.json",
-        {"name": "pi-agent-browser-native", "version": "0.6.15"},
+        {"name": "pi-agent-browser-native", "version": "0.9.6"},
     )
     external = npm_root / "node_modules/owner-package/package.json"
     external.parent.mkdir()

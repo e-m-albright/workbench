@@ -13,7 +13,7 @@ def test_development_toolchain_uses_node_and_pnpm():
     root = Path(__file__).resolve().parents[1]
     package = json.loads((root / "package.json").read_text())
     assert package["packageManager"].startswith("pnpm@")
-    assert package["engines"]["node"] == ">=24.20.0 <25"
+    assert package["engines"]["node"] == ">=26.12.1 <27"
     active = [
         root / "justfile",
         root / ".github/workflows/ci.yml",
@@ -23,6 +23,23 @@ def test_development_toolchain_uses_node_and_pnpm():
         assert not re.search(r"\b(?:bun(?:x|:test)?|deno)\b", path.read_text(), re.IGNORECASE), path
     assert not list(root.glob("bun.lock*"))
     assert not list(root.glob("deno.*"))
+
+
+def test_ci_and_setup_docs_use_the_patched_node_runtime():
+    root = Path(__file__).resolve().parents[1]
+    workflow = yaml.safe_load((root / ".github/workflows/ci.yml").read_text())
+    node_versions = {
+        job_name: step["with"]["node-version"]
+        for job_name, job in workflow["jobs"].items()
+        for step in job["steps"]
+        if step.get("uses", "").startswith("actions/setup-node@")
+    }
+    assert node_versions == {
+        "check": "26.12.1",
+        "native-canary": "26.12.1",
+        "audit": "26.12.1",
+    }
+    assert "[Node 26.12.1 or newer within Node 26]" in (root / "README.md").read_text()
 
 
 def test_typescript_lint_checks_promises_and_accepts_awaited_work(tmp_path):

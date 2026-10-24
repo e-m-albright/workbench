@@ -122,7 +122,7 @@ def test_concurrent_prepare_cannot_publish_readiness_during_failed_install(tmp_p
     assert (home / ".local/share/workbench/native/tools.json").is_file()
 
 
-@pytest.mark.parametrize("failure", ["install", "patch", "probe"])
+@pytest.mark.parametrize("failure", ["install", "patch", "probe", "zod-probe"])
 def test_failed_reprepare_invalidates_previous_readiness(tmp_path, monkeypatch, failure):
 
     home = tmp_path / "home"
@@ -134,8 +134,10 @@ def test_failed_reprepare_invalidates_previous_readiness(tmp_path, monkeypatch, 
     monkeypatch.setattr(native.shutil, "which", lambda name: None)
 
     def run(command, **kwargs):
-        if (failure == "install" and command[1] == "ci") or (
-            failure == "probe" and command[1].endswith("verify-forge.cjs")
+        if (
+            (failure == "install" and command[1] == "ci")
+            or (failure == "probe" and command[1].endswith("verify-forge.cjs"))
+            or (failure == "zod-probe" and command[1].endswith("verify-zod.cjs"))
         ):
             raise subprocess.CalledProcessError(1, command)
 

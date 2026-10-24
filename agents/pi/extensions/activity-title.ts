@@ -202,13 +202,18 @@ export default function activityTitle(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
-		if (!ctx.sessionManager.getSessionName()) {
-			thread = deriveThreadTitle(event.prompt);
-			nameSession(ctx, thread);
+		if ("prompt" in event) {
+			if (!ctx.sessionManager.getSessionName()) {
+				thread = deriveThreadTitle(event.prompt);
+				nameSession(ctx, thread);
+			} else {
+				thread = ctx.sessionManager.getSessionName();
+			}
+			basePhase = normalizePhase(`Working on ${deriveThreadTitle(event.prompt)}`);
 		} else {
 			thread = ctx.sessionManager.getSessionName();
+			basePhase = "Working";
 		}
-		basePhase = normalizePhase(`Working on ${deriveThreadTitle(event.prompt)}`);
 		runStartedAt = Date.now();
 		renderTitle(ctx);
 	});

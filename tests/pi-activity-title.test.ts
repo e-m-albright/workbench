@@ -1,4 +1,4 @@
-import { expect, vi, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 vi.doMock("@earendil-works/pi-tui", () => ({
 	truncateToWidth: (value: string, width: number, ellipsis = "…") =>
@@ -129,4 +129,16 @@ test("runs derive activity locally and replace the generic working row", async (
 
 	await handlers.get("agent_settled")?.({}, ctx);
 	expect(workingVisibility).toEqual([false, true]);
+
+	for (const name of ["Live title", ""]) {
+		sessionName = name;
+		await handlers.get("before_agent_start")?.(
+			{ messageType: "custom", message: { content: "Background completion" } },
+			ctx,
+		);
+		expect(sessionName).toBe(name);
+		await handlers.get("agent_start")?.({}, ctx);
+		expect(titles.at(-1)).toMatch(/· Working$/);
+		await handlers.get("agent_settled")?.({}, ctx);
+	}
 });

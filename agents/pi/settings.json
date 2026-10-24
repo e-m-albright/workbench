@@ -12,7 +12,7 @@
     "enabledByDefault": true
   },
   "packages": [
-    "npm:pi-agent-browser-native@0.6.15"
+    "npm:pi-agent-browser-native@0.9.6"
   ],
   "theme": "dark"
 }

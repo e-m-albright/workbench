@@ -20,10 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.20.0
+          node-version: 26.12.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: Install locked development tools
         run: pnpm install --frozen-lockfile
@@ -36,7 +36,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends zsh
       - name: Install Pi so typecheck-pi runs instead of skipping
         # Pinned so CI is deterministic; bump alongside the host install.
-        run: npm install -g @earendil-works/pi-coding-agent@0.86.1
+        run: npm install -g @earendil-works/pi-coding-agent@1.4.0
       - name: Deterministic quality gate
         run: just check
 
@@ -46,21 +46,21 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.20.0
+          node-version: 26.12.1
       - name: Install pinned vendor CLIs
         # Claude uses the host's native layout: a stable launcher linked into a versions directory.
         # Keep optional platform binaries inside each admitted npm package directory.
         run: |
-          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.304
+          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.308
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/bin:$PATH"
           test -L "$HOME/.local/bin/claude"
           npm install -g --install-strategy=nested \
-            @openai/codex@0.155.1 \
-            @earendil-works/pi-coding-agent@0.86.1
+            @openai/codex@0.164.0 \
+            @earendil-works/pi-coding-agent@1.4.0
           claude --version
           codex --version
           pi --version
@@ -80,10 +80,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.20.0
+          node-version: 26.12.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: Audit every locked dependency surface
         run: just audit

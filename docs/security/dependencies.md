@@ -34,3 +34,9 @@ today is the rejected sandbox-runtime 0.0.50 downgrade.
 Remove the backport, its regression probe, and the audit exception when an
 upstream fixed release can replace the pin. Restore the direct npm audit command
 then. This is the sole temporary dependency repair, not a general exception list.
+
+## Zod compatibility pin
+
+[GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) affects the Zod v4 implementation bundled in the old dependency. Sandbox-runtime 0.0.81 explicitly imports `zod/v3`, a compatibility entry point supported by both Zod 3.25 and Zod 4. Workbench's scoped npm override selects Zod 4.6.7 while preserving that v3 API; it does not force the runtime onto the incompatible v4 schema API.
+
+[The Zod regression probe](../../agents/shared/sandbox/verify-zod.cjs) verifies that oversized v4 arrays stop before producing per-item errors, and that the sandbox's v3 configuration schema still accepts valid policies and rejects malformed ones. Preparation must pass this probe before publishing readiness. `just audit` runs it against a fresh locked install. No additional audit exception or Zod source patch is used. Remove the override when the upstream dependency range includes a fixed release.

@@ -106,6 +106,7 @@ def audit() -> None:
         subprocess.run([*probe, "--unpatched"], check=True)
         patch_forge(runtime)
         subprocess.run(probe, check=True)
+        subprocess.run(["node", str(source / "verify-zod.cjs"), str(runtime)], check=True)
         result = subprocess.run(
             ["npm", "audit", "--json", "--package-lock-only", "--ignore-scripts"],
             cwd=runtime,

@@ -1,14 +1,14 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
-  "files": {
-    "includes": ["agents/pi/extensions/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "tab",
-    "lineWidth": 110
-  },
-  "linter": {
-    "enabled": false
-  }
+	"$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+	"files": {
+		"includes": ["agents/pi/extensions/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 110
+	},
+	"linter": {
+		"enabled": false
+	}
 }
