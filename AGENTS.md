@@ -23,7 +23,9 @@ machine-local context named by the shared agent rules.
 - Optimize for the owner's workflow, not unknown users or machines.
 - Never commit secrets, credentials, personal records, conversations, or agent
   memory.
-- Pi, Claude Code, and Codex are the only first-class coding-agent integrations.
+- Pi, Claude Code, and Codex are the first-class managed-runtime integrations.
+  Antigravity CLI is additionally managed for native global rules and skills;
+  it does not yet participate in the managed launch boundary.
 - Keep rejected tools and approaches in `docs/decisions/tombstones.md`. When
   code enforces a retirement, the reason lives with the enforcement instead
   (`RETIRED_*` in `src/workbench/core.py`, `_*_disabled` in the MCP registry).

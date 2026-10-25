@@ -371,8 +371,23 @@ def sync_rules(home: Path, vendor: str) -> None:
         write_text(home / ".codex/AGENTS.md", expected_codex_rules_md())
     elif vendor == "pi":
         _replace_pi_file(source, home / ".pi/agent/AGENTS.md")
+    elif vendor == "antigravity":
+        copy_file(source, home / ".gemini/AGENTS.md")
     else:
         raise WorkbenchError(f"unsupported vendor for rules sync: {vendor}")
+
+
+def sync_antigravity(
+    home: Path,
+    *,
+    deploy_skills: bool,
+    deploy_plugins: bool,
+    profile: Profile = "personal",
+) -> None:
+    """Deploy native rules and skills; leave settings, logins, and plugins untouched."""
+    sync_rules(home, "antigravity")
+    if deploy_skills:
+        _sync_skill_tree(home / ".gemini/antigravity-cli/skills", profile)
 
 
 def _merge_pi_object(

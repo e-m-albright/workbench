@@ -7,7 +7,7 @@ reference.
 The `personal` profile is the complete configuration described by the
 table. Sync and drift default to `DOTFILES_PROFILE` when set, otherwise `personal`;
 an explicit `--profile` overrides that default. The fail-closed `work` profile targets only Claude Code and Pi. It deploys
-shared rules, tracked skills, hooks, and permission guards, but omits Codex,
+shared rules, tracked skills, hooks, and permission guards, but omits Codex and Antigravity,
 Claude plugins and Desktop configuration, MCP servers, local-model routing,
 and browser and personal connector extensions. It
 still deploys the shared launchers and native Claude/Pi harnesses. Run both sync and drift with the same
@@ -46,6 +46,14 @@ permissions control. See [OpenAI's automatic-review documentation](https://learn
 | Plugins / packages | `packages` in managed Pi settings | IDs from `agents/claude/plugins.json` | IDs from `agents/codex/plugins.json` |
 | MCP servers | None by design | Shared registry plus preserved external servers | Shared registry plus preserved external servers |
 | Generated/private state | Contents preserved and unmanaged; session filesystem permissions enforced private | Preserved vendor state | Preserved vendor state |
+
+Antigravity CLI is an additional personal-profile configuration target, included
+in `all`. It manages only `~/.gemini/AGENTS.md` and canonical skill trees under
+`~/.gemini/antigravity-cli/skills`; settings, logins, MCPs, and plugins remain
+unmanaged. Sync and drift do not require a CLI login or contact a model.
+It has no shared shell runtime or managed launch boundary. The
+[Antigravity integration](agents/antigravity.md) records native contracts and
+limits; Dotfiles owns installation of the `agy` binary.
 
 The shared shell runtime deploys `agent-launchers.zsh`, `agent-sandbox.zsh`, and
 the `native-sandbox.py` / `native-sandbox.mjs` entrypoints under

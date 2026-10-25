@@ -203,7 +203,7 @@ RETIRED_PI_STATE_PATHS = (
     ".pi/agent/presets.json",
     ".pi/agent/presets.json.bak",
 )
-VENDORS = ("claude", "codex", "pi")
+VENDORS = ("claude", "codex", "pi", "antigravity")
 VENDOR_CHOICES = (*VENDORS, "all")
 CLAUDE_DEFAULTS = {"model": "opus", "effortLevel": "medium"}
 CODEX_DEFAULTS = {"model": "gpt-6.1-sol", "model_reasoning_effort": "medium"}

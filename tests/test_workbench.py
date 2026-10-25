@@ -220,7 +220,7 @@ class WorkbenchTests(unittest.TestCase):
         result = self.run_cli("sync", "--help")
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("claude|codex|pi|all", result.stdout)
+        self.assertIn("claude|codex|pi|antigravity|all", result.stdout)
         self.assertIn("--no-skills", result.stdout)
         self.assertIn("--no-plugins", result.stdout)
 

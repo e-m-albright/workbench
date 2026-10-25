@@ -23,7 +23,7 @@ from workbench.core import VENDOR_CHOICES, WorkbenchError, _vendors, drain_chang
 from workbench.preview import preview_sync
 from workbench.profiles import vendors as profile_vendors
 from workbench.render import ALIAS_NOTE, DESCRIPTION, gradient_banner, print_error
-from workbench.sync import sync_claude, sync_codex, sync_pi, sync_rules
+from workbench.sync import sync_antigravity, sync_claude, sync_codex, sync_pi, sync_rules
 
 
 class DeploymentProfile(StrEnum):
@@ -35,12 +35,21 @@ class Vendor(StrEnum):
     CLAUDE = "claude"
     CODEX = "codex"
     PI = "pi"
+    ANTIGRAVITY = "antigravity"
     ALL = "all"
 
 
 # The Typer choice enum and core's vendor list must never diverge; a dynamic
 # StrEnum would guarantee that but defeats static checking, so assert instead.
 assert tuple(member.value for member in Vendor) == VENDOR_CHOICES
+
+
+class NativeVendor(StrEnum):
+    CLAUDE = "claude"
+    CODEX = "codex"
+    PI = "pi"
+    ALL = "all"
+
 
 COMMANDS_PANEL = "Configuration — deploy, verify, and validate"
 
@@ -92,10 +101,15 @@ def sync(
     ] = DeploymentProfile.PERSONAL,
 ) -> None:
     """Deploy Workbench-managed configuration to supported coding agents."""
-    if profile is DeploymentProfile.WORK and vendor is Vendor.CODEX:
+    if profile is DeploymentProfile.WORK and vendor in {Vendor.CODEX, Vendor.ANTIGRAVITY}:
         raise typer.BadParameter("the work profile supports only claude, pi, or all")
     home = _home()
-    deployers = {"claude": sync_claude, "codex": sync_codex, "pi": sync_pi}
+    deployers = {
+        "claude": sync_claude,
+        "codex": sync_codex,
+        "pi": sync_pi,
+        "antigravity": sync_antigravity,
+    }
     drain_changed_paths()
     selected = profile_vendors(profile.value, _vendors(vendor.value))
     with preview_sync() if dry_run else nullcontext() as plan:
@@ -154,7 +168,7 @@ def drift(
     ] = DeploymentProfile.PERSONAL,
 ) -> None:
     """Compare live vendor configuration directly with canonical Workbench sources."""
-    if profile is DeploymentProfile.WORK and vendor is Vendor.CODEX:
+    if profile is DeploymentProfile.WORK and vendor in {Vendor.CODEX, Vendor.ANTIGRAVITY}:
         raise typer.BadParameter("the work profile supports only claude, pi, or all")
     raise typer.Exit(
         drift_module.drift(
@@ -194,7 +208,7 @@ def native_prepare(
 
 @native_app.command("authorize")
 def native_authorize(
-    vendor: Annotated[Vendor, typer.Argument(help="codex, claude, or pi")],
+    vendor: Annotated[NativeVendor, typer.Argument(help="codex, claude, or pi")],
     replace: Annotated[
         bool,
         typer.Option(
@@ -213,12 +227,16 @@ def native_authorize(
 
 @native_app.command("status")
 def native_status(
-    vendor: Annotated[Vendor, typer.Argument(help="vendor to inspect (default: all)")] = Vendor.ALL,
+    vendor: Annotated[
+        NativeVendor, typer.Argument(help="vendor to inspect (default: all)")
+    ] = NativeVendor.ALL,
 ) -> None:
     """Show managed paths, preparation, and login presence without reading tokens or history."""
     print(
         json.dumps(
-            native_module.status(_home(), vendor=None if vendor is Vendor.ALL else vendor.value),
+            native_module.status(
+                _home(), vendor=None if vendor is NativeVendor.ALL else vendor.value
+            ),
             indent=2,
         )
     )

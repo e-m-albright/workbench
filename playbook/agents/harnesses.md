@@ -124,7 +124,7 @@ catalogued at the positioning level and flagged for later deep-profiling.
 |---|---|---|
 | **Cursor** | proprietary | AI-native VS Code fork (Anysphere). Subscription. Strong inline + agent modes; increasingly pushing **cloud/background agents** (drifts toward Tier 3). Previously evaluated and tombstoned in our manifest. |
 | **Cline** | open source | Autonomous coding agent as a VS Code extension. BYOK, MCP-heavy, plan/act split. Notable as an open, editor-embedded option. *Not host software — lives in the editor, so catalogued here, not in the manifest.* |
-| **Antigravity** (IDE) | proprietary | Google's agentic IDE; the successor surface to Gemini CLI. Introduces **agent-inbox / agent-manager** UX — see Tier 3 note. Tombstoned in our manifest. |
+| **Antigravity** (IDE) | proprietary | Google's agentic IDE; the successor surface to Gemini CLI. Introduces **agent-inbox / agent-manager** UX — see Tier 3 note. The IDE remains tombstoned in the host manifest. The separate `agy` terminal CLI was re-enabled on 2026-10-25 with [Workbench rules and skills management](../../docs/agents/antigravity.md). |
 
 ### Tier 3 — orchestration / multiplexers / agent inboxes
 

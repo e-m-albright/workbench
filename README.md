@@ -92,6 +92,29 @@ vocabulary, and safety policy.
 - A shared MCP registry that preserves intentional external additions and
   removes explicitly retired integrations.
 
+### Antigravity CLI
+
+Antigravity CLI is enabled separately from the retired Antigravity IDE and
+Gemini CLI. Dotfiles installs the `antigravity-cli` Homebrew cask, which provides
+`agy`. Workbench includes its global rules and skills in `sync all` and
+`drift all`; it can also be targeted directly:
+
+```bash
+workbench sync antigravity --dry-run
+workbench sync antigravity
+workbench drift antigravity
+agy --sandbox
+```
+
+Rules deploy to `~/.gemini/AGENTS.md`; skills deploy to
+`~/.gemini/antigravity-cli/skills`. Existing settings, plugins, MCP servers,
+credentials, and session history remain vendor-owned and untouched. Sign in
+through the interactive CLI when needed; Workbench does not enroll its login.
+Antigravity is personal-profile only and has no managed launcher or `native`
+integration yet. Its `--sandbox` flag is the vendor's terminal sandbox, **not**
+Workbench's whole-process macOS boundary. Do not assume the isolation guarantees
+of `co`, `cc`, and `p` apply to `agy`.
+
 ### Engineering guidance
 
 - [The playbook](playbook/README.md) groups reusable knowledge by agents,
@@ -221,13 +244,13 @@ Run `workbench`, `wb`, or either launcher's `--help` flag for the complete tree:
 
 ```text
 workbench
-├── sync [claude|codex|pi|all] deploy canonical configuration
+├── sync [claude|codex|pi|antigravity|all] deploy canonical configuration
 │   ├── --profile              personal or work; defaults to DOTFILES_PROFILE
 │   ├── --no-skills            skip shared-skill installation
 │   ├── --no-plugins           skip declared-plugin installation
 │   ├── --dry-run              preview changes without applying them
 │   └── --rules-only           deploy only global instruction files
-├── drift [claude|codex|pi|all] report managed drift and external additions
+├── drift [claude|codex|pi|antigravity|all] report managed drift and external additions
 │   └── --profile              personal or work; defaults to DOTFILES_PROFILE
 ├── lint                       validate canonical repository sources
 └── native

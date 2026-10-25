@@ -468,7 +468,8 @@ def drift(
     external: list[str] = []
     selected = tuple(vendors)
     data = home / DATA_REL
-    if selected:
+    managed_runtime = set(selected) - {"antigravity"}
+    if managed_runtime:
         for name, fragment in _canonical_shell_fragments().items():
             _compare(fragment, data / "shell" / name, f"shell fragment {name}", findings)
         for name in RETIRED_AGENT_SHELL_FILES:
@@ -477,7 +478,7 @@ def drift(
         for name in RETIRED_PI_SANDBOX_PROFILES:
             if (data / "sandbox" / name).exists():
                 findings.append(f"DRIFT retired Pi sandbox profile still present: {name}")
-    if selected:
+    if managed_runtime:
         hard_deny = home / ".config/workbench/hard-deny-paths"
         if not hard_deny.is_file():
             findings.append(f"DRIFT invariant agent denylist is missing: {hard_deny}")
@@ -509,6 +510,21 @@ def drift(
                     findings.append(f"DRIFT retired runtime hook still present: {deployed.name}")
 
     for vendor in selected:
+        if vendor == "antigravity":
+            _compare(
+                AGENTS / "shared/rules.md",
+                home / ".gemini/AGENTS.md",
+                "antigravity rules",
+                findings,
+            )
+            _check_skills(
+                home / ".gemini/antigravity-cli/skills",
+                vendor,
+                findings,
+                external,
+                profile=profile,
+            )
+            continue
         _check_harness(home, vendor, findings)
         if vendor == "pi":
             for relative in RETIRED_PI_STATE_PATHS:
