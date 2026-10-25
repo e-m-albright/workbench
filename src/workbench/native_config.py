@@ -485,7 +485,7 @@ def _antigravity(p):
     # Keep account/connector configuration and host Keychain outside the boundary.
     p.file(".gemini/antigravity-cli/settings.json", {})
     p.link(".gemini/AGENTS.md")
-    p.link(".gemini/antigravity-cli/skills")
+    p.link(".gemini/config/skills")
 
 
 def render_harness(home: Path, vendor: str) -> Projection:

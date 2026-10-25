@@ -26,14 +26,14 @@ def test_projection_shares_only_rules_and_skills(tmp_path):
     rules = tmp_path / ".gemini/AGENTS.md"
     rules.parent.mkdir()
     rules.write_text("shared instructions")
-    skills = tmp_path / ".gemini/antigravity-cli/skills"
+    skills = tmp_path / ".gemini/config/skills"
     skills.mkdir(parents=True)
     settings = skills.parent / "settings.json"
     settings.write_text(json.dumps({"mcpServers": {"private": {}}, "secret": "must-not-copy"}))
     projection = native_config.render_harness(tmp_path, "antigravity")
     assert {item["path"] for item in projection.manifest["links"]} == {
         ".gemini/AGENTS.md",
-        ".gemini/antigravity-cli/skills",
+        ".gemini/config/skills",
     }
     assert not any("must-not-copy" in content for content in projection.contents.values())
     assert str(settings) not in projection.manifest["read"]
@@ -62,11 +62,39 @@ def test_antigravity_boundary_and_terminal_only_policy(tmp_path, args):
     assert plan["command"] == [binary, "--help"]
     assert plan["env"]["HOME"] != str(home)
     assert plan["auth_link"] is None
+    assert plan["loopback_listen"] is True
     grants = plan["policy"]["filesystem"]["allowRead"]
     assert str(home / ".gemini") not in grants
     assert str(home / "Library/Keychains") not in grants
-    assert "*.googleapis.com" in plan["policy"]["network"]["deniedDomains"]
+    assert plan["vendor"] == "antigravity"
+    assert "*.googleusercontent.com" in plan["policy"]["network"]["deniedDomains"]
     launcher.initialize_home(plan, home)
+
+
+def test_skill_projection_migrates_only_the_known_legacy_link(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "host"
+    agent_home = home / "state/home"
+    skills = agent_home / ".gemini/config/skills"
+    skills.parent.mkdir(parents=True)
+    legacy = home / ".gemini/antigravity-cli/skills"
+    target = home / ".gemini/config/skills"
+    skills.symlink_to(legacy)
+    plan = {
+        "env": {"HOME": str(agent_home)},
+        "harness": {
+            "links": [{"path": ".gemini/config/skills", "target": str(target)}],
+            "files": [],
+        },
+    }
+    launcher.initialize_home(plan, home)
+    assert skills.readlink() == target
+    launcher.initialize_home(plan, home)
+    assert skills.readlink() == target
+    skills.unlink()
+    skills.symlink_to(home / "unrelated")
+    with pytest.raises(ValueError, match="Unexpected harness link"):
+        launcher.initialize_home(plan, home)
 
 
 def test_status_reports_isolated_login_without_reading_tokens(tmp_path):

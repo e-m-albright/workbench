@@ -49,13 +49,13 @@ permissions control. See [OpenAI's automatic-review documentation](https://learn
 
 Antigravity CLI is an additional personal-profile configuration target, included
 in `all`. It manages `~/.gemini/AGENTS.md`, canonical skill trees under
-`~/.gemini/antigravity-cli/skills`, shared launchers, and an isolated harness
+`~/.gemini/config/skills`, shared launchers, and an isolated harness
 without host settings or credentials. Native settings, logins, MCPs, and plugins
 remain unmanaged. Sync and drift do not require a CLI login or contact a model.
-`agy` enters Workbench's boundary, but normal CLI startup remains blocked by its
-dynamic loopback listener. `antigravity`, `antig`, `agrav`, and `agravity` launch natively.
-The [Antigravity integration](agents/antigravity.md) records the demonstrated
-blocker and authentication limits; Dotfiles owns installation of the binary.
+`agy` enters Workbench's boundary with loopback listening, restricted host
+connections, and identity/model-only Google API exceptions. `antigravity`, `antig`, `agrav`, and `agravity` launch natively.
+The [Antigravity integration](agents/antigravity.md) records startup verification and
+authentication limits; Dotfiles owns installation of the binary.
 
 The shared shell runtime deploys `agent-launchers.zsh`, `agent-sandbox.zsh`, and
 the `native-sandbox.py` / `native-sandbox.mjs` entrypoints under
@@ -76,7 +76,7 @@ owns updates and an isolated home should not download its own copy.
 
 The standalone launch interface is
 `/bin/zsh -f ~/.local/share/workbench/shell/agent-sandbox.zsh VENDOR LOCATION AUTHORITY [native args]`:
-`VENDOR` is `pi`, `claude`, `codex`, or experimental `antigravity`; the only supported pair is `LOCATION=hosted`
+`VENDOR` is `pi`, `claude`, `codex`, or `antigravity`; the only supported pair is `LOCATION=hosted`
 and `AUTHORITY=managed`. The shortcuts `p`, `cc`, and `co` use this pair and show
 `cloud > managed`. They admit the selected ordinary Git checkout,
 `~/code/public`, `~/Desktop`, and `~/Downloads`, with all private exclusions.

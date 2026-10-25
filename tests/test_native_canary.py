@@ -205,6 +205,77 @@ echo CANARY-PASS
     assert not hits
 
 
+def test_antigravity_listener_and_identity_access_keep_host_and_data_denials(
+    tmp_path, native_scratch
+):
+    """No account or model request: exercise the actual proxy and macOS rules."""
+    assert PILOT
+    home = Path(PILOT)
+    (tmp_path / ".git").mkdir()
+    script = home / ".local/share/workbench/shell/native-sandbox.py"
+    launcher = runpy.run_path(str(script))
+    tools = json.loads((script.parent.parent / "native/tools.json").read_text())
+    tools["browser"] = None
+    tools["agents"]["antigravity"] = {"command": ["/bin/bash"], "read": []}
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), http.server.BaseHTTPRequestHandler)
+    try:
+        plan = launcher["build_plan"](
+            tmp_path, home, tools, "antigravity", "hosted", [], scratch=native_scratch
+        )
+        launcher["initialize_home"](plan, home)
+        probe = f"""
+import socket
+with socket.socket() as listener:
+    listener.bind(('127.0.0.1', 0))
+    listener.listen()
+    print('LISTENER-PASS')
+with socket.socket() as client:
+    client.settimeout(1)
+    try:
+        client.connect(('127.0.0.1', {server.server_port}))
+    except OSError:
+        print('HOST-DENIED')
+    else:
+        raise RuntimeError('Unrelated host connection allowed')
+"""
+        command = f"""
+set -eu
+/usr/bin/python3 -I -S -c {shlex.quote(probe)}
+code=$(/usr/bin/curl --max-time 15 -sS -o /dev/null -w '%{{http_code}}' https://www.googleapis.com/oauth2/v2/userinfo)
+test "$code" = 401
+code=$(/usr/bin/curl --max-time 15 -sS -o /dev/null -w '%{{http_code}}' https://www.googleapis.com/drive/v3/files)
+test "$code" = 403
+set +e
+code=$(/usr/bin/curl --max-time 15 -sS -o /dev/null -w '%{{http_connect}}' https://drive.googleapis.com/drive/v3/files)
+status=$?
+set -e
+test "$code" = 403
+test "$status" = 56
+set +e
+/usr/bin/curl --proxy "${{ALL_PROXY/http:/socks5h:}}" --max-time 15 -sS \
+    -o /dev/null https://www.googleapis.com/drive/v3/files 2>/dev/null
+status=$?
+set -e
+test "$status" = 97
+echo IDENTITY-ONLY-PASS
+"""
+        plan["command"] = ["/bin/bash", "-c", command]
+        result = subprocess.run(
+            [plan["node"], str(script.with_suffix(".mjs")), json.dumps(plan)],
+            env=plan["env"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "LISTENER-PASS" in result.stdout
+        assert "HOST-DENIED" in result.stdout
+        assert "IDENTITY-ONLY-PASS" in result.stdout
+    finally:
+        server.server_close()
+
+
 @pytest.fixture
 def native_scratch():
     with tempfile.TemporaryDirectory(prefix="wb-native-", dir="/private/tmp") as scratch:

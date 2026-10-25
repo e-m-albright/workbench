@@ -64,22 +64,45 @@ async function launch(command, stdio) {
   if (wrapped.argv.length !== 3 || wrapped.argv[0] !== "/bin/bash" || wrapped.argv[1] !== "-c") {
     throw new Error("Unexpected sandbox runtime launch shape");
   }
-  return spawn("/usr/bin/python3", ["-I", "-S", adapter, "--apply", wrapped.argv[2], String(plan.browser_port || 0), mandatory, JSON.stringify(plan.ports ?? [])], {
+  return spawn("/usr/bin/python3", ["-I", "-S", adapter, "--apply", wrapped.argv[2], String(plan.browser_port || 0), mandatory, JSON.stringify(plan.ports ?? []), JSON.stringify(plan.loopback_listen ?? false)], {
     cwd: plan.cwd, env: wrapped.env, stdio: [stdio, stdio, stdio, "pipe"],
   });
 }
+// Public web traffic stays proxied; only Antigravity gets these model/login APIs.
+function publicDestination({ host, port }) {
+  let canonical;
+  try { canonical = new URL(`http://${host}`).hostname.replace(/^\[|\]$/g, "").replace(/\.$/, ""); }
+  catch { return false; }
+  if (isIP(canonical) || canonical === "localhost" ||
+      canonical.endsWith(".localhost") || canonical.endsWith(".local") ||
+      (port !== 80 && port !== 443)) return false;
+  if (canonical === "googleapis.com" || canonical.endsWith(".googleapis.com")) {
+    return plan.vendor === "antigravity" && port === 443 && [
+      "oauth2.googleapis.com", "www.googleapis.com",
+      "daily-cloudcode-pa.googleapis.com", "cloudcode-pa.googleapis.com",
+    ].includes(canonical);
+  }
+  return true;
+}
+function identityRequest(request) {
+  const url = new URL(request.url);
+  if (url.hostname.replace(/\.$/, "") !== "www.googleapis.com") return { action: "allow" };
+  return url.protocol === "https:" && request.method === "GET" && [
+    "/oauth2/v2/userinfo", "/oauth2/v3/tokeninfo",
+  ].includes(url.pathname)
+    ? { action: "allow" }
+    : { action: "deny", reason: "Only Google identity endpoints are admitted" };
+}
 try {
   const policy = SandboxRuntimeConfigSchema.parse(plan.policy);
-  // Public TCP tunnels on web ports are intentional, not protocol inspection.
-  // WHATWG host parsing canonicalizes numeric shorthand before literal checks.
-  await SandboxManager.initialize(policy, async ({ host, port }) => {
-    let canonical;
-    try { canonical = new URL(`http://${host}`).hostname.replace(/^\[|\]$/g, "").replace(/\.$/, ""); }
-    catch { return false; }
-    return !isIP(canonical) && canonical !== "localhost" &&
-      !canonical.endsWith(".localhost") && !canonical.endsWith(".local") &&
-      (port === 80 || port === 443);
-  });
+  if (plan.vendor === "antigravity") {
+    // Path-filter the shared Google host; opaque tunnels must not bypass it.
+    policy.network.tlsTerminate = {};
+    policy.network.refuseOpaqueTunnels = true;
+    policy.network.requireHostMatch = true;
+    policy.network.filterRequest = identityRequest;
+  }
+  await SandboxManager.initialize(policy, publicDestination);
   child = await launch(plan.command, "inherit");
   process.on("SIGTERM", () => child.kill("SIGTERM"));
   // Roles assumed from SSO last an hour; keep the session's keys current from the host.

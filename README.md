@@ -107,18 +107,19 @@ antigravity
 ```
 
 Rules deploy to `~/.gemini/AGENTS.md`; skills deploy to
-`~/.gemini/antigravity-cli/skills`. Existing settings, plugins, MCP servers,
+`~/.gemini/config/skills`. Existing settings, plugins, MCP servers,
 credentials, and session history remain vendor-owned and untouched. Sign in
 through the interactive CLI when needed; Workbench does not enroll its login.
 Antigravity is personal-profile only. The shell names `antigravity`, `antig`,
 `agrav`, and `agravity` launch the native Homebrew binary without adding Workbench's
-boundary. `agy` enters the same whole-process boundary as `co`, `cc`, and `p`,
-but is **experimental and currently blocked at normal startup**: CLI 1.4.7
-requires a dynamically allocated loopback listener. It does not fall back to
-native execution. Host Keychain and Google API denials remain unchanged;
-authenticated managed use has not been verified. See the
-[integration notes](docs/agents/antigravity.md). The native command's `--sandbox`
-flag is Google's narrower terminal sandbox, not the Workbench boundary.
+boundary. `agy` enters the same whole-process boundary as `co`, `cc`, and `p`.
+It can listen on loopback without connecting to unrelated host services and has
+narrow Google identity/model API exceptions. Host Keychain remains denied;
+sign in through `agy` in a real terminal. Account sign-in and authenticated
+model use remain unverified until that step is completed. There is no automatic
+native fallback. See the [integration notes](docs/agents/antigravity.md).
+The native command's `--sandbox` flag is Google's narrower terminal sandbox,
+not the Workbench boundary.
 
 ### Engineering guidance
 
@@ -333,7 +334,7 @@ with no code enforcement.
 Workbench is public. It must never contain credentials, personal records,
 conversations, generated memory, or private operational state.
 
-The shortcuts `co`, `cc`, and `p`, plus the experimental `agy`, contain the entire agent process and its
+The shortcuts `co`, `cc`, and `p`, plus `agy`, contain the entire agent process and its
 children in Workbench's native macOS boundary. Full commands `codex`, `claude`,
 and `pi` launched from the host retain native behavior without that outer
 boundary. Starting a native binary inside an already managed session does not

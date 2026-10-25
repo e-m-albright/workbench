@@ -51,8 +51,8 @@ antigravity() { command agy "$@"; }
 antig() { antigravity "$@"; }
 agrav() { antigravity "$@"; }
 agravity() { antigravity "$@"; }
-# Experimental: normal startup needs an unsupported dynamic loopback listener.
-# Keep the boundary fail-closed; never substitute native execution on failure.
+# The managed boundary admits loopback listening, not arbitrary host connections.
+# Never substitute native execution on failure.
 agy() { _wb_agent_run antigravity "$@"; }
 
 p() {

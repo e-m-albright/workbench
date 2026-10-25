@@ -519,7 +519,7 @@ def drift(
                 findings,
             )
             _check_skills(
-                home / ".gemini/antigravity-cli/skills",
+                home / ".gemini/config/skills",
                 vendor,
                 findings,
                 external,

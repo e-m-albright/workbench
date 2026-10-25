@@ -71,7 +71,11 @@ def loopback_rules(ports: list[int]) -> str:
 
 
 def harden(
-    command: str, browser_port: int = 0, mandatory_rules: str = "", ports: list[int] = ()
+    command: str,
+    browser_port: int = 0,
+    mandatory_rules: str = "",
+    ports: list[int] = (),
+    loopback_listen: bool = False,
 ) -> list[str]:
     """Adapt the pinned upstream's quoted argv, refusing an unfamiliar output shape."""
     args = shlex.split(command)
@@ -87,6 +91,11 @@ def harden(
     if not args[sandbox + 2].startswith("(version 1)\n(deny default"):
         raise ValueError("Sandbox runtime no longer denies by default")
     args[sandbox + 2] += GUARD + loopback_rules(list(ports))
+    if loopback_listen:
+        # Serving does not grant outbound access. macOS also accepts wildcard
+        # binds under this filter; do not treat it as a LAN exposure boundary.
+        args[sandbox + 2] += '\n(allow network-bind (local ip "localhost:*"))'
+        args[sandbox + 2] += '\n(allow network-inbound (local ip "localhost:*"))\n'
     if browser_port:
         if not 1024 <= browser_port <= 65535:
             raise ValueError("Invalid browser control port")
@@ -689,6 +698,10 @@ def build_plan(
             *(str(runtime / name) for name in ("native", "shell", "hooks")),
         ],
     }
+    # The Antigravity supervisor admits only exact model/login API hosts and
+    # path-filters www.googleapis.com; other Google data APIs stay denied there.
+    if vendor == "antigravity":
+        invariant_domains.remove("*.googleapis.com")
     denied_domains = ["localhost", *invariant_domains]
     denied_addresses = [
         "0.0.0.0/8",
@@ -766,6 +779,7 @@ def build_plan(
         # Fail clearly instead of attempting incompatible full Chrome startup.
         env["AGENT_BROWSER_EXECUTABLE_PATH"] = str(runtime / "native/headless-shell-not-prepared")
     return {
+        "vendor": vendor,
         "root": str(root),
         "resume_hint": (
             "workbench: sessions live in this checkout's managed agent home; "
@@ -800,6 +814,7 @@ def build_plan(
         "authority": authority,
         "browser_port": browser_port if browser else 0,
         "ports": grants.get("ports", []),
+        "loopback_listen": vendor == "antigravity",
         "aws_profile": grants.get("aws"),
         # Compose and other CLI plugins live in the client installation, not the isolated home.
         "docker_config": {"cliPluginsExtraDirs": docker["plugins"]} if docker else None,
@@ -1207,10 +1222,20 @@ def initialize_home(plan: dict, home: Path) -> None:
                 os.symlink(target, path.name, dir_fd=descriptor)
             except FileExistsError:
                 try:
-                    matches = os.readlink(path.name, dir_fd=descriptor) == target
+                    previous_target = os.readlink(path.name, dir_fd=descriptor)
                 except OSError:
-                    matches = False
-                if matches:
+                    previous_target = None
+                if previous_target == target:
+                    continue
+                # CLI 1.4.7 relocates our former skill link into config/skills.
+                if (
+                    label == "harness"
+                    and path == agent_home / ".gemini/config/skills"
+                    and target == str(home / ".gemini/config/skills")
+                    and previous_target == str(home / ".gemini/antigravity-cli/skills")
+                ):
+                    os.unlink(path.name, dir_fd=descriptor)
+                    os.symlink(target, path.name, dir_fd=descriptor)
                     continue
                 try:
                     existing = os.stat(path.name, dir_fd=descriptor, follow_symlinks=False)
@@ -1406,6 +1431,7 @@ def main() -> None:
                 int(sys.argv[3]) if len(sys.argv) > 3 else 0,
                 sys.argv[4] if len(sys.argv) > 4 else "",
                 json.loads(sys.argv[5]) if len(sys.argv) > 5 else [],
+                json.loads(sys.argv[6]) if len(sys.argv) > 6 else False,
             )
         )
     if sys.argv[1:2] == ["--refresh-aws"]:

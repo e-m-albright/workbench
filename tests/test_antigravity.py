@@ -11,7 +11,7 @@ def test_antigravity_sync_preview_drift_and_idempotence(tmp_path, monkeypatch, c
     assert cli.main(["sync", "antigravity"]) == 0
     rules = tmp_path / ".gemini/AGENTS.md"
     assert rules.read_bytes() == (core.AGENTS / "shared/rules.md").read_bytes()
-    skills = tmp_path / ".gemini/antigravity-cli/skills"
+    skills = tmp_path / ".gemini/config/skills"
     assert (skills / "testing/SKILL.md").is_file()
     assert (tmp_path / core.DATA_REL / "native/harness/manifest.json").is_file()
     assert cli.main(["drift", "antigravity"]) == 0
@@ -29,10 +29,11 @@ def test_antigravity_rules_only_and_no_skills_preserve_vendor_state(tmp_path, mo
     settings.parent.mkdir(parents=True)
     settings.write_text('{"custom":true}')
     assert cli.main(["sync", "antigravity", "--rules-only"]) == 0
-    assert not (settings.parent / "skills").exists()
+    skills = tmp_path / ".gemini/config/skills"
+    assert not skills.exists()
     assert cli.main(["sync", "antigravity", "--no-skills"]) == 0
     assert settings.read_text() == '{"custom":true}'
-    assert not (settings.parent / "skills").exists()
+    assert not skills.exists()
 
 
 def test_antigravity_excluded_from_work_profile(tmp_path, monkeypatch):

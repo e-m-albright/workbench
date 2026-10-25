@@ -664,6 +664,25 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
         launcher.repository_grants(home, repo)
 
 
+def test_listener_only_grant_does_not_allow_loopback_connections():
+    launcher = load_launcher()
+    command = shlex.join(
+        [
+            "env",
+            "/usr/bin/sandbox-exec",
+            "-p",
+            "(version 1)\n(deny default)",
+            "/bin/bash",
+            "-c",
+            "true",
+        ]
+    )
+    profile = launcher.harden(command, loopback_listen=True)[3]
+    assert '(allow network-bind (local ip "localhost:*"))' in profile
+    assert '(allow network-inbound (local ip "localhost:*"))' in profile
+    assert '(allow network-outbound (remote ip "localhost:' not in profile
+
+
 def test_loopback_ports_admit_serving_but_only_listed_destinations():
     launcher = load_launcher()
     profile = "(version 1)\n(deny default)\n(allow process-exec)"

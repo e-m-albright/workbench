@@ -388,7 +388,7 @@ def sync_antigravity(
     _install_runtime_files(home)
     sync_rules(home, "antigravity")
     if deploy_skills:
-        _sync_skill_tree(home / ".gemini/antigravity-cli/skills", profile)
+        _sync_skill_tree(home / ".gemini/config/skills", profile)
     install_harness(home, "antigravity")
 
 
