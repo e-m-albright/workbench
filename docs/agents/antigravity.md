@@ -12,7 +12,7 @@ Gemini CLI remain retired.
 | `p` | `pi` |
 | `co` | `codex` |
 | `cc` | `claude` |
-| `agy` (experimental; startup blocked) | `antigravity`, `antig`, `agravity` |
+| `agy` (experimental; startup blocked) | `antigravity`, `antig`, `agrav`, `agravity` |
 
 The native Antigravity functions use `command agy` to bypass the managed shell
 function, preserving arguments and the installed binary's behavior. Native

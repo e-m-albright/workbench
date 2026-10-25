@@ -111,7 +111,7 @@ Rules deploy to `~/.gemini/AGENTS.md`; skills deploy to
 credentials, and session history remain vendor-owned and untouched. Sign in
 through the interactive CLI when needed; Workbench does not enroll its login.
 Antigravity is personal-profile only. The shell names `antigravity`, `antig`,
-and `agravity` launch the native Homebrew binary without adding Workbench's
+`agrav`, and `agravity` launch the native Homebrew binary without adding Workbench's
 boundary. `agy` enters the same whole-process boundary as `co`, `cc`, and `p`,
 but is **experimental and currently blocked at normal startup**: CLI 1.4.7
 requires a dynamically allocated loopback listener. It does not fall back to

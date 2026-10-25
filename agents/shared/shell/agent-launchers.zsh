@@ -38,7 +38,7 @@ _wb_local_commit_message() {
 unfunction pi pih pihr pihu pil cou ccu pif piv pia pisu pihc piho pilo pilr pilu 2>/dev/null || true
 
 # Clear aliases before defining functions, including when an existing shell reloads.
-unalias agy antig agravity antigravity 2>/dev/null || true
+unalias agy antig agrav agravity antigravity 2>/dev/null || true
 
 # Full vendor names retain installed behavior; shortcuts enter containment.
 _wb_agent_run() {
@@ -49,6 +49,7 @@ _wb_agent_run() {
 # Homebrew names the native Antigravity binary agy; command bypasses our function.
 antigravity() { command agy "$@"; }
 antig() { antigravity "$@"; }
+agrav() { antigravity "$@"; }
 agravity() { antigravity "$@"; }
 # Experimental: normal startup needs an unsupported dynamic loopback listener.
 # Keep the boundary fail-closed; never substitute native execution on failure.

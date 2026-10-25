@@ -54,7 +54,7 @@ def test_shortcuts_keep_an_installed_boundary(launch_home, alias):
     assert json.loads(result.stdout)[2] == "managed"
 
 
-@pytest.mark.parametrize("name", ["antig", "agravity", "antigravity"])
+@pytest.mark.parametrize("name", ["antig", "agrav", "agravity", "antigravity"])
 def test_antigravity_native_names_bypass_managed_shortcut(launch_home, name):
     binary = launch_home / "agy"
     binary.write_text('#!/bin/sh\nprintf "native:%s\\n" "$@"\n')

@@ -53,7 +53,7 @@ in `all`. It manages `~/.gemini/AGENTS.md`, canonical skill trees under
 without host settings or credentials. Native settings, logins, MCPs, and plugins
 remain unmanaged. Sync and drift do not require a CLI login or contact a model.
 `agy` enters Workbench's boundary, but normal CLI startup remains blocked by its
-dynamic loopback listener. `antigravity`, `antig`, and `agravity` launch natively.
+dynamic loopback listener. `antigravity`, `antig`, `agrav`, and `agravity` launch natively.
 The [Antigravity integration](agents/antigravity.md) records the demonstrated
 blocker and authentication limits; Dotfiles owns installation of the binary.
 
