@@ -468,7 +468,7 @@ def drift(
     external: list[str] = []
     selected = tuple(vendors)
     data = home / DATA_REL
-    managed_runtime = set(selected) - {"antigravity"}
+    managed_runtime = set(selected)
     if managed_runtime:
         for name, fragment in _canonical_shell_fragments().items():
             _compare(fragment, data / "shell" / name, f"shell fragment {name}", findings)
@@ -510,6 +510,7 @@ def drift(
                     findings.append(f"DRIFT retired runtime hook still present: {deployed.name}")
 
     for vendor in selected:
+        _check_harness(home, vendor, findings)
         if vendor == "antigravity":
             _compare(
                 AGENTS / "shared/rules.md",
@@ -525,7 +526,6 @@ def drift(
                 profile=profile,
             )
             continue
-        _check_harness(home, vendor, findings)
         if vendor == "pi":
             for relative in RETIRED_PI_STATE_PATHS:
                 path = home / relative

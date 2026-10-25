@@ -464,9 +464,21 @@ def build_plan(
         raise ValueError(
             "Managed local inference has no approved inference-only interface; use native pi"
         )
-    if vendor not in {"codex", "claude", "pi", "shell"}:
+    if vendor not in {"codex", "claude", "pi", "antigravity", "shell"}:
         raise ValueError("Unknown native agent")
-    if any(arg in {"app-server", "mcp-server", "--chrome", "--sdk-url"} for arg in args):
+    if any(
+        arg
+        in {
+            "app-server",
+            "mcp-server",
+            "--chrome",
+            "--sdk-url",
+            "--remote-control",
+            "remote-control",
+            "mic-serve",
+        }
+        for arg in args
+    ):
         raise ValueError(
             "Managed launches support terminals only; "
             "start the full vendor command from the host for integrations"

@@ -37,12 +37,23 @@ _wb_local_commit_message() {
 # Remove obsolete Workbench functions when an existing shell reloads this file.
 unfunction pi pih pihr pihu pil cou ccu pif piv pia pisu pihc piho pilo pilr pilu 2>/dev/null || true
 
+# Clear aliases before defining functions, including when an existing shell reloads.
+unalias agy antig agravity antigravity 2>/dev/null || true
+
 # Full vendor names retain installed behavior; shortcuts enter containment.
 _wb_agent_run() {
     local vendor="$1"
     shift
     /usr/bin/python3 -I -S "$HOME/.local/share/workbench/shell/native-sandbox.py" "$vendor" hosted managed "$@"
 }
+# Homebrew names the native Antigravity binary agy; command bypasses our function.
+antigravity() { command agy "$@"; }
+antig() { antigravity "$@"; }
+agravity() { antigravity "$@"; }
+# Experimental: normal startup needs an unsupported dynamic loopback listener.
+# Keep the boundary fail-closed; never substitute native execution on failure.
+agy() { _wb_agent_run antigravity "$@"; }
+
 p() {
     local arg
     for arg in "$@"; do

@@ -227,16 +227,12 @@ def native_authorize(
 
 @native_app.command("status")
 def native_status(
-    vendor: Annotated[
-        NativeVendor, typer.Argument(help="vendor to inspect (default: all)")
-    ] = NativeVendor.ALL,
+    vendor: Annotated[Vendor, typer.Argument(help="vendor to inspect (default: all)")] = Vendor.ALL,
 ) -> None:
     """Show managed paths, preparation, and login presence without reading tokens or history."""
     print(
         json.dumps(
-            native_module.status(
-                _home(), vendor=None if vendor is NativeVendor.ALL else vendor.value
-            ),
+            native_module.status(_home(), vendor=None if vendor is Vendor.ALL else vendor.value),
             indent=2,
         )
     )
@@ -247,7 +243,7 @@ def native_status(
 )
 def native_run(
     ctx: typer.Context,
-    vendor: Annotated[str, typer.Argument(help="codex, claude, pi, or shell")],
+    vendor: Annotated[str, typer.Argument(help="codex, claude, pi, antigravity, or shell")],
 ) -> None:
     """Run a terminal agent in the enforced macOS boundary with an isolated home."""
     raise typer.Exit(native_module.run_agent(vendor, "hosted", ctx.args))

@@ -48,12 +48,14 @@ permissions control. See [OpenAI's automatic-review documentation](https://learn
 | Generated/private state | Contents preserved and unmanaged; session filesystem permissions enforced private | Preserved vendor state | Preserved vendor state |
 
 Antigravity CLI is an additional personal-profile configuration target, included
-in `all`. It manages only `~/.gemini/AGENTS.md` and canonical skill trees under
-`~/.gemini/antigravity-cli/skills`; settings, logins, MCPs, and plugins remain
-unmanaged. Sync and drift do not require a CLI login or contact a model.
-It has no shared shell runtime or managed launch boundary. The
-[Antigravity integration](agents/antigravity.md) records native contracts and
-limits; Dotfiles owns installation of the `agy` binary.
+in `all`. It manages `~/.gemini/AGENTS.md`, canonical skill trees under
+`~/.gemini/antigravity-cli/skills`, shared launchers, and an isolated harness
+without host settings or credentials. Native settings, logins, MCPs, and plugins
+remain unmanaged. Sync and drift do not require a CLI login or contact a model.
+`agy` enters Workbench's boundary, but normal CLI startup remains blocked by its
+dynamic loopback listener. `antigravity`, `antig`, and `agravity` launch natively.
+The [Antigravity integration](agents/antigravity.md) records the demonstrated
+blocker and authentication limits; Dotfiles owns installation of the binary.
 
 The shared shell runtime deploys `agent-launchers.zsh`, `agent-sandbox.zsh`, and
 the `native-sandbox.py` / `native-sandbox.mjs` entrypoints under
@@ -74,7 +76,7 @@ owns updates and an isolated home should not download its own copy.
 
 The standalone launch interface is
 `/bin/zsh -f ~/.local/share/workbench/shell/agent-sandbox.zsh VENDOR LOCATION AUTHORITY [native args]`:
-`VENDOR` is `pi`, `claude`, or `codex`; the only supported pair is `LOCATION=hosted`
+`VENDOR` is `pi`, `claude`, `codex`, or experimental `antigravity`; the only supported pair is `LOCATION=hosted`
 and `AUTHORITY=managed`. The shortcuts `p`, `cc`, and `co` use this pair and show
 `cloud > managed`. They admit the selected ordinary Git checkout,
 `~/code/public`, `~/Desktop`, and `~/Downloads`, with all private exclusions.

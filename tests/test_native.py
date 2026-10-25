@@ -13,7 +13,7 @@ def test_prepare_copies_a_protected_runtime_without_copying_credentials(tmp_path
     home = tmp_path / "home"
     tools = tmp_path / "tools"
     tools.mkdir()
-    for name in ("node", "npm", "codex", "claude", "pi"):
+    for name in ("node", "npm", "codex", "claude", "pi", "agy"):
         (tools / name).write_text("synthetic binary")
     monkeypatch.setattr(native.shutil, "which", lambda name: str(tools / name))
     calls = []
@@ -26,7 +26,7 @@ def test_prepare_copies_a_protected_runtime_without_copying_credentials(tmp_path
     assert (runtime / "shell/native-sandbox.py").is_file()
     assert (runtime / "shell/native-sandbox.mjs").is_file()
     manifest = json.loads((runtime / "native/harness/manifest.json").read_text())
-    assert set(manifest) == {"pi", "claude", "codex", "shell"}
+    assert set(manifest) == {"pi", "claude", "codex", "antigravity", "shell"}
     assert all(manifest[vendor]["files"] for vendor in ("pi", "claude", "codex"))
     assert (runtime / "native/tools.json").is_file()
     assert not (home / ".codex").exists()

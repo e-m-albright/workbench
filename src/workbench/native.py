@@ -24,6 +24,8 @@ from workbench.core import (
 from workbench.native_config import install_harness
 from workbench.native_dependencies import patch_forge
 
+MANAGED_AGENTS = ("codex", "claude", "pi", "antigravity")
+
 
 def _binary(name: str) -> Path:
     found = shutil.which(name)
@@ -36,7 +38,7 @@ def _agent(home: Path, vendor: str, node: Path) -> tuple[dict, Path] | None:
     """Prefer Claude's native install, whose stable launcher survives auto-update."""
     launcher = home / ".local/bin/claude"
     if vendor != "claude" or not (launcher.exists() or launcher.is_symlink()):
-        found = shutil.which(vendor)
+        found = shutil.which("agy" if vendor == "antigravity" else vendor)
         if not found:
             return None
         launcher = Path(found)
@@ -103,7 +105,7 @@ def prepare(home: Path | None = None) -> None:
     node, npm = _binary("node"), _binary("npm")
     agents: dict[str, object] = {}
     executables = []
-    for vendor in ("codex", "claude", "pi"):
+    for vendor in MANAGED_AGENTS:
         found = _agent(home, vendor, node)
         if found:
             agents[vendor], executable = found
@@ -338,8 +340,8 @@ def status(
         if (candidate / ".git").exists():
             root = candidate
             break
-    if vendor is not None and vendor not in LOGIN_FILES:
-        raise WorkbenchError("Choose codex, claude, or pi for managed status")
+    if vendor is not None and vendor not in MANAGED_AGENTS:
+        raise WorkbenchError("Choose codex, claude, pi, or antigravity for managed status")
     runtime = home / DATA_REL
     tools = _status_json(runtime / "native/tools.json")
     projection = _status_json(runtime / "native/harness/manifest.json")
@@ -351,10 +353,10 @@ def status(
         "state_exists": state.is_dir(),
         "agents": {},
     }
-    for name in [vendor] if vendor else LOGIN_FILES:
-        token = runtime / "model-auth" / name / LOGIN_FILES[name]
-        metadata = token.lstat() if token.exists() or token.is_symlink() else None
-        login = "absent"
+    for name in [vendor] if vendor else MANAGED_AGENTS:
+        token = runtime / "model-auth" / name / LOGIN_FILES[name] if name in LOGIN_FILES else None
+        metadata = token.lstat() if token and (token.exists() or token.is_symlink()) else None
+        login = "absent" if token else "isolated vendor login; authentication unverified"
         if metadata:
             login = (
                 "present; authentication unverified"
@@ -367,7 +369,7 @@ def status(
             )
         command = tools.get("agents", {}).get(name, {}).get("command", [])
         result["agents"][name] = {
-            "login_path": str(token),
+            "login_path": str(token) if token else None,
             "login": login,
             "executable_ready": bool(command)
             and all(

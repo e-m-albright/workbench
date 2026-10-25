@@ -481,9 +481,21 @@ def _codex(p):
         )
 
 
+def _antigravity(p):
+    # Keep account/connector configuration and host Keychain outside the boundary.
+    p.file(".gemini/antigravity-cli/settings.json", {})
+    p.link(".gemini/AGENTS.md")
+    p.link(".gemini/antigravity-cli/skills")
+
+
 def render_harness(home: Path, vendor: str) -> Projection:
     """Calculate one projection without writing files or inspecting credentials."""
-    project = {"pi": _pi, "claude": _claude, "codex": _codex}[vendor]
+    project = {
+        "pi": _pi,
+        "claude": _claude,
+        "codex": _codex,
+        "antigravity": _antigravity,
+    }[vendor]
     p = Projection(home.resolve(), vendor)
     project(p)
     for hook in HOOK_NAMES:
@@ -496,10 +508,11 @@ def install_harness(home: Path, vendor: str | None = None) -> None:
     home = home.resolve()
     path = home / DATA / "native/harness/manifest.json"
     manifest = {
-        name: {"links": [], "files": [], "read": []} for name in ("pi", "claude", "codex", "shell")
+        name: {"links": [], "files": [], "read": []}
+        for name in ("pi", "claude", "codex", "antigravity", "shell")
     }
     manifest.update(_json(path, home))
-    for name in ("pi", "claude", "codex") if vendor is None else (vendor,):
+    for name in ("pi", "claude", "codex", "antigravity") if vendor is None else (vendor,):
         p = render_harness(home, name)
         for source, content in p.contents.items():
             write_text(source, content)

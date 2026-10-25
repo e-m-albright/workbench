@@ -384,10 +384,12 @@ def sync_antigravity(
     deploy_plugins: bool,
     profile: Profile = "personal",
 ) -> None:
-    """Deploy native rules and skills; leave settings, logins, and plugins untouched."""
+    """Deploy rules, skills, and the isolated harness without importing host logins."""
+    _install_runtime_files(home)
     sync_rules(home, "antigravity")
     if deploy_skills:
         _sync_skill_tree(home / ".gemini/antigravity-cli/skills", profile)
+    install_harness(home, "antigravity")
 
 
 def _merge_pi_object(

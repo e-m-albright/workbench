@@ -1,4 +1,4 @@
-"""Antigravity manages native rules and skills, not the managed launch boundary."""
+"""Antigravity rules, skills, and isolated launch configuration."""
 
 from workbench import cli, core
 
@@ -13,7 +13,7 @@ def test_antigravity_sync_preview_drift_and_idempotence(tmp_path, monkeypatch, c
     assert rules.read_bytes() == (core.AGENTS / "shared/rules.md").read_bytes()
     skills = tmp_path / ".gemini/antigravity-cli/skills"
     assert (skills / "testing/SKILL.md").is_file()
-    assert not (tmp_path / core.DATA_REL).exists()
+    assert (tmp_path / core.DATA_REL / "native/harness/manifest.json").is_file()
     assert cli.main(["drift", "antigravity"]) == 0
     capsys.readouterr()
     assert cli.main(["sync", "antigravity"]) == 0
