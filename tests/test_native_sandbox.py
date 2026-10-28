@@ -348,7 +348,12 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
     else:
         assert plan["env"]["CLAUDE_SECURESTORAGE_CONFIG_DIR"] == str(store)
         writable = plan["policy"]["filesystem"]["allowWrite"]
+        readable = plan["policy"]["filesystem"]["allowRead"]
         assert str(store / ".credentials.json.tmp.*") in writable
+        # Token refresh requires the cross-process lock and its owner record.
+        for name in (".oauth_refresh.lock", ".oauth_refresh.lock.owner"):
+            assert str(store / name) in writable and str(store / name) in readable
+        assert str(store / ".oauth_refresh.lock.owner.tmp.*") in writable
         assert str(store) not in writable
         assert not any("*" in path for path in plan["policy"]["filesystem"]["allowRead"])
 

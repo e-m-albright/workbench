@@ -544,9 +544,22 @@ def build_plan(
         vendor_env["CODEX_HOME"] = str(agent_home / ".codex")
     elif vendor == "claude":
         command += ["--settings", json.dumps({"sandbox": {"enabled": False}})]
-        auth_files = [str(auth / ".credentials.json"), str(auth / ".storage-write.lock")]
-        # Claude saves logins and refreshed tokens by renaming a sibling temp file over the file.
-        auth_staging = [str(auth / ".credentials.json.tmp.*")]
+        # Claude refreshes only while holding .oauth_refresh.lock; without it the
+        # access token silently expires about eight hours after each login.
+        auth_files = [
+            str(auth / name)
+            for name in (
+                ".credentials.json",
+                ".storage-write.lock",
+                ".oauth_refresh.lock",
+                ".oauth_refresh.lock.owner",
+            )
+        ]
+        # Claude saves these by renaming a sibling temp file over each one.
+        auth_staging = [
+            str(auth / ".credentials.json.tmp.*"),
+            str(auth / ".oauth_refresh.lock.owner.tmp.*"),
+        ]
         vendor_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
         # The host install owns updates; an isolated home must not grow its own copy.
         vendor_env["DISABLE_AUTOUPDATER"] = "1"
