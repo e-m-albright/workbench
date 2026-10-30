@@ -117,7 +117,7 @@ multiple provider logins from its authentication store.
 | Machine-local private paths | Denied for reads and writes, including named paths inside the selected checkout. Raw meeting recordings, transcripts, and sidecars remain excluded; choosing a repository does not authorize those sources. |
 | Environment files | Real `.env` and `.env.*` paths are denied at every depth, including files created after launch. Documentation templates ending in `.example`, `.sample`, or `.template` remain usable. |
 | Other repositories and personal files | `~/code/public`, `~/Desktop`, and `~/Downloads` are also admitted, plus any directories the owner grants the checkout. The user's macOS temporary items directory is readable so dragged screenshots open. Unselected private repositories, ingress, personal files, credentials, and host startup files remain outside the grants. |
-| Agent state | One persistent home per repository plus private session scratch. Claude shares only the matching native project transcript namespace as described [below](#claude-session-history). |
+| Agent state | One persistent home per repository plus private session scratch. Claude shares only the matching native project transcript namespace as described [below](#claude-session-history), plus the managed peer registry described in [Claude peer messaging](#claude-peer-messaging). |
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
 | Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. One ephemeral browser control port and any loopback ports granted to the checkout are admitted; unrelated localhost services remain blocked. Antigravity may additionally bind and accept connections on loopback, without general outbound localhost access. Docker is admitted only to checkouts granted it. |
 | Public network | Public TCP destinations on ports 80 and 443 are permitted through the runtime proxy. This is a port policy, not application-protocol verification. Private resolved destinations and configured email, Google Drive, and shared Google API/content endpoints are denied. Antigravity has exact identity/model API exceptions and an HTTPS identity-path filter; see its [network contract](../agents/antigravity.md#managed-startup-and-login). |
@@ -180,6 +180,18 @@ is admitted for installed tools. Repository-local `user.name` and `user.email`
 override global identity defaults in the clean environment. Only these scalar
 values are imported; local includes, host Git configuration, hooks, and credential
 helpers are not imported. Claude compaction preferences survive projection.
+
+### Claude peer messaging
+
+Every managed Claude session shares one session registry and one socket
+directory under `~/.local/share/workbench/peers/`, so sessions in any checkout
+can find and message each other. The launcher links each managed home's
+`.claude/sessions` to `peers/sessions` and sets `XDG_RUNTIME_DIR` to `peers`,
+which makes Claude place its messaging socket in `peers/cc-socks`, the only
+added Unix socket grant. This deliberately crosses repository boundaries: a
+session can send prompts to a session in another checkout that holds different
+repository grants. Native host sessions keep their own registry and stay
+unreachable. In-process subagents never used this path.
 
 ### Claude session history
 

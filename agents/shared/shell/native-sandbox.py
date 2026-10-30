@@ -521,6 +521,7 @@ def build_plan(
     vendor_env = {}
     auth_link = None
     claude_sessions = None
+    claude_peers = None
     manifest = runtime / "native/harness/manifest.json"
     if not manifest.is_file():
         raise ValueError("Missing shared harness; run workbench sync")
@@ -563,6 +564,15 @@ def build_plan(
         vendor_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
         # The host install owns updates; an isolated home must not grow its own copy.
         vendor_env["DISABLE_AUTOUPDATER"] = "1"
+        # One registry and socket directory for every managed session lets
+        # peers in any checkout find and message each other.
+        peers = runtime / "peers"
+        claude_peers = {
+            "path": str(agent_home / ".claude/sessions"),
+            "target": str(peers / "sessions"),
+            "runtime": str(peers),
+        }
+        vendor_env["XDG_RUNTIME_DIR"] = str(peers)
         key = claude_project_key(cwd.resolve())
         if key:
             claude_sessions = {
@@ -625,6 +635,7 @@ def build_plan(
         str(temp),
         *auth_files,
         *([claude_sessions["target"]] if claude_sessions else []),
+        *([claude_peers["runtime"]] if claude_peers else []),
     ]
     browser = tools.get("browser")
     if browser:
@@ -701,6 +712,7 @@ def build_plan(
             *auth_files,
             *auth_staging,
             *([claude_sessions["target"]] if claude_sessions else []),
+            *([claude_peers["runtime"]] if claude_peers else []),
         ],
         "denyWrite": [
             "/tmp/claude",
@@ -740,7 +752,11 @@ def build_plan(
             # Upstream also grants all outbound localhost ports with this option.
             "allowLocalBinding": False,
             # The browser daemon needs local IPC; host service sockets stay denied.
-            "allowUnixSockets": [str(temp / "browser"), *([docker["socket"]] if docker else [])],
+            "allowUnixSockets": [
+                str(temp / "browser"),
+                *([str(Path(claude_peers["runtime"]) / "cc-socks")] if claude_peers else []),
+                *([docker["socket"]] if docker else []),
+            ],
         },
     }
     env = {key: os.environ[key] for key in ("TERM", "COLORTERM", "LANG") if key in os.environ}
@@ -818,6 +834,7 @@ def build_plan(
         "node": str(node),
         "auth_link": auth_link,
         "claude_sessions": claude_sessions,
+        "claude_peers": claude_peers,
         "harness": harness,
         "mandatory_read": [*excludes, *project_read],
         "mandatory_write": [*excludes, *project_write],
@@ -856,6 +873,37 @@ def state_directory(home: Path, directory: Path):
         yield descriptor
     finally:
         os.close(descriptor)
+
+
+def share_peer_registry(home: Path, source: Path, target: Path) -> None:
+    """Link this home's Claude session registry to the shared one, keeping live entries."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    with state_directory(home, target) as shared, state_directory(home, source.parent) as parent:
+        try:
+            existing = os.stat(source.name, dir_fd=parent, follow_symlinks=False)
+        except FileNotFoundError:
+            existing = None
+        if existing and stat.S_ISDIR(existing.st_mode):
+            # Entries describe running processes, so move them rather than merge.
+            private = os.open(source.name, flags, dir_fd=parent)
+            try:
+                with os.scandir(private) as entries:
+                    names = [entry.name for entry in entries]
+                for name in names:
+                    info = os.stat(name, dir_fd=private, follow_symlinks=False)
+                    if not stat.S_ISREG(info.st_mode):
+                        raise ValueError("Claude session registry contains a link or special file")
+                    os.rename(name, name, src_dir_fd=private, dst_dir_fd=shared)
+            finally:
+                os.close(private)
+            with contextlib.suppress(FileNotFoundError):
+                os.rmdir(source.name, dir_fd=parent)
+        elif existing and not stat.S_ISLNK(existing.st_mode):
+            raise ValueError("Claude session registry is not a directory")
+        with contextlib.suppress(FileExistsError):
+            os.symlink(str(target), source.name, dir_fd=parent)
+        if os.readlink(source.name, dir_fd=parent) != str(target):
+            raise ValueError("Unexpected Claude session registry link; refusing to overwrite")
 
 
 def share_claude_sessions(home: Path, source: Path, target: Path) -> None:
@@ -1211,6 +1259,9 @@ def initialize_home(plan: dict, home: Path) -> None:
     if plan.get("claude_sessions"):
         entry = plan["claude_sessions"]
         share_claude_sessions(home, Path(entry["path"]), Path(entry["target"]))
+    if plan.get("claude_peers"):
+        entry = plan["claude_peers"]
+        share_peer_registry(home, Path(entry["path"]), Path(entry["target"]))
     harness = plan.get("harness", {"links": [], "files": []})
     # Snapshot before any projected file changes; manifest order is not significant.
     codex_files = {item["path"]: item["source"] for item in harness["files"]}

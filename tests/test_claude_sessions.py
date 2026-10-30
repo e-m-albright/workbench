@@ -190,3 +190,44 @@ def test_unverified_long_namespace_keeps_isolation():
     module = launcher()
     assert module.claude_project_key(Path("/home/dev/my_project")) == "-home-dev-my-project"
     assert module.claude_project_key(Path("/" + "a" * 201)) is None
+
+
+def test_managed_claude_sessions_share_one_peer_registry_and_socket_directory(plan):
+    home, _, value = plan
+    peers = home / ".local/share/workbench/peers"
+    assert value["env"]["XDG_RUNTIME_DIR"] == str(peers)
+    assert value["claude_peers"]["target"] == str(peers / "sessions")
+    filesystem = value["policy"]["filesystem"]
+    assert str(peers) in filesystem["allowRead"]
+    assert str(peers) in filesystem["allowWrite"]
+    assert str(peers / "cc-socks") in value["policy"]["network"]["allowUnixSockets"]
+
+    other_cwd = home / "code/other"
+    (other_cwd / ".git").mkdir(parents=True)
+    tools = {
+        "node": "/usr/bin/node",
+        "agents": {"claude": {"command": ["/usr/bin/agent"], "read": []}},
+    }
+    other = launcher().build_plan(other_cwd, home, tools, "claude", "hosted", [])
+    assert other["env"]["HOME"] != value["env"]["HOME"]
+    assert other["claude_peers"]["target"] == value["claude_peers"]["target"]
+
+
+def test_existing_session_registry_moves_into_the_shared_one(plan):
+    home, _, value = plan
+    source = Path(value["claude_peers"]["path"])
+    target = Path(value["claude_peers"]["target"])
+    source.mkdir(parents=True)
+    (source / "123.json").write_text("live-entry")
+    module = launcher()
+    module.initialize_home(value, home)
+    assert source.is_symlink() and source.readlink() == target
+    assert (target / "123.json").read_text() == "live-entry"
+    assert oct(target.stat().st_mode & 0o777) == "0o700"
+    module.initialize_home(value, home)
+    assert source.readlink() == target
+
+    source.unlink()
+    source.symlink_to(home / "elsewhere")
+    with pytest.raises(ValueError, match="Unexpected Claude session registry link"):
+        module.initialize_home(value, home)
