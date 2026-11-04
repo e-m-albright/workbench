@@ -113,7 +113,7 @@ through the interactive CLI when needed; Workbench does not enroll its login.
 Antigravity is personal-profile only. The shell names `antigravity`, `antig`,
 `agrav`, and `agravity` launch the native Homebrew binary without adding Workbench's
 boundary. `agy` enters the same whole-process boundary as `co`, `cc`, and `p`.
-It can listen on loopback without connecting to unrelated host services and has
+Like the other managed launches it can use loopback, and it has
 narrow Google identity/model API exceptions. Host Keychain remains denied;
 sign in through `agy` in a real terminal. Account sign-in and authenticated
 model use remain unverified until that step is completed. There is no automatic

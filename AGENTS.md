@@ -24,8 +24,8 @@ machine-local context named by the shared agent rules.
 - Never commit secrets, credentials, personal records, conversations, or agent
   memory.
 - Pi, Claude Code, Codex, and Antigravity CLI use managed launch boundaries.
-  Antigravity may listen on loopback but cannot connect to arbitrary host
-  services. Its Google API exceptions are model/identity-only; preserve the
+  Every managed session may listen and connect on loopback, including host
+  services; public traffic stays proxied. Antigravity's Google API exceptions are model/identity-only; preserve the
   identity path filter, opaque-tunnel refusal, and host Keychain denial.
 - Keep rejected tools and approaches in `docs/decisions/tombstones.md`. When
   code enforces a retirement, the reason lives with the enforcement instead

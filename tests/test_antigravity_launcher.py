@@ -62,7 +62,6 @@ def test_antigravity_boundary_and_terminal_only_policy(tmp_path, args):
     assert plan["command"] == [binary, "--help"]
     assert plan["env"]["HOME"] != str(home)
     assert plan["auth_link"] is None
-    assert plan["loopback_listen"] is True
     grants = plan["policy"]["filesystem"]["allowRead"]
     assert str(home / ".gemini") not in grants
     assert str(home / "Library/Keychains") not in grants

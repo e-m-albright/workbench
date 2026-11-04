@@ -27,12 +27,8 @@ control and microphone servers are rejected. There is no automatic native
 fallback.
 
 CLI 1.4.7 requires a dynamic loopback listener even for its model-list command.
-Workbench admits loopback binding and inbound traffic for Antigravity without
-allowing outbound connections to arbitrary localhost services. It leaves the
-upstream `allowLocalBinding` switch off because that also enables broad
-outbound localhost access. macOS also accepts wildcard bindings under its
-localhost listener filter; this is not a LAN exposure boundary. The CLI itself
-binds `127.0.0.1`. Other agents' listener rules are unchanged.
+Every managed session, Antigravity included, may now listen and connect on
+loopback; see the [isolation contract](../security/isolation.md#enforced-permissions).
 
 Host Keychain access remains denied. Sign in interactively through `agy`; any
 vendor file-storage fallback belongs to the isolated workspace home. Workbench
@@ -60,8 +56,7 @@ trusted only by the managed session, not installed in the host trust store.
 No request headers, bodies, or credentials are logged by Workbench. Other
 agents retain their existing proxy mode.
 
-Real macOS canaries verify loopback binding, denial of unrelated host
-connections, identity endpoint reachability, and denial of
+Real macOS canaries verify loopback access, identity endpoint reachability, and denial of
 Drive access through both HTTP and SOCKS. `agy models` reaches the expected
 sign-in response instead of the former bind failure. Account sign-in and an
 authenticated model request remain unverified until the owner completes login.

@@ -180,8 +180,8 @@ done
 denied /bin/bash -c 'echo bad > nested/.env.production'
 denied /bin/bash -c 'echo bad > nested/.env.future'
 denied /bin/bash -c {shlex.quote("echo bad > " + shlex.quote(str(private)))}
-denied /usr/bin/curl --noproxy '*' --max-time 2 -fsS http://127.0.0.1:{server.server_port}
-denied /usr/bin/curl --max-time 2 -fsS http://localhost:{server.server_port}
+# Loopback is open to every session, including services the host already runs.
+/usr/bin/curl --noproxy '*' --max-time 2 -fsS http://127.0.0.1:{server.server_port}/loopback
 denied /usr/bin/curl --unix-socket {shlex.quote(sockpath.name)} --noproxy '*' --max-time 2 -fsS http://localhost
 /usr/bin/curl --max-time 10 -fsS https://example.com >/dev/null
 echo CANARY-PASS
@@ -202,12 +202,10 @@ echo CANARY-PASS
     assert (repo / "nested/.env.production").read_text() == "nested-synthetic"
     assert not (repo / "nested/.env.future").exists()
     assert (repo / "edited").read_text() == "edited\n"
-    assert not hits
+    assert hits == ["/loopback"]
 
 
-def test_antigravity_listener_and_identity_access_keep_host_and_data_denials(
-    tmp_path, native_scratch
-):
+def test_antigravity_identity_access_keeps_data_denials(tmp_path, native_scratch):
     """No account or model request: exercise the actual proxy and macOS rules."""
     assert PILOT
     home = Path(PILOT)
@@ -231,12 +229,8 @@ with socket.socket() as listener:
     print('LISTENER-PASS')
 with socket.socket() as client:
     client.settimeout(1)
-    try:
-        client.connect(('127.0.0.1', {server.server_port}))
-    except OSError:
-        print('HOST-DENIED')
-    else:
-        raise RuntimeError('Unrelated host connection allowed')
+    client.connect(('127.0.0.1', {server.server_port}))
+    print('HOST-REACHABLE')
 """
         command = f"""
 set -eu
@@ -270,10 +264,84 @@ echo IDENTITY-ONLY-PASS
         )
         assert result.returncode == 0, result.stdout + result.stderr
         assert "LISTENER-PASS" in result.stdout
-        assert "HOST-DENIED" in result.stdout
+        assert "HOST-REACHABLE" in result.stdout
         assert "IDENTITY-ONLY-PASS" in result.stdout
     finally:
         server.server_close()
+
+
+def test_development_gates_run_inside_the_boundary(tmp_path):
+    """Each probe is a development gate that once stalled an agent in this boundary."""
+    repo = tmp_path / "project"
+    repo.mkdir()
+    identity = ["-c", "user.name=Canary", "-c", "user.email=canary@example.test"]
+    git = ["/usr/bin/git", "-C", str(repo), *identity]
+    subprocess.run(["/usr/bin/git", "init", "--quiet", "-b", "main", str(repo)], check=True)
+    (repo / "public").write_text("released-canary")
+    subprocess.run([*git, "add", "public"], check=True)
+    subprocess.run([*git, "commit", "--quiet", "-m", "initial"], check=True)
+    # Claude Code keeps session worktrees here; the runtime refuses to create .claude itself.
+    (repo / ".claude/worktrees").mkdir(parents=True)
+    # Repository hooks find Node on the PATH the session hands them.
+    hook = repo / ".git/hooks/pre-commit"
+    hook.write_text('#!/bin/sh\nnode --version >"$(git rev-parse --git-dir)/hook-node"\n')
+    hook.chmod(0o755)
+    loopback = """
+import os, socket
+for family, address in ((socket.AF_INET, '127.0.0.1'), (socket.AF_INET6, '::1')):
+    with socket.socket(family) as listener:
+        listener.bind((address, 0))
+        listener.listen()
+        with socket.create_connection((address, listener.getsockname()[1]), timeout=2):
+            pass
+path = os.path.join(os.environ['TMPDIR'], 'plugin.sock')
+with socket.socket(socket.AF_UNIX) as listener:
+    listener.bind(path)
+    listener.listen()
+    with socket.socket(socket.AF_UNIX) as client:
+        client.connect(path)
+print('LOOPBACK-PASS')
+"""
+    share = "/bin/ls /opt/homebrew/share" if Path("/opt/homebrew/share").is_dir() else ":"
+    data = "denied /bin/ls /opt/homebrew/var" if Path("/opt/homebrew/var").is_dir() else ":"
+    first = f"""
+set -eu
+denied() {{ if "$@" >/dev/null 2>&1; then echo "UNEXPECTED SUCCESS: $1"; exit 21; fi; }}
+/usr/bin/python3 -I -S -c {shlex.quote(loopback)}
+{share} >/dev/null
+{data}
+/usr/bin/git config branch.main.remote origin
+/usr/bin/git worktree add --quiet -b topic .claude/worktrees/topic
+denied /bin/bash -c 'echo bad > .git/hooks/post-checkout'
+echo change > public
+/usr/bin/git {shlex.join(identity)} commit --quiet -am change
+echo GATES-PASS
+"""
+    result = launch(repo, "shell", "managed", "-c", first)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "LOOPBACK-PASS" in result.stdout and "GATES-PASS" in result.stdout
+    assert (repo / ".git/hook-node").read_text().startswith("v")
+    assert "remote = origin" in (repo / ".git/config").read_text()
+    assert not (repo / ".git/hooks/post-checkout").exists()
+
+    # Names the runtime protects, as a project's own worktree may hold them.
+    worktree = repo / ".claude/worktrees/topic"
+    for name in (".mcp.json", ".vscode/settings.json", ".claude/commands/x.md", ".env"):
+        (worktree / name).parent.mkdir(parents=True, exist_ok=True)
+        (worktree / name).write_text("synthetic")
+    second = """
+set -eu
+denied() { if "$@" >/dev/null 2>&1; then echo "UNEXPECTED SUCCESS: $1"; exit 21; fi; }
+denied /bin/bash -c 'echo bad > .claude/worktrees/topic/.vscode/tasks.json'
+denied /bin/bash -c 'echo bad > .mcp.json'
+/usr/bin/git worktree remove --force .claude/worktrees/topic
+test ! -e .claude/worktrees/topic
+echo CLEANUP-PASS
+"""
+    result = launch(repo, "shell", "managed", "-c", second)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "CLEANUP-PASS" in result.stdout
+    assert not (repo / ".mcp.json").exists()
 
 
 @pytest.fixture

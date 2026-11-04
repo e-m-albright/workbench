@@ -52,8 +52,7 @@ in `all`. It manages `~/.gemini/AGENTS.md`, canonical skill trees under
 `~/.gemini/config/skills`, shared launchers, and an isolated harness
 without host settings or credentials. Native settings, logins, MCPs, and plugins
 remain unmanaged. Sync and drift do not require a CLI login or contact a model.
-`agy` enters Workbench's boundary with loopback listening, restricted host
-connections, and identity/model-only Google API exceptions. `antigravity`, `antig`, `agrav`, and `agravity` launch natively.
+`agy` enters Workbench's boundary with identity/model-only Google API exceptions. `antigravity`, `antig`, `agrav`, and `agravity` launch natively.
 The [Antigravity integration](agents/antigravity.md) records startup verification and
 authentication limits; Dotfiles owns installation of the binary.
 

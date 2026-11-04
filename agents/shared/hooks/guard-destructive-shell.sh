@@ -38,7 +38,8 @@ block() {
         printf 'BLOCK: %s\n' "$reason"
         printf 'Command: %s\n' "$CMD"
         printf '\nBlocked by the workbench destructive-command guard.\n'
-        printf 'If genuinely needed, the user must authorize this specific command explicitly.\n'
+        printf 'The guard has no override, so approval in the conversation cannot unlock it.\n'
+        printf 'Only the owner can run it, from their own terminal outside the agent.\n'
     } >&2
     exit 2
 }
