@@ -77,9 +77,11 @@ public certificate roots because Keychain access is deliberately denied. Without
 them, Codex 0.162.1 fails during account routing with an `UnknownIssuer` TLS
 error, surfaced as `workspace routing discovery failed`. The certificate fix
 works with the existing network proxy; direct network grants are unnecessary.
-The curl canary passes the same public bundle through `--cacert`, the explicit
-file-based trust option documented in [curl's TLS guide](https://curl.se/docs/sslcerts.html),
-without disabling certificate verification or admitting Keychain access.
+The public HTTPS canary uses Node's built-in `fetch` with certificate verification
+and its bundled public roots. Apple's native curl can depend on system trust
+services unavailable inside the boundary, even when the same request succeeds
+on the host. Do not grant credential services or disable TLS verification to
+make that client work.
 
 Each repository gets an isolated agent home under
 `~/.local/share/workbench/agent-state/`. Provider login files persist separately
