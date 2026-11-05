@@ -195,10 +195,6 @@ def test_hardening_preserves_arguments_and_denies_host_process_inspection():
         launcher.harden("echo unexpected-runtime-output")
     with pytest.raises(ValueError):
         launcher.harden(shlex.join(original).replace("deny default", "allow default"))
-    browser = launcher.harden(shlex.join(original), browser_port=49152)[4]
-    assert '(remote ip "localhost:49152")' in browser
-    with pytest.raises(ValueError, match="port"):
-        launcher.harden(shlex.join(original), browser_port=-1)
 
 
 def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path, monkeypatch):
@@ -233,7 +229,11 @@ def test_plan_isolates_project_state_and_does_not_forward_host_secrets(tmp_path,
     sockets = str(Path(plan["env"]["TMPDIR"]) / "browser")
     assert plan["env"]["PI_AGENT_BROWSER_SOCKET_DIR"] == sockets
     assert plan["env"]["AGENT_BROWSER_SOCKET_DIR"] == sockets
-    assert plan["policy"]["network"]["allowUnixSockets"] == [sockets]
+    assert plan["policy"]["network"]["allowUnixSockets"] == [plan["env"]["TMPDIR"]]
+    filesystem = plan["policy"]["filesystem"]
+    assert filesystem["allowGitConfig"] is True
+    assert "/opt/homebrew" in filesystem["allowRead"]
+    assert "/opt/homebrew/var" in plan["mandatory_read"]
     assert "AWS_SECRET_ACCESS_KEY" not in plan["env"]
     assert "NODE_OPTIONS" not in plan["env"]
     assert "HTTPS_PROXY" not in plan["env"]
@@ -348,7 +348,12 @@ def test_shared_model_login_with_separate_project_sessions(tmp_path, vendor):
     else:
         assert plan["env"]["CLAUDE_SECURESTORAGE_CONFIG_DIR"] == str(store)
         writable = plan["policy"]["filesystem"]["allowWrite"]
+        readable = plan["policy"]["filesystem"]["allowRead"]
         assert str(store / ".credentials.json.tmp.*") in writable
+        # Token refresh requires the cross-process lock and its owner record.
+        for name in (".oauth_refresh.lock", ".oauth_refresh.lock.owner"):
+            assert str(store / name) in writable and str(store / name) in readable
+        assert str(store / ".oauth_refresh.lock.owner.tmp.*") in writable
         assert str(store) not in writable
         assert not any("*" in path for path in plan["policy"]["filesystem"]["allowRead"])
 
@@ -642,16 +647,15 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
     assert "aws_access_key_id = AKIASYNTHETIC" in written.read_text()
     for invalid in (
         {"docker": "yes"},
-        {"ports": "5432"},
         {"paths": "~/code/sibling"},
         {"unknown": True},
     ):
         config.write_text(json.dumps({str(repo): invalid}))
         with pytest.raises(ValueError, match="each checkout maps"):
             launcher.repository_grants(home, repo)
-    config.write_text(json.dumps({str(repo): {"ports": [5432, "8000"]}}))
-    with pytest.raises(ValueError, match="1 to 65535"):
-        launcher.repository_grants(home, repo)
+    # Retired: loopback is open to every session, but old grant files still launch.
+    config.write_text(json.dumps({str(repo): {"ports": [5432]}}))
+    assert launcher.repository_grants(home, repo)["ports"] == [5432]
     for path in ("~", "~/code/missing", "relative"):
         config.write_text(json.dumps({str(repo): {"paths": [path]}}))
         with pytest.raises(ValueError, match="extra path"):
@@ -664,40 +668,43 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
         launcher.repository_grants(home, repo)
 
 
-def test_listener_only_grant_does_not_allow_loopback_connections():
-    launcher = load_launcher()
-    command = shlex.join(
-        [
-            "env",
-            "/usr/bin/sandbox-exec",
-            "-p",
-            "(version 1)\n(deny default)",
-            "/bin/bash",
-            "-c",
-            "true",
-        ]
-    )
-    profile = launcher.harden(command, loopback_listen=True)[3]
-    assert '(allow network-bind (local ip "localhost:*"))' in profile
-    assert '(allow network-inbound (local ip "localhost:*"))' in profile
-    assert '(allow network-outbound (remote ip "localhost:' not in profile
-
-
-def test_loopback_ports_admit_serving_but_only_listed_destinations():
+def test_every_session_serves_and_connects_on_loopback():
     launcher = load_launcher()
     profile = "(version 1)\n(deny default)\n(allow process-exec)"
     command = shlex.join(
         ["env", "A=1", "/usr/bin/sandbox-exec", "-p", profile, "/bin/bash", "-c", "true"]
     )
-    closed = launcher.harden(command)[4]
-    assert "network-bind" not in closed and "network-outbound" not in closed
-    opened = launcher.harden(command, ports=[5432, 15173])[4]
-    assert '(allow network-bind (local ip "*:*"))' in opened
-    assert '(allow network-outbound (remote ip "localhost:5432"))' in opened
-    assert '(allow network-outbound (remote ip "localhost:15173"))' in opened
-    assert '"localhost:*"' not in opened
-    with pytest.raises(ValueError):
-        launcher.harden(command, ports=[True])
+    hardened = launcher.harden(command, '\n(deny file-read* (subpath "/private"))\n')[4]
+    assert '(allow network-bind (local ip "*:*"))' in hardened
+    assert '(allow network-outbound (remote ip "localhost:*"))' in hardened
+    # Owner denials still come last.
+    assert hardened.index("localhost:*") < hardened.index('(subpath "/private")')
+
+
+def test_project_tools_follow_the_owners_fnm_default(tmp_path):
+    launcher = load_launcher()
+    home = tmp_path / "home"
+    repo = home / "code/example"
+    (repo / ".git").mkdir(parents=True)
+    harness_manifest(home, "claude")
+    (home / ".config/workbench/private-paths").write_text("")
+    tools = {
+        "node": str(tmp_path / "tools/bin/node"),
+        "agents": {"claude": {"command": ["claude"], "read": []}},
+    }
+    plan = launcher.build_plan(repo, home, tools, "claude", "hosted", [])
+    assert plan["env"]["PATH"].startswith(f"{tmp_path / 'tools/bin'}:")
+    installation = home / ".local/share/fnm/node-versions/v26.12.1/installation"
+    (installation / "bin").mkdir(parents=True)
+    (installation / "bin/node").touch()
+    alias = home / ".local/share/fnm/aliases/default"
+    alias.parent.mkdir(parents=True)
+    alias.symlink_to(installation)
+    plan = launcher.build_plan(repo, home, tools, "claude", "hosted", [])
+    path = plan["env"]["PATH"].split(":")
+    assert path[:2] == [str(installation.resolve() / "bin"), str(tmp_path / "tools/bin")]
+    assert str(installation.resolve()) in plan["policy"]["filesystem"]["allowRead"]
+    assert plan["node"] == tools["node"]
 
 
 def test_owner_grants_extend_one_checkout_with_docker_ports_and_paths(tmp_path, monkeypatch):
@@ -728,7 +735,7 @@ def test_owner_grants_extend_one_checkout_with_docker_ports_and_paths(tmp_path, 
         "agents": {"claude": {"command": ["claude"], "read": []}},
     }
     plan = launcher.build_plan(repo, home, tools, "claude", "hosted", [])
-    assert plan["ports"] == [] and plan["docker_config"] is None
+    assert plan["docker_config"] is None
     assert "DOCKER_HOST" not in plan["env"]
     assert str(sibling) not in plan["policy"]["filesystem"]["allowWrite"]
 
@@ -746,7 +753,6 @@ def test_owner_grants_extend_one_checkout_with_docker_ports_and_paths(tmp_path, 
     )
     plan = launcher.build_plan(repo, home, tools, "claude", "hosted", [])
     filesystem = plan["policy"]["filesystem"]
-    assert plan["ports"] == [5432]
     assert plan["env"]["DOCKER_HOST"] == f"unix://{engine.resolve()}"
     assert str(engine.resolve()) in plan["policy"]["network"]["allowUnixSockets"]
     assert str(bundle.resolve()) in filesystem["allowRead"]

@@ -86,6 +86,8 @@ def test_blocks(command: str, reason: str) -> None:
     assert result.returncode == 2
     assert reason in result.stderr
     assert "failed unexpectedly" not in result.stderr
+    # No in-conversation approval can unlock a block, and the message says so.
+    assert "Only the owner can run it, from their own terminal" in result.stderr
 
 
 def git(repo: Path, *args: str) -> str:

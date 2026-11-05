@@ -54,29 +54,19 @@ GUARD = """
 SESSION_SIGNAL_GUARD = "\n(deny signal)\n(allow signal (target same-sandbox))\n"
 
 
-def loopback_rules(ports: list[int]) -> str:
-    """Let a session serve locally and reach only the owner's listed loopback ports.
-
-    Binding and inbound are local operations, so any address is safe there (the
-    runtime explains why IPv4-mapped sockets need "*:*"). Outbound stays limited
-    to the listed ports, never every service on the Mac's loopback.
-    """
-    if not ports:
-        return ""
-    if not all(type(port) is int and 0 < port < 65536 for port in ports):
-        raise ValueError("Loopback ports must be integers from 1 to 65535")
-    rules = ['(allow network-bind (local ip "*:*"))', '(allow network-inbound (local ip "*:*"))']
-    rules += [f'(allow network-outbound (remote ip "localhost:{port}"))' for port in ports]
-    return "\n" + "\n".join(rules) + "\n"
+# Test servers, browser health checks and plugin handshakes all connect back over
+# loopback. The owner accepts that this also reaches services the host already
+# runs there; public destinations still pass only through the runtime proxy.
+# IPv4-mapped sockets need the "*:*" bind filter, so a wildcard bind is not a LAN
+# exposure boundary.
+LOOPBACK = """
+(allow network-bind (local ip "*:*"))
+(allow network-inbound (local ip "*:*"))
+(allow network-outbound (remote ip "localhost:*"))
+"""
 
 
-def harden(
-    command: str,
-    browser_port: int = 0,
-    mandatory_rules: str = "",
-    ports: list[int] = (),
-    loopback_listen: bool = False,
-) -> list[str]:
+def harden(command: str, mandatory_rules: str = "") -> list[str]:
     """Adapt the pinned upstream's quoted argv, refusing an unfamiliar output shape."""
     args = shlex.split(command)
     if not args or args[0] != "env":
@@ -90,21 +80,7 @@ def harden(
         raise ValueError("Unexpected sandbox runtime environment")
     if not args[sandbox + 2].startswith("(version 1)\n(deny default"):
         raise ValueError("Sandbox runtime no longer denies by default")
-    args[sandbox + 2] += GUARD + loopback_rules(list(ports))
-    if loopback_listen:
-        # Serving does not grant outbound access. macOS also accepts wildcard
-        # binds under this filter; do not treat it as a LAN exposure boundary.
-        args[sandbox + 2] += '\n(allow network-bind (local ip "localhost:*"))'
-        args[sandbox + 2] += '\n(allow network-inbound (local ip "localhost:*"))\n'
-    if browser_port:
-        if not 1024 <= browser_port <= 65535:
-            raise ValueError("Invalid browser control port")
-        for operation, endpoint in (
-            ("network-bind", "local"),
-            ("network-inbound", "local"),
-            ("network-outbound", "remote"),
-        ):
-            args[sandbox + 2] += f'\n(allow {operation} ({endpoint} ip "localhost:{browser_port}"))'
+    args[sandbox + 2] += GUARD + LOOPBACK
     # Admit only inherited terminal devices, never every other terminal on the Mac.
     terminals = set()
     for descriptor in (0, 1, 2):
@@ -188,6 +164,8 @@ def git_identity(home: Path, cwd: Path) -> dict:
 
 
 GRANTS = ".config/workbench/repository-grants.json"
+# "ports" is retired now that every session reaches loopback; it is still
+# accepted so existing grant files keep launching.
 REPOSITORY_GRANTS = {"github", "aws", "ports", "docker", "paths"}
 # Git asks this helper for GitHub credentials; it answers from the launch token
 # so neither a host credential helper nor the protected .git/config is needed.
@@ -226,8 +204,8 @@ def repository_grants(home: Path, root: Path) -> dict:
 
     `~/.config/workbench/repository-grants.json` maps a checkout path to a
     Keychain service holding a GitHub token scoped to that repository, an AWS
-    profile whose role should reach only a sandbox account, the loopback ports
-    its own services use, Docker access, and extra read-write directories.
+    profile whose role should reach only a sandbox account, Docker access, and
+    extra read-write directories.
     Sessions cannot edit this file. Provider-side scope is the real credential
     limit; the session can use or leak what it receives.
     """
@@ -258,16 +236,14 @@ def repository_grants(home: Path, root: Path) -> dict:
         or not all(
             isinstance(entry[key], str) and entry[key] for key in {"github", "aws"} & set(entry)
         )
-        or not isinstance(entry.get("ports", []), list)
         or not isinstance(entry.get("docker", False), bool)
         or not isinstance(entry.get("paths", []), list)
         or not all(isinstance(item, str) and item for item in entry.get("paths", []))
     ):
         raise ValueError(
-            f"{path}: each checkout maps 'github' and 'aws' to names, 'ports' and 'paths' "
-            "to lists, and 'docker' to true or false"
+            f"{path}: each checkout maps 'github' and 'aws' to names, 'paths' "
+            "to a list, and 'docker' to true or false"
         )
-    loopback_rules(entry.get("ports", []))
     paths = []
     for item in entry.get("paths", []):
         directory = Path(str(home) + item[1:] if item.startswith("~/") else item)
@@ -502,6 +478,10 @@ def build_plan(
     state = runtime / "agent-state" / identity
     agent_home, temp = state / "home", scratch or state / "tmp"
     node = Path(tools["node"])
+    # The prepared Node is pinned to the version directory fnm had at preparation;
+    # project tools follow the owner's `fnm default`, read when each session starts.
+    default_node = home / ".local/share/fnm/aliases/default/bin/node"
+    project_node = default_node.resolve() if default_node.is_file() else node
     agent = tools["agents"].get(vendor)
     if vendor == "shell":
         agent = {"command": ["/bin/bash", "--noprofile", "--norc"], "read": []}
@@ -521,6 +501,7 @@ def build_plan(
     vendor_env = {}
     auth_link = None
     claude_sessions = None
+    claude_peers = None
     manifest = runtime / "native/harness/manifest.json"
     if not manifest.is_file():
         raise ValueError("Missing shared harness; run workbench sync")
@@ -544,12 +525,34 @@ def build_plan(
         vendor_env["CODEX_HOME"] = str(agent_home / ".codex")
     elif vendor == "claude":
         command += ["--settings", json.dumps({"sandbox": {"enabled": False}})]
-        auth_files = [str(auth / ".credentials.json"), str(auth / ".storage-write.lock")]
-        # Claude saves logins and refreshed tokens by renaming a sibling temp file over the file.
-        auth_staging = [str(auth / ".credentials.json.tmp.*")]
+        # Claude refreshes only while holding .oauth_refresh.lock; without it the
+        # access token silently expires about eight hours after each login.
+        auth_files = [
+            str(auth / name)
+            for name in (
+                ".credentials.json",
+                ".storage-write.lock",
+                ".oauth_refresh.lock",
+                ".oauth_refresh.lock.owner",
+            )
+        ]
+        # Claude saves these by renaming a sibling temp file over each one.
+        auth_staging = [
+            str(auth / ".credentials.json.tmp.*"),
+            str(auth / ".oauth_refresh.lock.owner.tmp.*"),
+        ]
         vendor_env["CLAUDE_SECURESTORAGE_CONFIG_DIR"] = str(auth)
         # The host install owns updates; an isolated home must not grow its own copy.
         vendor_env["DISABLE_AUTOUPDATER"] = "1"
+        # One registry and socket directory for every managed session lets
+        # peers in any checkout find and message each other.
+        peers = runtime / "peers"
+        claude_peers = {
+            "path": str(agent_home / ".claude/sessions"),
+            "target": str(peers / "sessions"),
+            "runtime": str(peers),
+        }
+        vendor_env["XDG_RUNTIME_DIR"] = str(peers)
         key = claude_project_key(cwd.resolve())
         if key:
             claude_sessions = {
@@ -581,9 +584,8 @@ def build_plan(
         # Keep organization-managed Claude policy visible in the isolated home.
         "/Library/Application Support/ClaudeCode",
         "/usr/local/bin",
-        "/opt/homebrew/Cellar",
-        "/opt/homebrew/opt",
-        "/opt/homebrew/bin",
+        # Installed formulae look up shared data such as share/tessdata; var stays denied.
+        "/opt/homebrew",
         "/dev/null",
         "/dev/zero",
         "/dev/random",
@@ -593,6 +595,8 @@ def build_plan(
         str(zoneinfo),
         str(node.parent),
         str(node.parent.parent / "lib/node_modules/npm"),
+        # fnm's whole installation directory: npm, npx and corepack included.
+        *([str(project_node.parent.parent)] if project_node != node else []),
         # Managed tool installations only, not host settings or package caches.
         str(home / ".local/share/uv/python"),
         # Browsers the host installed; Playwright's download host redirects to
@@ -612,6 +616,7 @@ def build_plan(
         str(temp),
         *auth_files,
         *([claude_sessions["target"]] if claude_sessions else []),
+        *([claude_peers["runtime"]] if claude_peers else []),
     ]
     browser = tools.get("browser")
     if browser:
@@ -677,6 +682,8 @@ def build_plan(
         "*.googleapis.com",
         "*.googleusercontent.com",
     ]
+    # Homebrew keeps the data files of the databases it runs under var.
+    homebrew_data = ["/opt/homebrew/var"]
     filesystem = {
         "denyRead": ["/", *excludes, *project_read],
         "allowRead": read,
@@ -688,6 +695,7 @@ def build_plan(
             *auth_files,
             *auth_staging,
             *([claude_sessions["target"]] if claude_sessions else []),
+            *([claude_peers["runtime"]] if claude_peers else []),
         ],
         "denyWrite": [
             "/tmp/claude",
@@ -697,6 +705,8 @@ def build_plan(
             *project_write,
             *(str(runtime / name) for name in ("native", "shell", "hooks")),
         ],
+        # Branch upstreams and worktree registration live there; .git/hooks stays protected.
+        "allowGitConfig": True,
     }
     # The Antigravity supervisor admits only exact model/login API hosts and
     # path-filters www.googleapis.com; other Google data APIs stay denied there.
@@ -726,8 +736,13 @@ def build_plan(
             "deniedResolvedAddresses": denied_addresses,
             # Upstream also grants all outbound localhost ports with this option.
             "allowLocalBinding": False,
-            # The browser daemon needs local IPC; host service sockets stay denied.
-            "allowUnixSockets": [str(temp / "browser"), *([docker["socket"]] if docker else [])],
+            # Session scratch holds the browser daemon's and plugin handshakes'
+            # sockets; host service sockets stay denied.
+            "allowUnixSockets": [
+                str(temp),
+                *([str(Path(claude_peers["runtime"]) / "cc-socks")] if claude_peers else []),
+                *([docker["socket"]] if docker else []),
+            ],
         },
     }
     env = {key: os.environ[key] for key in ("TERM", "COLORTERM", "LANG") if key in os.environ}
@@ -741,7 +756,9 @@ def build_plan(
             "PI_AGENT_BROWSER_SOCKET_DIR": str(temp / "browser"),
             "AGENT_BROWSER_SOCKET_DIR": str(temp / "browser"),
             "PATH": (
-                f"{node.parent}:{home}/.npm-global/bin:"
+                f"{project_node.parent}:"
+                + (f"{node.parent}:" if project_node != node else "")
+                + f"{home}/.npm-global/bin:"
                 "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
             ),
             "SHELL": "/bin/bash",
@@ -805,16 +822,15 @@ def build_plan(
         "node": str(node),
         "auth_link": auth_link,
         "claude_sessions": claude_sessions,
+        "claude_peers": claude_peers,
         "harness": harness,
-        "mandatory_read": [*excludes, *project_read],
+        "mandatory_read": [*excludes, *project_read, *homebrew_data],
         "mandatory_write": [*excludes, *project_write],
         "scratch_links": [
             {"path": name, "target": str(home / name)} for name in ("Desktop", "Downloads")
         ],
         "authority": authority,
         "browser_port": browser_port if browser else 0,
-        "ports": grants.get("ports", []),
-        "loopback_listen": vendor == "antigravity",
         "aws_profile": grants.get("aws"),
         # Compose and other CLI plugins live in the client installation, not the isolated home.
         "docker_config": {"cliPluginsExtraDirs": docker["plugins"]} if docker else None,
@@ -843,6 +859,37 @@ def state_directory(home: Path, directory: Path):
         yield descriptor
     finally:
         os.close(descriptor)
+
+
+def share_peer_registry(home: Path, source: Path, target: Path) -> None:
+    """Link this home's Claude session registry to the shared one, keeping live entries."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    with state_directory(home, target) as shared, state_directory(home, source.parent) as parent:
+        try:
+            existing = os.stat(source.name, dir_fd=parent, follow_symlinks=False)
+        except FileNotFoundError:
+            existing = None
+        if existing and stat.S_ISDIR(existing.st_mode):
+            # Entries describe running processes, so move them rather than merge.
+            private = os.open(source.name, flags, dir_fd=parent)
+            try:
+                with os.scandir(private) as entries:
+                    names = [entry.name for entry in entries]
+                for name in names:
+                    info = os.stat(name, dir_fd=private, follow_symlinks=False)
+                    if not stat.S_ISREG(info.st_mode):
+                        raise ValueError("Claude session registry contains a link or special file")
+                    os.rename(name, name, src_dir_fd=private, dst_dir_fd=shared)
+            finally:
+                os.close(private)
+            with contextlib.suppress(FileNotFoundError):
+                os.rmdir(source.name, dir_fd=parent)
+        elif existing and not stat.S_ISLNK(existing.st_mode):
+            raise ValueError("Claude session registry is not a directory")
+        with contextlib.suppress(FileExistsError):
+            os.symlink(str(target), source.name, dir_fd=parent)
+        if os.readlink(source.name, dir_fd=parent) != str(target):
+            raise ValueError("Unexpected Claude session registry link; refusing to overwrite")
 
 
 def share_claude_sessions(home: Path, source: Path, target: Path) -> None:
@@ -1198,6 +1245,9 @@ def initialize_home(plan: dict, home: Path) -> None:
     if plan.get("claude_sessions"):
         entry = plan["claude_sessions"]
         share_claude_sessions(home, Path(entry["path"]), Path(entry["target"]))
+    if plan.get("claude_peers"):
+        entry = plan["claude_peers"]
+        share_peer_registry(home, Path(entry["path"]), Path(entry["target"]))
     harness = plan.get("harness", {"links": [], "files": []})
     # Snapshot before any projected file changes; manifest order is not significant.
     codex_files = {item["path"]: item["source"] for item in harness["files"]}
@@ -1425,15 +1475,7 @@ def main() -> None:
         browser_session(sys.argv[2:])
         return
     if sys.argv[1:2] == ["--apply"]:
-        apply_session(
-            harden(
-                sys.argv[2],
-                int(sys.argv[3]) if len(sys.argv) > 3 else 0,
-                sys.argv[4] if len(sys.argv) > 4 else "",
-                json.loads(sys.argv[5]) if len(sys.argv) > 5 else [],
-                json.loads(sys.argv[6]) if len(sys.argv) > 6 else False,
-            )
-        )
+        apply_session(harden(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else ""))
     if sys.argv[1:2] == ["--refresh-aws"]:
         request = json.loads(sys.argv[2])
         home, agent_home = Path(request["home"]), Path(request["agent_home"])

@@ -28,7 +28,7 @@ reported application failure has been reproduced.
 
 | Friction | Existing cause | Next action |
 | --- | --- | --- |
-| A project gate needs a local database or Docker. | Pi permits authorized development containers and database migrations; managed sessions still need their checkout's Docker and loopback-port grants. | Reproduce the documented gate and identify missing service access. Docker control remains a broad owner-approved trust exception, not a database-only permission. |
+| A project gate needs a local database or Docker. | Pi permits authorized development containers and database migrations; managed sessions reach loopback services directly but still need their checkout's Docker grant. | Reproduce the documented gate and identify missing service access. Docker control remains a broad owner-approved trust exception, not a database-only permission. |
 | GitHub reads cannot authenticate. | Host Keychain and ordinary credential helpers are unavailable. The selected checkout needs its repository GitHub grant. | Check grant selection and token scope without printing token values. Do not infer that all `gh` commands are prohibited. |
 | PR creation or merge was blocked despite standing authorization. | Pi permits normal `gh pr` commands. Repository instructions choose direct-to-main shipping or PRs; generic API writes and unrelated mutations remain guarded. | Follow the repository's chosen path and shared authorization. Normal push-triggered automation may be authorized; separate production mutations and destructive actions still require confirmation. |
 | AWS inspection cannot authenticate or reach a service. | Only a granted AWS profile is projected. Private service destinations remain blocked. | Separate missing/expired profile authorization from network denial and provider-side authorization. Read-only assurance belongs in the AWS role's permissions, not a command-name heuristic. |
@@ -60,9 +60,9 @@ remain in the [isolation contract](https://github.com/e-m-albright/workbench/blo
 ## Database access is not Docker control
 
 Database-backed integration tests need permission to reach their disposable test
-database, not an exclusion from testing. An already running database can be
-admitted through its specific loopback port and test-only credentials without
-admitting the Docker engine socket. Creating or managing containers is a
+database, not an exclusion from testing. An already running database is
+reachable on loopback with test-only credentials, without admitting the Docker
+engine socket. Creating or managing containers is a
 separate capability. Prefer a trusted host or CI task that starts the service,
 then give the agent the narrow database connection it needs.
 

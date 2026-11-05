@@ -52,8 +52,7 @@ in `all`. It manages `~/.gemini/AGENTS.md`, canonical skill trees under
 `~/.gemini/config/skills`, shared launchers, and an isolated harness
 without host settings or credentials. Native settings, logins, MCPs, and plugins
 remain unmanaged. Sync and drift do not require a CLI login or contact a model.
-`agy` enters Workbench's boundary with loopback listening, restricted host
-connections, and identity/model-only Google API exceptions. `antigravity`, `antig`, `agrav`, and `agravity` launch natively.
+`agy` enters Workbench's boundary with identity/model-only Google API exceptions. `antigravity`, `antig`, `agrav`, and `agravity` launch natively.
 The [Antigravity integration](agents/antigravity.md) records startup verification and
 authentication limits; Dotfiles owns installation of the binary.
 
@@ -108,9 +107,12 @@ reads.
 
 The managed boundary blocks the Keychain service, so `cc` stores Claude's login
 only in the enrolled credential file. Claude saves that file by renaming a
-sibling `.credentials.json.tmp.*` file over it, so the boundary admits writes to
-exactly that file and those staging names. `/login` and token refreshes inside
-`cc` therefore persist to the managed login. To replace the managed login with
+sibling `.credentials.json.tmp.*` file over it, and refreshes the token only
+while holding the `.oauth_refresh.lock` directory and its
+`.oauth_refresh.lock.owner` record. The boundary admits writes to exactly those
+names and their staging names. Without the lock, refresh fails silently and the
+login expires about eight hours after each `/login`. `/login` and token
+refreshes inside `cc` therefore persist to the managed login. To replace the managed login with
 the host's instead, sign in with `claude` outside `cc` and run
 `workbench native authorize claude --replace`, which backs up the old managed
 login and copies the new one from the Keychain.

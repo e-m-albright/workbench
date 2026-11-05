@@ -58,13 +58,16 @@ function mandatoryRules() {
   if (pins.size) rules.push(`(deny file-write-unlink ${[...pins].join(" ")})`);
   return `\n${rules.join("\n")}\n`;
 }
-const mandatory = mandatoryRules();
+// Closing out a session's worktrees removes the .git and .claude names the runtime
+// pins. Only deletion is reopened: creating those names there stays denied.
+const worktrees = `\n(allow file-write-unlink (subpath ${JSON.stringify(path.join(plan.root, ".claude/worktrees"))}))\n`;
+const mandatory = worktrees + mandatoryRules();
 async function launch(command, stdio) {
   const wrapped = await SandboxManager.wrapWithSandboxArgv(command.map(quote).join(" "), "/bin/bash");
   if (wrapped.argv.length !== 3 || wrapped.argv[0] !== "/bin/bash" || wrapped.argv[1] !== "-c") {
     throw new Error("Unexpected sandbox runtime launch shape");
   }
-  return spawn("/usr/bin/python3", ["-I", "-S", adapter, "--apply", wrapped.argv[2], String(plan.browser_port || 0), mandatory, JSON.stringify(plan.ports ?? []), JSON.stringify(plan.loopback_listen ?? false)], {
+  return spawn("/usr/bin/python3", ["-I", "-S", adapter, "--apply", wrapped.argv[2], mandatory], {
     cwd: plan.cwd, env: wrapped.env, stdio: [stdio, stdio, stdio, "pipe"],
   });
 }

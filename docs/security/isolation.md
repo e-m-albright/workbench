@@ -117,9 +117,9 @@ multiple provider logins from its authentication store.
 | Machine-local private paths | Denied for reads and writes, including named paths inside the selected checkout. Raw meeting recordings, transcripts, and sidecars remain excluded; choosing a repository does not authorize those sources. |
 | Environment files | Real `.env` and `.env.*` paths are denied at every depth, including files created after launch. Documentation templates ending in `.example`, `.sample`, or `.template` remain usable. |
 | Other repositories and personal files | `~/code/public`, `~/Desktop`, and `~/Downloads` are also admitted, plus any directories the owner grants the checkout. The user's macOS temporary items directory is readable so dragged screenshots open. Unselected private repositories, ingress, personal files, credentials, and host startup files remain outside the grants. |
-| Agent state | One persistent home per repository plus private session scratch. Claude shares only the matching native project transcript namespace as described [below](#claude-session-history). |
+| Agent state | One persistent home per repository plus private session scratch. Claude shares only the matching native project transcript namespace as described [below](#claude-session-history), plus the managed peer registry described in [Claude peer messaging](#claude-peer-messaging). |
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
-| Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. One ephemeral browser control port and any loopback ports granted to the checkout are admitted; unrelated localhost services remain blocked. Antigravity may additionally bind and accept connections on loopback, without general outbound localhost access. Docker is admitted only to checkouts granted it. |
+| Host integrations | Keychain and tested application-service routes, host process arguments, private network destinations, and host API sockets are blocked. Every session may listen and connect on loopback (`127.0.0.1`, `::1`) and use Unix sockets inside its own scratch directory. That includes services the host already runs on loopback, such as another project's database or a browser debugging port: the owner accepted this so test servers, browser checks and plugin handshakes work. Docker is admitted only to checkouts granted it. |
 | Public network | Public TCP destinations on ports 80 and 443 are permitted through the runtime proxy. This is a port policy, not application-protocol verification. Private resolved destinations and configured email, Google Drive, and shared Google API/content endpoints are denied. Antigravity has exact identity/model API exceptions and an HTTPS identity-path filter; see its [network contract](../agents/antigravity.md#managed-startup-and-login). |
 | Harness configuration | Shared instructions, skills, extensions, prompts, themes, installed plugin code, model preferences, and interface settings. Host code assets are read-only; settings and caches remain in the isolated home. |
 | Local inference and editor/mobile protocols | Unsupported by the managed launcher. |
@@ -181,6 +181,18 @@ override global identity defaults in the clean environment. Only these scalar
 values are imported; local includes, host Git configuration, hooks, and credential
 helpers are not imported. Claude compaction preferences survive projection.
 
+### Claude peer messaging
+
+Every managed Claude session shares one session registry and one socket
+directory under `~/.local/share/workbench/peers/`, so sessions in any checkout
+can find and message each other. The launcher links each managed home's
+`.claude/sessions` to `peers/sessions` and sets `XDG_RUNTIME_DIR` to `peers`,
+which makes Claude place its messaging socket in `peers/cc-socks`, the only
+added Unix socket grant. This deliberately crosses repository boundaries: a
+session can send prompts to a session in another checkout that holds different
+repository grants. Native host sessions keep their own registry and stay
+unreachable. In-process subagents never used this path.
+
 ### Claude session history
 
 Managed Claude retains an isolated settings home while its matching
@@ -230,6 +242,33 @@ refused. This is a startup snapshot of agent-writable project configuration,
 not immutable owner policy; machine-local exclusions remain the owner boundary.
 Changes require a new launch.
 
+### Development gates
+
+A repository's own commit and push hooks, unit and browser tests, and Terraform
+validation must run inside the boundary without the owner's help. Each rule below
+removed an observed stall; `test_development_gates_run_inside_the_boundary` in
+`tests/test_native_canary.py` probes all of them on the macOS CI job.
+
+- Loopback and scratch Unix sockets: the `LOOPBACK` rules in `native-sandbox.py`
+  and `allowUnixSockets` in its plan. Terraform providers handshake over a Unix
+  socket in the session's scratch directory.
+- Homebrew: all of `/opt/homebrew` is readable, so formulae find shared data such
+  as `share/tessdata`. `/opt/homebrew/var`, which holds the data files of
+  Homebrew-run databases, stays denied.
+- Git configuration: the runtime's `allowGitConfig` makes `.git/config`
+  writable, so `git push -u` records an upstream and `git worktree add -b`
+  registers its branch. `.git/hooks` stays protected.
+- Worktree cleanup: `native-sandbox.mjs` reopens deletion, not creation, under
+  `<checkout>/.claude/worktrees`. Names the runtime protects, such as `.git`,
+  `.vscode`, `.mcp.json`, `.claude/commands` and environment files, can be
+  removed there but not recreated. Owner and project denials still win.
+- Node: the session's PATH starts with the owner's `fnm default` Node, resolved
+  at each launch, followed by the Node pinned at preparation. A pinned version
+  that fnm has since replaced no longer leaves hooks without `node`.
+- Destructive guard: a blocked command stays blocked. The message says that no
+  approval in the conversation unlocks it and that only the owner's own terminal
+  can run it.
+
 ### Per-checkout grants
 
 `~/.config/workbench/repository-grants.json` lists what one checkout receives
@@ -242,9 +281,8 @@ checkout path, and each value may contain:
 - `aws`: one AWS profile. The supervisor writes that profile's short-lived keys
   into the session's own credentials file and refreshes them every five minutes.
   The SSO cache never enters the session.
-- `ports`: loopback ports the checkout's own services use, such as its local
-  database. The session can serve on any local address but reach only these
-  host ports.
+- `ports`: retired and ignored, since every session reaches loopback. Existing
+  entries are still accepted.
 - `docker`: `true` admits the running engine's socket (Docker Desktop,
   OrbStack, or Colima), sets `DOCKER_HOST`, and reads the client installation
   so `docker compose` works.
@@ -255,7 +293,6 @@ checkout path, and each value may contain:
 {
   "~/code/example/app": {
     "github": "workbench-github-app",
-    "ports": [5432],
     "docker": true,
     "paths": ["~/code/example/app-ci"]
   }
