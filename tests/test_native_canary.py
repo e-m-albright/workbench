@@ -183,7 +183,7 @@ denied /bin/bash -c {shlex.quote("echo bad > " + shlex.quote(str(private)))}
 # Loopback is open to every session, including services the host already runs.
 /usr/bin/curl --noproxy '*' --max-time 2 -fsS http://127.0.0.1:{server.server_port}/loopback
 denied /usr/bin/curl --unix-socket {shlex.quote(sockpath.name)} --noproxy '*' --max-time 2 -fsS http://localhost
-/usr/bin/curl --max-time 10 -fsS https://example.com >/dev/null
+/usr/bin/curl --max-time 10 -fsS --cacert /etc/ssl/cert.pem https://example.com >/dev/null
 echo CANARY-PASS
 """
         try:
@@ -307,7 +307,7 @@ print('LOOPBACK-PASS')
     first = f"""
 set -eu
 denied() {{ if "$@" >/dev/null 2>&1; then echo "UNEXPECTED SUCCESS: $1"; exit 21; fi; }}
-/usr/bin/python3 -I -S -c {shlex.quote(loopback)}
+/Library/Developer/CommandLineTools/usr/bin/python3 -I -S -c {shlex.quote(loopback)}
 {share} >/dev/null
 {data}
 /usr/bin/git config branch.main.remote origin

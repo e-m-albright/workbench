@@ -77,6 +77,9 @@ public certificate roots because Keychain access is deliberately denied. Without
 them, Codex 0.162.1 fails during account routing with an `UnknownIssuer` TLS
 error, surfaced as `workspace routing discovery failed`. The certificate fix
 works with the existing network proxy; direct network grants are unnecessary.
+The curl canary passes the same public bundle through `--cacert`, the explicit
+file-based trust option documented in [curl's TLS guide](https://curl.se/docs/sslcerts.html),
+without disabling certificate verification or admitting Keychain access.
 
 Each repository gets an isolated agent home under
 `~/.local/share/workbench/agent-state/`. Provider login files persist separately
@@ -251,7 +254,10 @@ removed an observed stall; `test_development_gates_run_inside_the_boundary` in
 
 - Loopback and scratch Unix sockets: the `LOOPBACK` rules in `native-sandbox.py`
   and `allowUnixSockets` in its plan. Terraform providers handshake over a Unix
-  socket in the session's scratch directory.
+  socket in the session's scratch directory. Apple's `/usr/bin/python3` shim can
+  reset `TMPDIR` inside Seatbelt, so that canary invokes the admitted
+  `/Library/Developer/CommandLineTools/usr/bin/python3` interpreter directly.
+  Do not admit the host temporary directory as a workaround.
 - Homebrew: all of `/opt/homebrew` is readable, so formulae find shared data such
   as `share/tessdata`. `/opt/homebrew/var`, which holds the data files of
   Homebrew-run databases, stays denied.
