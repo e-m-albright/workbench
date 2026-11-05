@@ -195,7 +195,30 @@ echo CANARY-PASS
             server.shutdown()
             server.server_close()
             thread.join(timeout=3)
-    assert result.returncode == 0, result.stdout + result.stderr
+    diagnostic = ""
+    if "curl: (60)" in result.stderr:
+        # Diagnose the host trust store without replacing the failed boundary check.
+        baseline = subprocess.run(
+            [
+                "/usr/bin/curl",
+                "-q",
+                "--cacert",
+                "/etc/ssl/cert.pem",
+                "--max-time",
+                "10",
+                "-fsS",
+                "--output",
+                "/dev/null",
+                "https://example.com",
+            ],
+            env={"HOME": PILOT, "PATH": "/usr/bin:/bin"},
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        diagnostic = f"\nHost public-root TLS: exit {baseline.returncode}: {baseline.stderr}"
+    assert result.returncode == 0, result.stdout + result.stderr + diagnostic
     assert "CANARY-PASS" in result.stdout
     assert private.read_text() == "outside-canary"
     assert (repo / ".env").read_text() == "synthetic-only"
