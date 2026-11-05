@@ -26,7 +26,7 @@ for (const parameters of [false, true]) {
       item(asn1.Type.OCTETSTRING, false, digest),
     ]);
     const signature = key.sign(asn1.toDer(info).getBytes(), "NONE");
-    if (garbage && !process.argv.includes("--unpatched")) {
+    if (garbage) {
       assert.throws(() => pub.verify(digest, signature), /DigestInfo/);
     } else {
       assert.equal(pub.verify(digest, signature), true);
@@ -42,6 +42,4 @@ const pss = forge.pss.create({
   saltLength: 20,
 });
 assert.equal(pub.verify(digest, key.sign(md, pss), pss), true);
-console.log(process.argv.includes("--unpatched")
-  ? "Confirmed original nested-DigestAlgorithm defect"
-  : "Verified repaired RSA validation and valid signatures");
+console.log("Verified upstream RSA validation and valid signatures");

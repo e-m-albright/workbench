@@ -22,7 +22,6 @@ from workbench.core import (
     write_json,
 )
 from workbench.native_config import install_harness
-from workbench.native_dependencies import patch_forge
 
 MANAGED_AGENTS = ("codex", "claude", "pi", "antigravity")
 
@@ -147,7 +146,6 @@ def _install_runtime(
         env={"HOME": str(home), "PATH": f"{node.parent}:/opt/homebrew/bin:/usr/bin:/bin"},
         check=True,
     )
-    patch_forge(runtime)
     for probe in ("verify-forge.cjs", "verify-zod.cjs"):
         subprocess.run(
             [str(node), str(AGENTS / "shared/sandbox" / probe), str(runtime)], check=True
