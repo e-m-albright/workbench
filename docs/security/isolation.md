@@ -268,8 +268,9 @@ removed an observed stall; `test_development_gates_run_inside_the_boundary` in
   registers its branch. `.git/hooks` stays protected.
 - Worktree cleanup: `native-sandbox.mjs` reopens deletion, not creation, under
   `<checkout>/.claude/worktrees`. Names the runtime protects, such as `.git`,
-  `.vscode`, `.mcp.json`, `.claude/commands` and environment files, can be
-  removed there but not recreated. Owner and project denials still win.
+  `.vscode`, `.mcp.json` and `.claude/commands`, can be removed there but not
+  recreated. Environment files remain protected, including inside worktrees;
+  cleanup refuses a checkout containing them. Owner and project denials still win.
 - Node: the session's PATH starts with the owner's `fnm default` Node, resolved
   at each launch, followed by the Node pinned at preparation. A pinned version
   that fnm has since replaced no longer leaves hooks without `node`.

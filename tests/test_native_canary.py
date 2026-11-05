@@ -331,7 +331,7 @@ echo GATES-PASS
 
     # Names the runtime protects, as a project's own worktree may hold them.
     worktree = repo / ".claude/worktrees/topic"
-    for name in (".mcp.json", ".vscode/settings.json", ".claude/commands/x.md", ".env"):
+    for name in (".mcp.json", ".vscode/settings.json", ".claude/commands/x.md"):
         (worktree / name).parent.mkdir(parents=True, exist_ok=True)
         (worktree / name).write_text("synthetic")
     second = """
@@ -346,6 +346,24 @@ echo CLEANUP-PASS
     result = launch(repo, "shell", "managed", "-c", second)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "CLEANUP-PASS" in result.stdout
+
+    # Environment files remain private even inside otherwise removable worktrees.
+    subprocess.run(
+        [*git, "worktree", "add", "--quiet", "-b", "protected", ".claude/worktrees/protected"],
+        check=True,
+    )
+    protected = repo / ".claude/worktrees/protected/.env"
+    protected.write_text("synthetic-private")
+    result = launch(
+        repo,
+        "shell",
+        "managed",
+        "-c",
+        "if /usr/bin/git worktree remove --force .claude/worktrees/protected; "
+        "then echo 'PRIVATE WORKTREE DELETED'; exit 21; fi",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert protected.read_text() == "synthetic-private"
     assert not (repo / ".mcp.json").exists()
 
 
