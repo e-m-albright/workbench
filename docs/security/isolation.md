@@ -77,6 +77,11 @@ public certificate roots because Keychain access is deliberately denied. Without
 them, Codex 0.162.1 fails during account routing with an `UnknownIssuer` TLS
 error, surfaced as `workspace routing discovery failed`. The certificate fix
 works with the existing network proxy; direct network grants are unnecessary.
+The public HTTPS canary uses Node's built-in `fetch` with certificate verification
+and its bundled public roots. Apple's native curl can depend on system trust
+services unavailable inside the boundary, even when the same request succeeds
+on the host. Do not grant credential services or disable TLS verification to
+make that client work.
 
 Each repository gets an isolated agent home under
 `~/.local/share/workbench/agent-state/`. Provider login files persist separately
@@ -251,7 +256,10 @@ removed an observed stall; `test_development_gates_run_inside_the_boundary` in
 
 - Loopback and scratch Unix sockets: the `LOOPBACK` rules in `native-sandbox.py`
   and `allowUnixSockets` in its plan. Terraform providers handshake over a Unix
-  socket in the session's scratch directory.
+  socket in the session's scratch directory. Apple's `/usr/bin/python3` shim can
+  reset `TMPDIR` inside Seatbelt, so that canary invokes the admitted
+  `/Library/Developer/CommandLineTools/usr/bin/python3` interpreter directly.
+  Do not admit the host temporary directory as a workaround.
 - Homebrew: all of `/opt/homebrew` is readable, so formulae find shared data such
   as `share/tessdata`. `/opt/homebrew/var`, which holds the data files of
   Homebrew-run databases, stays denied.
@@ -260,8 +268,8 @@ removed an observed stall; `test_development_gates_run_inside_the_boundary` in
   registers its branch. `.git/hooks` stays protected.
 - Worktree cleanup: `native-sandbox.mjs` reopens deletion, not creation, under
   `<checkout>/.claude/worktrees`. Names the runtime protects, such as `.git`,
-  `.vscode`, `.mcp.json` and `.claude/commands`, can be
-  removed there but not recreated. Owner and project denials still win.
+  `.vscode`, `.mcp.json` and `.claude/commands`, can be removed there but not
+  recreated. Owner and project denials still win.
 - Node: the session's PATH starts with the owner's `fnm default` Node, resolved
   at each launch, followed by the Node pinned at preparation. A pinned version
   that fnm has since replaced no longer leaves hooks without `node`.

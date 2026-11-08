@@ -162,7 +162,12 @@ denied /bin/bash -c {shlex.quote("echo bad > " + shlex.quote(str(private)))}
 # Loopback is open to every session, including services the host already runs.
 /usr/bin/curl --noproxy '*' --max-time 2 -fsS http://127.0.0.1:{server.server_port}/loopback
 denied /usr/bin/curl --unix-socket {shlex.quote(sockpath.name)} --noproxy '*' --max-time 2 -fsS http://localhost
-/usr/bin/curl --max-time 10 -fsS https://example.com >/dev/null
+# Verify public HTTPS without depending on Apple's Keychain-backed curl client.
+node --input-type=module -e '
+const response = await fetch("https://example.com");
+if (!response.ok) process.exit(22);
+await response.body?.cancel();
+'
 echo CANARY-PASS
 """
         try:
@@ -284,7 +289,7 @@ print('LOOPBACK-PASS')
     first = f"""
 set -eu
 denied() {{ if "$@" >/dev/null 2>&1; then echo "UNEXPECTED SUCCESS: $1"; exit 21; fi; }}
-/usr/bin/python3 -I -S -c {shlex.quote(loopback)}
+/Library/Developer/CommandLineTools/usr/bin/python3 -I -S -c {shlex.quote(loopback)}
 {share} >/dev/null
 {data}
 /usr/bin/git config branch.main.remote origin
@@ -318,6 +323,22 @@ echo CLEANUP-PASS
     result = launch(repo, "shell", "managed", "-c", second)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "CLEANUP-PASS" in result.stdout
+
+    # Environment files are ordinary project files, so they never block cleanup.
+    subprocess.run(
+        [*git, "worktree", "add", "--quiet", "-b", "with-env", ".claude/worktrees/with-env"],
+        check=True,
+    )
+    (repo / ".claude/worktrees/with-env/.env").write_text("synthetic")
+    result = launch(
+        repo,
+        "shell",
+        "managed",
+        "-c",
+        "/usr/bin/git worktree remove --force .claude/worktrees/with-env",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (repo / ".claude/worktrees/with-env").exists()
     assert not (repo / ".mcp.json").exists()
 
 

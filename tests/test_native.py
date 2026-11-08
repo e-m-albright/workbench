@@ -20,7 +20,6 @@ def test_prepare_copies_a_protected_runtime_without_copying_credentials(tmp_path
     monkeypatch.setattr(
         native.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs))
     )
-    monkeypatch.setattr(native, "patch_forge", lambda runtime: None)
     native.prepare(home)
     runtime = home / ".local/share/workbench"
     assert (runtime / "shell/native-sandbox.py").is_file()
@@ -103,26 +102,24 @@ def test_concurrent_prepare_cannot_publish_readiness_during_failed_install(tmp_p
     home = tmp_path / "home"
     monkeypatch.setattr(native, "_binary", lambda name: tmp_path / name)
     monkeypatch.setattr(native.shutil, "which", lambda name: None)
-    monkeypatch.setattr(native.subprocess, "run", lambda *args, **kwargs: None)
 
-    def patch(runtime):
-        # A second preparer must be rejected before it can publish a manifest
-        # while the first still owns a mutable, possibly unpatched installation.
-        monkeypatch.setattr(native, "patch_forge", lambda runtime: None)
+    def interrupted_install(command, **kwargs):
+        # Reentrant preparation must fail while the first install owns the lock.
         with pytest.raises(core.WorkbenchError, match="already being prepared"):
             native.prepare(home)
-        raise subprocess.CalledProcessError(1, "interrupted installation")
+        raise subprocess.CalledProcessError(1, command)
 
-    monkeypatch.setattr(native, "patch_forge", patch)
+    monkeypatch.setattr(native.subprocess, "run", interrupted_install)
     with pytest.raises(subprocess.CalledProcessError):
         native.prepare(home)
     assert not (home / ".local/share/workbench/native/tools.json").exists()
     # Failure releases the lock, so a subsequent preparation can repair it.
+    monkeypatch.setattr(native.subprocess, "run", lambda *args, **kwargs: None)
     native.prepare(home)
     assert (home / ".local/share/workbench/native/tools.json").is_file()
 
 
-@pytest.mark.parametrize("failure", ["install", "patch", "probe", "zod-probe"])
+@pytest.mark.parametrize("failure", ["install", "probe", "zod-probe"])
 def test_failed_reprepare_invalidates_previous_readiness(tmp_path, monkeypatch, failure):
 
     home = tmp_path / "home"
@@ -141,12 +138,7 @@ def test_failed_reprepare_invalidates_previous_readiness(tmp_path, monkeypatch, 
         ):
             raise subprocess.CalledProcessError(1, command)
 
-    def patch(runtime):
-        if failure == "patch":
-            raise subprocess.CalledProcessError(1, "patch")
-
     monkeypatch.setattr(native.subprocess, "run", run)
-    monkeypatch.setattr(native, "patch_forge", patch)
     with pytest.raises(subprocess.CalledProcessError):
         native.prepare(home)
     assert not manifest.exists()
@@ -319,7 +311,6 @@ def prepare_offline(monkeypatch, tools):
         lambda name: str(tools / name) if (tools / name).exists() else None,
     )
     monkeypatch.setattr(native.subprocess, "run", lambda *args, **kwargs: None)
-    monkeypatch.setattr(native, "patch_forge", lambda runtime: None)
 
 
 def test_prepare_prefers_native_claude_and_survives_auto_update(tmp_path, monkeypatch):

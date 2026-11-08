@@ -6,7 +6,8 @@
   },
   "overrides": {
     "@anthropic-ai/sandbox-runtime": {
-      "zod": "4.6.7"
+      "zod": "4.6.7",
+      "node-forge": "1.4.3"
     }
   }
 }
