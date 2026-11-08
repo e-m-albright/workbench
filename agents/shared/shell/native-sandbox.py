@@ -35,18 +35,10 @@ GUARD = """
 ; per-process name; refusing it aborts the browser at startup.
 (allow mach-register mach-lookup
   (global-name-prefix "org.chromium.Chromium.MachPortRendezvousServer."))
-; Match future environment files and confidential directories too, not just
-; paths present at launch. Seatbelt does not support regex lookahead; exclude
-; templates with native filters instead. Character classes ignore case.
+; Match confidential directories created after launch too. Character classes
+; ignore case. Environment files are ordinary project files: secrets belong in
+; a secret manager, and denying .env broke Git hooks and dotenv-loading gates.
 (deny file-read* file-write* file-write-create file-write-unlink
-  ; A template basename cannot exempt a file inside an environment directory.
-  (regex "/[.][Ee][Nn][Vv]([.][^/]*)?/")
-  (require-all
-    (regex "/[.][Ee][Nn][Vv]($|/|[.])")
-    (require-not (require-any
-      (regex "/[.][Ee][Nn][Vv][.][Ee][Xx][Aa][Mm][Pp][Ll][Ee]$")
-      (regex "/[.][Ee][Nn][Vv][.][Ss][Aa][Mm][Pp][Ll][Ee]$")
-      (regex "/[.][Ee][Nn][Vv][.][Tt][Ee][Mm][Pp][Ll][Aa][Tt][Ee]$"))))
   (regex "/[Cc][Oo][Nn][Ff][Ii][Dd][Ee][Nn][Tt][Ii][Aa][Ll]($|/)"))
 """
 

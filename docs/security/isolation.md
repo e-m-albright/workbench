@@ -115,7 +115,7 @@ multiple provider logins from its authentication store.
 | --- | --- |
 | Selected checkout | Read and write, including curated vault prose, structured world-model state, reviewed meeting notes, Git history, ignored files, and untracked files unless explicitly excluded. |
 | Machine-local private paths | Denied for reads and writes, including named paths inside the selected checkout. Raw meeting recordings, transcripts, and sidecars remain excluded; choosing a repository does not authorize those sources. |
-| Environment files | Real `.env` and `.env.*` paths are denied at every depth, including files created after launch. Documentation templates ending in `.example`, `.sample`, or `.template` remain usable. |
+| Environment files | Ordinary project files: `.env` and `.env.*` are readable and writable so Git hooks and dotenv-loading gates work. Secrets belong in a secret manager, not in these files. |
 | Other repositories and personal files | `~/code/public`, `~/Desktop`, and `~/Downloads` are also admitted, plus any directories the owner grants the checkout. The user's macOS temporary items directory is readable so dragged screenshots open. Unselected private repositories, ingress, personal files, credentials, and host startup files remain outside the grants. |
 | Agent state | One persistent home per repository plus private session scratch. Claude shares only the matching native project transcript namespace as described [below](#claude-session-history), plus the managed peer registry described in [Claude peer messaging](#claude-peer-messaging). |
 | Provider credentials | Only the selected vendor's enrolled login and necessary refresh-lock paths are admitted. |
@@ -147,7 +147,7 @@ A pinned [Anthropic Sandbox Runtime](https://github.com/anthropics/sandbox-runti
 generates the Seatbelt policy and network proxies. Workbench validates the
 generated command shape and adds denials for host process inspection,
 credential/application services, shared memory, distributed notifications,
-and environment files. Only the inherited terminal devices are admitted, and
+and confidential directories. Only the inherited terminal devices are admitted, and
 terminal input injection through `TIOCSTI` is denied.
 
 The terminal application remains outside the child process sandbox. Host
@@ -260,7 +260,7 @@ removed an observed stall; `test_development_gates_run_inside_the_boundary` in
   registers its branch. `.git/hooks` stays protected.
 - Worktree cleanup: `native-sandbox.mjs` reopens deletion, not creation, under
   `<checkout>/.claude/worktrees`. Names the runtime protects, such as `.git`,
-  `.vscode`, `.mcp.json`, `.claude/commands` and environment files, can be
+  `.vscode`, `.mcp.json` and `.claude/commands`, can be
   removed there but not recreated. Owner and project denials still win.
 - Node: the session's PATH starts with the owner's `fnm default` Node, resolved
   at each launch, followed by the Node pinned at preparation. A pinned version
@@ -470,7 +470,7 @@ public network access; a proxy or upstream failure fails the run rather than
 being counted as verified containment. No paid model requests are made.
 
 Canaries exercise workspace edits and child inheritance, outside reads/writes,
-symlink escapes, future nested environment files, Python and Git, host TCP/Unix
+symlink escapes, readable environment files, Python and Git, host TCP/Unix
 sockets, process arguments, and macOS service handles. Terminal startup and shell
 probes have been exercised with Codex and Pi without paid model requests. Claude
 binary startup works; unauthenticated onboarding remains a limit, and a signed-out

@@ -115,11 +115,11 @@ describe("Pi permission policy", () => {
 		expect(reason("read", { path: "playbook/agents/models/efficiency.md" })).toBeUndefined();
 	});
 
-	test("allows environment templates while blocking real environment files", () => {
-		for (const path of [".env.example", "config/.env.sample", "app/.env.template"]) {
+	test("treats environment files as ordinary project files", () => {
+		for (const path of [".env", "app/.env.local", ".env.example"]) {
 			expect(reason("read", { path })).toBeUndefined();
+			expect(reason("edit", { path })).toBeUndefined();
 		}
-		expect(reason("read", { path: "app/.env.local" })).toContain(".env");
 	});
 
 	test("hard-deny paths remain blocked under every authority", () => {
@@ -148,7 +148,7 @@ describe("Pi permission policy", () => {
 				expect(reason(tool, { path: "~/.pi/agent/auth.json" }, "openai-codex", mode)).toContain("auth.json");
 			}
 		}
-		expect(reason("grep", { path: ".env" })).toContain(".env");
+		expect(reason("grep", { path: "config/secrets/token" })).toContain("secrets");
 	});
 
 	test("blocks email connectors for every authority and reserves other private connectors", () => {

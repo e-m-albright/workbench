@@ -109,10 +109,6 @@
     }
   ],
   "protectedReadPaths": [
-    ".env",
-    ".env.*",
-    "**/.env",
-    "**/.env.*",
     "**/secrets/**",
     "~/.ssh/**",
     "~/.gnupg/**",
@@ -130,10 +126,6 @@
     "~/Library/Keychains/**"
   ],
   "protectedWritePaths": [
-    ".env",
-    ".env.*",
-    "**/.env",
-    "**/.env.*",
     "**/secrets/**",
     "~/.ssh/**",
     "~/.gnupg/**",

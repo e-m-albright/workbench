@@ -116,16 +116,6 @@ def test_real_files_network_and_children(tmp_path, monkeypatch):
     (repo / ".env").write_text("synthetic-only")
     (repo / "nested").mkdir()
     (repo / "nested/.env.production").write_text("nested-synthetic")
-    for name in (".env.local", ".ENV.production", ".env.example.local"):
-        (repo / name).write_text("synthetic-only")
-    for name in (".env.example", ".env.sample", ".ENV.TEMPLATE"):
-        (repo / name).write_text("TEMPLATE=1")
-    (repo / "nested/.env.example").mkdir()
-    (repo / "nested/.env.example/.env.local").write_text("nested-synthetic")
-    for name in ("nested/.env.local/.env.example", "nested/.env/.env.template"):
-        path = repo / name
-        path.parent.mkdir(parents=True)
-        path.write_text("nested-synthetic")
     private = tmp_path / "private"
     private.write_text("outside-canary")
     (repo / "escape").symlink_to(private)
@@ -164,21 +154,10 @@ git status --short >/dev/null
 denied /bin/cat {shlex.quote(str(private))}
 denied /bin/cat escape
 denied /usr/bin/env -i /bin/bash -c "cat escape"
-denied /bin/cat .env
-denied /bin/bash -c 'echo overwritten > .env'
-denied /bin/bash -c 'echo appended >> .env'
-denied /bin/cat nested/.env.production
-denied /bin/cat .env.local
-denied /bin/cat .ENV.production
-denied /bin/cat .env.example.local
-denied /bin/cat nested/.env.example/.env.local
-denied /bin/cat nested/.env.local/.env.example
-denied /bin/cat nested/.env/.env.template
-for template in .env.example .env.sample .ENV.TEMPLATE; do
-  test "$(/bin/cat "$template")" = TEMPLATE=1
-done
-denied /bin/bash -c 'echo bad > nested/.env.production'
-denied /bin/bash -c 'echo bad > nested/.env.future'
+# Environment files are ordinary project files, so Git hooks can load them.
+test "$(/bin/cat .env)" = synthetic-only
+test "$(/bin/cat nested/.env.production)" = nested-synthetic
+echo created > nested/.env.future
 denied /bin/bash -c {shlex.quote("echo bad > " + shlex.quote(str(private)))}
 # Loopback is open to every session, including services the host already runs.
 /usr/bin/curl --noproxy '*' --max-time 2 -fsS http://127.0.0.1:{server.server_port}/loopback
@@ -198,9 +177,7 @@ echo CANARY-PASS
     assert result.returncode == 0, result.stdout + result.stderr
     assert "CANARY-PASS" in result.stdout
     assert private.read_text() == "outside-canary"
-    assert (repo / ".env").read_text() == "synthetic-only"
-    assert (repo / "nested/.env.production").read_text() == "nested-synthetic"
-    assert not (repo / "nested/.env.future").exists()
+    assert (repo / "nested/.env.future").read_text() == "created\n"
     assert (repo / "edited").read_text() == "edited\n"
     assert hits == ["/loopback"]
 
@@ -326,7 +303,7 @@ echo GATES-PASS
 
     # Names the runtime protects, as a project's own worktree may hold them.
     worktree = repo / ".claude/worktrees/topic"
-    for name in (".mcp.json", ".vscode/settings.json", ".claude/commands/x.md", ".env"):
+    for name in (".mcp.json", ".vscode/settings.json", ".claude/commands/x.md"):
         (worktree / name).parent.mkdir(parents=True, exist_ok=True)
         (worktree / name).write_text("synthetic")
     second = """
@@ -408,7 +385,6 @@ def test_managed_scratch_and_development_access_keep_denials(tmp_path):
         directory = home / name
         directory.mkdir(exist_ok=True)
         (directory / "transition.txt").write_text("scratch-input")
-        (directory / ".env").write_text("synthetic-secret")
         (directory / "confidential").mkdir(exist_ok=True)
         (directory / "confidential/private").write_text("synthetic-secret")
         scratch_checks += [
@@ -416,7 +392,6 @@ def test_managed_scratch_and_development_access_keep_denials(tmp_path):
             f'echo mapped-output > "$HOME/{name}/mapped.txt"',
             f'test "$(cat {shlex.quote(str(directory / "transition.txt"))})" = scratch-input',
             f"echo scratch-output > {shlex.quote(str(directory / 'transition.txt'))}",
-            f"denied cat {shlex.quote(str(directory / '.env'))}",
             f"denied cat {shlex.quote(str(directory / 'confidential/private'))}",
         ]
     (tmp_path / ".claude").mkdir()
