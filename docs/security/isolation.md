@@ -288,7 +288,10 @@ checkout path, and each value may contain:
   so `git push` and `gh` work without host credential helpers.
 - `aws`: one AWS profile. The supervisor writes that profile's short-lived keys
   into the session's own credentials file and refreshes them every five minutes.
-  The SSO cache never enters the session.
+  The SSO cache never enters the session. A launch without a valid SSO session
+  still starts; AWS calls report the `aws sso login` command until a sign-in on
+  the host is picked up by the next refresh. `ccs` runs that sign-in before
+  launching Claude Code when the session has expired.
 - `ports`: retired and ignored, since every session reaches loopback. Existing
   entries are still accepted.
 - `docker`: `true` admits the running engine's socket (Docker Desktop,

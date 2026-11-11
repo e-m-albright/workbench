@@ -149,6 +149,9 @@ cc() {
     fi
     "${cmd[@]}" "${args[@]}"
 }
+# ccs: cc that first signs in to the checkout's AWS profile on the host when its
+# SSO session has expired. Plain cc launches without AWS and names the sign-in.
+ccs() { WORKBENCH_AWS_SIGN_IN=1 cc "$@"; }
 # Retired compatibility entry point; never change authority implicitly.
 ccc() {
     echo "Chrome integration is unavailable in Workbench managed launches. Start claude --chrome explicitly from your host terminal." >&2

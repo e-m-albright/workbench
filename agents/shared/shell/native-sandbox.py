@@ -283,26 +283,37 @@ def repository_credentials(home: Path, grants: dict, run=subprocess.run) -> dict
     return issued
 
 
-def refresh_aws(
-    home: Path, agent_home: Path, profile: str, run=subprocess.run, *, launching=True
-) -> None:
-    """Write one profile's short-lived keys into the session's own credentials file.
-
-    A role assumed from an SSO session lasts at most an hour, so the supervisor
-    calls this again during the session; the host CLI reuses its cached keys
-    until they near expiry and re-assumes the role once SSO is valid again.
-    The SSO cache itself never enters the session.
-    """
-    # A role profile signs in through its source profile, so name that one.
+def aws_sign_in_profile(home: Path, profile: str, run=subprocess.run) -> str:
+    """A role profile signs in through its source profile, so name that one."""
     try:
-        source = host_output(
+        return host_output(
             home,
             [aws_command(), "configure", "get", "source_profile", "--profile", profile],
             "",
             run,
         )
     except ValueError:
-        source = profile
+        return profile
+
+
+def aws_sign_in(home: Path, profile: str, run=subprocess.run) -> None:
+    """Run the host's interactive SSO sign-in for a profile before launch."""
+    source = aws_sign_in_profile(home, profile, run)
+    env = {"HOME": str(home), "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"}
+    if run([aws_command(), "sso", "login", "--profile", source], env=env).returncode != 0:
+        raise ValueError(f"`aws sso login --profile {source}` did not complete")
+
+
+def refresh_aws(home: Path, agent_home: Path, profile: str, run=subprocess.run) -> bool:
+    """Write one profile's short-lived keys into the session's own credentials file.
+
+    A role assumed from an SSO session lasts at most an hour, so the supervisor
+    calls this again during the session; the host CLI reuses its cached keys
+    until they near expiry and re-assumes the role once SSO is valid again.
+    The SSO cache itself never enters the session. Without a session, the file
+    holds an error naming the sign-in and this returns False.
+    """
+    source = aws_sign_in_profile(home, profile, run)
     failure = f"AWS profile {profile!r} has no session; run `aws sso login --profile {source}`"
     command = [aws_command(), "configure", "export-credentials", "--profile", profile]
     try:
@@ -315,12 +326,13 @@ def refresh_aws(
         if keys.get("SessionToken"):
             lines.append(f"aws_session_token = {keys['SessionToken']}")
     except (ValueError, KeyError, TypeError):
-        if launching:
-            raise ValueError(failure) from None
         # Stale keys read as a bare ExpiredToken; this makes every AWS call name the sign-in.
         report = f"echo {shlex.quote(failure)} >&2; exit 1"
         lines = [f"[{profile}]", f"credential_process = {shlex.join(['/bin/sh', '-c', report])}"]
+        write_state_file(home, agent_home / ".aws/credentials", "\n".join(lines).encode() + b"\n")
+        return False
     write_state_file(home, agent_home / ".aws/credentials", "\n".join(lines).encode() + b"\n")
+    return True
 
 
 def docker_access(home: Path) -> dict:
@@ -1471,7 +1483,7 @@ def main() -> None:
     if sys.argv[1:2] == ["--refresh-aws"]:
         request = json.loads(sys.argv[2])
         home, agent_home = Path(request["home"]), Path(request["agent_home"])
-        refresh_aws(home, agent_home, request["profile"], launching=False)
+        refresh_aws(home, agent_home, request["profile"])
         return
     if sys.platform != "darwin":
         raise ValueError("The native boundary requires macOS")
@@ -1511,7 +1523,21 @@ def main() -> None:
             sync_codex_auth(home, Path(plan["auth_link"]["target"]))
         initialize_home(plan, home)
         if plan["aws_profile"]:
-            refresh_aws(home, Path(plan["env"]["HOME"]), plan["aws_profile"])
+            # AWS is optional for most sessions: launch anyway and name the sign-in.
+            # WORKBENCH_AWS_SIGN_IN (set by ccs) signs in on the host first when needed;
+            # the five-minute refresh picks up a sign-in made later from any terminal.
+            agent_home, profile = Path(plan["env"]["HOME"]), plan["aws_profile"]
+            fresh = refresh_aws(home, agent_home, profile)
+            if not fresh and os.environ.get("WORKBENCH_AWS_SIGN_IN") == "1":
+                aws_sign_in(home, profile)
+                fresh = refresh_aws(home, agent_home, profile)
+            if not fresh:
+                source = aws_sign_in_profile(home, profile)
+                print(
+                    f"native sandbox: AWS profile {profile!r} has no session; AWS calls will "
+                    f"fail until you run `aws sso login --profile {source}` (or launch with ccs)",
+                    file=sys.stderr,
+                )
             plan["aws_refresh"] = {
                 "home": str(home),
                 "agent_home": plan["env"]["HOME"],
