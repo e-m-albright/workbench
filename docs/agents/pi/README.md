@@ -192,7 +192,7 @@ extension trees are trusted code assets, not sanitized file collections.
 sign-in, `workbench native authorize pi --replace` backs up and replaces only
 Pi's managed login. Presence does not prove authentication.
 
-Machine-local exclusions, confidential directories, and real environment files
+Machine-local exclusions and confidential directories
 remain denied inside every admitted directory. The
 [launch design catalogue](../launch-design.md) compares all layers; the
 [security reference](../../security/isolation.md) owns exact access, accepted

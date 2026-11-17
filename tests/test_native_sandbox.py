@@ -614,7 +614,7 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
     assert answer.stdout == "username=x-access-token\npassword=synthetic-github-token\n"
 
     agent_home = home / ".local/share/workbench/agent-state/example/home"
-    launcher.refresh_aws(home, agent_home, "sandbox", run)
+    assert launcher.refresh_aws(home, agent_home, "sandbox", run)
     assert calls[-1][1:5] == ["configure", "export-credentials", "--profile", "sandbox"]
     written = agent_home / ".aws/credentials"
     assert written.read_text() == (
@@ -633,9 +633,7 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
     def expired(command, **kwargs):
         return subprocess.CompletedProcess(command, 255, "", "token expired")
 
-    with pytest.raises(ValueError, match="aws sso login --profile sandbox"):
-        launcher.refresh_aws(home, agent_home, "sandbox", expired)
-    launcher.refresh_aws(home, agent_home, "sandbox", expired, launching=False)
+    assert not launcher.refresh_aws(home, agent_home, "sandbox", expired)
     stale = written.read_text()
     assert "AKIASYNTHETIC" not in stale
     process = stale.split("credential_process = ", 1)[1].strip()
@@ -643,8 +641,20 @@ def test_repository_credentials_issue_only_the_checkouts_assignment(tmp_path):
     reported = subprocess.run(shlex.split(process), capture_output=True, text=True, check=False)
     assert reported.returncode == 1
     assert "run `aws sso login --profile sandbox`" in reported.stderr
-    launcher.refresh_aws(home, agent_home, "sandbox", run, launching=False)
+    assert launcher.refresh_aws(home, agent_home, "sandbox", run)
     assert "aws_access_key_id = AKIASYNTHETIC" in written.read_text()
+    signed_in = []
+
+    def sign_in(command, **kwargs):
+        signed_in.append(command)
+        if command[1:3] == ["configure", "get"]:
+            return subprocess.CompletedProcess(command, 0, "sso-source\n", "")
+        return subprocess.CompletedProcess(command, 0 if command[1:3] == ["sso", "login"] else 1)
+
+    launcher.aws_sign_in(home, "sandbox", sign_in)
+    assert signed_in[-1][1:] == ["sso", "login", "--profile", "sso-source"]
+    with pytest.raises(ValueError, match="aws sso login --profile sandbox"):
+        launcher.aws_sign_in(home, "sandbox", expired)
     for invalid in (
         {"docker": "yes"},
         {"paths": "~/code/sibling"},

@@ -1092,7 +1092,7 @@ js_repl = false
                 self.assertEqual(result.returncode, 2, result.stderr)
 
     def test_sensitive_guard_blocks_secret_files_case_insensitively(self) -> None:
-        for path in (".env", ".ENV", "conf/secrets.JSON", "id_ed25519", "api.KEY"):
+        for path in ("conf/secrets.JSON", "id_ed25519", "api.KEY"):
             with self.subTest(path=path):
                 result = self.run_hook(
                     "guard-sensitive-file.sh",
@@ -1102,8 +1102,8 @@ js_repl = false
                 self.assertEqual(result.returncode, 2, result.stderr)
                 self.assertIn("sensitive file", result.stderr)
 
-    def test_sensitive_guard_allows_templates_and_ordinary_files(self) -> None:
-        for path in (".env.example", "keys.pub", "src/main.py"):
+    def test_sensitive_guard_allows_environment_and_ordinary_files(self) -> None:
+        for path in (".env", ".ENV.local", ".env.example", "keys.pub", "src/main.py"):
             with self.subTest(path=path):
                 result = self.run_hook(
                     "guard-sensitive-file.sh",

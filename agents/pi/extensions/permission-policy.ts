@@ -43,10 +43,6 @@ export type LoadedPermissionPolicy = {
 };
 
 const SECRET_PATHS = [
-	".env",
-	".env.*",
-	"**/.env",
-	"**/.env.*",
 	"**/secrets/**",
 	"~/.ssh/**",
 	"~/.gnupg/**",
@@ -200,11 +196,6 @@ export function pathMatchesPolicy(
 	const patterns: { glob: string; regex: RegExp }[] = [];
 
 	for (const glob of protectedPathGlobs) {
-		if (
-			(glob === ".env.*" || glob === "**/.env.*") &&
-			/[\\/][.]env[.](?:example|sample|template)$/i.test(normalized)
-		)
-			continue;
 		const regex = globToRegExp(glob);
 		if (regex.test(normalized) || regex.test(relative)) return glob;
 		patterns.push({ glob, regex });
