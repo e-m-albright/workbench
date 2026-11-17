@@ -32,6 +32,7 @@ it does not imply a scheduled monitoring service.
 | Hindsight, Recall, OpenWiki, Graphify | Documented continuity or retrieval failures persist | [Memory](agents/memory.md) |
 | Serena, ast-grep, Mindwalk | Symbol navigation or structural edits become a measured bottleneck | [Code intelligence](agents/code-intelligence.md) |
 | Browserbase, Browser Use, Stagehand | A recurring browser workflow outgrows local browser tools | [Browser tooling](agents/browser.md) |
+| Cloudflare Kitesurf | Public JavaScript extraction makes browser resources or cloud concurrency a measured constraint, or persistent-session support materially improves; no adoption now | [Engine trade-offs and trial criteria](agents/browser.md#kitesurf-watch-not-adopted) |
 | VoiceInk, Handy, OpenWhispr | A concrete dictation or conversational workflow merits a local trial | [Voice interfaces](agents/voice.md) |
 | New models and managed agent APIs | A release changes capability, privacy, portability, or an execution boundary | [Providers](agents/models/providers.md), [inference](agents/models/inference.md), [platforms](agents/platforms.md) |
 

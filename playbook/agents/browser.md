@@ -113,6 +113,39 @@ const data = await stagehand.page.extract({ instruction: 'get the order total' }
 
 ---
 
+## Kitesurf: watch, not adopted
+
+Reviewed 2026-11-14. [Kitesurf](https://developers.cloudflare.com/browser-run/kitesurf/)
+is Cloudflare's experimental browser engine, not a replacement for Agent Browser's
+control interface. It executes JavaScript, builds the DOM and renders output
+without Chromium, and exposes the Chrome DevTools Protocol. Compatibility with
+Agent Browser's snapshots and actions still needs a measured trial. It was
+[open-sourced](https://blog.cloudflare.com/kitesurf-open-source/) on November 13
+under Apache 2.0; [self-hosting](https://github.com/cloudflare/kitesurf) on Workers
+requires a paid plan and an authentication layer.
+
+Its prospective advantage is lower-resource, disposable execution on Workers,
+not a new class of browser task or an established latency or token improvement.
+Cloudflare's 14-URL benchmark reports 3–7 times lower CPU or memory use, but
+1.7–1.8 times slower wall time than warm Chromium. These are vendor measurements,
+not results from this stack. Current documented limitations include persistent
+authenticated sessions, bot-challenge handshakes, video and WebGL; rendering is
+not pixel-perfect.
+
+Keep it on watch until recurring public, JavaScript-dependent extraction makes
+browser resources or cloud concurrency a measured constraint, or documented
+session support materially improves. Compare extraction correctness, CDP snapshot
+and action compatibility, latency and resources against headless Chromium and a
+direct text reader. Signed-in shopping carts and other authenticated portal
+workflows are not the first trial. No installation, deployment or standing MCP
+server is warranted now.
+
+Avoid conflating invisible operation with a lighter engine: headless Chromium
+already avoids desktop windows. Prefer headless execution where the owning
+workflow permits and verifies it; explicit visual inspection and manual login
+remain separate choices. Do not use another engine to bypass a provider's
+security challenge.
+
 ## Production browser criteria
 
 Cloudflare Browser Run packages several capabilities that matter when browser automation becomes a maintained service: live inspection, human takeover and handback, direct Chrome DevTools Protocol access, session recordings, console and network evidence, and resumable sessions. These are useful requirements, not a present adoption case. The local stack already provides supervised browser visibility and diagnostics without another hosted control plane.
