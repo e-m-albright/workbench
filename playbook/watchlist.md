@@ -10,6 +10,7 @@ it does not imply a scheduled monitoring service.
 | Question or candidates | Revisit when | Evidence and comparison |
 | --- | --- | --- |
 | Docker Agent | Repeated agent setup or distribution work merits comparison with an application-owned framework | [Declarative packaging](agents/frameworks.md#declarative-agent-packaging) |
+| gVisor | A Linux execution service needs disposable agent sandboxes or measured density gains; test compatibility, containment, egress, and host resource limits against containers and microVMs | [Application-kernel isolation](agents/security.md#gvisor-linux-application-kernel-isolation) |
 | Strands Box and Dogwood | A concrete execution path needs non-bypassable operation-level policy; verify preview compatibility and policy completeness | [Semantic policy](agents/security.md#strands-box-containment-with-semantic-policy) |
 | Notion shared context and skill distribution | Multiple assistant hosts need reviewed shared guidance; verify revision delivery, permission behavior, and revocation | [Shared context](agents/memory.md#shared-context-and-portable-skills) |
 | Composio, Arcade, Klavis, Metorial | Several assistant clients need the same delegated tool access | [Integrations](agents/integrations.md) |
@@ -53,6 +54,7 @@ it does not imply a scheduled monitoring service.
 | Bun ecosystem | A release removes meaningful tools, configuration, or recurring work; require matching-version checker parity and representative compatibility checks before adoption | [Bun watch criteria](languages/typescript/runtimes.md#bun-watch-criteria), [releases](https://bun.com/blog) |
 | Deno ecosystem and maintained successors | Integrated tooling removes meaningful work and a credible ongoing release and security-response commitment resolves the maintenance concern | [Deno watch criteria](languages/typescript/runtimes.md#deno-watch-criteria), [releases](https://github.com/denoland/deno/releases) |
 | Node + Vite+, Nub | Demonstrated configuration or tool removal while retaining framework coverage | [Runtime consolidation](languages/typescript/runtimes.md) |
+| Topcoat | A new Rust application could remove a separate frontend build and API layer; verify experimental API stability, authentication, jobs, migrations, and deployment with one complete feature | [Rust framework watch](languages/rust/README.md#topcoat-full-stack-web-framework-watch) |
 | Solid / SolidStart | A complete interactive feature can test authoring clarity and operational fit; first alternative to Svelte/SvelteKit | [Framework comparison](languages/typescript/frameworks/solid.md) |
 
 ## Systems and product

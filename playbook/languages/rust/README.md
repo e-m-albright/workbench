@@ -72,6 +72,16 @@ Do not introduce a shared core merely because several languages exist. Start whe
 
 Source: Spencer Judge, [Rust at the Core: Scaling Polyglot SDKs with a Shared Engine](https://www.infoq.com/presentations/rust-polyglot-sdk/), QCon San Francisco 2025 / InfoQ 2026.
 
+### Topcoat: full-stack web framework watch
+
+Reviewed 2026-11-17. [Topcoat](https://github.com/tokio-rs/topcoat/) is a modular Rust web framework under the Tokio project. Its primary README explicitly calls it early-stage and experimental, with breaking changes expected. It combines server-rendered HTML, async components, module-based routing, asset handling, Tailwind integration without Node, and editable components copied into the application.
+
+The distinctive mechanism is `$(...)`: supported, type-checked Rust expressions run for the initial server render and are translated to JavaScript for browser reactivity, without a WebAssembly bundle. A `#[shard]` component can instead re-render on the server when its inputs change. This is worth comparing with server-driven HTML approaches for ordinary database applications, not treating as evidence that arbitrary Rust compiles to JavaScript or that rich client applications need no separate frontend.
+
+**Watch, not adopted.** Revisit for a new application already committed to Rust where eliminating a separate frontend build and API layer could remove substantial work. Keep Axum as the current Rust web default and do not migrate working applications for language uniformity. Trial one authenticated, database-backed feature with validation, an interactive update, accessibility checks, tests, and deployment. Compare total application code, build and reload time, debugging, security, operational work, and migration burden against Axum with the existing frontend stack. Verify authentication, jobs, database migrations, and deployment maturity at the chosen release: the current README documents sessions while still listing broader authentication, background jobs, and deployment documentation as roadmap work.
+
+Source: Daniel Curtis, [Tokio Releases Topcoat: a Batteries-Included Full-Stack Rust Framework](https://www.infoq.com/news/2026/11/topcoat-rust-framework/), 2026-11-09; checked against the primary README above. The article's v0.9 snapshot and feature roadmap are not a current release contract.
+
 ### Testing & quality
 
 | Need | Pick | Avoid | Notes |

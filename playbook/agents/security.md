@@ -186,6 +186,14 @@ The [experiment record](../../docs/experiments.md) owns activation and removal.
 No infrastructure, credentials, or external execution is authorized merely by
 recording this exploration.
 
+## gVisor: Linux application-kernel isolation
+
+Reviewed 2026-11-17. [gVisor](https://gvisor.dev/) supplies an application kernel in userspace rather than a full guest operating system or only a system-call filter. Its Sentry implements Linux interfaces and services workload system calls through a restricted host-facing implementation. The `runsc` container runtime integrates with Docker, containerd, and Kubernetes. This makes it a candidate for running untrusted agent-generated code on Linux without provisioning a separate virtual machine for every job; it is not a native replacement for the current macOS boundary.
+
+**Read in full:** [Introduction to gVisor security](https://gvisor.dev/docs/architecture_guide/intro/). The useful distinction is reducing direct exposure to the host kernel, not making permitted activity safe. The documentation explicitly excludes attacks above the runtime, CPU side channels, and compromise of applications or data already accessible inside the sandbox. Credential brokering, network policy, least-privilege mounts, separate tenant sandboxes, and application authorization remain separate requirements. Its convenience `runsc do` command exposes the host filesystem read-only by default; do not mistake that example for a restricted production profile.
+
+**Watch, not adopted.** Revisit when a real Linux execution service needs disposable agent sandboxes or measured density improvements over virtual machines. Compare one representative job with ordinary containers and a microVM: test denied host access, egress and credential handling, syscall compatibility, resource limits, startup latency, I/O throughput, recovery, and cleanup. Use host cgroups for resource limits; the [compatibility guide](https://gvisor.dev/docs/user_guide/compatibility/) warns that limits between processes inside a sandbox are not enforced and documents incomplete kernel features. Homepage density, startup, and accelerator-performance claims are not local measurements or proof of equivalence to hardware virtualization.
+
 ## Strands Box: containment with semantic policy
 
 In [Strands Box: The Big Picture](https://strandsagents.com/blog/strands-box-the-big-picture/), Marc Brooker describes an operating-system sandbox that forces agent interactions through a separate policy layer. Dogwood policies can inspect tool meaning and prior events, rather than only filesystem paths and network destinations. The announced design covers shell, Python, Model Context Protocol tools, files, and network access; it is a developer preview as of October 17, 2026.
