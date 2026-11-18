@@ -17,6 +17,12 @@ component grammar. A useful zero-to-one trial supplies only the product brief,
 representative synthetic data, required states, accessibility constraints, and
 the emotional job of the interface.
 
+## Anatomy: interactive explanation, not evidence of physical truth
+
+[AI Just Made Physics Interactive. This Is Insane. (Anatomy)](https://www.youtube.com/watch?v=lyGYidIZK4I), Better Stack, 2026-10-21, demonstrates a skill for generating interactive mechanism explainers. Its description links the [Anatomy repository](https://github.com/wheresryan22/anatomy) and [documentation](https://skills.wheresryan.sh/anatomy). The transcript describes a pure behavioral model before rendering, live readouts, and standalone HTML/SVG or React output; those implementation claims have not been independently audited here (reviewed 2026-11-17).
+
+**Watch for one explanation that genuinely benefits from interaction**, such as queue saturation or connection pooling. Compare with plain prose, a small diagram, and a minimal deterministic demo. Verify the underlying equations and state transitions before inspecting geometry, include an accessible text explanation, and set a hard time/token budget. The video's own cautions include long, highly variable generation time, expensive retries, and visual self-checks that do not establish factual correctness. Do not install globally or commission an elaborate simulation merely to decorate a document. An invented physical analogy may teach the wrong mechanism even when it looks convincing.
+
 ## Early hands-on aesthetic signal
 
 Owner-reported on 2026-08-28, based only on initial design instinct and perceived

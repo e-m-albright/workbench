@@ -35,6 +35,21 @@ band. Free user authentication does not make enterprise connections free. FGA
 pricing was not established by that page; confirm the complete quote, service
 commitments, and export terms before a trial.
 
+## WorkOS: from sign-in APIs toward governed agent access
+
+Reviewed 2026-11-17. WorkOS is extending its enterprise identity foundation into agent registration, delegated API access, managed connections, authenticated browsers, and hosting for internal apps. These are distinct maturity levels, not one generally available agent platform:
+
+| Surface | Evidence and availability | Useful boundary |
+| --- | --- | --- |
+| [Agent Registration](https://workos.com/docs/authkit/agent-auth) | Documentation says generally available; agents register, bind to a user through a claim ceremony, and exchange assertions for credentials | Separate agent registration from user consent and application permissions. Anonymous registration must remain restricted; it is not authority to access shared business data. |
+| [Connect token exchange](https://workos.com/blog/mcp-server-call-api-on-behalf-of-user) | Documented RFC 8693 flow, 2026-11-17; environment enablement is required | Issue a downstream-audience token, narrow scopes, preserve user/organization, and record the acting application. Verify signature, issuer, audience, actor, and operation scope at the API. Offline JWT verification alone does not establish immediate revocation. |
+| [Agent Vault](https://workos.com/blog/agent-vault) | Announcement, 2026-11-17; access enabled by WorkOS, explicitly not generally available | Saved passwords stay out of agent prompts while a hosted or self-hosted browser receives an authenticated session. User takeover handles sign-in steps. WorkOS still stores logins when the browser is self-hosted. |
+| [Atlas](https://workos.com/blog/atlas-apps) | Announcement, 2026-11-16; early access, teams onboarded individually | Hosting, company sign-in, centrally approved connections, app ownership, access management, and activity logs for agent-built internal apps. Not proof that generated business logic is safe. |
+
+**Useful:** evaluate a delegated identity/connection primitive when a customer needs it rather than implementing an authorization server or passing broad user tokens between services. Atlas may remove repeated internal-app deployment work in a multi-user organization. Agent Vault is a candidate only for a real browser-only integration that cannot use a supported API.
+
+**Foolhardy:** move ordinary local tools onto Atlas just to centralize them, upload browser credentials to a new vendor for convenience, or confuse a hidden password with limited authority. A signed-in browser can still perform consequential actions. Verify tenant isolation, source-side permissions, exact-action approval, revocation of existing sessions, retention, export, availability, and pricing. Keep the [application-owned business boundary](../agents/integrations.md#direct-agent-integrations-and-application-owned-boundaries) independent of whichever identity or hosting vendor is selected.
+
 ## Smallest useful evaluation
 
 Use synthetic users in two tenants and one resource hierarchy. Test a permitted

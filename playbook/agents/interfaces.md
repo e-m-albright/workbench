@@ -89,6 +89,14 @@ Measure correct completion, human corrections, accessibility, latency, total cos
 
 The supplied [MarkTechPost article, Vercel Releases UI SDK: 50+ UI Behaviors for AI Coding Agents](https://www.marktechpost.com/2026/11/13/vercel-ui-sdk-agent-ui-behaviors/?amp=1), 2026-11-13, reports a runtime agent bridge and a vendor benchmark with 69% fewer tool calls and 61% lower task time. It discloses one task, three runs, a different baseline component library, and an unspecified Sonnet version. The primary site also advertises speed and cost gains, but neither establishes a general performance improvement. Bridge authorization and benchmark details need direct inspection before a trial.
 
+### OpenUI: compare representation separately from the gateway
+
+[OpenUI](https://www.openui.com/), reviewed 2026-11-17, is Thesys's generative-interface project, not Vercel UI SDK. Its OpenUI Lang is a compact streaming component-description language rather than JSON; its site lists renderers including Svelte and permits registered design-system components. Its commercial Gateway separately repairs invalid streamed output and routes requests through provider infrastructure. An open renderer does not require buying a model gateway.
+
+The site advertises up to three times faster generation and 67% fewer tokens, but its more specific FAQ reports a 46-interface comparison averaging 1,362 output tokens per screen, 58% fewer than json-render and 52% fewer than A2UI. Those are vendor format benchmarks, not measured complete-task savings, accessibility, or semantic correctness. Repairing syntax cannot establish that a chart's data or a proposed action is correct.
+
+**Watch alongside A2UI** for a real dynamic comparison/approval screen. Compare representation size, first useful render, invalid-output and repair rates, user corrections, accessibility, total cost, and maintenance using the same component catalogue and task. Keep source permission checks and mutation authorization on the server. Do not add a gateway, observability service, and new UI language simply because a demo renders attractive cards.
+
 ## Interface and execution research sources
 
 ### Vercel

@@ -66,6 +66,12 @@ The newer evidence confirms the review-capacity problem but does not prove that 
 | [Intercom](https://www.intercom.com/blog/ai-is-approving-our-pull-requests-heres-how-we-made-it-safe/) | The system decomposes review into specialist agents, rejects large changes, records an audit trail, retains a human owner for production observation and rollback, and currently auto-approves about 19% of pull requests. | Its much lower revert rate for AI-authored code is strongly confounded by risk selection, change size, and workflow differences. It does not establish that AI authorship is safer. |
 | [AI-generated PR review study](https://arxiv.org/html/2605.02273v1) | In the studied open-source dataset, AI-authored pull requests were often unreviewed or reviewed only by agents. The work shows that comment counts and nominal review presence no longer demonstrate human oversight. | The paper measures interaction patterns, not review quality or post-merge outcomes, and cannot observe silent human review. |
 
+## Entire Trails: preserve intent without outsourcing acceptance
+
+The New Stack's [Ex-GitHub CEO launches a GitHub rival that reinvents the pull request](https://thenewstack.io/entire-trails-agentic-code-review/), 2026-10-26, reports Entire's private Git hosting, Trails evaluations on every push, and Continuous Memory over agent sessions. Public repositories and self-hosted nodes were roadmap items in that launch account; hosting speed and commercial claims were not independently tested here. Trails combines original intent, session decisions, code, and model-scored evaluations rather than only a diff.
+
+**Useful:** preserve accepted and rejected decisions, show evidence next to the changed contract, and rerun checks on each revision. These ideas can improve existing review without changing forge. **Foolhardy:** interpret a green agent confidence score as proof of correctness, upload whole session histories without a release/privacy review, or migrate Git and CI to obtain a review dashboard. A review model remains fallible and can share the implementer's assumptions. Keep deterministic gates, inspectable source, risk-based human authorization, and actual post-release outcomes. Compare Entire only for a measured review/hosting gap, including privacy, export, current public-repository support, and CI migration costs.
+
 ## A Review-Capacity Operating Model
 
 Treat review as a scarce-attention allocation system rather than a ceremonial approval step:
@@ -133,6 +139,8 @@ A diagram or semantic diff can reduce how much code a person must read, but it c
 
 - [Archify](https://github.com/tt-a1i/archify) documents interactive architecture maps, source evidence pinned to a commit, and comparisons between architecture revisions. Its Workbench integration was retired because use did not justify maintenance, but the tool remains worth watching for explanations grounded in source code. Ordinary diagrams can use Mermaid; adoption needs a recurring understanding task that benefits from Archify's interactions.
 - [Whiteboard](https://github.com/devdotfast/whiteboard) documents a desktop review canvas with diagrams linked to code, decision traces, and semantic diffs based on syntax trees. Its [agent connection](https://dev.fast/docs/) uses MCP. Watch it for understanding an agent's implementation and reviewing architecture or specification changes alongside the source.
+
+The [Whiteboard product page](https://dev.fast/), re-read 2026-11-17, confirms a beta desktop canvas, source-linked diagrams, syntax-aware diffs, and agent-decision traces; hosted Whiteboard is still marked coming soon. It is already in this watch, not a newly discovered dependency.
 
 Revisit when a substantial change is difficult to understand from the ordinary diff. Compare one fixed revision with the current Git and Mermaid workflow. Check whether the tool helps answer questions about changed contracts, data flow, authority, and failure paths; record missing or incorrect claims, review time, and setup effort. Require direct access to the underlying source and expand folded tests, documentation, and pseudocode before accepting consequential claims. A trial should justify its ongoing maintenance before either tool becomes part of the default setup.
 

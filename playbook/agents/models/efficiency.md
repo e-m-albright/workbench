@@ -78,6 +78,32 @@ The useful practice is model-independent: specify the finished artifact, evidenc
 
 For a bounded trial, compare a research memo, a spreadsheet analysis, and a source-to-deck transformation against the current route. Start Opus 5.5 at its documented medium effort; increase effort or model capability only when observed failures warrant it. Drop redundant exhortations to think harder, but retain concrete verification requirements. Measure time to an accepted artifact, factual errors, human edits, total cost or quota, and retries across repeated paired runs. Do not change global routing from a vendor demonstration alone.
 
+## Broad optimization: identify which cost actually moves
+
+Treat optimization as several distinct interventions, not one token-saving score:
+
+| Layer | Remove or shorten | Measure and protect |
+| --- | --- | --- |
+| Work selection | Redundant tasks, retries, duplicate retrieval, unnecessary agents | Accepted outcomes and missed work, not activity counts |
+| Model requests | Sequential tool round trips and needless polling | End-to-end latency, error recovery, approval boundaries |
+| Context | Irrelevant results, eager schemas, repeated history | Source fidelity, recovery reads, billed input classes |
+| Prompt cache | Early-prefix churn and needless provider changes | Token-weighted cache hits, writes, reads, routing affinity |
+| Framework | Copies, serialization, imports, repeated setup | Whole-path latency, compatibility, retained memory |
+| Model and effort | Overpowered routes and excessive reasoning | Paired quality, total bill or quota, failures and tail latency |
+| Verification | Duplicate checks and slow feedback | Escaped defects, full-gate coverage, proof tied to final revision |
+
+Optimize the layer that dominates a representative trace. A 40% reduction in a stage that occupies 5% of runtime saves at most 2% overall before interactions. Preserve behavior and verify the whole path, including the work deferred to later steps. [Google's ADK case](../../engineering/performance.md#agent-led-performance-work-on-an-existing-codebase) provides unusually useful accepted and rejected examples.
+
+### Factory measurements and their limits
+
+Factory's [Droid 1.0: Building a Frontier Harness](https://factory.com/news/frontier-harness), reviewed 2026-11-17, reports 15% lower Opus 5.5 task cost from Script mode, 37% fewer startup tokens between two releases, and high prompt reuse. The startup comparison uses different model tokenizers; its character reduction is 35%. Reported typical per-request cache reuse is 98%, but token-weighted reuse is 91.5%. Neither is a universal savings rate. Its dramatic bulk-operation examples compare real Scripts with modeled direct-call baselines, not paired production runs.
+
+The head-to-head evaluation pins competitor versions, uses Terminal-Bench 4 and three trials per task, and measures cost/time on tasks both compared harnesses passed in every trial. That matched-success subset does not measure the entire workload's expected cost, including failures. Opus moderation-blocked trials were rerun on the prior Opus model; Devin question-stops received imputed successes when Codex passed. These qualifications matter when reading accuracy rankings. Droid was cheaper but 10% slower than Codex on the reported GPT-6.1 Sol comparison. Do not equate token efficiency with latency, general accuracy, or subscription savings.
+
+Factory also reports a useful failed generalization: adding line numbers to every read reduced cost on one Opus task but increased cost on other model families, so line numbers became opt-in. Test each mechanism across the actual models and tools used here, with source correctness and recovery included. Reuse programmatic composition already available in the supported tools before adding a new harness or router.
+
+The supplied VentureBeat article, [A coding agent's harness can triple its cost without making it more accurate, study finds](https://venturebeat.com/orchestration/a-coding-agents-harness-can-triple-its-cost-without-making-it-more-accurate-study-finds), returned HTTP 429 during the 2026-11-17 review. Its study, methods, and headline magnitude were not verified and are not adopted as evidence. The paired evaluation procedure below remains the decision rule.
+
 ## Evaluating token-saving claims
 
 Use this ladder for tools such as prompt compressors, terse-output skills, shell

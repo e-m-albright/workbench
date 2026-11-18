@@ -40,6 +40,26 @@ No general gate can establish absolute correctness for an open-ended application
 
 People should review the specification, architecture, threat model, evidence quality, and residual risk rather than every implementation line. Keep human authorization for novel architecture and consequential changes until a narrowly defined class has passed an advisory period with measured false negatives and safe production outcomes. An AI reviewer can discover hypotheses and propose tests; it cannot certify its own implementation.
 
+### Formal verification: stronger claims need narrower specifications
+
+**Read in full:** Anthropic and Theorem, [LLMs are making formal software verification feasible at a much larger scale](https://www.anthropic.com/research/formal-verification), 2026-10-22, reviewed 2026-11-17. The reported result is 239 fuzz entry points across 123 libraries, with machine-checked Rocq proofs over compiled code. The main experiment proves no modeled crash, including instrumented assertions, for inputs below 64 MB under a single-threaded static RISC-V/Linux model and fixed memory budget. It is not proof that all library behavior, callers, concurrency, deployed architectures, or security properties are correct.
+
+The useful mechanism is an independently checkable proof of an explicit property: the model writes proof code, while a small trusted checker verifies it. Human review moves to the theorem statement, machine/OS semantics, trusted components, exact binary, and whether the property addresses the real risk. Some fuzz assertions encode meaningful higher-level properties such as encode/decode round-tripping; preserving those properties matters more than counting proof lines. Patches discovered during proof search also need review because the proved artifact may differ from the original library.
+
+**Watch for consequential cores and dependencies**, not a whole-application verification rewrite. Start with one precise authorization, state-transition, parsing, or numerical invariant using the native language's available tools. Require reproducible proof checking and a documented assumption boundary. The article reports very large token budgets and experimental reuse gains; it does not establish affordable routine verification for this stack. Retain tests, fuzzing, runtime checks, and human judgment outside the proved scope.
+
+### Verification capacity limits useful concurrency
+
+Arjun Iyer's Signadot-sponsored articles, [Building an agentic software factory? Start with the sensor](https://thenewstack.io/agentic-software-factory-sensor/), 2026-10-24, and [Agents have made CI the bottleneck. Faster pipelines are the wrong fix](https://thenewstack.io/ci-bottleneck-agent-verification/), 2026-10-04, frame verification through feedback latency, fidelity to deployed behavior, and concurrent capacity. Useful measures are time from a ready change to attributable evidence, escaped failures, and how many isolated checks can run without interference. Increasing agent count before improving those measures can increase queueing and rework rather than accepted throughput.
+
+The sponsored framing overstates the contrast: CI can run integration and contract tests, and faster pipelines are not inherently the wrong fix. Shared-cluster request routing is one deployment technique, not proof of data, queue, or external-effect isolation. Keep the existing local/CI path for small applications. Consider shared-environment tooling only for demonstrated cross-service failures and test capacity, with isolated writable resources and denied production effects.
+
+### Enterprise process evidence is not an agent-count recipe
+
+In [17 agents, one SDLC: How Levi Strauss reimagined development on GitHub](https://www.youtube.com/watch?v=-GpxKKgoWWg), GitHub, 2026-11-08, Jenny Patchen describes mapping waits and handoffs before introducing specialized agents, human approval of specifications and final changes, reusable repository standards, and checks through the same CI path. The transcript explicitly says not all 17 specialists run every time. At 27:32–28:06 she describes write conflicts and the later move to parallel reviewer comments followed by one fixing agent.
+
+Borrow that separation of parallel diagnosis from coordinated mutation and the trigger/input/output/handoff contract for each role. Do not copy a 17-agent organization chart or treat the reported nine-month versus two-and-a-half-month projects as a controlled productivity experiment. The vendor-hosted customer talk does not isolate agent effects from scope, process redesign, staffing, or learning. Rerun affected checks on the final revision after any fixer; a security review performed before a later write is stale.
+
 ### Assessment evidence envelope
 
 Bind a persisted review to its scope, base and reviewed revision, dirty-tree state,

@@ -186,6 +186,14 @@ The [experiment record](../../docs/experiments.md) owns activation and removal.
 No infrastructure, credentials, or external execution is authorized merely by
 recording this exploration.
 
+## Uber: authorization and intent review answer different questions
+
+Uber's [Securing AI Agents: Lessons From Real-World Deployment](https://www.uber.com/us/en/blog/securing-ai-agents/), 2026-11-06, reviewed 2026-11-17, describes agent registration and ownership, tool/supply-chain review, runtime policy enforcement, and replay-based assurance. Its important distinction is between a permitted API operation and an operation justified by the actual user request. Prompt provenance and evidence chaining try to connect proposed privileged actions back to that request instead of classifying each call in isolation.
+
+Uber uses small specialized local models, parallel evaluation, and per-agent calibration to limit review latency and false blocks. That is an optimization of contextual review, not a deterministic proof of intent or complete prompt-injection protection. Its own account names integration depth, cost, calibration, and bypass incentives as operating problems. Retain hard execution, credential, network, and source-authorization boundaries underneath semantic checks; verify coverage of alternate client and tool paths.
+
+Useful here: trace actor, source, proposed effect, policy decision, and actual result together; minimize sensitive trace contents and set retention and access rules. Revisit a semantic decision service only for a specific observed failure that existing deterministic controls cannot express. Do not add an agent registry, model guardrail fleet, or broad transcript retention just to imitate a large enterprise. This is first-party architecture evidence, not a security audit of Uber or a shipped reusable dependency.
+
 ## gVisor: Linux application-kernel isolation
 
 Reviewed 2026-11-17. [gVisor](https://gvisor.dev/) supplies an application kernel in userspace rather than a full guest operating system or only a system-call filter. Its Sentry implements Linux interfaces and services workload system calls through a restricted host-facing implementation. The `runsc` container runtime integrates with Docker, containerd, and Kubernetes. This makes it a candidate for running untrusted agent-generated code on Linux without provisioning a separate virtual machine for every job; it is not a native replacement for the current macOS boundary.

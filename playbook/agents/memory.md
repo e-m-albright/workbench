@@ -16,6 +16,12 @@ doing that we should internalize — not whether to replace what works.
 
 ---
 
+## Small retrieval maps before another memory system
+
+Mahnoor Faisal's [I made Claude Code build a map of my files, and it cut search times by 96%](https://www.xda-developers.com/made-claude-code-build-map-of-my-files/), 2026-10-18, describes seven README files with natural-language descriptions and verified links. The transferable technique is a small routing map for non-obvious contents, followed by verification against the actual file. A hand-curated directory contract can serve this purpose without an embedding system or another knowledge graph.
+
+The headline comes from a file lookup taking 9 rather than 260 seconds in the author's comparison, not a representative search benchmark. Index construction, freshness, and disclosure costs must also count. Do not launch a home-directory crawl or copy private file descriptions into public instructions. Start with an approved bounded folder and several fixed retrieval questions only when existing search repeatedly misses. Keep one canonical description and invalidate stale pointers rather than generating an index for every directory. Existing repository instructions and subject navigation are the baseline here; no new indexing system is adopted (reviewed 2026-11-17).
+
 ## The anchor: Graphify
 
 [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) — turn a
