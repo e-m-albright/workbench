@@ -6,6 +6,10 @@ Private client applications, relationships, commitments, and personal reference
 lists stay with their private owner. Keep reusable evidence here and link to it
 from private applications rather than maintaining competing technical syntheses.
 Browse the directories or search their filenames; there is no document register.
+Keep original reading links beside the conclusions they support, with the source
+title, review date, and a short reason to revisit. Mark a particularly useful
+source **Read in full** in its subject page. A synthesis is not a replacement
+for the source; do not create a separate bookmark queue or duplicate summary.
 
 - [Agents](agents/README.md): models, harnesses, orchestration, tools, integration,
   memory, evaluation, and the authority of agents.

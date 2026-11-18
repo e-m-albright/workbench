@@ -70,6 +70,25 @@ Adopt an agent UI protocol only when custom streaming and state synchronization 
 
 For a TypeScript frontend and Python service, one generated event schema can keep the wire contract aligned. The durable domain commands beneath it should remain independent of AG-UI so a web app, an assistant client, and a deterministic job all exercise the same policy.
 
+## Generated interfaces and agent-operated controls
+
+Reviewed 2026-11-17. Two developments address different jobs:
+
+- **Vercel UI SDK** provides reusable interaction behaviors such as focus, selection, popup dismissal, and keyboard navigation, with framework adapters including Svelte. A coding agent composes these into components. This is not Vercel AI SDK, the model-integration library. The [project site](https://ui-sdk.dev/) and [repository](https://github.com/vercel-labs/ui) confirm the behavior-first approach and beta status.
+- **Google A2UI** lets an agent describe an interface that the host renders with registered components. Google's [A2UI 1.0 announcement](https://developers.googleblog.com/a2ui-10-build-delightful-fast-reliable-agentic-experiences/), 2026-11-11, describes bidirectional function calls, server-side data binding, accessibility support, and renderers across web and mobile. Protocol stability does not imply renderer parity: the announcement still lists Android's Jetpack Compose renderer and Gemini host support on earlier versions.
+
+The distinction is between building controls and describing a screen at runtime. AG-UI supplies an interaction event contract; MCP Apps can host an interactive surface inside an assistant; semantic browser actions let agents operate a page. These layers can coexist, but a single workflow rarely needs all of them.
+
+### Strategy and smallest useful evaluation
+
+Keep domain commands stable beneath every interface. Let agents propose views and edits while deterministic application code validates data, permissions, and effects. For example, an agent can assemble an account-review card with evidence and proposed changes; the user edits it, and the server verifies the approved values and current record version before applying them.
+
+Start with one real comparison or approval task that is awkward in chat. Build it with the existing components first. Evaluate A2UI only if repeated dynamic-screen work or delivery across several assistant hosts justifies a protocol. Evaluate UI SDK only if an existing component cannot satisfy the required interaction or semantic operation. Do not replace a working component library because a beta targets coding agents.
+
+Measure correct completion, human corrections, accessibility, latency, total cost, and maintenance against the existing interface. Verify keyboard and screen-reader behavior rather than inferring accessibility from primitives. Keep component descriptions and page-declared actions untrusted; client-side action filters cannot substitute for server authorization. Server-side binding can reduce model exposure, but the rendered screen and tool responses must also respect access controls.
+
+The supplied [MarkTechPost article, Vercel Releases UI SDK: 50+ UI Behaviors for AI Coding Agents](https://www.marktechpost.com/2026/11/13/vercel-ui-sdk-agent-ui-behaviors/?amp=1), 2026-11-13, reports a runtime agent bridge and a vendor benchmark with 69% fewer tool calls and 61% lower task time. It discloses one task, three runs, a different baseline component library, and an unspecified Sonnet version. The primary site also advertises speed and cost gains, but neither establishes a general performance improvement. Bridge authorization and benchmark details need direct inspection before a trial.
+
 ## Interface and execution research sources
 
 ### Vercel

@@ -70,6 +70,14 @@ For a high-volume typed decision, compare [Jev](https://typesafe.ai/blog/introdu
 
 Effort controls also belong in a paired task benchmark. [Anthropic's effort documentation](https://platform.claude.com/docs/en/build-with-claude/effort) makes medium the Opus 5.5 default and says supported per-message effort changes can preserve prompt caching, while a changed top-level setting may invalidate it. Verify the client request shape and actual cache charges before treating that as a general optimization.
 
+## Knowledge work: optimize the accepted deliverable
+
+Anthropic's [Using Claude Opus 5.5 as your daily driver for knowledge work](https://claude.com/resources/articles/using-claude-opus-5-5-as-your-daily-driver-for-knowledge-work), 2026-11-12, argues that a higher-priced model can cost less per finished task by needing fewer turns and corrections. Its internal merger-analysis example reports 63 rather than 93 minutes at half the cost of the prior Opus model; its research test reports 16 of 18 reports passed an automated check that rejected any invented figure or quote. These are vendor examples, not independent comparisons or evidence that every task should use Opus.
+
+The useful practice is model-independent: specify the finished artifact, evidence requirements, house style, and stop boundaries at the start. Ask for the deliverable rather than serial outlines. Supply approved source files, including original charts when visual extraction matters, without expanding connector access merely for convenience. Require traceable figures and check calculations independently; a polished file can conceal errors.
+
+For a bounded trial, compare a research memo, a spreadsheet analysis, and a source-to-deck transformation against the current route. Start Opus 5.5 at its documented medium effort; increase effort or model capability only when observed failures warrant it. Drop redundant exhortations to think harder, but retain concrete verification requirements. Measure time to an accepted artifact, factual errors, human edits, total cost or quota, and retries across repeated paired runs. Do not change global routing from a vendor demonstration alone.
+
 ## Evaluating token-saving claims
 
 Use this ladder for tools such as prompt compressors, terse-output skills, shell

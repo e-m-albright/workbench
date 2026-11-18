@@ -8,6 +8,24 @@ The practical ceiling on autonomy is set by sandboxing, permission scope, verifi
 
 OpenAI's Windows sandbox illustrates why containment is a composition problem rather than a single switch. Its unelevated path combines a synthetic security identifier, access-control lists, write-restricted tokens, and explicit protection for repository metadata. Its elevated path uses separate local accounts for networked and offline work, restricted tokens, and firewall policy. The reusable design is to separate online and offline identities, grant only the workspace access each needs, and layer operating-system identity, filesystem, process, and network controls. No one Windows primitive supplies the whole boundary.
 
+## Persistent agents need an external control plane
+
+**Read in full:** OpenAI, [Securing persistent agents like OpenClaw at OpenAI](https://developers.openai.com/blog/securing-persistent-agents-like-openclaw-at-openai), reviewed 2026-11-17. Preserve this source alongside the guidance: its deployment example is more useful than a checklist alone.
+
+OpenAI describes separating the deterministic OpenClaw gateway from the untrusted agent harness, even placing them in separate clusters. The gateway controls configuration; the agent and its generated code remain untrusted. Its reported deployment combines administrator-enforced filesystem, process, and network restrictions with brokered credentials, distinct agent identities, model-based action review, and restricted configuration and turn logs.
+
+The practical lesson is to prevent an agent from changing the machinery that limits its authority. For a persistent workflow:
+
+- Keep policy, credential issuance, and revocation outside the writable agent environment. A configurable sandbox is not enough if the agent can disable it.
+- Give each agent an attributable identity and scoped service access, not a copy of the operator's entire identity. Support revoking one agent without disabling the person.
+- Use model review to reduce approval fatigue inside hard limits, not to replace containment or required human approval.
+- Record policy changes and attempted and completed effects. Restrict and redact logs because turn history can contain sensitive source data.
+- Test alternate network routes, credential exposure, policy tampering, revocation, and recovery before expanding unattended authority.
+
+This supports the existing direction, not an immediate OpenClaw deployment. Workbench's [implemented boundary](../../docs/security/isolation.md) still has accepted limits; this article does not establish brokered credentials or default-deny public egress locally. OpenAI's sample denies local binding, whereas managed local development here deliberately permits loopback. Copy the security objective, not that configuration verbatim.
+
+OpenAI reports hundreds of deployed agents and describes OpenClaw Enterprise as a pilot targeting 1.0 by year-end. These are first-party deployment and roadmap claims, not independent proof of safety or a reason to add a persistent-agent platform. Revisit only for a bounded unattended workflow with a demonstrated need and measurable containment tests.
+
 ## Passive retrieval can become code execution
 
 Johann Rehberger demonstrated a targeted indirect prompt-injection chain against Claude Code Opus 5 Auto Mode. A website caused the preferred fetch tool to fail, the agent fell back to `curl`, followed a redirect to an archive, rejected the supplied binary, wrote its own Python decoder, and ran it inside the attacker-controlled extracted directory. Python module shadowing loaded a malicious `struct.py` during an apparently benign `base64` import. In small samples, the reported variants achieved their intended effects in three of five to four of five runs.
