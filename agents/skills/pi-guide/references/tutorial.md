@@ -149,7 +149,7 @@ as `cwd`. The upstream call waits for completion rather than returning a backgro
 job. Review the diff, verify adoption, and clean up only after preserving useful
 work. Sequential editing can use the current checkout when no other writer is
 active. The implementer is instructed not to delegate, commit, push, install, or
-merge. Native `defaultTools` adds grep, find, and ls; there is no preset framework
+merge. Native `defaultTools` adds grep, find, ls, and codemode; there is no preset framework
 or consult command.
 
 Terminal titles use the first user prompt unless `/name` supplies an explicit

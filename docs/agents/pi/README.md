@@ -178,7 +178,9 @@ managed policy does not admit the host inference service. The internal `frontier
 and `private` routes select providers; they do not grant operating-system access.
 Managed Pi rejects explicit private/local route requests before model input;
 it never silently converts that request into hosted inference. Native `defaultTools`
-adds grep, find, and ls without replacing Pi's standard coding tools. The isolated HOME maps `~/Desktop` and `~/Downloads`
+adds grep, find, ls, and codemode without replacing Pi's standard coding tools.
+Codemode stays in its native `on` mode: the model can choose scripts for batching
+and filtering tool results while retaining direct tool calls. The isolated HOME maps `~/Desktop` and `~/Downloads`
 to the real host scratch directories with the same private exclusions.
 
 The managed harness derives instructions, skills, extensions, prompt templates,

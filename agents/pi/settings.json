@@ -6,7 +6,7 @@
   "treeFilterMode": "user-only",
   "tuiMode": "fullscreen",
   "shellCommandPrefix": "shopt -s expand_aliases\neval \"$(grep '^alias ' $HOME/code/public/dotfiles/config/zsh/.zshrc)\"",
-  "defaultTools": ["+grep", "+find", "+ls"],
+  "defaultTools": ["+grep", "+find", "+ls", "+codemode"],
   "safeGit": {
     "promptLevel": "high",
     "enabledByDefault": true
