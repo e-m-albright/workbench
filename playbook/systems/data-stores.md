@@ -19,6 +19,14 @@ committed via pre-commit hook keeps every agent write reviewable as a git diff.
 
 The [supplied DuckDB first-impressions video](https://www.youtube.com/watch?v=KJao6oq9MKM) describes its embedded, columnar, file-querying design. It adds no new adoption decision: use DuckDB for analytical reads over files and data frames, and keep concurrent application writes in the transactional source.
 
+## Decision-specific meanings over stable records
+
+**Read in full:** Hrishi Olickel, [Just-in-Time Ontologies: What Cheap Intelligence Means for Data](https://www.youtube.com/watch?v=Fa3hQVIKShw), AI Engineer, 2026-10-12; transcript reviewed 2026-11-17. An ontology defines the entities, relationships, and meanings used for a task. His useful distinction is between the source's representation, storage constraints, the decision's needs, and assumptions introduced by the model. “Customer” can mean payer to billing, caller to support, or a covered party to compliance. Build an explicit transformation for the question, preserve its evidence and definitions, and reuse checked transformations rather than assuming one flattened record answers every question.
+
+This does **not** require abandoning stable identifiers, transactional schemas, shared vocabulary, or a governed semantic layer. Separate canonical observations from derived interpretations; version consequential definitions and record provenance. In a credit decision, join the payer and contractual account under an explicit rule rather than allowing an agent to silently merge every person at the same address. Verify sign conventions, dates, units, missing values, and entity joins with source-grounded assertions. The talk's negative-loan-sign example illustrates why matching row counts and agreement among models can still certify a wrong transformation.
+
+Olickel distinguishes models that design pipelines, cheap workers inside them, and models that optimize the pipeline. The last role needs stable execution/log interfaces, cost/time/access limits, tested methods, and a defined safe failure path. These are requirements to reuse in existing jobs, not a reason to adopt Hank/Hankwave or build a self-optimizing data platform. His statewide entity-resolution economics and accuracy are speaker-reported, not an independently reproduced benchmark. Cross-family disagreement can focus review; agreement is not ground truth. Start with one consequential definition and held-out edge cases before increasing model calls or automation.
+
 ## Guiding principles
 
 - **Storage engines don't do "agent memory."** Across every "database for

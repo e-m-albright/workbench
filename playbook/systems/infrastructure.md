@@ -438,6 +438,32 @@ jobs:
 
 ---
 
+## Local container runtimes: Kiri watch
+
+Reviewed 2026-11-17. [Kiri](https://github.com/libracoder/kiri) is an Apache-2.0 Rust replacement for Docker Desktop and OrbStack, not a new image format or a managed deployment platform. Its Docker Engine API supports the existing Docker CLI, Compose, and buildx. The [architecture](https://docs.runkiri.com/how-it-works/) replaces dockerd/containerd/runc with a daemon and a small agent that creates namespaces and cgroups directly. macOS uses one Linux VM through Apple's Virtualization framework; Windows uses WSL 2; Linux runs the agent on the host kernel.
+
+The useful hypothesis is less idle resource use and faster disposable local containers without changing project commands. Upstream's approximately 2.5 ms figure measures an already-awake VM running and removing `alpine true` through the Engine API; its Docker CLI figure is 14.2 ms. Neither measures image download, cold startup, a database becoming healthy, or a complete development workflow. These are project benchmarks, not independently reproduced results.
+
+The [feature list and known issues](https://github.com/libracoder/kiri/blob/main/docs/features.md) document Compose, volumes, port forwarding, private-registry credentials, Rosetta, and BuildKit through buildx's docker-container driver. A built-in builder is roadmap work; `docker build --add-host name:host-gateway` with BuildKit currently fails with that driver. API compatibility is not complete behavioral or security equivalence. The [security policy](https://github.com/libracoder/kiri/blob/main/SECURITY.md) covers the daemon, VM, local certificate authority, installer, and updates; fixes target the latest release. Linux group membership is root-equivalent, published ports default to all interfaces, and host file mounts remain sensitive authority. This is not an untrusted-agent sandbox merely because it uses a VM.
+
+**Watch, not adopted.** Revisit for measured Docker Desktop/OrbStack resource friction or a concrete compatibility improvement. A separately authorized trial should use an explicit Docker context, disposable data, loopback-only ports, and representative Compose health checks, migrations, bind mounts, file watching, volume recovery, registry authentication, amd64 images, builds, sleep/wake, and VPN behavior. Preserve the incumbent context and data; do not import real volumes or trust a new local certificate authority just to benchmark it. Host installation belongs to the host configuration owner.
+
+## AWS Emulator: local API behavior, not AWS security
+
+Reviewed 2026-11-17. The supplied InfoQ article, [AWS Open-Sources Emulator for Local Testing of 200+ Services by Coding Agents](https://www.infoq.com/news/2026/11/aws-emulator-agents/), points to AWS's [repository](https://github.com/aws/aws-emulator) and [official overview](https://docs.aws.amazon.com/emulator/latest/userguide/what-is-service.html). It is a local AWS API endpoint for development and CI without an AWS account, not local production AWS or a reason to choose AWS for a new application. Linux packages and embedded Rust tests are documented; macOS/Windows use an image built from AWS's Dockerfile, not an official prebuilt container image. The main code is CC0-1.0, with Apache-2.0 vendor code.
+
+This could materially shorten cloud-dependent agent feedback loops: the CLI and SDKs can exercise resource workflows locally rather than repeatedly provisioning real resources. Unlike an arbitrary mock, the [fidelity suite](https://docs.aws.amazon.com/emulator/latest/userguide/fidelity.html) checks workflows against real AWS, including responses, errors, and side effects, and publishes known failures. Compare scores only against the same evaluation-suite version. Strongest coverage is currently control-plane APIs; data-plane and infrastructure-as-code compatibility vary. A service count does not establish that a particular application works.
+
+Hard limits: resources live in memory and disappear at shutdown; a process does not faithfully separate accounts or Regions; long-running and load use are untested. **Do not use it to validate IAM, resource policies, or any other AWS security control.** The [security documentation](https://docs.aws.amazon.com/emulator/latest/userguide/security.html) also says function code is not isolated from the host. Loopback binding is not protection against other local users or programs, and resource-specific endpoints can lack request-signature checks. Keep real credentials and customer data out. Set the emulator endpoint and ephemeral credentials in the same test launcher, fail closed on missing configuration, and retain real-AWS security and final integration tests. Anonymous usage/error telemetry is on by default and can be disabled; AWS says request, response, and resource data are not sent.
+
+**Watch; high-value trial candidate when a real AWS workflow needs it.** Pin one release and evaluation version, run the actual workflow and denied/error cases, inspect known gaps, compare a bounded authorized run against real AWS, and measure total setup/build/test time. Embedded builds currently require substantial compilation and disk space; upstream asks for at least 100 GB for a full source build. Do not install its agent skill or substitute a third-party image during research. The [factory mechanism](../engineering/verification.md#aws-emulator-a-factory-with-a-reference-implementation) is independently useful even without adopting the emulator.
+
+## Kubernetes: orchestration is a separate layer
+
+ByteByteGo's [EP233: Kubernetes Explained for Busy Engineers](https://blog.bytebytego.com/p/ep233-kubernetes-explained-for-busy), 2026-11-14, reviewed 2026-11-17, is a useful refresher: desired state is persisted through the API server; controllers reconcile resources; the scheduler assigns Pods; kubelets and a runtime run them; Services provide stable access. It is not a Docker Desktop competitor or a necessary next step after Compose. Add it only for an actual fleet, availability, scheduling, or organizational requirement.
+
+The same issue's agent diagrams are conceptual, not documentation of every deep-research product. Multiple models do not automatically improve reliability, and prompt-injection screening does not make context trustworthy. Prefer the [bounded orchestration criteria](../agents/orchestration.md) and [external authority boundary](../agents/security.md) over that simplification.
+
 ## When to Add What
 
 | Need | Tool | Notes |

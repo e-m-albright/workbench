@@ -21,6 +21,25 @@ for the source; do not create a separate bookmark queue or duplicate summary.
   security, hosting, and workstation tools.
 - [Product](product/README.md): discovery, visual design, and user interfaces.
 
+## A connected map of the stack
+
+Classify a new product by the responsibility it takes over, not by its use of “AI-native.” One vendor can span several rows, and an application can buy one layer without adopting the rest of its platform.
+
+| Responsibility | Question and owning subject |
+| --- | --- |
+| Models | Who generates or classifies an answer, at what quality, latency, and cost? [Model choices](agents/models/providers.md) |
+| Harness and coordination | Who maintains context, chooses tools, limits a run, and recovers work? [Harnesses](agents/harnesses.md), [orchestration](agents/orchestration.md) |
+| Execution and hosting | Where does code run? Distinguish a local container engine such as Kiri, fleet orchestration such as Kubernetes, and application hosting. [Infrastructure](systems/infrastructure.md), [services](systems/services.md) |
+| Tools and connections | How does the application reach existing systems and perform typed operations? [Integrations](agents/integrations.md), [browser engines and controls](agents/browser.md) |
+| Identity and authority | Who is acting, what may they access, and where is that decision enforced? [Authorization](systems/authorization.md), [agent security](agents/security.md) |
+| Records and meaning | What is authoritative, and what does an entity mean for this decision? [Data stores](systems/data-stores.md), [retrieval](systems/retrieval.md) |
+| Human interaction | How do people inspect, approve, correct, and use the result? [Agent interfaces](agents/interfaces.md), [product interfaces](product/interfaces.md) |
+| Verification and operation | What shows the result is correct, and how are failure and recovery observed? [Verification](engineering/verification.md), [evaluation](agents/evaluation.md) |
+
+A CRM with agents owns business records and workflows; an identity service or container runtime does not become its substitute by adding an agent API. AWS Emulator supplies a test environment, not permission assurance. A browser engine and its automation interface are different choices. Cheap implementation can shift effort toward definitions, independent checks, integration maintenance, and safe operations without eliminating them. Private venture reasoning should ask which valuable outcome a buyer will pay for and which responsibilities repeat across customers; it belongs with its private owner, linked to these technical comparisons.
+
+## Research lifecycle
+
 [The watchlist](watchlist.md) holds questions and revisit triggers. The linked
 subject pages own the comparisons and evidence. Update an existing topic when
 new research changes its conclusion; a candidate becoming adopted does not need

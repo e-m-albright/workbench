@@ -50,6 +50,7 @@ it does not imply a scheduled monitoring service.
 | AI-assisted formal verification | One consequential invariant or dependency has a precise specification and a reproducible proof-checking path at an acceptable cost | [Proof scope and assumptions](engineering/verification.md#formal-verification-stronger-claims-need-narrower-specifications) |
 | Archify and Whiteboard | A substantial architecture or specification change needs AI-led explanation grounded in source; compare understanding, omissions, and upkeep against Git and Mermaid | [Code understanding and visualization](engineering/review.md#change-comprehension-and-visualization) |
 | Depot, Blacksmith, Buildkite and CI alternatives | Runner cost, build latency, or hardware requirements are measured constraints | [Builds](engineering/builds.md) |
+| Ziggity | Recurring manual staging or diff-review friction warrants comparison with the existing editor, CLI, and Lazygit; verify history-rewrite and private-diff boundaries | [Terminal Git interface](engineering/version-control.md#ziggity-a-terminal-interface-not-a-git-replacement) |
 | Git hosting and forge alternatives | Hosting or concurrent agent traffic creates a concrete limit | [Version control](engineering/version-control.md) |
 | Performance replacements | Profiling identifies the component a proposed replacement would improve | [Performance tooling](engineering/performance.md) |
 | OpenSpec and spec-kit | The existing planning workflow repeatedly loses requirements or acceptance criteria | [Project documentation](engineering/documentation.md) |
@@ -65,6 +66,8 @@ it does not imply a scheduled monitoring service.
 | Question or candidates | Revisit when | Evidence and comparison |
 | --- | --- | --- |
 | Render, Railway, Northflank, Hetzner and deployment tools | Workload, residency, operations capacity, or measured hosting cost changes | [Services](systems/services.md) |
+| Kiri | Docker Desktop/OrbStack resource use becomes measured friction or Kiri resolves a concrete compatibility gap; test representative Compose workflows without migrating real data | [Local container-runtime assessment](systems/infrastructure.md#local-container-runtimes-kiri-watch) |
+| AWS Emulator | A real AWS-dependent workflow needs fast local feedback; pin a release, inspect fidelity gaps, and retain real-AWS security tests | [Emulator limits and trial](systems/infrastructure.md#aws-emulator-local-api-behavior-not-aws-security), [factory mechanism](engineering/verification.md#aws-emulator-a-factory-with-a-reference-implementation) |
 | OpenTofu, Pulumi, Crossplane, Kubernetes | The current deployment model cannot satisfy a named requirement | [Infrastructure as code](systems/infrastructure-as-code.md) |
 | Database and analytical engines | Concurrency, query shape, scale, or recovery requirements exceed the current store | [Data stores](systems/data-stores.md) |
 | DBOS, Temporal, Restate, Prefect | An application needs durable progress, or Python pipelines need shared scheduling and operations; test recovery and external-write idempotency | [Workflow selection](systems/services.md#durable-execution--workflows), [Prefect comparison](systems/services.md#prefect-comparison-reviewed-2026-10-15) |
