@@ -68,6 +68,40 @@ multiply worker turns. Evaluate the complete run.
 
 For a high-volume typed decision, compare [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev), open [GLiClass](https://github.com/Knowledgator/GLiClass), ordinary structured model output, and deterministic rules on the same labelled cases. [Vercel's form-router example](https://vercel.com/kb/guide/jev-ai-sdk-form-router) shows a classifier with fallback. Measure calibration, abstention, tail latency, total cost, and downstream errors; a well-formed prediction cannot authorize an action or establish source truth. No evidence here establishes that one project copied the other, and a reported OpenAI Decisions API needs a public contract before comparison.
 
+### Typed decision models
+
+Reviewed 2026-11-21. [Strands Decider](https://strandsagents.com/blog/strands-decider-gemma-4-models/)
+provides Gemma 4 E2B, E4B, 12B, and 26B-A4B decision variants with specialized
+adapters/readout heads. These are not necessarily drop-in model swaps in an
+existing local chat server. Distinguish Decider from the Strands agent framework
+and Strands Box execution sandbox. Start with the smallest compatible model
+and compare larger variants only if the workload quality bar requires them.
+
+Google's [Gemini Decision 1 pricing](https://ai.google.dev/gemini-api/docs/pricing#gemini-decision)
+lists `gemini-decision-1`, a no-charge tier, and paid input at $0.10 per million
+tokens with zero output tokens. Shared input is billed once per request; each
+question adds its own input. Availability and rate limits still need checking.
+The [API terms](https://ai.google.dev/gemini-api/terms) distinguish unpaid services,
+whose inputs/outputs may improve products and receive human review, from paid
+services through a billing-enabled project, whose prompts/responses are not
+used for product improvement. Unpaid terms explicitly exclude sensitive,
+confidential, or personal information, subject to regional exceptions. Paid
+service does not mean zero retention or authorization to upload private inputs.
+
+For personal classification, preserve the existing data-release boundary until
+the owner explicitly changes it. Compare the current baseline, local Decider,
+and an approved hosted decision service on the same labelled cases. Measure
+primary/secondary accuracy, calibration, abstention, adversarial cases, latency,
+serving compatibility, and total operating cost. A confidence score is not an
+authorization mechanism. Typed output prevents some shape errors, not wrong
+semantic judgments.
+
+For public research pipelines, consider relevance, topic routing, duplicate
+screening, or advisory quality checks. Retain deterministic rules that already
+work, source verification, generative composition, and trusted publication.
+Decision models do not replace nuanced prose generation or establish citation
+truth. Research is retained only; no model route or data policy changed.
+
 Effort controls also belong in a paired task benchmark. [Anthropic's effort documentation](https://platform.claude.com/docs/en/build-with-claude/effort) makes medium the Opus 5.5 default and says supported per-message effort changes can preserve prompt caching, while a changed top-level setting may invalidate it. Verify the client request shape and actual cache charges before treating that as a general optimization.
 
 ## Knowledge work: optimize the accepted deliverable
