@@ -77,6 +77,26 @@ existing local chat server. Distinguish Decider from the Strands agent framework
 and Strands Box execution sandbox. Start with the smallest compatible model
 and compare larger variants only if the workload quality bar requires them.
 
+The current [inference server documentation](https://github.com/strands-labs/strands-decider/blob/main/docs/inference.md)
+explicitly supports Apple silicon through `--device mlx` and the
+`strands-decider[mlx]` extra. It exposes the decision-specific
+`POST /v1/systemone` API, not ordinary chat completions. A small local service
+and classifier adapter are a plausible trial; existing chat-only inference
+routing requires an explicit integration decision rather than a model-name edit.
+Keep label selection separate from trusted label application, and test in shadow
+mode before changing live filing.
+
+No stock LM Studio decision-model support was established by this review.
+An experimental [GGUF conversion's model card](https://huggingface.co/fabricant451/strands-decider-2B-hobson-v19-GGUF/raw/main/README.md)
+specifically requires a custom Strands-aware llama.cpp/wllama runtime and does
+not assume stock GGUF clients work. Automatically generated local-app buttons
+are not compatibility evidence. A supplied
+[LM Studio integration example](https://blog.ryu-ki-learn.com/tech/strands-decider-lmstudio/)
+runs the generative model in LM Studio and Decider as a separate MLX service;
+it does not demonstrate loading Decider inside LM Studio. Prefer the upstream
+local service over an unsupported conversion for an initial comparison. No
+package, model, service, or live classifier was changed.
+
 Google's [Gemini Decision 1 pricing](https://ai.google.dev/gemini-api/docs/pricing#gemini-decision)
 lists `gemini-decision-1`, a no-charge tier, and paid input at $0.10 per million
 tokens with zero output tokens. Shared input is billed once per request; each
