@@ -78,6 +78,12 @@ and total completed-task cost. Sources: [Pydantic AI](https://pydantic.dev/docs/
 - **[Eino](https://github.com/cloudwego/eino)** (Go) -- ByteDance CloudWeGo's component-based framework, 11k+ stars; LangChain-inspired but Go-idiomatic, built for massive-scale serving.
 - **[Genkit Go](https://genkit.dev/)** (Go) -- Google's production-ready GenAI framework for Go; streaming, evals, tracing built in.
 
+## Pax and the Harness beta
+
+Pydantic's [November 25, 2026 announcement](https://pydantic.dev/articles/pax-harness-beta) distinguishes the typed Pydantic AI core, the Harness capability library, and Pax, its plugin-based terminal. Pax can run an application's existing Agent object through `--agent`, making the terminal a development interface for the same agent rather than a separately maintained coding implementation. Harness is beta; its planned 1.0 is not a stability guarantee. Durable execution exists in the SDK but not yet in Pax.
+
+Evaluate on one complete Python agent feature when shared terminal and application behavior removes real work. Inspect sandbox defaults, synchronized files, credentials, and interruption recovery before trial. The vendor's narrow benchmark lead comes from single runs, not a paired local cost study. This is an application-framework candidate, not a reason to replace Pi or install another daily coding CLI.
+
 ## Declarative agent packaging
 
 [Docker Agent's documentation](https://docker.github.io/docker-agent/) describes agents configured in YAML or HCL, a configuration language, with model selection, tools, delegation, and distribution through Open Container Initiative registries. It exposes command-line, HTTP, Model Context Protocol, and Agent-to-Agent interfaces (verified October 17, 2026). Better Stack's [Docker Agent video](https://www.youtube.com/watch?v=Mph1H5u3yeA) surfaced the tool; its description was readable, but its transcript was unavailable in this review. Capability claims here come from Docker's documentation, which tracks the main branch and may describe unreleased features; check the stable documentation before adoption.

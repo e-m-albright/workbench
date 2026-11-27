@@ -20,6 +20,8 @@ Ruff target stays `py313` until Ruff supports 3.14.
 
 **Type checker, in practice (owner decision, 2026-09-23):** **ty is the endorsed blocking checker for new Python projects.** This is a stack preference, not a claim of perfect library compatibility or a license to weaken checks. Existing repositories migrate deliberately: compare representative errors, library behavior, configuration coverage, and suppression burden before removing Pyright. Retain Pyright strict as a compatibility fallback when a demonstrated gap matters; do not carry two permanent blocking checkers merely for reassurance. Workbench's own current Pyright gate is unchanged until its migration is separately verified. [Pyrefly](https://pyrefly.org/blog/v1.0/) remains watch-only; its upstream production-readiness claims do not establish a need to add another checker.
 
+Astral's [October 13, 2026 uv-ty preview](https://astral.sh/blog/uv-ty-integration), reviewed November 27, shares project and standalone-script environments between uv and ty and introduces `uv check`. Ruff integration remains planned in that announcement, not shipped consolidation. Automatic script environment preparation can execute dependency build code and is opt-in. Trial on representative diagnostics and a disposable inline-dependency script before changing the blocking checker. Astral's [supply-chain guidance](https://astral.sh/blog/securing-from-supply-chain-attacks), November 23, also recommends locked CI execution, hash pins, dependency cooldowns, and checking binaries downloaded transitively by pinned Actions.
+
 ### Phase 2 — when needed
 
 | Need | Pick | Avoid |

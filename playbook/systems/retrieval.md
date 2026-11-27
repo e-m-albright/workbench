@@ -103,6 +103,14 @@ Before the first complete indexing run, record:
 Treat embeddings and the derived index as sensitive data. They are regenerable,
 but they are not public merely because they are numeric.
 
+## Business definitions are not retrieval
+
+A semantic layer gives business terms explicit definitions: whether revenue includes refunds, which date assigns a transaction to a reporting period, and who may change those rules. Retrieving more documents cannot resolve contradictory definitions without ownership and precedence.
+
+[The Decoder's November 27, 2026 article](https://the-decoder.com/openai-is-building-athena-data-platform-to-cut-down-on-ai-agent-guesswork/), citing The Information, reports an early OpenAI platform codenamed Athena for collecting and maintaining such business rules for agents. This is secondary reporting, not an official launch; availability, price, and timeline were not established. Multiple summaries of that report are not independent confirmation.
+
+Watch for a public contract that establishes permission enforcement, definition provenance and versioning, evaluation cases, correction workflows, and export. Keep curated definitions and tests portable rather than committing to a model vendor's private context store. Athena is not an embedding-model recommendation or a reason to index another corpus.
+
 ## Evaluation protocol
 
 1. Preserve a labeled set of real questions and expected pages or sections.

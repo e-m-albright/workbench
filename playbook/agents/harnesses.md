@@ -117,6 +117,20 @@ the "own your surface" goal.
 
 ---
 
+## Products around the coding loop
+
+A focused review on November 27, 2026 found several vendors expanding beyond implementation. These are documented product directions, not independently measured productivity gains or approved installations.
+
+| Product | Documented direction | Boundary to evaluate |
+| --- | --- | --- |
+| [Cursor Projects](https://cursor.com/blog/projects-multiplayer), November 10 | Multiplayer beta with shared requirements, memory, task visibility, and cross-teammate agent coordination | Context ownership, conflicting decisions, revocation, and export; a shared board does not prove better coordination. |
+| [Cursor live apps](https://cursor.com/changelog/build-live-apps), November 5 | Application creation plus hosting, optional Postgres, sign-in, and sharing | Database and hosting portability, secrets ownership, security review, and explicit publication. Compare against internal-tool infrastructure, not just editors. |
+| [Security Factory](https://factory.com/news/security-factory), November 10 | Private preview connecting security signals, exploitability investigation, and tested remediation | Reproduce the finding and verify the fix and regressions; do not infer value from scanner severity or patch volume. This is Factory's product, not Mastra Factory. |
+| [Devin Bots](https://devin.ai/blog/introducing-devin-bots), November 17 | Continuing responsibilities with memory, permissions, child sessions, and a decision inbox | Define success, spend limits, accessible systems, approval points, and a legitimate no-op before delegating ongoing responsibility. |
+| [Claude Ship](https://claude.com/product/claude-ship) | Separate Code Review, PR Steward, and policy-based Approvals for GitHub | Start with capped review and manual remediation; observe-mode approvals can still incur review and classifier charges. The product currently excludes Zero Data Retention, HIPAA configuration, and customer-managed encryption-key organizations. |
+
+Revisit these products when coordination, remediation, review, or internal-app operations is a measured bottleneck. Do not replace an inspectable local loop merely to acquire a fleet. Keep code execution, approval, merging, and deployment as separate grants. [Pax and Harness](frameworks.md#pax-and-the-harness-beta) owns the Python application alternative.
+
 ## Catalog
 
 Everything on the watch list, grouped by tier. The deep-profiled comparison set
