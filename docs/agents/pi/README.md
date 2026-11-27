@@ -1,6 +1,6 @@
 # Pi agent - capability overview and build candidates
 
-Snapshot of the managed Pi 1.4.0 harness, reviewed against repository configuration on 2026-10-24. [Pi design decisions](decisions.md) owns adoption and rejection rationale; this page owns current operational state.
+Snapshot of the managed Pi 1.6.1 harness, reviewed against repository configuration on 2026-11-27. [Pi design decisions](decisions.md) owns adoption and rejection rationale; this page owns current operational state.
 
 ## What pi exposes (official, today)
 
@@ -56,7 +56,7 @@ Shared skill deployment uses tracked sources; the Archify archive download path 
 
 ## Prompt navigation
 
-Managed settings use Pi 1.4.0's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
+Managed settings use Pi 1.6.1's native fullscreen mode. It intentionally looks like the ordinary transcript until viewport behavior matters, then provides owned-viewport scrolling, search, text selection, links, and previous/next jumps keyed to OSC 133 prompt-start markers. It does not provide a final-answer jump or restructure turns into prompt/work/answer sections. Those additions did not justify retaining the custom Transcript Reader.
 
 Workbench also sets `/tree` to its `user-only` filter and keeps double-Escape bound
 to opening it. Up/Down previews prior prompts and Escape returns without changing

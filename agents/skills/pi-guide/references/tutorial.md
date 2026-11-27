@@ -1,6 +1,6 @@
 # Pi tutorial
 
-Snapshot: Pi 1.4.0, with Workbench configuration reviewed on 2026-10-24.
+Snapshot: Pi 1.6.1, with Workbench configuration reviewed on 2026-11-27.
 Earlier version-specific observations remain dated
 in the capability reference rather than serving as current guarantees.
 

@@ -36,7 +36,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends zsh
       - name: Install Pi so typecheck-pi runs instead of skipping
         # Pinned so CI is deterministic; bump alongside the host install.
-        run: npm install -g @earendil-works/pi-coding-agent@1.4.0
+        run: npm install -g @earendil-works/pi-coding-agent@1.6.1
       - name: Deterministic quality gate
         run: just check
 
@@ -60,7 +60,7 @@ jobs:
           test -L "$HOME/.local/bin/claude"
           npm install -g --install-strategy=nested \
             @openai/codex@0.164.0 \
-            @earendil-works/pi-coding-agent@1.4.0
+            @earendil-works/pi-coding-agent@1.6.1
           claude --version
           codex --version
           pi --version
