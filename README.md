@@ -170,12 +170,21 @@ TypeScript formatting stays with Biome. `just lint-ts` runs the two selected
 Oxlint promise checks; `just check` includes formatting, linting, tests, and
 type checking. Vite+ remains on the [watchlist](playbook/watchlist.md).
 
-All 31 reusable skills are tracked in this repository. The Archify archive
+All 32 reusable skills are tracked in this repository. The Archify archive
 download pipeline is retired; sync removes retired skills and drift flags their
 reintroduction. Retirement reasons live with `RETIRED_SKILLS` in
 [`src/workbench/core.py`](src/workbench/core.py).
 
 ## Daily Workflows
+
+### Clean repository workspaces
+
+Use the [cleanup skill](agents/skills/cleanup/SKILL.md) to review and integrate
+worthwhile pending work, then remove preserved Git leftovers. With no repository
+arguments, it resolves the main repositories from private machine-local routing;
+explicit paths narrow the scope. Invoke `/skill:cleanup` in Pi or `/cleanup` in
+Claude Code. Audit-only requests remain read-only, and ambiguous or active work
+stays intact.
 
 ### Reconcile everything
 

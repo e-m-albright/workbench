@@ -9,6 +9,7 @@ Detect integration failures that arise when multiple agents (or humans) work in 
 
 ## Choose the mode
 
+- **Review, integrate, and clean repositories end to end:** use [cleanup](../cleanup/SKILL.md), which reuses this inventory and preservation procedure.
 - **Audit integrated workspace state:** use this file; for the deeper checks (§5–§11: duplicate definitions, pattern adoption, compilation, dead code, misplaced/stale artifacts), read [audit-checklists.md](references/audit-checklists.md).
 - **Create, list, or clean worktrees:** read [worktrees.md](references/worktrees.md).
 - **Recover after a crash or lost terminal:** read [session-recovery.md](references/session-recovery.md).
